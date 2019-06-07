@@ -21,6 +21,8 @@
                  [sablono "0.7.4"]]
 
   :plugins [[lein-figwheel "0.5.16"]]
+  
+  ;; Used to make this compatible with Java 11
   :managed-dependencies [[org.clojure/core.rrb-vector "0.0.13"]
                          [org.flatland/ordered "1.5.7"]]
 

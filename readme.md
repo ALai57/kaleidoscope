@@ -1,31 +1,28 @@
 
-Running locally and on AWS cloud (woohoo!)
-
-**Endpoints**
-- api/v1/ping
-- api/v1/plaid-institution-uptime/{ins_id}
-- api/v1/plaid-dashboard
-- api/v1/mock-plaid-dashboard
+This is a template for a Clojure backend and Clojurescript frontend. 
+The app must run on Java 11.
 
 
-
-*Cloud:*
-
-To deploy, follow instructions on laaplace deploy.sh scripts
-
-Or upload a new application version using the AWS console
+The template includes:
+- Server with handler
+- Basic template for sortable react table
+- Postgres backend (not validated yet)
 
 
+Requirements for postgres backend:
+
+psql -> database -> user with password and access to database
 
 
-*To run locally:*
+How to start server:
 
-Set a PLAID_PUBLIC_KEY environment variable (this can be found in secrets manager)
+```lein run```
 
-The PLAID_PUBLIC_KEY must be for a development environment
 
-lein run
+How to start front end developing with hot reloading:
+
+```lein figwheel```
 
 
 
-check out swagger!
+
