@@ -29,12 +29,12 @@
 
           :db-user
           {:env-name "FULL_STACK_TEMPLATE_DB_USER"
-           :default "default"
+           :default "db_user"
            :doc "Postgres Database User"}
 
           :db-password
           {:env-name "FULL_STACK_TEMPLATE_DB_PASSWORD"
-           :default "default"
+           :default "password"
            :doc "Postgres Database Password"}
 
           :live-db?

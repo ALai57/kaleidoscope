@@ -12,15 +12,21 @@
 (defn init []
   (println "Hello! Starting service..."))
 
+
+;; TO DO: Add base route that serves index.html
 (def app
   (wrap-resource
    (api
     {:swagger
-     {:ui "/"
+     {:ui "/swagger"
       :spec "/swagger.json"
       :data {:info {:title "Full stack template"
                     :description "Template for a full stack app"}
              :tags [{:name "api", :description "some apis"}]}}}
+
+    (GET "/" []
+      (-> (resource-response "index.html" {:root "public"})
+          (content-type "text/html")))
 
     (GET "/ping" []
       (ok {:service-status "ok"}))
