@@ -51,3 +51,4 @@ Helpful psql commands:
    select schema_name from information_schema.schemata;
 ```
 
+Testing after rename
