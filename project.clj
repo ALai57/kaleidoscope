@@ -6,6 +6,7 @@
                  [cljs-ajax "0.7.5"]
                  [cljsjs/react "15.2.1-1"]
                  [cljsjs/react-dom "15.2.1-1"]
+                 [cljsjs/react-select "1.0.0-rc.1" :exclusions [cljsjs/react]]
                  [coreagile/defenv "1.0.2"]
                  [hiccup "1.0.5"]
                  [http-kit "2.3.0"]
@@ -20,7 +21,8 @@
                  [ring "1.7.1"]
                  [sablono "0.7.4"]]
 
-  :plugins [[lein-figwheel "0.5.16"]]
+  :plugins [[lein-figwheel "0.5.16"]
+            [lein-cljsbuild "1.1.7"]]
 
   ;; Used to make this compatible with Java 11
   :managed-dependencies [[org.clojure/core.rrb-vector "0.0.13"]
@@ -46,7 +48,23 @@
                            :asset-path "js/compiled/out"
                            :output-to "resources/public/js/compiled/example.js"
                            :output-dir "resources/public/js/compiled/out"
-                           :source-map-timestamp true}}
+                           :source-map-timestamp true
+                           :npm-deps {:capitalize "2.0.0"}
+                           :install-deps true}}
+
+               #_{:id "cljs_spa"
+                  :source-paths ["src/cljs_spa"]
+
+                  ;; The presence of a :figwheel configuration here
+                  ;; will cause figwheel to inject the figwheel client
+                  ;; into your build
+                  :figwheel {:open-urls ["http://localhost:3449/index.html"]}
+
+                  :compiler {:main full_stack_template.cljs_spa
+                             :asset-path "js/compiled/out"
+                             :output-to "resources/public/js/compiled/cljs_spa.js"
+                             :output-dir "resources/public/js/compiled/out_cljs_spa"
+                             :source-map-timestamp true}}
                ]}
   :profiles {:dev {:dependencies []
                    :plugins [[lein-ancient "0.6.15"]

@@ -28,6 +28,10 @@
       (-> (resource-response "index.html" {:root "public"})
           (content-type "text/html")))
 
+    (GET "/example" []
+      (-> (resource-response "example.html" {:root "public"})
+          (content-type "text/html")))
+    
     (GET "/ping" []
       (ok {:service-status "ok"}))
 

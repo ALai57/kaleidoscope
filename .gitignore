@@ -8,3 +8,6 @@ out
 .nrepl-port
 .rebel_readline_history
 figwheel_server.log
+node_modules
+package-lock.json
+package.json
