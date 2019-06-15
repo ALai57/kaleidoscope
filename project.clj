@@ -54,7 +54,7 @@
                                 :install-deps true}}
 
                :todomvc {:source-paths ["src/todomvc"]
-                         :figwheel {:open-urls ["http://localhost:3449/client"]
+                         :figwheel {:open-urls ["http://localhost:3449/todomvc"]
                                     :on-jsload "todomvc.core/main"}
                          :compiler {:main todomvc.core
                                     :asset-path "js/compiled/out_todomvc"
