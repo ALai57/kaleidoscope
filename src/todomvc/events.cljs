@@ -214,10 +214,17 @@
 
 
 (reg-event-db
-  :complete-all-toggle
-  todo-interceptors
-  (fn [todos _]
-    (let [new-done (not-every? :done (vals todos))]   ;; work out: toggle true or false?
-      (reduce #(assoc-in %1 [%2 :done] new-done)
-              todos
-              (keys todos)))))
+ :complete-all-toggle
+ todo-interceptors
+ (fn [todos _]
+   (let [new-done (not-every? :done (vals todos))]   ;; work out: toggle true or false?
+     (reduce #(assoc-in %1 [%2 :done] new-done)
+             todos
+             (keys todos)))))
+
+
+;; TESTING!!!
+(reg-event-db
+ :set-active-panel
+ (fn [db [_ value]]
+   (assoc db :active-panel value)))

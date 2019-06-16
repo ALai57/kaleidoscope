@@ -1,0 +1,46 @@
+@charset "UTF-8";
+/* CSS Document*/
+
+#article-header {
+
+	position: relative;
+	top: 10px;
+	color: black;
+	overflow: auto;
+	margin:5%;
+	text-align: center;
+	width: 90%;
+	max-width: 650px;
+
+
+	/*For editing and visualizing positions */
+	/*
+	border: 1px solid black;
+	height: auto;
+    background-color: red;
+	*/
+
+}
+
+#header-image {
+
+	padding: 0px 0px 0px 0px;
+	width:100%;
+	height:auto;
+	max-height:300px;
+	max-width:300px;
+
+	/*
+	float: left;
+	position: relative;
+	left:10px;
+	margin-top: 10px;
+	*/
+}
+
+#main-content{
+	position: absolute;
+  height: auto;
+  /* margin-left: 150px; */
+	width:100%;
+}

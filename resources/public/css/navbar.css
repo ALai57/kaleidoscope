@@ -1,0 +1,222 @@
+@charset "UTF-8";
+/* CSS Document*/
+
+
+/* Smartphones (portrait) ———– */
+@media only screen and (max-width : 320px) {
+
+	#primary-nav {
+	    /* list-style-type: none;
+	    margin: 0;
+	    padding: 0px 0px;
+			padding-right: 0px; */
+	    overflow: hidden;
+	    background-color: #333333;
+	    height: auto;
+	    min-width: 366px;
+	}
+
+	.navbutton {
+	    vertical-align: middle;
+	    position: relative;
+	    float: right;
+	    height: 50px;
+	    padding: 0px 0px;
+
+	    display: inline-block;
+	    text-align: center;
+	    text-decoration: none;
+	}
+
+}
+
+
+/* Smartphones (landscape) ———– */
+@media only screen and (min-width : 321px) {
+
+	#primary-nav {
+	    /* list-style-type: none;
+	    margin: 0;
+	    padding: 0px 0px;
+			padding-right: 0px; */
+	    overflow: hidden;
+	    background-color: #333333;
+	    height: auto;
+	    min-width: 366px;
+	}
+
+
+	.navbutton {
+	    vertical-align: middle;
+	    position: relative;
+	    float: right;
+	    height: 55px;
+	    padding: 0px 0px;
+
+	    display: inline-block;
+	    text-align: center;
+	    text-decoration: none;
+	}
+
+}
+
+
+
+/* Smartphones (landscape) ———– */
+@media only screen and (min-width : 450px) {
+
+	#primary-nav {
+	    /* list-style-type: none;
+	    margin: 0;
+	    padding: 0px 0px;
+			padding-right: 0px; */
+	    overflow: hidden;
+	    background-color: #333333;
+	    height: auto;
+	    min-width: auto;
+	}
+
+
+	.navbutton {
+	    vertical-align: middle;
+	    position: relative;
+	    float: right;
+	    height: 55px;
+	    padding: 0px 0px;
+
+	    display: inline-block;
+	    text-align: center;
+	    text-decoration: none;
+	}
+
+}
+
+
+/* Desktop */
+@media only screen and (min-width : 566px) {
+
+	#primary-nav {
+	    /* list-style-type: none;
+	    margin: 0;
+	    padding: 0px 0px;
+			padding-right: 0px; */
+	    overflow: hidden;
+	    background-color: #333333;
+	    height: auto;
+	    min-width: auto;
+	}
+
+
+	.navbutton {
+	    vertical-align: middle;
+	    position: relative;
+	    float: right;
+	    height: 75px;
+	    padding: 0px 0px;
+
+	    display: inline-block;
+	    text-align: center;
+	    text-decoration: none;
+	}
+
+}
+
+
+
+/* Desktop */
+@media only screen and (min-width : 785px) {
+
+	#primary-nav {
+	    /* list-style-type: none;
+	    margin: 0;
+	    padding: 0px 0px;
+			padding-right: 0px; */
+	    overflow: hidden;
+	    background-color: #333333;
+	    height: auto;
+	    min-width: auto;
+	}
+
+	#secondary-nav {
+	    list-style-type: none;
+	    margin: 0;
+	    height: auto;
+	}
+
+	.textbody{
+		max-width: 650px;
+	}
+
+	.navbutton {
+	    vertical-align: middle;
+	    position: relative;
+	    float: right;
+	    height: 100px;
+	    padding: 0px 0px;
+
+	    display: inline-block;
+	    text-align: center;
+	    text-decoration: none;
+	}
+
+}
+
+
+
+/* Desktop */
+@media only screen and (min-width : 1025px) {
+
+	#primary-nav {
+	    /* list-style-type: none;
+	    margin: 0;
+	    padding: 0px 0px;
+			padding-right: 0px; */
+	    overflow: hidden;
+	    background-color: #333333;
+	    height: 900;
+			width:150px;
+			position:absolute;
+	    min-width: auto;
+	}
+
+	#secondary-nav {
+	    list-style-type: none;
+			width:80%;
+			height:80%;
+			background-color:#111111;
+			margin:10%;
+			display:inline-block;
+	}
+
+	.navbutton {
+	    vertical-align: middle;
+	    position: relative;
+	    height: auto;
+			width:80%;
+	    padding: 0px 0px;
+			margin:10%;
+
+	    display: inline-block;
+	    text-align: center;
+	    text-decoration: none;
+	}
+
+	.textbody{
+		font-size:16pt;
+		max-width: 650px;
+	}
+
+	#main-content{
+		margin-left: 150px;
+	}
+
+	#article-header{
+		margin-left: 150px;
+	}
+
+}
+
+
+image.homenav {
+	vertical-align: middle;
+}

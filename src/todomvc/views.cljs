@@ -1,6 +1,8 @@
 (ns todomvc.views
   (:require [reagent.core  :as reagent]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe
+                                   dispatch
+                                   reg-sub]]
             [clojure.string :as str]))
 
 
@@ -89,21 +91,81 @@
 (defn task-entry
   []
   [:header#header
-    [:h1 "todos"]
-    [todo-input
-      {:id "new-todo"
-       :placeholder "What needs to be done?"
-       :on-save #(when (seq %)
-                    (dispatch [:add-todo %]))}]])
+   [:h1 "todos"]
+   [todo-input
+    {:id "new-todo"
+     :placeholder "What needs to be done?"
+     :on-save #(when (seq %)
+                 (dispatch [:add-todo %]))}]])
+(defn nav-icon
+  [route img]
+  [:a {:href (str "localhost:3449/" route)
+       :class "zoom-icon"
+       :style {:width "auto"}}
+   [:img {:src (str "images/nav-bar/" img)
+          :class "navbutton"}]])
 
+(defn primary-nav
+  []
+  [:div#primary-nav
+   [:a {:href "localhost:3449"
+        :class "zoom-icon"
+        :style {:float "left"
+                :display "inline-block"
+                :width "auto"}}
+    [:img {:src "images/nav-bar/favicon-white.svg"
+           :class "navbutton"
+           :on-click #(dispatch [:set-active-panel :panel2])}]]
+   [:div#secondary-nav
+    [nav-icon "thoughts" "andrew-head-icon.svg"]
+    [nav-icon "archive" "archive-icon.svg"]
+    [nav-icon "about" "andrew-silhouette-icon.svg"]
+    [nav-icon "research" "neuron-icon.svg"]
+    [nav-icon "data-analysis" "statistics-icon.svg"]]]
+  )
+
+#_(defn todo-app
+    []
+    [:div#all-content
+     [primary-nav]
+     [:div#old-content [:section#todoapp
+                        [task-entry]
+                        (when (seq @(subscribe [:todos]))
+                          [task-list])
+                        [footer-controls]]
+      [:footer#info
+       [:p "Image credit: NASA"]]]])
+
+
+
+
+;; TESTING MULTI PANEL!!
+(reg-sub
+ :active-panel
+ (fn [db _]
+   (:active-panel db)))
+
+(defn panel1
+  []
+  [primary-nav])
+
+(defn panel2
+  []
+  [:div#old-content [:section#todoapp
+                     [task-entry]
+                     (when (seq @(subscribe [:todos]))
+                       [task-list])
+                     [footer-controls]]
+   [:footer#info {:on-click #(dispatch [:set-active-panel :panel1])}
+    [:p "Image credit: NASA"]]])
+
+(def panels {:panel1 [panel1]
+             :panel2 [panel2]})
 
 (defn todo-app
   []
-  [:div
-   [:section#todoapp
-    [task-entry]
-    (when (seq @(subscribe [:todos]))
-      [task-list])
-    [footer-controls]]
-   [:footer#info
-    [:p "Double-click to edit a todo"]]])
+  (let [active  (subscribe [:active-panel])]
+    (fn []
+      [:div
+       [:div.title   "Heading"]
+       (get panels @active)])))
