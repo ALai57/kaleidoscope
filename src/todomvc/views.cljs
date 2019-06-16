@@ -99,23 +99,24 @@
                  (dispatch [:add-todo %]))}]])
 (defn nav-icon
   [route img]
-  [:a {:href (str "localhost:3449/" route)
+  [:a {:href (str "#/" route)
        :class "zoom-icon"
        :style {:width "auto"}}
    [:img {:src (str "images/nav-bar/" img)
-          :class "navbutton"}]])
+          :class "navbutton"
+          :on-click #(dispatch [:set-active-panel (keyword route)])}]])
 
 (defn primary-nav
   []
   [:div#primary-nav
-   [:a {:href "localhost:3449"
+   [:a {:href "#/home"
         :class "zoom-icon"
         :style {:float "left"
                 :display "inline-block"
                 :width "auto"}}
     [:img {:src "images/nav-bar/favicon-white.svg"
            :class "navbutton"
-           :on-click #(dispatch [:set-active-panel :panel2])}]]
+           :on-click #(dispatch [:set-active-panel :home])}]]
    [:div#secondary-nav
     [nav-icon "thoughts" "andrew-head-icon.svg"]
     [nav-icon "archive" "archive-icon.svg"]
@@ -124,48 +125,62 @@
     [nav-icon "data-analysis" "statistics-icon.svg"]]]
   )
 
-#_(defn todo-app
-    []
-    [:div#all-content
-     [primary-nav]
-     [:div#old-content [:section#todoapp
-                        [task-entry]
-                        (when (seq @(subscribe [:todos]))
-                          [task-list])
-                        [footer-controls]]
-      [:footer#info
-       [:p "Image credit: NASA"]]]])
-
-
-
 
 ;; TESTING MULTI PANEL!!
-(reg-sub
- :active-panel
- (fn [db _]
-   (:active-panel db)))
-
-(defn panel1
+(defn home
   []
   [primary-nav])
 
-(defn panel2
+(defn todo
   []
   [:div#old-content [:section#todoapp
                      [task-entry]
                      (when (seq @(subscribe [:todos]))
                        [task-list])
                      [footer-controls]]
-   [:footer#info {:on-click #(dispatch [:set-active-panel :panel1])}
+   [:footer#info {:on-click #(dispatch [:set-active-panel :home])}
     [:p "Image credit: NASA"]]])
 
-(def panels {:panel1 [panel1]
-             :panel2 [panel2]})
+(defn thoughts
+  []
+  [:div
+   [primary-nav]
+   [:p "Thoughts"]])
 
-(defn todo-app
+(defn archive
+  []
+  [:div
+   [primary-nav]
+   [:p "Archive"]])
+
+(defn about
+  []
+  [:div
+   [primary-nav]
+   [:p "About"]])
+
+(defn research
+  []
+  [:div
+   [primary-nav]
+   [:p "Research"]])
+
+(defn data-analysis
+  []
+  [:div
+   [primary-nav]
+   [:p "Data Analysis"]])
+
+(def panels {:home [home]
+             :thoughts [thoughts]
+             :archive [archive]
+             :about [about]
+             :research [research]
+             :data-analysis [data-analysis]})
+
+(defn app
   []
   (let [active  (subscribe [:active-panel])]
     (fn []
       [:div
-       [:div.title   "Heading"]
        (get panels @active)])))

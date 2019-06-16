@@ -24,14 +24,12 @@
 (dispatch-sync [:initialise-db])
 
 ;; -- Routes and History ------------------------------------------------------
-;; Although we use the secretary library below, that's mostly a historical
-;; accident. You might also consider using:
-;;   - https://github.com/DomKM/silk
-;;   - https://github.com/juxt/bidi
-;; We don't have a strong opinion.
-;;
+
 (defroute "/" [] (dispatch [:set-showing :all]))
-(defroute "/:filter" [filter] (dispatch [:set-showing (keyword filter)]))
+(defroute "/:path" [path] (dispatch [:set-active-panel (keyword path)]))
+
+;; For routing with the TODO application
+#_(defroute "/:path" [path] (dispatch [:set-showing (keyword path)]))
 
 (def history
   (doto (History.)
@@ -45,12 +43,10 @@
 ;;    window.onload = function () {
 ;;      todomvc.core.main();
 ;;    }
-;; So this is the entry function that kicks off the app once the HTML is loaded.
-;;
+;; So this is the entry function that kicks off the app once HTML is loaded
+
 (defn ^:export main
   []
-  ;; Render the UI into the HTML's <div id="app" /> element
-  ;; The view function `todomvc.views/todo-app` is the
-  ;; root view for the entire UI.
-  (reagent/render [todomvc.views/todo-app]
+  ;; `todomvc.views/app` is the root view for the entire UI.
+  (reagent/render [todomvc.views/app]
                   (.getElementById js/document "app")))
