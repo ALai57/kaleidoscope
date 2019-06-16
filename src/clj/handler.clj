@@ -31,7 +31,11 @@
     (GET "/example" []
       (-> (resource-response "example.html" {:root "public"})
           (content-type "text/html")))
-    
+
+    (GET "/todomvc" []
+      (-> (resource-response "todomvc.html" {:root "public"})
+          (content-type "text/html")))
+
     (GET "/ping" []
       (ok {:service-status "ok"}))
 
