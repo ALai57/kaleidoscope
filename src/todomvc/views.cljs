@@ -44,8 +44,9 @@
 
 (defn home
   []
-  [primary-nav]
-  [primary-content])
+  [:div
+   [primary-nav]
+   [primary-content]])
 
 (defn thoughts
   []
