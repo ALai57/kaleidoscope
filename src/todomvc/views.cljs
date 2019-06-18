@@ -97,6 +97,22 @@
      :placeholder "What needs to be done?"
      :on-save #(when (seq %)
                  (dispatch [:add-todo %]))}]])
+
+
+#_(defn todo
+    []
+    [:div#old-content [:section#todoapp
+                       [task-entry]
+                       (when (seq @(subscribe [:todos]))
+                         [task-list])
+                       [footer-controls]]
+     [:footer#info {:on-click #(dispatch [:set-active-panel :home])}
+      [:p "Image credit: NASA"]]])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; My website
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn nav-icon
   [route img]
   [:a {:href (str "#/" route)
@@ -122,24 +138,11 @@
     [nav-icon "archive" "archive-icon.svg"]
     [nav-icon "about" "andrew-silhouette-icon.svg"]
     [nav-icon "research" "neuron-icon.svg"]
-    [nav-icon "data-analysis" "statistics-icon.svg"]]]
-  )
+    [nav-icon "data-analysis" "statistics-icon.svg"]]])
 
-
-;; TESTING MULTI PANEL!!
 (defn home
   []
   [primary-nav])
-
-(defn todo
-  []
-  [:div#old-content [:section#todoapp
-                     [task-entry]
-                     (when (seq @(subscribe [:todos]))
-                       [task-list])
-                     [footer-controls]]
-   [:footer#info {:on-click #(dispatch [:set-active-panel :home])}
-    [:p "Image credit: NASA"]]])
 
 (defn thoughts
   []

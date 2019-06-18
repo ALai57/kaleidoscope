@@ -24,14 +24,22 @@
     :active            ;; only todos whose :done is false
     :done              ;; only todos whose :done is true
     })
-(s/def ::db (s/keys :rEeq-un [::todos ::showing ::active-panel]))
+
+(s/def ::db
+  (s/keys :rEeq-un [::todos
+                    ::showing
+                    ::active-panel
+                    ::active-content
+                    ::loading?]))
 
 ;; -- Default app-db Value  ---------------------------------------------------
 
 (def default-db           ;; what gets put into app-db by default.
   {:todos   (sorted-map)  ;; an empty list of todos. Use (int) :id as the key
    :showing :all
-   :active-panel :home})        ;; show all todos
+   :active-panel :home
+   :active-content nil
+   :loading? false})        ;; show all todos
 
 
 ;; -- Local Storage  ----------------------------------------------------------

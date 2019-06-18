@@ -1,8 +1,14 @@
 (ns todomvc.events
   (:require
    [todomvc.db    :refer [default-db todos->local-store]]
-   [re-frame.core :refer [reg-event-db reg-event-fx inject-cofx path after]]
-   [cljs.spec.alpha :as s]))
+   [re-frame.core :refer [reg-event-db
+                          reg-event-fx
+                          inject-cofx
+                          path
+                          after
+                          dispatch]]
+   [cljs.spec.alpha :as s]
+   [ajax.core :refer [GET]]))
 
 
 ;; -- Interceptors --------------------------------------------------------------
@@ -192,3 +198,36 @@
  :set-active-panel
  (fn [db [_ value]]
    (assoc db :active-panel value)))
+
+(reg-event-db
+ :retrieve-content
+ (fn [db [_ content-type content-name]]
+
+   (println "Retrieve-content path:"
+            (str "/get-content/" (name content-type) "/" (name content-name)))
+
+   (GET
+       (str "/get-content/" (name content-type) "/" (name content-name))
+       {:handler #(dispatch [:process-response %1])
+        :error-handler #(dispatch [:bad-response %1])})
+
+   (assoc db :loading? true)
+   (assoc db :active-content :loading)
+   #_(assoc db :active-content content-name)))
+
+(reg-event-db
+ :process-response
+ (fn
+   [db [_ response]]
+   (println "Retrieved content: " response)
+   (-> db
+       (assoc :loading? false) ;; take away that "Loading ..." UI
+       (assoc :active-content response))))
+
+(reg-event-db
+ :bad-response
+ (fn
+   [db [_ response]]
+   (-> db
+       (assoc :loading? false) ;; take away that "Loading ..." UI
+       (assoc :active-content "Unable to load content"))))

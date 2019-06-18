@@ -27,6 +27,9 @@
 
 (defroute "/" [] (dispatch [:set-showing :all]))
 (defroute "/:path" [path] (dispatch [:set-active-panel (keyword path)]))
+(defroute "/:path/content/:content-name" [path content-name]
+  (dispatch [:retrieve-content (keyword path) (keyword content-name)]))
+
 
 ;; For routing with the TODO application
 #_(defroute "/:path" [path] (dispatch [:set-showing (keyword path)]))
