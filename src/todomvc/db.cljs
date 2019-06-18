@@ -13,31 +13,19 @@
 ;; How is this done? Look in events.cljs and you'll notice that all handlers
 ;; have an "after" interceptor which does the spec re-check.
 
-(s/def ::id int?)
-(s/def ::title string?)
-(s/def ::done boolean?)
-(s/def ::todo (s/keys :req-un [::id ::title ::done]))
-(s/def ::todos (s/and (s/map-of ::id ::todo)
-                      #(instance? PersistentTreeMap %)))
-(s/def ::showing       ;; what todos are shown to the user?
-  #{:all               ;; all todos are shown
-    :active            ;; only todos whose :done is false
-    :done              ;; only todos whose :done is true
-    })
+(s/def ::active-panel keyword?)
+;;(s/def ::title string?)
+(s/def ::loading boolean?)
 
 (s/def ::db
-  (s/keys :rEeq-un [::todos
-                    ::showing
-                    ::active-panel
+  (s/keys :rEeq-un [::active-panel
                     ::active-content
                     ::loading?]))
 
 ;; -- Default app-db Value  ---------------------------------------------------
 
 (def default-db           ;; what gets put into app-db by default.
-  {:todos   (sorted-map)  ;; an empty list of todos. Use (int) :id as the key
-   :showing :all
-   :active-panel :home
+  {:active-panel :home
    :active-content nil
    :loading? false})        ;; show all todos
 

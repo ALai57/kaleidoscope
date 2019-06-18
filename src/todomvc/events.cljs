@@ -107,97 +107,13 @@
 
 
 
-;; Dispatched when user clicks filter buttons on bottom of display
-(reg-event-db
- :set-showing
- [check-spec-interceptor]
- (fn [db [_ new-filter-kw]] ;; new-filter-kw :: #{:all, :active, :done}
-   (assoc db :showing new-filter-kw)))
-
-;; Rewrite of the event handler (above) using a `path` Interceptor
-;; `path` operates a little like `update-in`
-;;
-;; A `path` interceptor has BOTH a before and after action.
-;; Path = path into `app-db`, like: [:a :b 1]
-;; "before" =  replace the app-db with the value
-;; of `app-db` at the nominated path.
-;; "after" = take event handler returned value and place it back into
-;; app-db at the nominated path.
-
-#_(reg-event-db
-   :set-showing
-
-   ;; this now a chain of 2 interceptors. Note use of `path`
-   [check-spec-interceptor (path :showing)]
-
-   ;; The event handler
-   ;; Because of the `path` interceptor above, the 1st parameter to
-   ;; the handler below won't be the entire 'db', and instead will
-   ;; be the value at the path `[:showing]` within db.
-   ;; Equally the value returned will be the new value for that path
-   ;; within app-db.
-   (fn [old-showing-value [_ new-showing-value]]
-     new-showing-value))                  ;; return new state for the path
-
-
-
-(reg-event-db
- :add-todo
- todo-interceptors
-
- ;; The "path" interceptor in `todo-interceptors` means 1st parameter is the
- ;; value at `:todos` path within `db`, rather than the full `db`.
- (fn [todos [_ text]]
-   (let [id (allocate-next-id todos)]
-     (assoc todos id {:id id :title text :done false}))))
-
-
-(reg-event-db
-  :toggle-done
-  todo-interceptors
-  (fn [todos [_ id]]
-    (update-in todos [id :done] not)))
-
-
-(reg-event-db
-  :save
-  todo-interceptors
-  (fn [todos [_ id title]]
-    (assoc-in todos [id :title] title)))
-
-
-(reg-event-db
-  :delete-todo
-  todo-interceptors
-  (fn [todos [_ id]]
-    (dissoc todos id)))
-
-
-(reg-event-db
- :clear-completed
- todo-interceptors
- (fn [todos _]
-   (let [done-ids (->> (vals todos)   ;; which todos have a :done of true
-                       (filter :done)
-                       (map :id))]
-     (reduce dissoc todos done-ids))))      ;; delete todos which are done
-
-
-(reg-event-db
- :complete-all-toggle
- todo-interceptors
- (fn [todos _]
-   (let [new-done (not-every? :done (vals todos))]
-     (reduce #(assoc-in %1 [%2 :done] new-done)
-             todos
-             (keys todos)))))
-
-
 ;; Dispatched when setting the active panel
 (reg-event-db
  :set-active-panel
  (fn [db [_ value]]
-   (assoc db :active-panel value)))
+   (-> db
+       (assoc :active-panel value)
+       (assoc :active-content nil))))
 
 (reg-event-db
  :retrieve-content
@@ -211,15 +127,16 @@
        {:handler #(dispatch [:process-response %1])
         :error-handler #(dispatch [:bad-response %1])})
 
-   (assoc db :loading? true)
-   (assoc db :active-content :loading)
-   #_(assoc db :active-content content-name)))
+   (-> db
+       (assoc :loading? true)
+       (assoc :active-panel content-type)
+       (assoc :active-content :loading))))
 
 (reg-event-db
  :process-response
  (fn
    [db [_ response]]
-   (println "Retrieved content: " response)
+   (println "SUCCESS Retrieved content: " response)
    (-> db
        (assoc :loading? false) ;; take away that "Loading ..." UI
        (assoc :active-content response))))
@@ -229,5 +146,5 @@
  (fn
    [db [_ response]]
    (-> db
-       (assoc :loading? false) ;; take away that "Loading ..." UI
+       (assoc :loading? false)
        (assoc :active-content "Unable to load content"))))
