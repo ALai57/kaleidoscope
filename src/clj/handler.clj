@@ -43,9 +43,12 @@
       (ok mock/mock-data))
 
     (GET "/get-content/:content-type/:content-name" [content-type content-name]
-      (Thread/sleep 5000)
+      (Thread/sleep 2000)
       (ok {:content-type content-type
-           :content-name content-name}))
+           :content-name content-name
+           ;;:database (db/select-all :fruit)
+           :fruit (db/select :fruit content-name)
+           }))
 
     (GET "/test-figwheel" []
       (-> (resource-response "index.html" {:root "public"})

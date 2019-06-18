@@ -45,3 +45,10 @@
 (defn select-all [table]
   (sql/query pg-db [(str "SELECT * FROM " (name table))]))
 
+(defn select [table fruit-name]
+  (sql/query pg-db [(str "SELECT * FROM " (name table)
+                         " WHERE name = ?")  fruit-name]))
+
+(comment
+  (select :fruit "Ap")
+  )
