@@ -3,7 +3,13 @@
             [re-frame.core :refer [subscribe
                                    dispatch
                                    reg-sub]]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            ["react" :as react]
+            ["react-spinners" :as spinner]
+            ["emotion" :as emotion]
+            [goog.object :as gobj]
+            ["react-spinners/ClipLoader" :as cl-spinner]
+            ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; My website
@@ -41,6 +47,18 @@
   (let [active-content (subscribe [:active-content])]
     (println "Got active content! " @active-content)
     [:p (str @active-content)]))
+
+
+(extend-protocol IPrintWithWriter
+  js/Symbol
+  (-pr-writer [sym writer _]
+    (-write writer (str "\"" (.toString sym) "\""))))
+
+
+(defn load-screen
+  []
+  (.render (.. (.-default cl-spinner) -prototype))
+  )
 
 (defn home
   []
@@ -88,10 +106,27 @@
              :archive [archive]
              :about [about]
              :research [research]
-             :data-analysis [data-analysis]})
+             :data-analysis [data-analysis]
+             :load-screen [load-screen]})
 
 (defn app
   []
   (let [active-panel  (subscribe [:active-panel])]
     (fn []
       (get panels @active-panel))))
+
+(comment
+  (require '[goog.object :as gobj])
+  (require '["react-spinners/ClipLoader" :as cl-spinner])
+  (require '["react" :as react])
+
+  (gobj/extend (.. (.-default cl-spinner) -prototype)
+    js/React.Component.prototype)
+
+  (extend-protocol IPrintWithWriter
+    js/Symbol
+    (-pr-writer [sym writer _]
+      (-write writer (str "\"" (.toString sym) "\""))))
+
+  (.render (.. (.-default cl-spinner) -prototype))
+  )

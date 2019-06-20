@@ -63,6 +63,10 @@
                          :optimizations :none
                          :output-to "resources/public/js/compiled/todomvc.js"
                          :output-dir "resources/public/js/compiled/out_todomvc"
+                         :npm-deps {:react-spinners "0.4.8"
+                                    :react "16.8.6"
+                                    :emotion "10.0.9"}
+                         :install-deps true
                          :source-map true
                          :source-map-timestamp true}}}
 
