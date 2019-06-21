@@ -129,4 +129,6 @@
       (-write writer (str "\"" (.toString sym) "\""))))
 
   (.render (.. (.-default cl-spinner) -prototype))
+  (println "test Repl")
+  (+ 1 1)
   )

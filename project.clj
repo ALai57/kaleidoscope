@@ -75,4 +75,14 @@
                    :plugins [[lein-ancient "0.6.15"]
                              [lein-bikeshed "0.5.2"]
                              [lein-kibit "0.1.6"]
-                             [lein-ring "0.12.5"]]}})
+                             [lein-ring "0.12.5"]]}
+
+             :todomvc {:dependencies [[figwheel-sidecar "0.5.18"]
+                                      [cider/piggieback "0.4.1"]]
+                       :source-paths ["src/todomvc"]
+                       :repl-options {:nrepl-middleware
+                                      [cider.piggieback/wrap-cljs-repl]}
+                       :plugins [[lein-ancient "0.6.15"]
+                                 [lein-bikeshed "0.5.2"]
+                                 [lein-kibit "0.1.6"]
+                                 [lein-ring "0.12.5"]]}})
