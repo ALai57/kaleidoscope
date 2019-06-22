@@ -6,7 +6,8 @@ The app must run on Java 11.
 The template includes:
 - Server with handler
 - Basic template for sortable react table
-- Postgres backend (not validated yet)
+- Postgres backend
+- Single page app with navigation between screens
 
 
 *Servers and development environment*
@@ -17,7 +18,7 @@ How to start server:
 
 How to start front end developing with hot reloading:
 
-```lein figwheel```
+```lein figwheel <buildname here>```
 
 *How to setup postgres:*
 
@@ -51,9 +52,6 @@ Helpful psql commands:
    select schema_name from information_schema.schemata;
 ```
 
-Testing after rename
-
-
 *** Must have NPM installed to manage JS dependencies.
 
 On Ubuntu::
@@ -62,7 +60,10 @@ sudo apt-get update
 sudo apt-get install npm
 ```
 
+*** Editor configuration things
+
 CIDER
+```
 (defun cider-jack-in-with-profile ()
   (interactive)
   (letrec ((profile (read-string "Enter profile name: "))
@@ -71,9 +72,11 @@ CIDER
     (set-variable 'cider-lein-parameters lein-params)
     ;; just a empty parameter
     (cider-jack-in '())))
-
+```
 
 EMACS AND REPL/FIGWHEEL
+```
 (use 'figwheel-sidecar.repl-api)
 (start-figwheel! "todomvc")
 (cljs-repl "todomvc")
+```

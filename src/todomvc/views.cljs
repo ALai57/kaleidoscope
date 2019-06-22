@@ -54,13 +54,20 @@
   (-pr-writer [sym writer _]
     (-write writer (str "\"" (.toString sym) "\""))))
 
+;; Setup default spinner
+;; TODO: Move to environment variable config?
+(set! (.. cl-spinner -default -defaultProps -size) 150)
+(set! (.. cl-spinner -default -defaultProps -color) "#4286f4")
+
 (defn load-screen
   []
   (let [loading? (subscribe [:loading?])
         spinner-proto (.. cl-spinner -default -prototype)]
     (set! (.. spinner-proto -constructor -defaultProps -loading)
           (js->clj @loading?))
-    [:div#loading
+    [:div#loading #_{:class "load-icon"
+                     :style {:float "left"
+                             :margin "auto"}}
      (.render spinner-proto)]))
 
 (defn home
