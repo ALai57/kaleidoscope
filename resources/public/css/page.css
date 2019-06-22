@@ -1,0 +1,172 @@
+@charset "UTF-8";
+/* CSS Document*/
+
+body {
+	background-color: white;
+	color: black;
+}
+
+
+body.aboutpage {
+  background-color:black;
+  margin: 8px;
+  /*  background: url(../images/Library_V2.jpg) no-repeat center center fixed; */
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+}
+
+
+body.landingpage {
+  background: url(../images/EarthRise2_Crop.png) no-repeat center center fixed;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+}
+
+h1 {
+	text-decoration: underline;
+	font-size: 24;
+}
+
+pre {
+	width: auto;                          /* specify width  */
+	white-space: pre-wrap;                 /* CSS3 browsers  */
+	white-space: pre-wrap;                 /* CSS3 browsers  */
+	white-space: -moz-pre-wrap !important; /* 1999+ Mozilla  */
+	white-space: -pre-wrap;                /* Opera 4 thru 6 */
+	white-space: -o-pre-wrap;              /* Opera 7 and up */
+	word-wrap: break-word;                 /* IE 5.5+ and up */
+	font-size: 16 pt;
+	font-family: "Times New Roman", Times, serif;
+	/* overflow-x: auto; */                /* Firefox 2 only */
+	/* width: 99%; */		       /* only if needed */
+}
+
+
+#article-title {
+	font-size: 44;
+	font-style: normal;
+	font-weight: bold;
+	margin-left: 10px;
+	margin-top: 10px;
+}
+
+h2 {
+	font-size: 18;
+	font-style: italic;
+	margin-bottom:6px;
+	padding-bottom:0px;
+}
+
+img.Centered{
+    display: block;
+    margin: auto;
+}
+
+ul.bulletlist{
+	margin-bottom:6px;
+	margin-top:0px;
+}
+
+li.bullet{
+	font-size:16;
+	font-style:normal;
+	font-weight:normal;
+	margin-bottom:0px;
+	margin-top:0px;
+}
+
+#sidebar-recent {
+	position: relative; /*absolute*/
+	float: right;
+	height: 120px; /*30%;*/
+	top: 0px;
+	width: 220px;
+
+    background-color: white;
+	color: black;
+	overflow: auto;
+	margin-right:8px;
+
+	/*For editing and visualizing positions */
+	/*
+	border: 1px solid black;
+	background-color: #a581ec;
+	*/
+}
+
+#sidebar-suggested {
+	position: relative; /*absolute*/
+	float: right;
+    background-color: whi-120pxte;
+	color: black;
+	height: 120px; /*30%;*/
+	width: 220px;
+	overflow: auto;
+	margin-right:8px;
+	clear: both;
+
+	/*For editing and visualizing positions */
+	/*
+	border: 1px solid black;
+	background-color: #a581ec;
+	*/
+}
+
+.sidelink {
+	color: black;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+	color: black;
+	list-style-type: circle;
+}
+
+.textbody {
+	position: relative;
+	float: left;
+	margin:5%;
+	height: 1000 px;
+	width: 90%;
+	color: black;
+	/*padding-right: 220px;*/
+  background-color: white;
+	/* max-width: 650px; */
+	font-size: 16pt;
+}
+
+
+.container {
+   position:relative;
+   padding:0 0 0 55px;
+}
+
+#content{
+    position:absolute;
+		top:0; bottom:0; left:0;
+		width: 50px;
+    float: right;
+    background: #aafed6;
+}
+
+.left {
+    float: none; /* not needed, just for clarification */
+    background: #e8f6fe;
+    /* the next props are meant to keep this block independent from the other floated one */
+    width: auto;
+    overflow: hidden;
+}​​
+
+.zoom-icon {
+			float:right;
+	    transition: transform .1s;
+	}
+
+	.zoom-icon:hover {
+	    -ms-transform: scale(1.3); /* IE 9 */
+	    -webkit-transform: scale(1.3); /* Safari 3-8 */
+	    transform: scale(1.3);
+	}

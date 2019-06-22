@@ -62,3 +62,18 @@ sudo apt-get update
 sudo apt-get install npm
 ```
 
+CIDER
+(defun cider-jack-in-with-profile ()
+  (interactive)
+  (letrec ((profile (read-string "Enter profile name: "))
+           (lein-params (concat "with-profile +" profile " repl :headless")))
+    (message "lein-params set to: %s" lein-params)
+    (set-variable 'cider-lein-parameters lein-params)
+    ;; just a empty parameter
+    (cider-jack-in '())))
+
+
+EMACS AND REPL/FIGWHEEL
+(use 'figwheel-sidecar.repl-api)
+(start-figwheel! "todomvc")
+(cljs-repl "todomvc")

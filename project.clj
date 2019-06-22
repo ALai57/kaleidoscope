@@ -42,32 +42,47 @@
   :figwheel {:ring-handler clj.handler/app
              :css-dirs ["resources/public/css"]}
   :clean-targets ^{:protect false} ["resources/public/js" "target"]
-  :cljsbuild {:builds
-              {
-               :dev {:source-paths ["src/cljs"]
-                     :figwheel {:open-urls ["http://localhost:3449/example"]}
-                     :compiler {:main full_stack_template.example
-                                :asset-path "js/compiled/out"
-                                :output-to "resources/public/js/compiled/example.js"
-                                :output-dir "resources/public/js/compiled/out"
-                                :source-map-timestamp true
-                                :npm-deps {:capitalize "2.0.0"}
-                                :install-deps true}}
+  :cljsbuild
+  {:builds
+   {
+    :dev {:source-paths ["src/cljs"]
+          :figwheel {:open-urls ["http://localhost:3449/example"]}
+          :compiler {:main full_stack_template.example
+                     :asset-path "js/compiled/out"
+                     :output-to "resources/public/js/compiled/example.js"
+                     :output-dir "resources/public/js/compiled/out"
+                     :source-map-timestamp true
+                     :npm-deps {:capitalize "2.0.0"}
+                     :install-deps true}}
 
-               :todomvc {:source-paths ["src/todomvc"]
-                         :figwheel {:open-urls ["http://localhost:3449/todomvc"]
-                                    :on-jsload "todomvc.core/main"}
-                         :compiler {:main todomvc.core
-                                    :asset-path "js/compiled/out_todomvc"
-                                    :optimizations :none
-                                    :output-to "resources/public/js/compiled/todomvc.js"
-                                    :output-dir "resources/public/js/compiled/out_todomvc"
-                                    :source-map true
-                                    :source-map-timestamp true}}}
+    :todomvc {:source-paths ["src/todomvc"]
+              :figwheel {:open-urls ["http://localhost:3449/todomvc"]
+                         :on-jsload "todomvc.core/main"}
+              :compiler {:main todomvc.core
+                         :asset-path "js/compiled/out_todomvc"
+                         :optimizations :none
+                         :output-to "resources/public/js/compiled/todomvc.js"
+                         :output-dir "resources/public/js/compiled/out_todomvc"
+                         :npm-deps {:react-spinners "0.4.8"
+                                    :react "16.8.6"
+                                    :emotion "10.0.9"}
+                         :install-deps true
+                         :source-map true
+                         :source-map-timestamp true}}}
 
-              }
+   }
   :profiles {:dev {:dependencies []
                    :plugins [[lein-ancient "0.6.15"]
                              [lein-bikeshed "0.5.2"]
                              [lein-kibit "0.1.6"]
-                             [lein-ring "0.12.5"]]}})
+                             [lein-ring "0.12.5"]]}
+
+             :todomvc {:dependencies [[figwheel-sidecar "0.5.18"]
+                                      [cider/piggieback "0.4.1"]]
+                       :source-paths ["src/todomvc"]
+                       :repl-options {:nrepl-middleware
+                                      [cider.piggieback/wrap-cljs-repl]}
+                       :plugins [[lein-ancient "0.6.15"]
+                                 [lein-bikeshed "0.5.2"]
+                                 [lein-kibit "0.1.6"]
+                                 [lein-ring "0.12.5"]]}})
