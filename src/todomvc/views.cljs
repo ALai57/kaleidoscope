@@ -54,55 +54,61 @@
   (-pr-writer [sym writer _]
     (-write writer (str "\"" (.toString sym) "\""))))
 
-
 (defn load-screen
   []
-  (set! (.. cl-spinner -default -defaultProps -loading) false)
-  (set! (.. cl-spinner -default -defaultProps -loading) true)
-  (set! (.. cl-spinner -default -defaultProps -color) "#4286f4")
-  (.render (.. (.-default cl-spinner) -prototype))
-  )
+  (let [loading? (subscribe [:loading?])
+        spinner-proto (.. cl-spinner -default -prototype)]
+    (set! (.. spinner-proto -constructor -defaultProps -loading)
+          (js->clj @loading?))
+    [:div#loading
+     (.render spinner-proto)]))
 
 (defn home
   []
   [:div
    [primary-nav]
-   [primary-content]])
+   [primary-content]
+   [load-screen]])
 
 (defn thoughts
   []
   [:div
    [primary-nav]
    [:p "Thoughts"]
-   [primary-content]])
+   [primary-content]
+   [load-screen]])
 
 (defn archive
   []
   [:div
    [primary-nav]
    [:p "Archive"]
-   [primary-content]])
+   [primary-content]
+   [load-screen]])
 
 (defn about
   []
   [:div
    [primary-nav]
    [:p "About"]
-   [primary-content]])
+   [primary-content]
+   [load-screen]])
 
 (defn research
   []
   [:div
    [primary-nav]
    [:p "Research"]
-   [primary-content]])
+   [primary-content]
+   [load-screen]])
 
 (defn data-analysis
   []
   [:div
    [primary-nav]
    [:p "Data Analysis"]
-   [primary-content]])
+   [primary-content]
+   [load-screen]])
 
 (def panels {:home [home]
              :thoughts [thoughts]
@@ -118,23 +124,9 @@
     (fn []
       (get panels @active-panel))))
 
+
+
+
 (comment
-  (require '[goog.object :as gobj])
-  (require '["react-spinners/ClipLoader" :as cl-spinner])
-  (require '["react" :as react])
-
-  (gobj/extend (.. (.-default cl-spinner) -prototype)
-    js/React.Component.prototype)
-
-  (extend-protocol IPrintWithWriter
-    js/Symbol
-    (-pr-writer [sym writer _]
-      (-write writer (str "\"" (.toString sym) "\""))))
-
-  (.render (.. (.-default cl-spinner) -prototype))
-  (.render (.. (.-default cl-spinner) -prototype))
   (println "test Repl")
-  (js-keys (.. (js-keys ) -prototype))
-  (set! (.. cl-spinner -default -defaultProps -loading) false)
-  (.. cl-spinner -default -defaultProps)
   )

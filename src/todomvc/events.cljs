@@ -130,7 +130,7 @@
    (-> db
        (assoc :loading? true)
        (assoc :active-panel content-type)
-       (assoc :active-content :loading))))
+       (assoc :active-content nil))))
 
 (reg-event-db
  :process-response
