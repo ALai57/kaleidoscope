@@ -57,6 +57,9 @@
 
 (defn load-screen
   []
+  (set! (.. cl-spinner -default -defaultProps -loading) false)
+  (set! (.. cl-spinner -default -defaultProps -loading) true)
+  (set! (.. cl-spinner -default -defaultProps -color) "#4286f4")
   (.render (.. (.-default cl-spinner) -prototype))
   )
 
@@ -129,6 +132,9 @@
       (-write writer (str "\"" (.toString sym) "\""))))
 
   (.render (.. (.-default cl-spinner) -prototype))
+  (.render (.. (.-default cl-spinner) -prototype))
   (println "test Repl")
-  (+ 1 1)
+  (js-keys (.. (js-keys ) -prototype))
+  (set! (.. cl-spinner -default -defaultProps -loading) false)
+  (.. cl-spinner -default -defaultProps)
   )
