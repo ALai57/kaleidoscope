@@ -1,12 +1,31 @@
 #!/bin/bash
 
-# Check if database exists
+# Prerequisites: postgresql installed
+# terminal pwd is andrewslai/scripts/db
+
+# The way the scripts are setup, you need the
+# default 'postgres' user and their password
+
+# The script will check for an existing db,
+# If exists, prompt user for overwrite
+# If not, create.
+
+# Also creates a new table, fruits
+# and a user with permissions on the table.
+
+##########################################
+# Setup
+##########################################
 export ANDREWSLAI_DB="andrewslai_db"
 export ANDREWSLAI_DB_USER="andrewslai"
 export ANDREWSLAI_DB_PASSWORD="andrewslai"
+# POSTGRES_USER_PASSWORD exported  FROM .bashrc
+export PGPASSWORD=$POSTGRES_USER_PASSWORD
 
 
+##########################################
 # Functions
+##########################################
 setup_default_database () {
 
   populate_default_database
@@ -17,38 +36,37 @@ setup_default_database () {
 }
 
 overwrite_db_prompt () {
-    echo "Do you want to overwrite the existing DB? (Y, N)";
-    read input_variable;
-    case $input_variable in
-        Y ) echo "Continuing";;
-        * ) echo "Aborting"; exit;;
-    esac
+  echo "****************";
+  echo "Do you want to overwrite the existing DB? (Y, N)";
+  read input_variable;
+  case $input_variable in
+      Y ) echo "Continuing";;
+      * ) echo "Aborting"; exit;;
+  esac
 }
 
 overwrite_user_prompt () {
-    echo "Do you want to overwrite the existing user: $ANDREWSLAI_DB_USER? (Y, N)";
-
-    read input_variable;
-    case $input_variable in
-        Y ) echo "Continuing";;
-        * ) echo "Aborting"; exit;;
-    esac
+  echo "****************";
+  echo "Do you want to overwrite the existing user: $ANDREWSLAI_DB_USER? (Y, N)"
+  read input_variable;
+  case $input_variable in
+      Y ) echo "Yes - Continuing";;
+      * ) echo "Aborting"; exit;;
+  esac
 }
 
 populate_default_database () {
   echo "****************";
   echo "Populating default database";
-    sudo -u postgres psql -d $ANDREWSLAI_DB -c \
-         "CREATE TABLE fruit(
-                 name VARCHAR (32),
-                 appearance VARCHAR (32),
-                 cost INT,
-                 grade REAL);
-          INSERT INTO fruit VALUES
-                 ('Apple', 'round', 105),
-                 ('Banana', 'curved', 5),
-                 ('Orange', 'round', 15),
-                 ('Kiwi', 'egg', 10);"
+  for f in ./defaults/*
+  do
+      #cat $f
+      psql -U postgres -d $ANDREWSLAI_DB -f $f >> db_init_log.txt
+      echo "Added $f to database"
+  done
+  # psql -U postgres -d $ANDREWSLAI_DB -f "./defaults/fruit.sql"
+  # psql -U postgres -d $ANDREWSLAI_DB -f "./defaults/articles.sql"
+  echo "\n"
 }
 
 create_new_db_user () {
@@ -57,47 +75,48 @@ create_new_db_user () {
   echo "password: $ANDREWSLAI_DB_PASSWORD";
   echo "\n"
 
-  sudo -u postgres psql -d $ANDREWSLAI_DB -c \
+   psql -U postgres -d $ANDREWSLAI_DB -c \
        "DROP USER IF EXISTS $ANDREWSLAI_DB_USER;
        CREATE USER $ANDREWSLAI_DB_USER
               WITH ENCRYPTED PASSWORD '$ANDREWSLAI_DB_PASSWORD';
        GRANT ALL ON DATABASE $ANDREWSLAI_DB TO $ANDREWSLAI_DB_USER;
        GRANT ALL PRIVILEGES ON ALL TABLES
              IN SCHEMA public TO $ANDREWSLAI_DB_USER;"
+  echo "\n"
 }
 
 does_user_exist () {
-    if sudo -u postgres psql -d $ANDREWSLAI_DB -c "\du" |
-            cut -d \| -f 1 | grep -qw $ANDREWSLAI_DB_USER; then
-        echo "****************";
-        echo "User exists"
-        echo 1
-    else
-        echo "****************";
-        echo "User does not exist"
-        echo 0
-    fi
+  if  psql -U postgres -d $ANDREWSLAI_DB -c "\du" |
+          cut -d \| -f 1 | grep -qw $ANDREWSLAI_DB_USER; then
+      echo "****************";
+      echo "User exists"
+      echo 1
+  else
+      echo "****************";
+      echo "User does not exist"
+      echo 0
+  fi
 }
 
-# Print if database exists
+##########################################
+# Main executable commands
+##########################################
 echo "****************"
 echo "Checking if DB exists:: $ANDREWSLAI_DB"
-
-if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw $ANDREWSLAI_DB; then
-    echo "Database found!\n\n"
-    overwrite_db_prompt
-    sudo -u postgres dropdb $ANDREWSLAI_DB
-    sudo -u postgres createdb $ANDREWSLAI_DB
-    setup_default_database
+if  psql -U postgres -lqt | cut -d \| -f 1 | grep -qw $ANDREWSLAI_DB; then
+  echo "Database found!\n\n"
+  overwrite_db_prompt
+  psql -U postgres -c \
+       "DROP DATABASE $ANDREWSLAI_DB;"
+  psql -U postgres -c \
+       "CREATE DATABASE $ANDREWSLAI_DB;"
+  echo "\n"
+  setup_default_database
 else
-   echo "Database does not exist\n\n"
-   sudo -u postgres createdb $ANDREWSLAI_DB
-   setup_default_database
+  echo "Database does not exist\n\n"
+  psql -U postgres -c \
+       "CREATE DATABASE $ANDREWSLAI_DB;"
+  setup_default_database
 fi
-
-
-
-# sudo -u postgres psql -d $ANDREWSLAI_DB -c "DROP USER IF EXISTS $ANDREWSLAI_DB_USER;"
-  # sudo -u postgres psql -d $ANDREWSLAI_DB -c "CREATE USER $ANDREWSLAI_DB_USER WITH ENCRYPTED PASSWORD '$ANDREWSLAI_DB_PASSWORD';"
-  # sudo -u postgres psql -d $ANDREWSLAI_DB -c "GRANT ALL ON DATABASE $ANDREWSLAI_DB TO $ANDREWSLAI_DB_USER;"
-  # sudo -u postgres psql -d $ANDREWSLAI_DB -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $ANDREWSLAI_DB_USER;"
+echo "****************"
+echo "DONE"
