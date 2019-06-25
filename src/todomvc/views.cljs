@@ -43,7 +43,11 @@
     [nav-icon "data-analysis" "statistics-icon.svg"]]])
 
 (defn format-title [content]
-  [:h2 (get-in content [:article :title])])
+  (let [title (get-in content [:article :title])
+        style (:metadata
+               (first
+                (get-in content [:article :content])))]
+    [:h2 style title]))
 
 (defn format-js [js-script]
   (.appendChild (.getElementById js/document "primary-content")
@@ -175,6 +179,9 @@
 
   (format-content
    (get-in @re-frame.db/app-db [:active-content :article :content]))
+
+  (:metadata
+   (first (get-in @re-frame.db/app-db [:active-content :article :content])))
 
   (format-content
    (get-in @active-content [:article :content]))
