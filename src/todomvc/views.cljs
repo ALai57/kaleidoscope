@@ -53,24 +53,24 @@
   [:div])
 
 (defn format-content [content]
-  (for [entry (sort-by :content_order content)]
-    (do
-      (println (:content_type entry))
-      (condp = (:content_type entry)
-        "text" [:p (:content entry)]
-        "js" (format-js (:content entry))))))
+  (into
+   [:div#article-content]
+   (for [entry (sort-by :content_order content)]
+     (condp = (:content_type entry)
+       "text" ^{:key (:content_order entry)} [:p (:content entry)]
+       "js" ^{:key (:content_order entry)} (format-js (:content entry))))))
 
 
 (defn primary-content
   []
   (let [active-content (subscribe [:active-content])]
-    (println "Got active content! " @active-content)
+    ;;(println "Got active content! " @active-content)
     #_(when (not (nil? @active-content))
         (format-js "test-paragraph.js"))
     [:div#goodies
      (format-title @active-content)
      (format-content
-      (get-in @active-content [:articles :content]))]))
+      (get-in @active-content [:article :content]))]))
 
 
 (extend-protocol IPrintWithWriter
@@ -171,10 +171,13 @@
   (reframe/app-db)
 
   (cljs.pprint/pprint
-   (get-in @re-frame.db/app-db [:active-content :articles :content]))
+   (get-in @re-frame.db/app-db [:active-content :article :content]))
 
   (format-content
-   (get-in @re-frame.db/app-db [:active-content :articles :content]))
+   (get-in @re-frame.db/app-db [:active-content :article :content]))
+
+  (format-content
+   (get-in @active-content [:article :content]))
   )
 
 ;; GET CONTENTS TO DELETE PROPERLY!!

@@ -46,8 +46,8 @@
       (Thread/sleep 2000)
       (ok {:content-type content-type
            :content-name content-name
-           :article (first (db/get-article content-name))
-           :articles (db/get-content (first (db/get-article content-name)))
+           ;;:article (first (db/get-article content-name))
+           :article (db/get-content (first (db/get-article content-name)))
            }))
 
     (GET "/get-fruit/:content-type/:content-name" [content-type content-name]
@@ -89,9 +89,9 @@
   (httpkit/run-server #'app {:port (@env/env :port)}))
 
 (comment
-  (ok {:service-status "ok"})
   (-main)
   (db/get-article "my-first-article")
+
   (clojure.pprint/pprint
-   (db/get-content (first (db/get-article "my-first-article"))))
+   (db/get-content (first (db/get-article "my-second-article"))))
   )

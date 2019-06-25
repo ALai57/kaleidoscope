@@ -1,6 +1,20 @@
 (ns clj.postgres
-  (:require [clj.env :as env]
-            [clojure.java.jdbc :as sql]))
+  (:require [cheshire.core :as json]
+            [clj.env :as env]
+            [clojure.java.jdbc :as sql]
+            [clojure.walk :refer [keywordize-keys]]))
+
+
+(import 'org.postgresql.util.PGobject)
+(extend-protocol sql/IResultSetReadColumn
+  PGobject
+  (result-set-read-column [pgobj conn metadata]
+    (let [type  (.getType pgobj)
+          value (.getValue pgobj)]
+      (case type
+        "json" (keywordize-keys
+                (json/parse-string value))
+        :else value))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Default
@@ -54,9 +68,9 @@
   (let [content
         (sql/query pg-db
                    [(str "SELECT "
-                         "article_id, content_order, content_type, content "
+                         "article_id, metadata, content_order, content_type, content "
                          "FROM content "
-                         "WHERE article_id = ?") 1])]
+                         "WHERE article_id = ?") article_id])]
     (assoc-in article [:content] content)))
 
 (defn select [table fruit-name]
@@ -66,5 +80,12 @@
 (comment
   (select :fruit "Ap")
   (:article-id (get-article "my-first-article"))
-  (get-content (first (get-article "my-first-article")))
+
+  (:metadata
+   (first
+    (get-in
+     (get-content (first (get-article "my-second-article")))
+     [:content])))
+
+  (clojure.pprint/pprint sql/IResultSetReadColumn)
   )
