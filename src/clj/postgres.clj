@@ -45,10 +45,26 @@
 (defn select-all [table]
   (sql/query pg-db [(str "SELECT * FROM " (name table))]))
 
-(defn select [table fruit-name]
-  (sql/query pg-db [(str "SELECT * FROM " (name table)
-                         " WHERE name = ?")  fruit-name]))
+(defn get-article [article-title]
+  (sql/query pg-db
+             [(str "SELECT * FROM articles"
+                   " WHERE article_url = ?") article-title]))
+
+(defn get-content [{:keys [article_id] :as article}]
+  (let [content
+        (sql/query pg-db
+                   [(str "SELECT "
+                         "article_id, content_order, content_type, content "
+                         "FROM content "
+                         "WHERE article_id = ?") 1])]
+    (assoc-in article [:content] content)))
+
+#_(defn select [table fruit-name]
+    (sql/query pg-db [(str "SELECT * FROM " (name table)
+                           " WHERE name = ?")  fruit-name]))
 
 (comment
   (select :fruit "Ap")
+  (:article-id (get-article "my-first-article"))
+  (get-content (first (get-article "my-first-article")))
   )

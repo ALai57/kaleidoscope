@@ -46,6 +46,14 @@
       (Thread/sleep 2000)
       (ok {:content-type content-type
            :content-name content-name
+           :article (first (db/get-article content-name))
+           :articles (db/get-content (first (db/get-article content-name)))
+           }))
+
+    (GET "/get-fruit/:content-type/:content-name" [content-type content-name]
+      (Thread/sleep 2000)
+      (ok {:content-type content-type
+           :content-name content-name
            ;;:database (db/select-all :fruit)
            :fruit (db/select :fruit content-name)
            }))
@@ -83,4 +91,7 @@
 (comment
   (ok {:service-status "ok"})
   (-main)
+  (db/get-article "my-first-article")
+  (clojure.pprint/pprint
+   (db/get-content (first (db/get-article "my-first-article"))))
   )

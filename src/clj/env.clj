@@ -24,17 +24,17 @@
 
           :db-name
           {:env-name "FULL_STACK_TEMPLATE_DB_NAME"
-           :default "full-stack-template-postgres-db"
+           :default "andrewslai_db" ;;"full-stack-template-postgres-db"
            :doc "Postgres Database Name"}
 
           :db-user
           {:env-name "FULL_STACK_TEMPLATE_DB_USER"
-           :default "db_user"
+           :default "andrewslai" ;;"db_user"
            :doc "Postgres Database User"}
 
           :db-password
           {:env-name "FULL_STACK_TEMPLATE_DB_PASSWORD"
-           :default "password"
+           :default "andrewslai" ;;"password"
            :doc "Postgres Database Password"}
 
           :live-db?

@@ -46,6 +46,12 @@
   []
   (let [active-content (subscribe [:active-content])]
     (println "Got active content! " @active-content)
+    (when (not (nil? @active-content))
+      (.appendChild (.getElementById js/document "primary-content")
+                    ;;(.-body js/document)
+                    (doto (.createElement js/document "script")
+                      (-> (.setAttribute "id" "testme-script"))
+                      (-> (.setAttribute "src" "js/test-paragraph.js")))))
     [:p (str @active-content)]))
 
 
@@ -74,7 +80,8 @@
   []
   [:div
    [primary-nav]
-   [primary-content]
+   [:div#primary-content
+    [primary-content]]
    [load-screen]])
 
 (defn thoughts
@@ -82,7 +89,8 @@
   [:div
    [primary-nav]
    [:p "Thoughts"]
-   [primary-content]
+   [:div#primary-content
+    [primary-content]]
    [load-screen]])
 
 (defn archive
@@ -90,7 +98,8 @@
   [:div
    [primary-nav]
    [:p "Archive"]
-   [primary-content]
+   [:div#primary-content
+    [primary-content]]
    [load-screen]])
 
 (defn about
@@ -98,7 +107,8 @@
   [:div
    [primary-nav]
    [:p "About"]
-   [primary-content]
+   [:div#primary-content
+    [primary-content]]
    [load-screen]])
 
 (defn research
@@ -106,7 +116,8 @@
   [:div
    [primary-nav]
    [:p "Research"]
-   [primary-content]
+   [:div#primary-content
+    [primary-content]]
    [load-screen]])
 
 (defn data-analysis
@@ -114,7 +125,8 @@
   [:div
    [primary-nav]
    [:p "Data Analysis"]
-   [primary-content]
+   [:div#primary-content
+    [primary-content]]
    [load-screen]])
 
 (def panels {:home [home]
@@ -132,8 +144,11 @@
       (get panels @active-panel))))
 
 
-
-
 (comment
   (println "test Repl")
+  (js-keys (.-body js/document))
+  (.appendChild (.-body js/document)
+                (doto (.createElement js/document "script")
+                  (-> (.setAttribute "id" "testme-script"))
+                  (-> (.setAttribute "src" "js/test-paragraph.js"))))
   )
