@@ -59,9 +59,9 @@
                          "WHERE article_id = ?") 1])]
     (assoc-in article [:content] content)))
 
-#_(defn select [table fruit-name]
-    (sql/query pg-db [(str "SELECT * FROM " (name table)
-                           " WHERE name = ?")  fruit-name]))
+(defn select [table fruit-name]
+  (sql/query pg-db [(str "SELECT * FROM " (name table)
+                         " WHERE name = ?")  fruit-name]))
 
 (comment
   (select :fruit "Ap")

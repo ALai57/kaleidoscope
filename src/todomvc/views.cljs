@@ -42,17 +42,35 @@
     [nav-icon "research" "neuron-icon.svg"]
     [nav-icon "data-analysis" "statistics-icon.svg"]]])
 
+(defn format-title [content]
+  [:h2 (get-in content [:article :title])])
+
+(defn format-js [js-script]
+  (.appendChild (.getElementById js/document "primary-content")
+                (doto (.createElement js/document "script")
+                  (-> (.setAttribute "id" js-script))
+                  (-> (.setAttribute "src" (str "js/" js-script)))))
+  [:div])
+
+(defn format-content [content]
+  (for [entry (sort-by :content_order content)]
+    (do
+      (println (:content_type entry))
+      (condp = (:content_type entry)
+        "text" [:p (:content entry)]
+        "js" (format-js (:content entry))))))
+
+
 (defn primary-content
   []
   (let [active-content (subscribe [:active-content])]
     (println "Got active content! " @active-content)
-    (when (not (nil? @active-content))
-      (.appendChild (.getElementById js/document "primary-content")
-                    ;;(.-body js/document)
-                    (doto (.createElement js/document "script")
-                      (-> (.setAttribute "id" "testme-script"))
-                      (-> (.setAttribute "src" "js/test-paragraph.js")))))
-    [:p (str @active-content)]))
+    #_(when (not (nil? @active-content))
+        (format-js "test-paragraph.js"))
+    [:div#goodies
+     (format-title @active-content)
+     (format-content
+      (get-in @active-content [:articles :content]))]))
 
 
 (extend-protocol IPrintWithWriter
@@ -60,7 +78,6 @@
   (-pr-writer [sym writer _]
     (-write writer (str "\"" (.toString sym) "\""))))
 
-;; Setup default spinner
 ;; TODO: Move to environment variable config?
 (set! (.. cl-spinner -default -defaultProps -size) 150)
 (set! (.. cl-spinner -default -defaultProps -color) "#4286f4")
@@ -151,4 +168,13 @@
                 (doto (.createElement js/document "script")
                   (-> (.setAttribute "id" "testme-script"))
                   (-> (.setAttribute "src" "js/test-paragraph.js"))))
+  (reframe/app-db)
+
+  (cljs.pprint/pprint
+   (get-in @re-frame.db/app-db [:active-content :articles :content]))
+
+  (format-content
+   (get-in @re-frame.db/app-db [:active-content :articles :content]))
   )
+
+;; GET CONTENTS TO DELETE PROPERLY!!
