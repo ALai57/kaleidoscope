@@ -53,6 +53,7 @@
   (.appendChild (.getElementById js/document "primary-content")
                 (doto (.createElement js/document "script")
                   (-> (.setAttribute "id" js-script))
+                  (-> (.setAttribute "class" "dynamicjs"))
                   (-> (.setAttribute "src" (str "js/" js-script)))))
   [:div])
 
@@ -86,12 +87,20 @@
 (set! (.. cl-spinner -default -defaultProps -size) 150)
 (set! (.. cl-spinner -default -defaultProps -color) "#4286f4")
 
+(defn get-elements-in-class [class-name]
+  (.getElementsByClassName js/document class-name))
+
+(defn remove-dynamic-js []
+  (while (not (nil? (.item (get-elements-in-class "dynamicjs") 0)))
+    (.remove (.item (get-elements-in-class "dynamicjs") 0))))
+
 (defn load-screen
   []
   (let [loading? (subscribe [:loading?])
         spinner-proto (.. cl-spinner -default -prototype)]
     (set! (.. spinner-proto -constructor -defaultProps -loading)
           (js->clj @loading?))
+    (if (true? @loading?) (remove-dynamic-js))
     [:div#loading #_{:class "load-icon"
                      :style {:float "left"
                              :margin "auto"}}
@@ -185,6 +194,15 @@
 
   (format-content
    (get-in @active-content [:article :content]))
+
+  (for [el (.getElementsByClassName js/document "dynamicjs")]
+    (.remove el))
+
+  (.remove (.item (.getElementsByClassName js/document "dynamicjs") 0))
+
+  
+  (js-keys (.getElementsByClassName js/document "dynamicjs"))
   )
 
-;; GET CONTENTS TO DELETE PROPERLY!!
+;; GET DYNAMIC CONTENTS TO DELETE PROPERLY!!
+;; ADD CLASS FOR DYNAMIC CONTENTS - DELETE ON EVENT
