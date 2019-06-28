@@ -1,4 +1,4 @@
-(ns todomvc.db
+(ns andrewslai.db
   (:require [cljs.reader]
             [cljs.spec.alpha :as s]
             [re-frame.core :as re-frame]))

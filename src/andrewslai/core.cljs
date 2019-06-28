@@ -1,12 +1,12 @@
-(ns todomvc.core
+(ns andrewslai.core
   (:require-macros [secretary.core :refer [defroute]])
   (:require [goog.events :as events]
             [reagent.core :as reagent]
             [re-frame.core :refer [dispatch dispatch-sync]]
             [secretary.core :as secretary]
-            [todomvc.events] ;; These two are only required to make the compiler
-            [todomvc.subs]   ;; load them (see docs/App-Structure.md)
-            [todomvc.views]
+            [andrewslai.events] ;; These two are only required to make the compiler
+            [andrewslai.subs]   ;; load them (see docs/App-Structure.md)
+            [andrewslai.views]
             [devtools.core :as devtools])
   (:import [goog History]
            [goog.history EventType]))
@@ -41,12 +41,12 @@
 ;; -- Entry Point -------------------------------------------------------------
 ;; Within ../../resources/public/index.html you'll see this code
 ;;    window.onload = function () {
-;;      todomvc.core.main();
+;;      andrewslai.core.main();
 ;;    }
 ;; So this is the entry function that kicks off the app once HTML is loaded
 
 (defn ^:export main
   []
-  ;; `todomvc.views/app` is the root view for the entire UI.
-  (reagent/render [todomvc.views/app]
+  ;; `andrewslai.views/app` is the root view for the entire UI.
+  (reagent/render [andrewslai.views/app]
                   (.getElementById js/document "app")))

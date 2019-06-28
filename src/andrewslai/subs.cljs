@@ -1,4 +1,4 @@
-(ns todomvc.subs
+(ns andrewslai.subs
   (:require [re-frame.core :refer [reg-sub subscribe]]))
 
 ;; -------------------------------------------------------------------------------------

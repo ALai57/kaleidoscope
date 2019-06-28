@@ -1,4 +1,4 @@
-(ns todomvc.views
+(ns andrewslai.views
   (:require [reagent.core  :as reagent]
             [re-frame.core :refer [subscribe
                                    dispatch
@@ -200,9 +200,5 @@
 
   (.remove (.item (.getElementsByClassName js/document "dynamicjs") 0))
 
-  
   (js-keys (.getElementsByClassName js/document "dynamicjs"))
   )
-
-;; GET DYNAMIC CONTENTS TO DELETE PROPERLY!!
-;; ADD CLASS FOR DYNAMIC CONTENTS - DELETE ON EVENT

@@ -77,6 +77,6 @@ CIDER
 EMACS AND REPL/FIGWHEEL
 ```
 (use 'figwheel-sidecar.repl-api)
-(start-figwheel! "todomvc")
-(cljs-repl "todomvc")
+(start-figwheel! "andrewslai")
+(cljs-repl "andrewslai")
 ```
