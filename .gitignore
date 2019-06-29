@@ -1,14 +1,21 @@
 target/*
-*.tfstate
-*/.terraform/*
-*/.terraform*
-*.terraform*
-*.tfstate*
 out
 .nrepl-port
 .rebel_readline_history
 figwheel_server.log
+*db_init_log.txt
 node_modules
 package-lock.json
 package.json
 resources/public/js/compiled/
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+
+# Artifact
+*.zip
+
+# EMACS garbage
+*#*#*

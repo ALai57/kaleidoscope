@@ -1,26 +1,37 @@
 
-This is a template for a Clojure backend and Clojurescript frontend.
-The app must run on Java 11.
+This is my personal website - Clojure backend Clojurescript front end (React)
+The app runs on Java 11, inside a Docker container
 
 
-The template includes:
+The website includes:
 - Server with handler
-- Basic template for sortable react table
-- Postgres backend
-- Single page app with navigation between screens
+- Postgres backend (working locally - not AWS yet)
+- Single page React app with navigation between screens
 
 
-*Servers and development environment*
+*Development environment*
 
-How to start server:
+CIDER - Editor configuration
+```
+(defun cider-jack-in-with-profile ()
+  (interactive)
+  (letrec ((profile (read-string "Enter profile name: "))
+           (lein-params (concat "with-profile +" profile " repl :headless")))
+    (message "lein-params set to: %s" lein-params)
+    (set-variable 'cider-lein-parameters lein-params)
+    ;; just a empty parameter
+    (cider-jack-in '())))
+```
 
-```lein run```
+EMACS AND REPL/FIGWHEEL
+```
+(use 'figwheel-sidecar.repl-api)
+(start-figwheel! "andrewslai")
+(cljs-repl "andrewslai")
+```
 
-How to start front end developing with hot reloading:
 
-```lein figwheel <buildname here>```
-
-*How to setup postgres:*
+*Local database setup (postgres)*
 
 Requirements for postgres backend:
 
@@ -60,23 +71,50 @@ sudo apt-get update
 sudo apt-get install npm
 ```
 
-*** Editor configuration things
 
-CIDER
-```
-(defun cider-jack-in-with-profile ()
-  (interactive)
-  (letrec ((profile (read-string "Enter profile name: "))
-           (lein-params (concat "with-profile +" profile " repl :headless")))
-    (message "lein-params set to: %s" lein-params)
-    (set-variable 'cider-lein-parameters lein-params)
-    ;; just a empty parameter
-    (cider-jack-in '())))
-```
+*** Deployment
 
-EMACS AND REPL/FIGWHEEL
-```
-(use 'figwheel-sidecar.repl-api)
-(start-figwheel! "andrewslai")
-(cljs-repl "andrewslai")
-```
+DOCKER
+docker build -t andrewslai .
+sudo docker run --network="host" -p 5000:5000 andrewslai
+sudo docker ps
+sudo docker stop 02d64e84e7c3
+
+
+ELASTIC BEANSTALK
+eb platform select
+eb platform show
+
+aws elasticbeanstalk create-environment \
+    --application-name andrewslai \
+    --environment-name staging \
+    --solution-stack-name "64bit Amazon Linux 2018.03 v2.12.14 running Docker 18.06.1-ce" \
+    --region us-east-1
+
+aws elasticbeanstalk create-application-version \
+    --application-name andrewslai \
+    --version-label v1 \
+    --source-bundle S3Bucket="andrewslai-eb",S3Key="deployment.zip" \
+    --auto-create-application \
+    --region us-east-1
+
+aws elasticbeanstalk update-environment \
+    --application-name andrewslai \
+    --environment-name staging \
+    --version-label v1 \
+    --region us-east-1
+
+DEPLOY ARTIFACT
+zip --exclude '*.git*' --exclude '*node_modules/*' --exclude '*.elasticbeanstalk*' -r deployment.zip .
+aws s3 mb s3://andrewslai-eb --region us-east-1
+aws s3 cp deployment.zip s3://andrewslai-eb --region us-east-1
+
+DATABASE CONNECTION
+psql \
+   --host=aa1je50hd533cnm.cwvfukjbn65j.us-east-1.rds.amazonaws.com \
+   --port=5432 \
+   --username=andrewslai \
+   --dbname=aa1je50hd533cnm \
+   --password
+
+
