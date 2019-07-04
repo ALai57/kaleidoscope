@@ -80,7 +80,6 @@ sudo docker run --network="host" -p 5000:5000 andrewslai
 sudo docker ps
 sudo docker stop 02d64e84e7c3
 
-
 ELASTIC BEANSTALK
 eb platform select
 eb platform show
@@ -105,6 +104,10 @@ aws elasticbeanstalk update-environment \
     --region us-east-1
 
 DEPLOY ARTIFACT
+lein do clean, uberjar
+docker build -t andrewslai .
+sudo docker run --env-file=.env -p 5000:5000 andrewslai
+
 zip --exclude '*.git*' --exclude '*node_modules/*' --exclude '*.elasticbeanstalk*' -r deployment.zip .
 aws s3 mb s3://andrewslai-eb --region us-east-1
 aws s3 cp deployment.zip s3://andrewslai-eb --region us-east-1
@@ -136,3 +139,7 @@ ALTER USER posautocompletetgres WITH PASSWORD '';
 - edit pg_hba.conf to md5 and restart postgres service
 
 
+ADD TO BASH PROFILE (OR ZSHRC)
+source ./PATH/TO/andrewslai/scripts/db/use_db.sh
+
+usage: `use_db aws` `use_db local`

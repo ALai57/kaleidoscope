@@ -4,6 +4,8 @@ out
 .rebel_readline_history
 figwheel_server.log
 *db_init_log.txt
+*.env
+*.lein-repl-history
 node_modules
 package-lock.json
 package.json

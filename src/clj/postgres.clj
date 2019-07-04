@@ -52,18 +52,28 @@
   (sql/query pg-db [(str "SELECT * FROM " (name table))]))
 
 (defn get-article [article-title]
-  (sql/query pg-db
-             [(str "SELECT * FROM articles"
-                   " WHERE article_url = ?") article-title]))
+  (try
+    (sql/query pg-db
+               [(str "SELECT * FROM articles"
+                     " WHERE article_url = ?") article-title])
+    (catch Exception e
+      (str "get-content caught exception: " (.getMessage e)
+           "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
 (defn get-content [{:keys [article_id] :as article}]
-  (let [content
-        (sql/query pg-db
-                   [(str "SELECT "
-                         "article_id, metadata, content_order, content_type, content "
-                         "FROM content "
-                         "WHERE article_id = ?") article_id])]
-    (assoc-in article [:content] content)))
+  (try
+    (let [content
+          (sql/query pg-db
+                     [(str "SELECT "
+                           "article_id, metadata, content_order, "
+                           "content_type, content "
+                           "FROM content "
+                           "WHERE article_id = ?") article_id])]
+      (assoc-in article [:content] content))
+    (catch Exception e
+      (str "get-content caught exception: " (.getMessage e)
+           "postgres config: " (assoc pg-db :password "xxxxxx"))))
+  )
 
 (defn select [table fruit-name]
   (sql/query pg-db [(str "SELECT * FROM " (name table)
