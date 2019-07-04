@@ -32,19 +32,11 @@
 ;; Database Connection
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def db-base-config {:dbtype "postgresql"
-                     :dbname db-name
-                     :host db-host
-                     :user db-user
-                     :password db-password})
-
-(def pg-db
-  (if live-db?
-    (conj
-     db-base-config
-     {:ssl true
-      :sslfactory ssl-factory})
-    db-base-config))
+(def pg-db {:dbtype "postgresql"
+            :dbname db-name
+            :host db-host
+            :user db-user
+            :password db-password})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection
@@ -78,14 +70,18 @@
                          " WHERE name = ?")  fruit-name]))
 
 (comment
-  (select :fruit "Ap")
+  (select :fruit "Apple")
   (:article-id (get-article "my-first-article"))
 
   (:metadata
    (first
     (get-in
-     (get-content (first (get-article "my-second-article")))
+     (get-content (first (get-article "my-first-article")))
      [:content])))
 
+  (clojure.pprint/pprint
+   (get-in
+    (get-content (first (get-article "my-first-article")))
+    [:content]))
   (clojure.pprint/pprint sql/IResultSetReadColumn)
   )

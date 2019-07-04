@@ -13,9 +13,6 @@
 (defn init []
   (println "Hello! Starting service..."))
 
-
-
-;; TO DO: Add base route that serves index.html
 (def app
   (wrap-content-type
    (wrap-resource
@@ -31,10 +28,6 @@
        (-> (resource-response "index.html" {:root "public"})
            (content-type "text/html")))
 
-     #_(GET "/andrewslai" []
-         (-> (resource-response "andrewslai.html" {:root "public"})
-             (content-type "text/html")))
-
      (GET "/ping" []
        (ok {:service-status "ok"}))
 
@@ -45,7 +38,6 @@
        (Thread/sleep 2000)
        (ok {:content-type content-type
             :content-name content-name
-            ;;:article (first (db/get-article content-name))
             :article (db/get-content (first (db/get-article content-name)))
             }))
 
@@ -56,10 +48,6 @@
             ;;:database (db/select-all :fruit)
             :fruit (db/select :fruit content-name)
             }))
-
-     (GET "/test-figwheel" []
-       (-> (resource-response "index.html" {:root "public"})
-           (content-type "text/html")))
 
      ;; TO DO: Make this a POST or PUT
      (GET "/test-create" []
@@ -93,4 +81,10 @@
 
   (clojure.pprint/pprint
    (db/get-content (first (db/get-article "my-second-article"))))
+
+  (ok {:content-type content-type
+       :content-name content-name
+       ;;:article (first (db/get-article content-name))
+       :article (db/get-content (first (db/get-article content-name)))
+       })
   )

@@ -109,12 +109,30 @@ zip --exclude '*.git*' --exclude '*node_modules/*' --exclude '*.elasticbeanstalk
 aws s3 mb s3://andrewslai-eb --region us-east-1
 aws s3 cp deployment.zip s3://andrewslai-eb --region us-east-1
 
-DATABASE CONNECTION
+REMOTE DATABASE CONNECTION
 psql \
-   --host=aa1je50hd533cnm.cwvfukjbn65j.us-east-1.rds.amazonaws.com \
-   --port=5432 \
-   --username=andrewslai \
-   --dbname=aa1je50hd533cnm \
+   --host=$ANDREWSLAI_DB_HOST \
+   --port=$ANDREWSLAI_DB_PORT \
+   --username=$ANDREWSLAI_DB_USER \
+   --dbname=$ANDREWSLAI_DB_NAME \
    --password
+
+
+ssh into Elastic Beanstalk
+`eb ssh staging`
+
+download psql and install
+
+change postgres password
+- edit pg_hba.conf and modify to "trust"
+- stop service `service postgres stop`
+- `service postgres start`
+- login to psql: `sudo su - postgres`
+
+```
+psql
+ALTER USER posautocompletetgres WITH PASSWORD '';
+```
+- edit pg_hba.conf to md5 and restart postgres service
 
 
