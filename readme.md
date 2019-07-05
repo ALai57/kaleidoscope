@@ -89,6 +89,19 @@ aws elasticbeanstalk create-environment \
     --environment-name staging \
     --solution-stack-name "64bit Amazon Linux 2018.03 v2.12.14 running Docker 18.06.1-ce" \
     --region us-east-1
+    --option-settings file://eb-default-vpc.json
+** Added configuration using .ebextensions. This will allow the EB app to
+** launch in the default VPC
+
+DEPLOY ARTIFACT
+lein do clean, uberjar
+docker build -t andrewslai .
+sudo docker run --env-file=.env -p 5000:5000 andrewslai
+
+zip --exclude '*.git*' --exclude '*node_modules/*' --exclude '*.elasticbeanstalk*' -r deployment.zip .
+aws s3 mb s3://andrewslai-eb --region us-east-1
+aws s3 cp deployment.zip s3://andrewslai-eb --region us-east-1
+
 
 aws elasticbeanstalk create-application-version \
     --application-name andrewslai \
@@ -103,14 +116,7 @@ aws elasticbeanstalk update-environment \
     --version-label v1 \
     --region us-east-1
 
-DEPLOY ARTIFACT
-lein do clean, uberjar
-docker build -t andrewslai .
-sudo docker run --env-file=.env -p 5000:5000 andrewslai
-
-zip --exclude '*.git*' --exclude '*node_modules/*' --exclude '*.elasticbeanstalk*' -r deployment.zip .
-aws s3 mb s3://andrewslai-eb --region us-east-1
-aws s3 cp deployment.zip s3://andrewslai-eb --region us-east-1
+NEED TO MANUALLY INPUT ENV VARIABLES RIGHT NOW
 
 REMOTE DATABASE CONNECTION
 psql \
