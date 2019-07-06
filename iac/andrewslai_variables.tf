@@ -6,6 +6,7 @@ variable "region" {
 
 variable "default_vpc" {}
 variable "subnets" {}
+variable "security_groups" {}
 
 variable "ANDREWSLAI_DB_PASSWORD" {}
 variable "ANDREWSLAI_DB_USER" {}

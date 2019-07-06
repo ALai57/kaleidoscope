@@ -41,6 +41,11 @@ resource "aws_elastic_beanstalk_environment" "tftest_env" {
     value     = "${var.subnets}"
   }
   setting {
+    namespace = "aws:autoscaling:launchconfiguration"
+    name      = "SecurityGroups"
+    value     = "${var.security_groups}"
+  }
+  setting {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "ANDREWSLAI_DB_PASSWORD"
     value     = "${var.ANDREWSLAI_DB_PASSWORD}"
