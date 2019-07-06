@@ -1,0 +1,17 @@
+[
+    {
+        "Namespace" : "aws:ec2:vpc",
+        "OptionName" : "VPCId",
+        "Value" : "vpc-*******"
+    },
+    {
+        "Namespace" : "aws:ec2:vpc",
+        "OptionName" : "ELBSubnets",
+        "Value" : "subnet-******, subnet-******, subnet-******, subnet-******, subnet-******, subnet-******"
+    },
+    {
+        "Namespace" : "aws:ec2:vpc",
+        "OptionName" : "Subnets",
+        "Value" : "subnet-******, subnet-******, subnet-******, subnet-******, subnet-******, subnet-******"
+    }
+]

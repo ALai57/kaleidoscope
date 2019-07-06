@@ -10,7 +10,7 @@ node_modules
 package-lock.json
 package.json
 resources/public/js/compiled/
-
+*eb-default-vpc.json
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
