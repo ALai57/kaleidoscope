@@ -21,3 +21,10 @@ resources/public/js/compiled/
 
 # EMACS garbage
 *#*#*
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
