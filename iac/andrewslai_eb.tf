@@ -4,24 +4,24 @@ provider "aws" {
   region     = "${var.region}"
 }
 
-resource "aws_s3_bucket" "testbkt" {
-  bucket = "tftest-s3"
+resource "aws_s3_bucket" "andrewslai_s3" {
+  bucket = "andrewslai-website-s3"
 }
 
-resource "aws_s3_bucket_object" "testbkt" {
-  bucket = "${aws_s3_bucket.testbkt.id}"
-  key    = "beanstalk/deployment.zip"
+resource "aws_s3_bucket_object" "andrewslai_artifact" {
+  bucket = "${aws_s3_bucket.andrewslai_s3.id}"
+  key    = "deployment.zip"
   source = "deployment.zip"
 }
 
-resource "aws_elastic_beanstalk_application" "tftest_app" {
-  name        = "tf-test-app"
-  description = "tf-test-app"
+resource "aws_elastic_beanstalk_application" "andrewslai_app" {
+  name        = "andrewslai-website"
+  description = "My personal website"
 }
 
-resource "aws_elastic_beanstalk_environment" "tftest_env" {
-  name                = "tf-test-env"
-  application         = "${aws_elastic_beanstalk_application.tftest_app.name}"
+resource "aws_elastic_beanstalk_environment" "andrewslai_env" {
+  name                = "staging"
+  application         = "${aws_elastic_beanstalk_application.andrewslai_app.name}"
   solution_stack_name = "64bit Amazon Linux 2018.03 v2.12.14 running Docker 18.06.1-ce"
 
   setting {
@@ -73,10 +73,10 @@ resource "aws_elastic_beanstalk_environment" "tftest_env" {
 
 }
 
-resource "aws_elastic_beanstalk_application_version" "tftest_app_version" {
-  name        = "tf-test-application-version"
-  application = "${aws_elastic_beanstalk_application.tftest_app.name}"
+resource "aws_elastic_beanstalk_application_version" "andrewslai_app_version" {
+  name        = "andrewslai-application-version"
+  application = "${aws_elastic_beanstalk_application.andrewslai_app.name}"
   description = "application version created by terraform"
-  bucket      = "${aws_s3_bucket.testbkt.id}"
-  key         = "${aws_s3_bucket_object.testbkt.id}"
+  bucket      = "${aws_s3_bucket.andrewslai_s3.id}"
+  key         = "${aws_s3_bucket_object.andrewslai_artifact.id}"
 }
