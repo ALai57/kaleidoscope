@@ -4,6 +4,8 @@
                                    dispatch
                                    reg-sub]]
             [clojure.string :as str]
+
+            [cljsjs.react-bootstrap]
             ["react" :as react]
             ["react-spinners" :as spinner]
             ["emotion" :as emotion]
@@ -14,6 +16,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; My website
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def Button (reagent/adapt-react-class (aget js/ReactBootstrap "Button")))
+(def Card (reagent/adapt-react-class (aget js/ReactBootstrap "Card")))
 
 (defn nav-icon
   [route img]
@@ -77,6 +82,28 @@
      (format-content
       (get-in @active-content [:article :content]))]))
 
+(defn make-card
+  [{:keys [article_tags title article_url article_id] :as article}]
+
+  ^{:key article_id}
+  [Card {:class "text-white bg-primary mb-3"
+         :style {:max-width "18rem"}}
+   [:div.card-header article_tags]
+   [:div.card-body
+    [:h5.card-title>a {:href (str "#/" article_tags
+                                  "/content/" article_url)
+                       :style {:color "white"}}
+     title]
+    [:p.card-text article_url]]])
+
+(defn recent-content-box
+  []
+  (let [recent-content (subscribe [:recent-content])]
+    ;;(println "Got recent content! " @recent-content)
+    #_(when (not (nil? @recent-content)))
+    [:div#recent-content
+     (format-title @recent-content)
+     [:div (map make-card @recent-content)]]))
 
 (extend-protocol IPrintWithWriter
   js/Symbol
@@ -106,12 +133,15 @@
                              :margin "auto"}}
      (.render spinner-proto)]))
 
+
 (defn home
   []
   [:div
    [primary-nav]
    [:div#primary-content
     [primary-content]]
+   [:div#rcb
+    [recent-content-box]]
    [load-screen]])
 
 (defn thoughts

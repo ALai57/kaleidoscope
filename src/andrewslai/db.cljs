@@ -27,6 +27,7 @@
 (def default-db           ;; what gets put into app-db by default.
   {:active-panel :home
    :active-content nil
+   :recent-content nil
    :loading? false})        ;; show all todos
 
 

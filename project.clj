@@ -12,9 +12,9 @@
                  [org.clojure/java.jdbc "0.6.1"]
                  [org.postgresql/postgresql "9.4-1201-jdbc41"]
 
-
                  [cljs-http "0.1.46"]
                  [cljs-ajax "0.7.5"]
+                 [cljsjs/react-bootstrap "1.0.0-beta.9-0"] ;; latest release
                  [cljsjs/react "16.8.6-0"]
                  [cljsjs/react-dom "16.8.6-0"]
                  [org.clojure/clojurescript "1.10.520"]

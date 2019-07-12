@@ -41,6 +41,10 @@
             :article (db/get-content (first (db/get-article content-name)))
             }))
 
+     (GET "/get-recent-content"
+         [content-type content-name]
+       (ok (db/get-articles 6)))
+
      (GET "/get-fruit/:content-type/:content-name" [content-type content-name]
        (Thread/sleep 2000)
        (ok {:content-type content-type

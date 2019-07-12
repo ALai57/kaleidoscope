@@ -57,8 +57,16 @@
                [(str "SELECT * FROM articles"
                      " WHERE article_url = ?") article-title])
     (catch Exception e
-      (str "get-content caught exception: " (.getMessage e)
+      (str "get-article caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
+
+(defn get-articles [n]
+  (try
+    (sql/query pg-db
+               [(str "SELECT * FROM articles"
+                     " LIMIT ?") n])
+    (catch Exception e
+      (str "get-articles caught exception: " (.getMessage e)))))
 
 (defn get-content [{:keys [article_id] :as article}]
   (try

@@ -21,6 +21,11 @@
    (:active-content db)))
 
 (reg-sub
+ :recent-content
+ (fn [db _]
+   (:recent-content db)))
+
+(reg-sub
  :loading?
  (fn [db _]
    (:loading? db)))
