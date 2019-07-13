@@ -64,12 +64,13 @@ PACKAGE ARTIFACT AND CHECK IF IT RUNS
 ```
 lein do clean, uberjar
 docker build -t andrewslai .
+use_db aws
 sudo docker run --env-file=.env -p 5000:5000 andrewslai
 ```
 
 UPLOAD ARTIFACT TO S3
 ```
-zip --exclude '*.git*' --exclude '*node_modules/*' --exclude '*.elasticbeanstalk*' -r deployment.zip .
+zip --exclude '*.git*' --exclude '*node_modules/*' --exclude '*.elasticbeanstalk*' --exclude '*deployment*.zip' -r deployment.zip .
 aws s3 mb s3://andrewslai-eb --region us-east-1
 aws s3 cp deployment.zip s3://andrewslai-eb --region us-east-1
 ```

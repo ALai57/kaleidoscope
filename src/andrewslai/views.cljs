@@ -82,19 +82,46 @@
      (format-content
       (get-in @active-content [:article :content]))]))
 
+#_(defn make-card
+    [{:keys [article_tags title article_url article_id] :as article}]
+
+    ^{:key article_id}
+    [Card {:class "text-white bg-primary mb-3"
+           :style {:max-width "18rem"
+                   :float "left"
+                   :min-width "200px"
+                   :margin "10px"}}
+     [:div.card-header article_tags]
+     [:div.card-body
+      [:h5.card-title>a {:href (str "#/" article_tags
+                                    "/content/" article_url)
+                         :style {:color "white"}}
+       title]
+      [:p.card-text article_url]]])
+
 (defn make-card
   [{:keys [article_tags title article_url article_id] :as article}]
 
   ^{:key article_id}
   [Card {:class "text-white bg-primary mb-3"
-         :style {:max-width "18rem"}}
-   [:div.card-header article_tags]
-   [:div.card-body
-    [:h5.card-title>a {:href (str "#/" article_tags
-                                  "/content/" article_url)
-                       :style {:color "white"}}
-     title]
-    [:p.card-text article_url]]])
+         :style {:max-width "18rem"
+                 :float "left"
+                 :min-width "400px"
+                 :min-height "120px"
+                 :margin "10px"}}
+   [:div.container-fluid
+    [:div.row.flex-items-xs-middle
+     [:div.col-md-6.bg-primary.text-xs-center.p-a-0
+      [:div.p-y-3
+       [:h1.p-y-2
+        [:img.fa.fa-2x {:src "images/nav-bar/statistics-icon.svg"
+                        :style {:width "100px"}}]]]]
+     [:div.col-md-6.bg-light.text-dark.p-y-2 {:style {:height "100%"}}
+      [:h5.card-title>a {:href (str "#/" article_tags
+                                    "/content/" article_url)}
+       title]
+      [:p.card-text article_url]]
+     ]]])
 
 (defn recent-content-box
   []
