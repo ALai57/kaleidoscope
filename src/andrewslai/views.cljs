@@ -82,46 +82,40 @@
      (format-content
       (get-in @active-content [:article :content]))]))
 
-#_(defn make-card
-    [{:keys [article_tags title article_url article_id] :as article}]
-
-    ^{:key article_id}
-    [Card {:class "text-white bg-primary mb-3"
-           :style {:max-width "18rem"
-                   :float "left"
-                   :min-width "200px"
-                   :margin "10px"}}
-     [:div.card-header article_tags]
-     [:div.card-body
-      [:h5.card-title>a {:href (str "#/" article_tags
-                                    "/content/" article_url)
-                         :style {:color "white"}}
-       title]
-      [:p.card-text article_url]]])
 
 (defn make-card
   [{:keys [article_tags title article_url article_id] :as article}]
 
-  ^{:key article_id}
-  [Card {:class "text-white bg-primary mb-3"
-         :style {:max-width "18rem"
-                 :float "left"
-                 :min-width "400px"
-                 :min-height "120px"
-                 :margin "10px"}}
-   [:div.container-fluid
-    [:div.row.flex-items-xs-middle
-     [:div.col-md-6.bg-primary.text-xs-center.p-a-0
-      [:div.p-y-3
-       [:h1.p-y-2
-        [:img.fa.fa-2x {:src "images/nav-bar/statistics-icon.svg"
-                        :style {:width "100px"}}]]]]
-     [:div.col-md-6.bg-light.text-dark.p-y-2 {:style {:height "100%"}}
-      [:h5.card-title>a {:href (str "#/" article_tags
-                                    "/content/" article_url)}
-       title]
-      [:p.card-text article_url]]
-     ]]])
+  (let [get-icon
+        (fn [x] (condp = x
+                  "research" "images/nav-bar/neuron-icon.svg"
+                  "archive" "images/nav-bar/archive-icon.svg"
+                  "about" "images/nav-bar/andrew-silhouette-icon.svg"
+                  "thoughts" "images/nav-bar/andrew-head-icon.svg"))]
+
+    ^{:key article_id}
+    [Card {:class "text-white bg-light mb-3"
+           :style {:max-width "18rem"
+                   ;;:float "left"
+                   :display "inline-block"
+                   :min-width "350px"
+                   :margin "10px"}}
+     [:div.container-fluid
+      [:div.row.flex-items-xs-middle
+       [:div.col-md-3.bg-primary.text-xs-center.p-a-0
+        {:style {:padding-top "1rem"
+                 :padding-bottom "1rem"}}
+        [:div.p-y-3
+         [:h1.p-y-2
+          [:img.fa.fa-2x {:src (get-icon article_tags)
+                          :style {:width "100%"}}]]]]
+       [:div.col-md-9.bg-light.text-dark.p-y-2 {:style {:height "100%"
+                                                        :padding-top "0.5rem"}}
+        [:h5.card-title>a {:href (str "#/" article_tags
+                                      "/content/" article_url)}
+         title]
+        [:p.card-text article_url]]
+       ]]]))
 
 (defn recent-content-box
   []
@@ -130,7 +124,10 @@
     #_(when (not (nil? @recent-content)))
     [:div#recent-content
      (format-title @recent-content)
-     [:div (map make-card @recent-content)]]))
+     [:div#recent-article-cards.card-group {:style {:position "absolute"
+                                                    :bottom 0
+                                                    :justify-content "center"}}
+      (map make-card @recent-content)]]))
 
 (extend-protocol IPrintWithWriter
   js/Symbol
