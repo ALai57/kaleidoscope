@@ -82,7 +82,9 @@
      (format-content
       (get-in @active-content [:article :content]))]))
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Making cards that display articles
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn make-card
   [{:keys [article_tags title article_url article_id] :as article}]
 
@@ -102,15 +104,17 @@
                    :margin "10px"}}
      [:div.container-fluid
       [:div.row.flex-items-xs-middle
-       [:div.col-md-3.bg-primary.text-xs-center.p-a-0
+       [:div.col-sm-3.bg-primary.text-xs-center.p-a-0
         {:style {:padding-top "1rem"
-                 :padding-bottom "1rem"}}
+                 :padding-bottom "1rem"
+                 :width "25%"}}
         [:div.p-y-3
          [:h1.p-y-2
           [:img.fa.fa-2x {:src (get-icon article_tags)
                           :style {:width "100%"}}]]]]
-       [:div.col-md-9.bg-light.text-dark.p-y-2 {:style {:height "100%"
-                                                        :padding-top "0.5rem"}}
+       [:div.col-sm-9.bg-light.text-dark.p-y-2 {:style {:height "100%"
+                                                        :padding-top "0.5rem"
+                                                        :width "75%"}}
         [:h5.card-title>a {:href (str "#/" article_tags
                                       "/content/" article_url)}
          title]
@@ -118,16 +122,20 @@
        ]]]))
 
 (defn recent-content-box
-  []
-  (let [recent-content (subscribe [:recent-content])]
-    ;;(println "Got recent content! " @recent-content)
-    #_(when (not (nil? @recent-content)))
+  [content-type]
+  (let [recent-content (subscribe [:recent-content])
+        the-content (if content-type
+                      (filter #(= (:article_tags %1) content-type)
+                              @recent-content)
+                      @recent-content)
+        _ (println the-content)]
     [:div#recent-content
      (format-title @recent-content)
      [:div#recent-article-cards.card-group {:style {:position "absolute"
                                                     :bottom 0
-                                                    :justify-content "center"}}
-      (map make-card @recent-content)]]))
+                                                    :justify-content "center"
+                                                    :width "100%"}}
+      (map make-card the-content)]]))
 
 (extend-protocol IPrintWithWriter
   js/Symbol
@@ -175,6 +183,8 @@
    [:p "Thoughts"]
    [:div#primary-content
     [primary-content]]
+   [:div#rcb
+    [recent-content-box "thoughts"]]
    [load-screen]])
 
 (defn archive
@@ -184,6 +194,8 @@
    [:p "Archive"]
    [:div#primary-content
     [primary-content]]
+   [:div#rcb
+    [recent-content-box "archive"]]
    [load-screen]])
 
 (defn about
@@ -193,6 +205,8 @@
    [:p "About"]
    [:div#primary-content
     [primary-content]]
+   [:div#rcb
+    [recent-content-box "about"]]
    [load-screen]])
 
 (defn research
@@ -202,6 +216,8 @@
    [:p "Research"]
    [:div#primary-content
     [primary-content]]
+   [:div#rcb
+    [recent-content-box "research"]]
    [load-screen]])
 
 (defn data-analysis
@@ -211,6 +227,8 @@
    [:p "Data Analysis"]
    [:div#primary-content
     [primary-content]]
+   [:div#rcb
+    [recent-content-box "data-analysis"]]
    [load-screen]])
 
 (def panels {:home [home]
