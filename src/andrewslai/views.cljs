@@ -1,5 +1,9 @@
 (ns andrewslai.views
-  (:require [reagent.core  :as reagent]
+  (:require [andrewslai.article :as article]
+            [andrewslai.article-cards :as cards]
+            [andrewslai.loading :as loading]
+            [andrewslai.navbar :as nav]
+            [reagent.core  :as reagent]
             [re-frame.core :refer [subscribe
                                    dispatch
                                    reg-sub]]
@@ -14,222 +18,83 @@
             ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; My website
+;; Landing pages
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def Button (reagent/adapt-react-class (aget js/ReactBootstrap "Button")))
-(def Card (reagent/adapt-react-class (aget js/ReactBootstrap "Card")))
-
-(defn nav-icon
-  [route img]
-  [:a {:href (str "#/" route)
-       :class "zoom-icon"
-       :style {:width "auto"}}
-   [:img {:src (str "images/nav-bar/" img)
-          :class "navbutton"
-          :on-click #(dispatch [:set-active-panel (keyword route)])}]])
-
-(defn primary-nav
-  []
-  [:div#primary-nav
-   [:a {:href "#/home"
-        :class "zoom-icon"
-        :style {:float "left"
-                :display "inline-block"
-                :width "auto"}}
-    [:img {:src "images/nav-bar/favicon-white.svg"
-           :class "navbutton"
-           :on-click #(dispatch [:set-active-panel :home])}]]
-   [:div#secondary-nav
-    [nav-icon "thoughts" "andrew-head-icon.svg"]
-    [nav-icon "archive" "archive-icon.svg"]
-    [nav-icon "about" "andrew-silhouette-icon.svg"]
-    [nav-icon "research" "neuron-icon.svg"]
-    [nav-icon "data-analysis" "statistics-icon.svg"]]])
-
-(defn format-title [content]
-  (let [title (get-in content [:article :title])
-        style (:metadata
-               (first
-                (get-in content [:article :content])))]
-    [:h2 style title]))
-
-(defn format-js [js-script]
-  (.appendChild (.getElementById js/document "primary-content")
-                (doto (.createElement js/document "script")
-                  (-> (.setAttribute "id" js-script))
-                  (-> (.setAttribute "class" "dynamicjs"))
-                  (-> (.setAttribute "src" (str "js/" js-script)))))
-  [:div])
-
-(defn format-content [content]
-  (into
-   [:div#article-content]
-   (for [entry (sort-by :content_order content)]
-     (condp = (:content_type entry)
-       "text" ^{:key (:content_order entry)} [:p (:content entry)]
-       "js" ^{:key (:content_order entry)} (format-js (:content entry))))))
-
-
-(defn primary-content
-  []
-  (let [active-content (subscribe [:active-content])]
-    ;;(println "Got active content! " @active-content)
-    #_(when (not (nil? @active-content))
-        (format-js "test-paragraph.js"))
-    [:div#goodies
-     (format-title @active-content)
-     (format-content
-      (get-in @active-content [:article :content]))]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Making cards that display articles
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn make-card
-  [{:keys [article_tags title article_url article_id] :as article}]
-
-  (let [get-icon
-        (fn [x] (condp = x
-                  "research" "images/nav-bar/neuron-icon.svg"
-                  "archive" "images/nav-bar/archive-icon.svg"
-                  "about" "images/nav-bar/andrew-silhouette-icon.svg"
-                  "thoughts" "images/nav-bar/andrew-head-icon.svg"))]
-
-    ^{:key article_id}
-    [Card {:class "text-white bg-light mb-3"
-           :style {:max-width "18rem"
-                   ;;:float "left"
-                   :display "inline-block"
-                   :min-width "350px"
-                   :margin "10px"}}
-     [:div.container-fluid
-      [:div.row.flex-items-xs-middle
-       [:div.col-sm-3.bg-primary.text-xs-center.p-a-0
-        {:style {:padding-top "1rem"
-                 :padding-bottom "1rem"
-                 :width "25%"}}
-        [:div.p-y-3
-         [:h1.p-y-2
-          [:img.fa.fa-2x {:src (get-icon article_tags)
-                          :style {:width "100%"}}]]]]
-       [:div.col-sm-9.bg-light.text-dark.p-y-2 {:style {:height "100%"
-                                                        :padding-top "0.5rem"
-                                                        :width "75%"}}
-        [:h5.card-title>a {:href (str "#/" article_tags
-                                      "/content/" article_url)}
-         title]
-        [:p.card-text article_url]]
-       ]]]))
-
-(defn recent-content-box
-  [content-type]
-  (let [recent-content (subscribe [:recent-content])
-        the-content (if content-type
-                      (filter #(= (:article_tags %1) content-type)
-                              @recent-content)
-                      @recent-content)
-        _ (println the-content)]
-    [:div#recent-content
-     (format-title @recent-content)
-     [:div#recent-article-cards.card-group {:style {:position "absolute"
-                                                    :bottom 0
-                                                    :justify-content "center"
-                                                    :width "100%"}}
-      (map make-card the-content)]]))
-
-(extend-protocol IPrintWithWriter
-  js/Symbol
-  (-pr-writer [sym writer _]
-    (-write writer (str "\"" (.toString sym) "\""))))
-
-;; TODO: Move to environment variable config?
-(set! (.. cl-spinner -default -defaultProps -size) 150)
-(set! (.. cl-spinner -default -defaultProps -color) "#4286f4")
-
-(defn get-elements-in-class [class-name]
-  (.getElementsByClassName js/document class-name))
-
-(defn remove-dynamic-js []
-  (while (not (nil? (.item (get-elements-in-class "dynamicjs") 0)))
-    (.remove (.item (get-elements-in-class "dynamicjs") 0))))
-
-(defn load-screen
-  []
-  (let [loading? (subscribe [:loading?])
-        spinner-proto (.. cl-spinner -default -prototype)]
-    (set! (.. spinner-proto -constructor -defaultProps -loading)
-          (js->clj @loading?))
-    (if (true? @loading?) (remove-dynamic-js))
-    [:div#loading #_{:class "load-icon"
-                     :style {:float "left"
-                             :margin "auto"}}
-     (.render spinner-proto)]))
-
-
 (defn home
   []
   [:div
-   [primary-nav]
+   [nav/primary-nav]
    [:div#primary-content
-    [primary-content]]
+    [article/primary-content]]
    [:div#rcb
-    [recent-content-box]]
-   [load-screen]])
+    [cards/recent-content-display]]
+   [loading/load-screen]])
 
 (defn thoughts
   []
   [:div
-   [primary-nav]
+   [nav/primary-nav]
    [:p "Thoughts"]
    [:div#primary-content
-    [primary-content]]
+    [article/primary-content]]
    [:div#rcb
-    [recent-content-box "thoughts"]]
-   [load-screen]])
+    [cards/recent-content-display "thoughts"]]
+   [loading/load-screen]])
 
 (defn archive
   []
   [:div
-   [primary-nav]
+   [nav/primary-nav]
    [:p "Archive"]
    [:div#primary-content
-    [primary-content]]
+    [article/primary-content]]
    [:div#rcb
-    [recent-content-box "archive"]]
-   [load-screen]])
+    [cards/recent-content-display "archive"]]
+   [loading/load-screen]])
 
 (defn about
   []
   [:div
-   [primary-nav]
+   [nav/primary-nav]
    [:p "About"]
    [:div#primary-content
-    [primary-content]]
+    [article/primary-content]]
    [:div#rcb
-    [recent-content-box "about"]]
-   [load-screen]])
+    [cards/recent-content-display "about"]]
+   [loading/load-screen]])
 
 (defn research
   []
   [:div
-   [primary-nav]
+   [nav/primary-nav]
    [:p "Research"]
    [:div#primary-content
-    [primary-content]]
+    [article/primary-content]]
    [:div#rcb
-    [recent-content-box "research"]]
-   [load-screen]])
+    [cards/recent-content-display "research"]]
+   [loading/load-screen]])
 
 (defn data-analysis
   []
   [:div
-   [primary-nav]
+   [nav/primary-nav]
    [:p "Data Analysis"]
    [:div#primary-content
-    [primary-content]]
+    [article/primary-content]]
    [:div#rcb
-    [recent-content-box "data-analysis"]]
-   [load-screen]])
+    [cards/recent-content-display "data-analysis"]]
+   [loading/load-screen]])
+
+(defn load-page
+  []
+  [:div
+   [nav/primary-nav]
+   [:p "Test loading page"]
+   [:div#primary-content
+    [article/primary-content]]
+   [:div#rcb
+    [cards/recent-content-display "thoughts"]]
+   [loading/load-screen-test]])
 
 (def panels {:home [home]
              :thoughts [thoughts]
@@ -237,7 +102,7 @@
              :about [about]
              :research [research]
              :data-analysis [data-analysis]
-             :load-screen [load-screen]})
+             :load-screen [load-page]})
 
 (defn app
   []
