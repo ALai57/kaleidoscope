@@ -43,6 +43,8 @@
     (if (true? @loading?) (remove-dynamic-js))
     [:div#loading.load-icon {:style {:text-align "center"
                                      :margin "auto"
+                                     :position "absolute"
+                                     :top "30%"
                                      :width "100%"}}
      (.render spinner-proto)]))
 
@@ -54,7 +56,9 @@
     (if (true? @loading?) (remove-dynamic-js))
     [:div#loading.load-icon {:style {:text-align "center"
                                      :margin "auto"
-                                     :width "100%"}}
+                                     :width "100%"
+                                     :position "absolute"
+                                     :top "30%"}}
      (.render spinner-proto)]))
 
 

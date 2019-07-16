@@ -78,7 +78,7 @@ aws s3 cp deployment.zip s3://andrewslai-eb --region us-east-1
 CREATE NEW APPLICATION VERSION
 ```
 aws elasticbeanstalk create-application-version \
-    --application-name andrewslai \
+    --application-name andrewslai_website \
     --version-label v1 \
     --source-bundle S3Bucket="andrewslai-eb",S3Key="deployment.zip" \
     --auto-create-application \
@@ -88,7 +88,7 @@ aws elasticbeanstalk create-application-version \
 UPDATE ENVIRONMENT WITH NEW APPLICATION VERSION
 ```
 aws elasticbeanstalk update-environment \
-    --application-name andrewslai \
+    --application-name andrewslai_website \
     --environment-name staging \
     --version-label v1 \
     --region us-east-1

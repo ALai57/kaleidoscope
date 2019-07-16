@@ -52,7 +52,8 @@
                       @recent-content)]
     [:div#recent-content
      [:div#recent-article-cards.card-group
-      {:style {:position "absolute"
+      {:style {;;:position "absolute"
+               :padding-top "40px"
                :bottom 0
                :justify-content "center"
                :width "100%"}}
