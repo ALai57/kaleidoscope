@@ -24,7 +24,7 @@
 
           :db-name
           {:env-name "ANDREWSLAI_DB_NAME"
-           :default "andrewslai" ;;"andrewslai_db"
+           :default "andrewslai_db"
            :doc "Postgres Database Name"}
 
           :db-user

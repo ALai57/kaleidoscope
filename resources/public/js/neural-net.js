@@ -111,7 +111,7 @@ whenAvailable('d3_rebind', function (t) {
     /////////////////////////////////////////////////////
     // Create SVG and axes
     /////////////////////////////////////////////////////
-    var wd = 600;
+    var wd = 500;
     var ht = 300;
 
     var svg = d3.select('#NetworkGraph').append("svg")
@@ -119,7 +119,7 @@ whenAvailable('d3_rebind', function (t) {
         .style("width",  wd)
         .style("height", ht);
 
-    var x = d3.scaleLinear().domain([-1, 2.5]).range([0, wd]);
+    var x = d3.scaleLinear().domain([-0.5, 2.5]).range([0, wd]);
     var y = d3.scaleLinear().domain([2,-2]).range([0, ht]);
     var z = d3.scaleLinear().domain([-7,7]).range([0, 100]);
     var z_inv = d3.scaleLinear().domain([0, 100]).range([-5,5]);
@@ -176,7 +176,7 @@ whenAvailable('d3_rebind', function (t) {
     /////////////////////////////////////////////////////
     // Render Separate SVG for error
     /////////////////////////////////////////////////////
-    var wdE = 600;
+    var wdE = 500;
     var htE = 100;
     var xE = d3.scaleLinear().domain([-5, 5]).range([0, wdE]);
     var yE = d3.scaleLinear().domain([11,-1]).range([0, htE]);
@@ -225,7 +225,7 @@ whenAvailable('d3_rebind', function (t) {
     for (n=1;n<=6;n++) {
         var div = document.createElement('div');
         div.setAttribute('id','weightSlider' + n);
-        if (n==1) {var marginleft = "100px"} else {var marginleft = "10px"}
+        if (n==1) {var marginleft = "20px"} else {var marginleft = "10px"}
         div.setAttribute('style', 'float:left;margin-left:' + marginleft + ';margin-right:10px;');
         div.setAttribute('class', 'dynamicjs');
         document.getElementById('primary-content').appendChild(div);
@@ -321,9 +321,9 @@ whenAvailable('d3_rebind', function (t) {
     //Add SVG Text Element Attributes
     textError
         .attr("class", "dynamicjs")
-        .attr("x", 180)
+        .attr("x", 100)
         .attr("y", 20)
-        .text("Neural Net Prediction (Error)")
+        .text("Neural Net Predictions (n=10)")
         .attr("font-family", "sans-serif")
         .attr("font-size", "20px")
         .attr("fill", "black")
@@ -339,7 +339,7 @@ whenAvailable('d3_rebind', function (t) {
     //Add SVG Text Element Attributes
     textToSmall
         .attr("class", "dynamicjs")
-        .attr("x", 100)
+        .attr("x", 20)
         .attr("y", 80)
         .text("Too small")
         .attr("font-family", "sans-serif")
@@ -355,7 +355,7 @@ whenAvailable('d3_rebind', function (t) {
     //Add SVG Text Element Attributes
     textTooLarge
         .attr("class", "dynamicjs")
-        .attr("x", 450)
+        .attr("x", 370)
         .attr("y", 80)
         .text("Too large")
         .attr("font-family", "sans-serif")
@@ -371,7 +371,7 @@ whenAvailable('d3_rebind', function (t) {
     //Add SVG Text Element Attributes
     textCnxnStr
         .attr("class", "dynamicjs")
-        .attr("x", 90)
+        .attr("x", 10)
         .attr("y", 180)
         .text("Connection Strengths")
         .attr("font-family", "sans-serif")
@@ -388,7 +388,7 @@ whenAvailable('d3_rebind', function (t) {
     //Add SVG Text Element Attributes
     textBias
         .attr("class", "dynamicjs")
-        .attr("x", 370)
+        .attr("x", 290)
         .attr("y", 180)
         .text("Neuron Bias")
         .attr("font-family", "sans-serif")

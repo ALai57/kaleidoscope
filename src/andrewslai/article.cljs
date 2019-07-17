@@ -10,7 +10,7 @@
         style (:metadata
                (first
                 (get-in content [:article :content])))]
-    [:h2 style title]))
+    [:h2.article-title style title]))
 
 (defn format-js [js-script]
   (.appendChild (.getElementById js/document "primary-content")
