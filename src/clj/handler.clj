@@ -35,7 +35,7 @@
        (ok mock/mock-data))
 
      (GET "/get-content/:content-type/:content-name" [content-type content-name]
-       (Thread/sleep 2000)
+       ;;(Thread/sleep 2000)
        (ok {:content-type content-type
             :content-name content-name
             :article (db/get-content (first (db/get-article content-name)))
