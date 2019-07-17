@@ -9,7 +9,6 @@
             ["react" :as react]
             ["react-spinners" :as spinner]
             ["emotion" :as emotion]
-                                        ;[goog.object :as gobj]
             ["react-spinners/ClipLoader" :as cl-spinner]
             ))
 
@@ -41,11 +40,7 @@
     (set! (.. spinner-proto -constructor -defaultProps -loading)
           (js->clj @loading?))
     (if (true? @loading?) (remove-dynamic-js))
-    [:div#loading.load-icon {:style {:text-align "center"
-                                     :margin "auto"
-                                     :position "absolute"
-                                     :top "30%"
-                                     :width "100%"}}
+    [:div#loading.load-icon
      (.render spinner-proto)]))
 
 (defn load-screen-test []
@@ -57,8 +52,8 @@
     [:div#loading.load-icon {:style {:text-align "center"
                                      :margin "auto"
                                      :width "100%"
-                                     :position "absolute"
-                                     :top "30%"}}
+                                     :position "relative"
+                                     :top "50px"}}
      (.render spinner-proto)]))
 
 

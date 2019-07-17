@@ -20,24 +20,15 @@
   [{:keys [article_tags title article_url article_id] :as article}]
 
   ^{:key article_id}
-  [Card {:class "text-white bg-light mb-3"
-         :style {:max-width "18rem"
-                 :display "inline-block"
-                 :min-width "350px"
-                 :margin "10px"}}
+  [Card {:class "text-white bg-light mb-3 article-card"}
    [:div.container-fluid
     [:div.row.flex-items-xs-middle
-     [:div.col-sm-3.bg-primary.text-xs-center.p-a-0
-      {:style {:padding-top "1rem"
-               :padding-bottom "1rem"
-               :width "25%"}}
+     [:div.col-sm-3.bg-primary.text-xs-center.card-icon
       [:div.p-y-3
        [:h1.p-y-2
         [:img.fa.fa-2x {:src (article-tags->icon article_tags)
                         :style {:width "100%"}}]]]]
-     [:div.col-sm-9.bg-light.text-dark.p-y-2 {:style {:height "100%"
-                                                      :padding-top "0.5rem"
-                                                      :width "75%"}}
+     [:div.col-sm-9.bg-light.text-dark.card-description
       [:h5.card-title>a {:href (str "#/" article_tags
                                     "/content/" article_url)}
        title]
@@ -52,9 +43,4 @@
                       @recent-content)]
     [:div#recent-content
      [:div#recent-article-cards.card-group
-      {:style {;;:position "absolute"
-               :padding-top "40px"
-               :bottom 0
-               :justify-content "center"
-               :width "100%"}}
       (map make-card the-content)]]))
