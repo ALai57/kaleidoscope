@@ -1,4 +1,4 @@
-(ns andrewslai.clj.postgres
+(ns andrewslai.clj.db
   (:require [cheshire.core :as json]
             [andrewslai.clj.env :as env]
             [clojure.java.jdbc :as sql]

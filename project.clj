@@ -18,6 +18,7 @@
                  [cljsjs/react "16.8.6-0"]
                  [cljsjs/react-dom "16.8.6-0"]
                  [org.clojure/clojurescript "1.10.520"]
+                 ;; TODO: clean up for advanced opt.
                  [binaryage/devtools "0.9.10"]
                  [clj-commons/secretary "1.2.4"]
                  [day8.re-frame/tracing "0.5.1"]

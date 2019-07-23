@@ -1,8 +1,7 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [andrewslai.clj.env :as env]
-            [andrewslai.clj.mock :as mock]
-            [andrewslai.clj.postgres :as db]
+            [andrewslai.clj.db :as db]
             [compojure.api.sweet :refer :all]
             [org.httpkit.server :as httpkit]
             [ring.util.http-response :refer :all]
@@ -20,8 +19,8 @@
      {:swagger
       {:ui "/swagger"
        :spec "/swagger.json"
-       :data {:info {:title "Full stack template"
-                     :description "Template for a full stack app"}
+       :data {:info {:title "andrewslai"
+                     :description "My personal website"}
               :tags [{:name "api", :description "some apis"}]}}}
 
      (GET "/" []
@@ -35,39 +34,10 @@
          [article-type article-name]
        (ok {:article-type article-type
             :article-name article-name
-            :article (db/get-content (first (db/get-article article-name)))}))
+            :article (db/get-full-article article-name)}))
 
-     (GET "/get-recent-articles"
-         [article-type article-name]
-       (ok (db/get-articles 6)))
-
-     (GET "/get-fruit/:content-type/:article-name" [content-type article-name]
-       (Thread/sleep 2000)
-       (ok {:content-type content-type
-            :article-name article-name
-            ;;:database (db/select-all :fruit)
-            :fruit (db/select :fruit article-name)
-            }))
-
-     ;; TO DO: Make this a POST or PUT
-     (GET "/test-create" []
-       (db/create-table :fruit [[:name "varchar(32)"]
-                                [:appearance "varchar(32)"]
-                                [:cost :int]
-                                [:grade :real]])
-       (ok {:status 200
-            :create "success"}))
-
-     ;; TO DO: Make this a POST or PUT
-     (GET "/test-insert" []
-       (db/insert :fruit
-                  [{:name "Ap" :appearance "rosy" :cost 24}
-                   {:name "Or" :appearance "round" :cost 49}])
-       (ok {:status 200
-            :write "success"}))
-
-     (GET "/test-select" []
-       (db/select-all :fruit))
+     (GET "/get-recent-articles" [article-type article-name]
+       (ok (db/get-recent-articles 6)))
 
      ) "public")))
 
