@@ -1,8 +1,8 @@
-(ns clj.handler
+(ns andrewslai.clj.handler
   (:gen-class)
-  (:require [clj.env :as env]
-            [clj.mock :as mock]
-            [clj.postgres :as db]
+  (:require [andrewslai.clj.env :as env]
+            [andrewslai.clj.mock :as mock]
+            [andrewslai.clj.postgres :as db]
             [compojure.api.sweet :refer :all]
             [org.httpkit.server :as httpkit]
             [ring.util.http-response :refer :all]

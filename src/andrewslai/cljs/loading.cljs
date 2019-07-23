@@ -1,4 +1,4 @@
-(ns andrewslai.loading
+(ns andrewslai.cljs.loading
   (:require [reagent.core  :as reagent]
             [re-frame.core :refer [subscribe
                                    dispatch

@@ -34,22 +34,22 @@
   :managed-dependencies [[org.clojure/core.rrb-vector "0.0.13"]
                          [org.flatland/ordered "1.5.7"]]
 
-  :ring {:handler clj.handler/app
-         :init clj.handler/init-routes}
+  :ring {:handler andrewslai.clj.handler/app
+         :init andrewslai.clj.handler/init-routes}
   :aot :all
   :uberjar-name "andrewslai.jar"
-  :main clj.handler
-  :figwheel {:ring-handler clj.handler/app
+  :main andrewslai.clj.handler
+  :figwheel {:ring-handler andrewslai.clj.handler/app
              :css-dirs ["resources/public/css"]}
   :clean-targets ^{:protect false} ["./resources/public/js/complied"
                                     "./target"]
 
   :cljsbuild
   {:builds
-   {:dev {:source-paths ["src/andrewslai"]
+   {:dev {:source-paths ["src/andrewslai/cljs"]
           :figwheel {:open-urls ["http://localhost:3449/"]
-                     :on-jsload "andrewslai.core/main"}
-          :compiler {:main andrewslai.core
+                     :on-jsload "andrewslai.cljs.core/main"}
+          :compiler {:main andrewslai.cljs.core
                      :asset-path "js/compiled/out_andrewslai"
                      :optimizations :none
                      :output-to "resources/public/js/compiled/andrewslai.js"
@@ -60,8 +60,8 @@
                      :install-deps true
                      :source-map true
                      :source-map-timestamp true}}
-    :prod {:source-paths ["src/andrewslai"]
-           :compiler {:main andrewslai.core
+    :prod {:source-paths ["src/andrewslai/cljs"]
+           :compiler {:main andrewslai.cljs.core
                       :asset-path "js/compiled/out_andrewslai"
                       :optimizations :advanced
                       :output-to "resources/public/js/compiled/andrewslai.js"
@@ -75,14 +75,14 @@
    }
   :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.18"]
                                   [cider/piggieback "0.4.1"]]
-                   :source-paths ["src/andrewslai"]
+                   :source-paths ["src/andrewslai/cljs"]
                    :repl-options {:nrepl-middleware
                                   [cider.piggieback/wrap-cljs-repl]}
                    :plugins [[lein-ancient "0.6.15"]
                              [lein-bikeshed "0.5.2"]
                              [lein-kibit "0.1.6"]
                              [lein-ring "0.12.5"]]}
-             :prod {:source-paths ["src/andrewslai"]
+             :prod {:source-paths ["src/andrewslai/cljs"]
                     :plugins [[lein-ancient "0.6.15"]
                               [lein-bikeshed "0.5.2"]
                               [lein-kibit "0.1.6"]

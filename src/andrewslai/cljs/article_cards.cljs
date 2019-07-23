@@ -1,4 +1,4 @@
-(ns andrewslai.article-cards
+(ns andrewslai.cljs.article-cards
   (:require [reagent.core  :as reagent]
             [clojure.string :as str]
             [re-frame.core :refer [subscribe

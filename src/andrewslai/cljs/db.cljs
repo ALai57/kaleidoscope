@@ -1,4 +1,4 @@
-(ns andrewslai.db
+(ns andrewslai.cljs.db
   (:require [cljs.reader]
             [cljs.spec.alpha :as s]
             [re-frame.core :as re-frame]))
@@ -29,25 +29,3 @@
    :active-content nil
    :recent-content nil
    :loading? false})        ;; show all todos
-
-
-;; -- Local Storage  ----------------------------------------------------------
-
-(def ls-key "todos-reframe")                         ;; localstore key
-
-(defn todos->local-store
-  "Puts todos into localStorage"
-  [todos]
-  (.setItem js/localStorage ls-key (str todos)))     ;; EDN map
-
-
-;; -- cofx Registrations  -----------------------------------------------------
-
-(re-frame/reg-cofx
- :local-store-todos
- (fn [cofx _]
-   (assoc cofx :local-store-todos
-          (into (sorted-map) ;; localstore -> read todos -> sortedmap
-                (some->> (.getItem js/localStorage ls-key)
-                         (cljs.reader/read-string)    ;; EDN map -> map
-                         )))))

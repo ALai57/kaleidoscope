@@ -1,4 +1,4 @@
-(ns andrewslai.subs
+(ns andrewslai.cljs.subs
   (:require [re-frame.core :refer [reg-sub subscribe]]))
 
 ;; -------------------------------------------------------------------------------------

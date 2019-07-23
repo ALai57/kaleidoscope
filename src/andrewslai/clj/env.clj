@@ -1,4 +1,4 @@
-(ns clj.env
+(ns andrewslai.clj.env
   (:require  [defenv.core :as env :refer [env->map
                                           parse-boolean
                                           parse-int]]))

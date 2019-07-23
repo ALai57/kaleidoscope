@@ -1,12 +1,12 @@
-(ns andrewslai.core
+(ns andrewslai.cljs.core
   (:require-macros [secretary.core :refer [defroute]])
   (:require [goog.events :as events]
             [reagent.core :as reagent]
             [re-frame.core :refer [dispatch dispatch-sync]]
             [secretary.core :as secretary]
-            [andrewslai.events] ;; These two are only required to make the compiler
-            [andrewslai.subs]   ;; load them (see docs/App-Structure.md)
-            [andrewslai.views]
+            [andrewslai.cljs.events] ;; These two are only required to make the compiler
+            [andrewslai.cljs.subs]   ;; load them (see docs/App-Structure.md)
+            [andrewslai.cljs.views]
             [devtools.core :as devtools])
   (:import [goog History]
            [goog.history EventType]))
@@ -41,12 +41,12 @@
 ;; -- Entry Point -------------------------------------------------------------
 ;; Within ../../resources/public/index.html you'll see this code
 ;;    window.onload = function () {
-;;      andrewslai.core.main();
+;;      andrewslai.cljs.core.main();
 ;;    }
 ;; So this is the entry function that kicks off the app once HTML is loaded
 
 (defn ^:export main
   []
-  ;; `andrewslai.views/app` is the root view for the entire UI.
-  (reagent/render [andrewslai.views/app]
+  ;; `andrewslai.cljs.views/app` is the root view for the entire UI.
+  (reagent/render [andrewslai.cljs.views/app]
                   (.getElementById js/document "app")))

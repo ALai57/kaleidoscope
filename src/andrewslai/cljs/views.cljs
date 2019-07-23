@@ -1,8 +1,8 @@
-(ns andrewslai.views
-  (:require [andrewslai.article :as article]
-            [andrewslai.article-cards :as cards]
-            [andrewslai.loading :as loading]
-            [andrewslai.navbar :as nav]
+(ns andrewslai.cljs.views
+  (:require [andrewslai.cljs.article :as article]
+            [andrewslai.cljs.article-cards :as cards]
+            [andrewslai.cljs.loading :as loading]
+            [andrewslai.cljs.navbar :as nav]
             [reagent.core  :as reagent]
             [re-frame.core :refer [subscribe
                                    dispatch
