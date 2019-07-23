@@ -52,7 +52,7 @@
       (str "get-article caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
-(defn- get-recent-articles [n]
+(defn get-recent-articles [n]
   (try
     (sql/query pg-db
                [(str "SELECT * FROM articles"
