@@ -5,15 +5,21 @@
 
             [cljsjs.react-bootstrap]))
 
-(defn format-title [content]
-  (let [title (get-in content [:article :title])
-        style (:metadata
-               (first
-                (get-in content [:article :content])))]
-    [:h2.article-title style title]))
+(defn get-title [active-content]
+  (get-in active-content [:article :title]))
+
+(defn get-content [active-content]
+  (get-in active-content [:article :content]))
+
+(defn format-title [title]
+  [:h2.article-title title])
 
 (defn format-js [js-script]
   (.appendChild (.getElementById js/document "primary-content")
+                #_(-> (.createElement js/document "script")
+                      (.setAttribute "id" js-script)
+                      (.setAttribute "class" "dynamicjs")
+                      (.setAttribute "src" (str "js/" js-script)))
                 (doto (.createElement js/document "script")
                   (-> (.setAttribute "id" js-script))
                   (-> (.setAttribute "class" "dynamicjs"))
@@ -33,7 +39,6 @@
   []
   (let [active-content (subscribe [:active-content])]
     [:div#goodies
-     (format-title @active-content)
-     (format-content
-      (get-in @active-content [:article :content]))]))
+     (format-title (get-title @active-content))
+     (format-content (get-content @active-content))]))
 

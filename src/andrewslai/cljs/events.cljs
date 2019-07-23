@@ -10,6 +10,16 @@
    [ajax.core :refer [GET]]))
 
 
+
+;; Dispatched when initializing DB
+(reg-event-fx
+ :initialise-db
+
+ []
+ ;; Handler
+ (fn [& _]))
+
+
 ;; Dispatched when setting the active panel
 (reg-event-db
  :set-active-panel
