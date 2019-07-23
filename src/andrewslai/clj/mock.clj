@@ -1,4 +1,4 @@
-(ns clj.mock)
+(ns andrewslai.clj.mock)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Create mock data

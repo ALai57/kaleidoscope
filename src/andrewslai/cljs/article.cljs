@@ -1,16 +1,25 @@
-(ns andrewslai.article
+(ns andrewslai.cljs.article
   (:require [reagent.core  :as reagent]
             [re-frame.core :refer [subscribe]]
             [clojure.string :as str]
 
             [cljsjs.react-bootstrap]))
 
-(defn format-title [content]
-  (let [title (get-in content [:article :title])
-        style (:metadata
-               (first
-                (get-in content [:article :content])))]
-    [:h2.article-title style title]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Helper functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn get-title [active-content]
+  (get-in active-content [:article :title]))
+
+(defn get-content [active-content]
+  (get-in active-content [:article :content]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Formatting title, JS and content
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn format-title [title]
+  [:h2.article-title title])
 
 (defn format-js [js-script]
   (.appendChild (.getElementById js/document "primary-content")
@@ -28,12 +37,13 @@
        "text" ^{:key (:content_order entry)} [:p (:content entry)]
        "js" ^{:key (:content_order entry)} (format-js (:content entry))))))
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Fully formatted primary content
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn primary-content
   []
   (let [active-content (subscribe [:active-content])]
     [:div#goodies
-     (format-title @active-content)
-     (format-content
-      (get-in @active-content [:article :content]))]))
+     (format-title (get-title @active-content))
+     (format-content (get-content @active-content))]))
 

@@ -1,6 +1,6 @@
-(ns clj.postgres
+(ns andrewslai.clj.postgres
   (:require [cheshire.core :as json]
-            [clj.env :as env]
+            [andrewslai.clj.env :as env]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]]))
 

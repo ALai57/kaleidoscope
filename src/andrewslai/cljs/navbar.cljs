@@ -1,4 +1,4 @@
-(ns andrewslai.navbar
+(ns andrewslai.cljs.navbar
   (:require [re-frame.core :refer [dispatch]]
             [clojure.string :as str]))
 
