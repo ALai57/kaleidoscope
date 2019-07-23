@@ -31,26 +31,22 @@
      (GET "/ping" []
        (ok {:service-status "ok"}))
 
-     (GET "/mock-data" []
-       (ok mock/mock-data))
+     (GET "/get-article/:article-type/:article-name"
+         [article-type article-name]
+       (ok {:article-type article-type
+            :article-name article-name
+            :article (db/get-content (first (db/get-article article-name)))}))
 
-     (GET "/get-content/:content-type/:content-name" [content-type content-name]
-       ;;(Thread/sleep 2000)
-       (ok {:content-type content-type
-            :content-name content-name
-            :article (db/get-content (first (db/get-article content-name)))
-            }))
-
-     (GET "/get-recent-content"
-         [content-type content-name]
+     (GET "/get-recent-articles"
+         [article-type article-name]
        (ok (db/get-articles 6)))
 
-     (GET "/get-fruit/:content-type/:content-name" [content-type content-name]
+     (GET "/get-fruit/:content-type/:article-name" [content-type article-name]
        (Thread/sleep 2000)
        (ok {:content-type content-type
-            :content-name content-name
+            :article-name article-name
             ;;:database (db/select-all :fruit)
-            :fruit (db/select :fruit content-name)
+            :fruit (db/select :fruit article-name)
             }))
 
      ;; TO DO: Make this a POST or PUT

@@ -9,82 +9,74 @@
                           dispatch]]
    [ajax.core :refer [GET]]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Helper functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn make-recent-articles-url [] "/get-recent-articles")
+(defn make-article-url [article-type article-name]
+  (str "/get-article/" (name article-type) "/" (name article-name)))
 
-
-;; Dispatched when initializing DB
-(reg-event-fx
- :initialise-db
-
- []
- ;; Handler
- (fn [& _]))
-
+(defn modify-db [db mods]
+  (reduce-kv #(assoc %1 %2 %3) db mods))
 
 ;; Dispatched when setting the active panel
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; db events for get-article
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(reg-event-db
+ :retrieve-content
+ (fn [db [_ article-type article-name]]
+
+   (println "Retrieve-article path:"
+            (make-article-url article-type article-name))
+
+   (GET (make-article-url article-type article-name)
+       {:handler #(dispatch [:process-response %1])
+        :error-handler #(dispatch [:bad-response %1])})
+
+   (modify-db db {:loading? true
+                  :active-panel article-type
+                  :active-content nil})))
+
+(reg-event-db
+ :process-response
+ (fn [db [_ response]]
+   (modify-db db {:loading? false
+                  :active-content response})))
+
+(reg-event-db
+ :bad-response
+ (fn [db [_ response]]
+   (modify-db db {:loading? false
+                  :active-content "Unable to load content"})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; db events for get-recent-articles
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (reg-event-db
  :set-active-panel
  (fn [db [_ value]]
 
-   (GET
-       (str "/get-recent-content")
+   (GET (make-recent-articles-url)
        {:handler #(dispatch [:process-recent-response %1])
         :error-handler #(dispatch [:bad-recent-response %1])})
 
-   (-> db
-       (assoc :loading? true)
-       (assoc :active-panel value)
-       (assoc :active-content nil)
-       (assoc :recent-content nil))
-   ))
-
-(reg-event-db
- :retrieve-content
- (fn [db [_ content-type content-name]]
-
-   (println "Retrieve-content path:"
-            (str "/get-content/" (name content-type) "/" (name content-name)))
-
-   (GET
-       (str "/get-content/" (name content-type) "/" (name content-name))
-       {:handler #(dispatch [:process-response %1])
-        :error-handler #(dispatch [:bad-response %1])})
-
-   (-> db
-       (assoc :loading? true)
-       (assoc :active-panel content-type)
-       (assoc :active-content nil))))
-
-(reg-event-db
- :process-response
- (fn
-   [db [_ response]]
-   (println "SUCCESS Retrieved content: " response)
-   (-> db
-       (assoc :loading? false) ;; take away that "Loading ..." UI
-       (assoc :active-content response))))
-
-(reg-event-db
- :bad-response
- (fn
-   [db [_ response]]
-   (-> db
-       (assoc :loading? false)
-       (assoc :active-content "Unable to load content"))))
-
+   (modify-db db {:loading? true
+                  :active-panel value
+                  :active-content nil
+                  :recent-content nil})))
 
 (reg-event-db
  :process-recent-response
- (fn
-   [db [_ response]]
-   (println "SUCCESS Retreived recent articles: " response)
-   (-> db
-       (assoc :loading? false) ;; take away that "Loading ..." UI
-       (assoc :recent-content response))))
+ (fn [db [_ response]]
+   ;;(println "SUCCESS Retreived recent articles: " response)
+   (modify-db db {:loading? false
+                  :recent-content response})))
 
 (reg-event-db
  :bad-recent-response
- (fn
-   [db [_ response]]
-   (-> db
-       (assoc :loading? false)
-       (assoc :recent-content "Unable to load content"))))
+ (fn [db [_ response]]
+   (modify-db db {:loading? false
+                  :recent-content "Unable to load content"})))

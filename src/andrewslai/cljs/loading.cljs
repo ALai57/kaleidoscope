@@ -4,10 +4,9 @@
                                    dispatch
                                    reg-sub]]
             [clojure.string :as str]
-
             [cljsjs.react-bootstrap]
             ["react" :as react]
-            ["react-spinners" :as spinner]
+            ;;["react-spinners" :as spinner]
             ["emotion" :as emotion]
             ["react-spinners/ClipLoader" :as cl-spinner]
             ))
@@ -19,42 +18,50 @@
 (set! (.. cl-spinner -default -defaultProps -size) 150)
 (set! (.. cl-spinner -default -defaultProps -color) "#4286f4")
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Helper functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Necessary to get the element to render properly
 (extend-protocol IPrintWithWriter
   js/Symbol
   (-pr-writer [sym writer _]
     (-write writer (str "\"" (.toString sym) "\""))))
 
-
 (defn get-elements-in-class [class-name]
   (.getElementsByClassName js/document class-name))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Rendering
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn remove-dynamic-js []
-  (while (not (nil? (.item (get-elements-in-class "dynamicjs") 0)))
-    (.remove (.item (get-elements-in-class "dynamicjs") 0))))
+  (let [get-first-item
+        (fn [] (.item (get-elements-in-class "dynamicjs") 0))]
+
+    (while (not (nil? (get-first-item)))
+      (.remove (get-first-item)))))
 
 (defn load-screen []
   (let [loading? (subscribe [:loading?])
-        spinner-proto (.. cl-spinner -default -prototype)]
-    (set! (.. spinner-proto -constructor -defaultProps -loading)
-          (js->clj @loading?))
+        spinner (.. cl-spinner -default -prototype)
+        spinner-props (.. spinner -constructor -defaultProps)]
+
+    (set! (.. spinner-props -loading) (js->clj @loading?))
     (if (true? @loading?) (remove-dynamic-js))
-    [:div#loading.load-icon
-     (.render spinner-proto)]))
+    [:div#loading.load-icon (.render spinner)]))
 
 (defn load-screen-test []
   (let [loading? (subscribe [:loading?])
-        spinner-proto (.. cl-spinner -default -prototype)]
-    (set! (.. spinner-proto -constructor -defaultProps -loading)
+        spinner (.. cl-spinner -default -prototype)]
+    (set! (.. spinner -constructor -defaultProps -loading)
           (js->clj true))
     (if (true? @loading?) (remove-dynamic-js))
-    [:div#loading.load-icon {:style {:text-align "center"
-                                     :margin "auto"
-                                     :width "100%"
-                                     :position "relative"
-                                     :top "50px"}}
-     (.render spinner-proto)]))
+    [:div#loading.load-icon (.render spinner)]))
+
+#_{:style {:text-align "center"
+           :margin "auto"
+           :width "100%"
+           :position "relative"
+           :top "50px"}}
 
 
 
