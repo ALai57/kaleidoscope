@@ -7,13 +7,14 @@
             [andrewslai.cljs.events] ;; required to make the compiler
             [andrewslai.cljs.subs]   ;; load them (see docs/App-Structure.md)
             [andrewslai.cljs.views]
-            [devtools.core :as devtools])
+            ;;[devtools.core :as devtools]
+            )
   (:import [goog History]
            [goog.history EventType]))
 
 
 ;; -- Debugging aids ----------------------------------------------------------
-(devtools/install!)       ;; https://github.com/binaryage/cljs-devtools
+;;(devtools/install!)       ;; https://github.com/binaryage/cljs-devtools
 (enable-console-print!)   ;; so that println writes to `console.log`
 
 ;; -- Routes and History ------------------------------------------------------

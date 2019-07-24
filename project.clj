@@ -18,8 +18,8 @@
                  [cljsjs/react "16.8.6-0"]
                  [cljsjs/react-dom "16.8.6-0"]
                  [org.clojure/clojurescript "1.10.520"]
+
                  ;; TODO: clean up for advanced opt.
-                 [binaryage/devtools "0.9.10"]
                  [clj-commons/secretary "1.2.4"]
                  [day8.re-frame/tracing "0.5.1"]
                  [reagent "0.8.1"]
@@ -74,7 +74,8 @@
                       :source-map-timestamp true}}}
 
    }
-  :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.18"]
+  :profiles {:dev {:dependencies [[binaryage/devtools "0.9.10"]
+                                  [figwheel-sidecar "0.5.18"]
                                   [cider/piggieback "0.4.1"]]
                    :source-paths ["src/andrewslai/cljs"]
                    :repl-options {:nrepl-middleware

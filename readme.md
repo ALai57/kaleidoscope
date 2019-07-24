@@ -148,3 +148,10 @@ PSQL:
    select current_database();
    select schema_name from information_schema.schemata;
 ```
+
+
+###### Deploy and test that it works
+## Start developing landing pages
+## Clean up formatting code
+## Circle with icons that move upon click
+## navigation a

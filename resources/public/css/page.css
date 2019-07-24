@@ -131,3 +131,13 @@ pre {
 	font-family: "Times New Roman", Times, serif;
 	/* overflow-x: auto; */                /* Firefox 2 only */
 	/* width: 99%; */		       /* only if needed */}
+
+@keyframes go-left-right {        /* give it a name: "go-left-right" */
+    from { left: 0px; }             /* animate from left: 0px */
+    to { left: calc(100% - 50px); } /* animate to left: 100%-50px */
+}
+
+@keyframes myOrbit {
+    from { transform: rotate(0deg) translateX(150px) rotate(0deg); }
+    to   { transform: rotate(360deg) translateX(150px) rotate(-360deg); }
+}

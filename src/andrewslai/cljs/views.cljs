@@ -1,6 +1,7 @@
 (ns andrewslai.cljs.views
   (:require [andrewslai.cljs.article :as article]
             [andrewslai.cljs.article-cards :as cards]
+            [andrewslai.cljs.circle-nav :as circle-nav]
             [andrewslai.cljs.loading :as loading]
             [andrewslai.cljs.navbar :as nav]
             [reagent.core  :as reagent]
@@ -96,13 +97,21 @@
     [cards/recent-content-display "thoughts"]]
    [loading/load-screen-test]])
 
+(defn circle-nav
+  []
+  [:div
+   [nav/primary-nav]
+   [:p "Test circle-nav"]
+   [circle-nav/circle-nav]])
+
 (def panels {:home [home]
              :thoughts [thoughts]
              :archive [archive]
              :about [about]
              :research [research]
              :data-analysis [data-analysis]
-             :load-screen [load-page]})
+             :load-screen [load-page]
+             :circle-nav [circle-nav]})
 
 (defn app
   []
