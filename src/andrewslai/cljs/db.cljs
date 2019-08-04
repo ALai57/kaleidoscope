@@ -20,4 +20,6 @@
   {:active-panel :home
    :active-content nil
    :recent-content nil
-   :loading? false})
+   :loading? false
+   :radial-menu-open? true
+   :active-icon "url(images/home.svg)"})

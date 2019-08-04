@@ -13,6 +13,8 @@
            [goog.history EventType]))
 
 
+(dispatch-sync [:initialize-db])
+
 ;; -- Debugging aids ----------------------------------------------------------
 ;;(devtools/install!)       ;; https://github.com/binaryage/cljs-devtools
 (enable-console-print!)   ;; so that println writes to `console.log`

@@ -18,6 +18,7 @@
                  [cljsjs/react "16.8.6-0"]
                  [cljsjs/react-dom "16.8.6-0"]
                  [org.clojure/clojurescript "1.10.520"]
+                 [org.clojars.alai/reframe-components "0.2.0"]
 
                  ;; TODO: clean up for advanced opt.
                  [clj-commons/secretary "1.2.4"]

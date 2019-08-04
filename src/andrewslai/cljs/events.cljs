@@ -22,6 +22,11 @@
 ;; Dispatched when setting the active panel
 
 
+(reg-event-db
+ :initialize-db
+ (fn [_ _]
+   default-db))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for get-article
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -80,3 +85,17 @@
  (fn [db [_ response]]
    (modify-db db {:loading? false
                   :recent-content "Unable to load content"})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; db events for radial menu
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(reg-event-db
+ :toggle-menu
+ (fn [db [_ _]]
+   (let [new-value (not (:radial-menu-open? db))]
+     (assoc db :radial-menu-open? new-value))))
+
+(reg-event-db
+ :click-radial-icon
+ (fn [db [_ value]]
+   (assoc db :active-icon value)))
