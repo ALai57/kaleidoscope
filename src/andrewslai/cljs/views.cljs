@@ -26,14 +26,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (init)
-(def icon-list ["images/accessibility.svg"
-                "images/favorite.svg"
-                "images/find-in-page.svg"
-                "images/get-app.svg"
-                "images/grade.svg"
-                "images/home.svg"
-                "images/language.svg"
-                "images/lock.svg"])
+(def icon-list ["images/teamwork-unverified.png"
+                "images/teamwork-2-unverified.png"
+                "images/cv-unverified.png"
+                "images/tango-image-ccby.png"
+                "images/volunteer-unverified.png"
+                "images/Clojure_logo.svg.png"])
 
 (def center-icon-radius "75px")
 (def radial-icon-radius "75px")
@@ -48,6 +46,7 @@
                       :background-repeat "no-repeat"
                       :background-position-x "center"
                       :background-position-y "center"
+                      :background-size "cover"
                       :border-radius "80px"})
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RENDERING
