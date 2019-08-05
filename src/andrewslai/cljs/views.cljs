@@ -26,12 +26,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (init)
-(def icon-list ["images/teamwork-unverified.png"
-                "images/teamwork-2-unverified.png"
-                "images/cv-unverified.png"
-                "images/tango-image-ccby.png"
-                "images/volunteer-unverified.png"
-                "images/Clojure_logo.svg.png"])
+(def icon-list ["images/teamwork.svg"
+                "images/github.svg"
+                "images/cv.svg"
+                "images/tango-image-ccby.svg"
+                "images/volunteer.svg"
+                "images/clojure-logo.svg"
+                "images/my-silhouette.svg"])
 
 (def center-icon-radius "75px")
 (def radial-icon-radius "75px")

@@ -22,4 +22,4 @@
    :recent-content nil
    :loading? false
    :radial-menu-open? true
-   :active-icon "url(images/home.svg)"})
+   :active-icon "url(images/my-silhouette.svg)"})
