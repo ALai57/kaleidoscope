@@ -36,8 +36,8 @@
 
 (def center-icon-radius "75px")
 (def radial-icon-radius "75px")
-(def icon-color-scheme (str "radial-gradient(#6B9EB8 5%, "
-                            "#59B1DE 60%, "
+(def icon-color-scheme (str "radial-gradient(#52ABFF 5%, "
+                            "#429EF5 60%,"
                             "#033882 70%)"))
 
 (def base-icon-style {:border "1px solid black"
