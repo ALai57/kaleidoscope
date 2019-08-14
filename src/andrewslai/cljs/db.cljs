@@ -22,4 +22,5 @@
    :recent-content nil
    :loading? false
    :radial-menu-open? true
-   :active-icon "url(images/my-silhouette.svg)"})
+   :active-icon [:me {:image-url "images/my-silhouette.svg"}]
+   :github-data nil})
