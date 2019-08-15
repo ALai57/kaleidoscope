@@ -163,6 +163,7 @@
 
 ;; TODO clean up table formatting
 ;; TODO remove repo owner name from table (e.g. ALai57)
+;; TODO fix links so they point to github, not api.github.com
 (defn github-table [d]
   (let [row->table
         (fn [r]

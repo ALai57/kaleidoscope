@@ -6,6 +6,7 @@
             [andrewslai.cljs.navbar :as nav]
 
             [andrewslai.cljs.pages.home :refer [home]]
+            [andrewslai.cljs.d3 :refer [d3-example]]
             [re-frame.core :refer [subscribe]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -84,10 +85,11 @@
              :about [about]
              :research [research]
              :data-analysis [data-analysis]
-             :load-screen [load-page]})
+             :load-screen [load-page]
+             :d3-example [d3-example]})
 
 (defn app
   []
-  (let [active-panel  (subscribe [:active-panel])]
+  (let [active-panel (subscribe [:active-panel])]
     (fn []
       (get panels @active-panel))))

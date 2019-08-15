@@ -23,6 +23,7 @@
                  ;; TODO: clean up for advanced opt.
                  [clj-commons/secretary "1.2.4"]
                  [day8.re-frame/tracing "0.5.1"]
+                 [cljsjs/d3 "5.9.2-0"]
                  [reagent "0.8.1"]
                  [re-frame "0.10.5"]
                  [ring "1.7.1"]

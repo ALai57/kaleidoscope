@@ -99,3 +99,13 @@
  :click-radial-icon
  (fn [db [_ value]]
    (assoc db :active-icon value)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; db events for d3 example
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(reg-event-db
+ :update-circles
+ (fn
+   [db [_ idx param val]]
+   #_(println "idx " idx "param " param "val " val)
+   (assoc-in db [:circles idx param ] val)))

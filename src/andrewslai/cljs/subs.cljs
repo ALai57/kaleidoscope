@@ -1,4 +1,5 @@
 (ns andrewslai.cljs.subs
+  (:require-macros [reagent.ratom :refer [reaction]])
   (:require [re-frame.core :refer [reg-sub subscribe]]))
 
 ;; -------------------------------------------------------------------------------------
@@ -68,3 +69,8 @@
 ;; Above, we only supplied the 2nd of these functions.
 ;; But now we are dealing with intermediate (layer 3) nodes, we'll need to provide both fns.
 
+(reg-sub
+ :circles
+ (fn
+   [db _]
+   (:circles db)))
