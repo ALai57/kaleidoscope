@@ -96,29 +96,6 @@
 ;; MENU CONTENTS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(comment
-  (require '[ajax.core :refer [GET]])
-  (defonce git-resp (atom nil))
-  (GET "https://api.github.com/users/ALai57/events"
-      {:handler (fn [response] (println (str response))
-                  (println "hello!")
-                  (reset! git-resp response))})
-  (cljs.pprint/pprint (first @git-resp))
-
-  (defn flattener [d]
-    (let [base-data {:type (get-in d ["type"])
-                     :user (get-in d ["actor" "login"])
-                     :repo (get-in d ["repo" "name"])
-                     :repo-url (get-in d ["repo" "url"])
-                     :created-at (get-in d ["created_at"])}]
-      (map #(merge base-data {:message (get-in %1 ["message"])
-                              :commit-url (get-in %1 ["url"])})
-           (get-in d ["payload" "commits"]))))
-
-  (cljs.pprint/pprint (map flattener @git-resp))
-
-  (cljs.pprint/pprint (flattener (first @git-resp))))
-
 (defn me []
   [:div#selected-menu-item
    [:h3#menu-title "About me"]])
@@ -152,28 +129,43 @@
        :handler (fn [response] (reset! git-data response))}))
 
 (defn flattener [d]
-  (let [base-data {:type (get-in d ["type"])
+  (let [assoc-urls
+        (fn [{:keys [repo commit-sha] :as commit}]
+          (let [repo-url (str "https://github.com/" repo)
+                commit-url (str repo-url "/commit/" commit-sha)]
+            (-> commit
+                (assoc :commit-url commit-url)
+                (assoc :repo-url repo-url))))
+
+        push-data {:type (get-in d ["type"])
                    :user (get-in d ["actor" "login"])
                    :repo (get-in d ["repo" "name"])
                    :repo-url (get-in d ["repo" "url"])
-                   :created-at (get-in d ["created_at"])}]
-    (map #(merge base-data {:message (get-in %1 ["message"])
-                            :commit-url (get-in %1 ["url"])})
-         (get-in d ["payload" "commits"]))))
+                   :created-at (get-in d ["created_at"])}
 
-;; TODO clean up table formatting
+        commits (get-in d ["payload" "commits"])
+
+        append-push-data
+        (fn [commit-data]
+          (merge push-data {:message (get-in commit-data ["message"])
+                            :commit-sha (get-in commit-data ["sha"])}))]
+    (map (comp assoc-urls append-push-data) commits)))
+
 ;; TODO remove repo owner name from table (e.g. ALai57)
-;; TODO fix links so they point to github, not api.github.com
 (defn github-table [d]
   (let [row->table
         (fn [r]
           [:tr nil
            ;; TODO proper date parsing
-           [:td nil (take 10 (:created-at r))]
-           [:td [:a {:href (:repo-url r)}
-                 [:div {:style {:width "100%" :height "100%"}} (:repo r)]] ]
-           [:td [:a {:href (:commit-url r)}
-                 [:div {:style {:width "100%" :height "100%"}} (:message r)]]]])]
+           [:td {:style {:min-width "7em"}} (take 10 (:created-at r))]
+           [:td {:style {:white-space "nowrap"
+                         :min-width "15em"}}
+            [:a {:href (:repo-url r)}
+             [:div {:style {:width "100%" :height "100%"}} (:repo r)]] ]
+           [:td {:style {:white-space "nowrap"
+                         :max-width "15em"}}
+            [:a {:href (:commit-url r)}
+             [:div {:style {:width "100%" :height "100%"}} (:message r)]]]])]
     [:table nil
      [:thead nil
       [:tr nil
@@ -184,9 +176,15 @@
       (map row->table d)]]))
 
 (defn github []
-  [:div#selected-menu-item
-   [:h3#menu-title "Github"]
-   [github-table (flatten (map flattener (:body @git-data)))]])
+  (let [git-data-flat (flatten (map flattener (:body @git-data)))
+        _ (println "----- " git-data-flat)]
+    [:div#selected-menu-item
+     [:h3#menu-title "Github"]
+     [:div#table-wrapper {:style {:position "relative"}}
+      [:div#table-scroll {:style {:width "100%"
+                                  :height "15em"
+                                  :overflow "auto"}}
+       [github-table git-data-flat]]]]))
 
 
 (defn teamwork []
@@ -232,3 +230,40 @@
      [:div#rcb
       [cards/recent-content-display]]
      [loading/load-screen]]))
+
+
+
+
+
+(comment
+  (require '[ajax.core :refer [GET]])
+  (defonce git-resp (atom nil))
+  (GET "https://api.github.com/users/ALai57/events"
+      {:handler (fn [response] (println (str response))
+                  (println "hello!")
+                  (reset! git-resp response))})
+  (cljs.pprint/pprint (first @git-resp))
+
+  (let [x (first @git-resp)]
+    (println (str "https://github.com/"
+                  (get-in x ["repo" "name"])
+                  "/commit/"
+                  (get-in x ["payload" "commits" 0 "sha"]))))
+
+  
+  (cljs.pprint/pprint (first @git-resp))
+
+  (defn flattener [d]
+    (let [base-data {:type (get-in d ["type"])
+                     :user (get-in d ["actor" "login"])
+                     :repo (get-in d ["repo" "name"])
+                     :repo-url (get-in d ["repo" "url"])
+                     :created-at (get-in d ["created_at"])}]
+      (map #(merge base-data
+                   {:message (get-in %1 ["message"])
+                    :commit-sha (get-in %1 ["sha"])})
+           (get-in d ["payload" "commits"]))))
+
+  (cljs.pprint/pprint (map flattener @git-resp))
+
+  (cljs.pprint/pprint (flattener (first @git-resp))))
