@@ -13,6 +13,7 @@
             [ajax.protocols :as pr]
             [ajax.ring :refer [ring-response-format]]
             [cljsjs.react-bootstrap]
+            [cljsjs.d3]
             ["react" :as react]
             ["react-spinners" :as spinner]
             ["emotion" :as emotion]
@@ -114,6 +115,10 @@
    ])
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; GITHUB DATA
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defonce git-data (atom nil))
 
 (defonce _
@@ -151,10 +156,10 @@
                             :commit-sha (get-in commit-data ["sha"])}))]
     (map (comp assoc-urls append-push-data) commits)))
 
-;; TODO remove repo owner name from table (e.g. ALai57)
 (defn github-table [d]
   (let [row->table
-        (fn [r]
+        (fn [i r]
+          ^{:key (str i)}
           [:tr nil
            ;; TODO proper date parsing
            [:td {:style {:min-width "7em"}} (take 10 (:created-at r))]
@@ -173,23 +178,107 @@
        [:th nil "Repo"]
        [:th nil "Message"]]]
      [:tbody nil
-      (map row->table d)]]))
+      (map-indexed row->table d)]]))
+
+(defn d3-inner [data]
+  (reagent/create-class
+   {:reagent-render (fn [] [:div [:svg {:width 400 :height 300}]])
+
+    :component-did-mount
+    (fn []
+      (let [d3data (clj->js data)]
+
+        (.. js/d3
+            (select "svg")
+            (selectAll "circle")
+            (data d3data)
+            enter
+            (append "circle")
+            (attr "cx" (fn [d] (->> (.-index d)
+                                    (* 100)
+                                    (+ 100))))
+            (attr "cy" (fn [d] 100))
+            (attr "r" (fn [d] (* 3 (.-commits d))))
+            (attr "fill" (fn [d] "red"))
+            (on "mouseover" (fn [d]
+                              (let [x (.-pageX js/d3.event)
+                                    y (.-pageY js/d3.event)]
+                                (.. js/d3
+                                    (select ".tooltip")
+                                    (transition)
+                                    (duration 200)
+                                    (style "opacity" 0.9))
+                                (.. js/d3
+                                    (select ".tooltip")
+                                    (html (str "Repo: " (.-repo d) "<br/>"
+                                               "N commits: " (.-commits d)
+                                               ))
+                                    (style "left" (str x "px"))
+                                    (style "top" (str y "px"))))))
+            (on "mouseout" (fn [d]
+                             (.. js/d3
+                                 (select ".tooltip")
+                                 (transition)
+                                 (duration 200)
+                                 (style "opacity" 0)))))))
+
+    :component-did-update (fn [this]
+                            (let [[_ data] (reagent/argv this)
+                                  d3data (clj->js data)]
+                              (.. js/d3
+                                  (selectAll "circle")
+                                  (data d3data)
+                                  (attr "cx" (fn [d] (->> (.-index d)
+                                                          (* 100)
+                                                          (+ 100))))
+                                  (attr "cy" (fn [d] 100))
+                                  (attr "r" (fn [d] (* 3 (.-commits d))))))
+                            )}))
+
+
+(comment
+  (let [git-data-flat (flatten (map flattener (:body @git-data)))
+        clj-data (reduce #(update-in %1 [(:repo %2)] inc) {} git-data-flat)]
+    (map-indexed #(hash-map :index %1
+                            :repo (first %2)
+                            :n-commits (second %2)) clj-data))
+  )
+
+(defn commit-history-graph []
+  (let [git-data-flat (flatten (map flattener (:body @git-data)))
+        commit-data (reduce #(update-in %1 [(:repo %2)] inc) {} git-data-flat)
+        indexed-data (map-indexed #(hash-map :index %1
+                                             :repo (first %2)
+                                             :commits (second %2)) commit-data)]
+    (.. js/d3
+        (select "body")
+        (append "div")
+        (attr "class" "tooltip")
+        (style "opacity" 0))
+    [:div {:class "container"}
+     "Hey there!"
+     [:div {:class "row"}
+      [:div {:class "col-md-5"}
+       [d3-inner indexed-data]]]]))
 
 (defn github []
-  (let [git-data-flat (flatten (map flattener (:body @git-data)))
-        _ (println "----- " git-data-flat)]
+  (let [git-data-flat (flatten (map flattener (:body @git-data)))]
     [:div#selected-menu-item
      [:h3#menu-title "Github"]
+     [commit-history-graph]
      [:div#table-wrapper {:style {:position "relative"}}
       [:div#table-scroll {:style {:width "100%"
                                   :height "15em"
                                   :overflow "auto"}}
        [github-table git-data-flat]]]]))
 
-
 (defn teamwork []
   [:div#selected-menu-item
    [:h3#menu-title "Teamwork"]])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; RADIAL MENU
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def menu-contents {:me [me]
                     :clojure [clojure]
