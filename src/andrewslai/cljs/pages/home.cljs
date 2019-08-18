@@ -237,6 +237,7 @@
 
 
 (comment
+  ;; USE GITHUB DATA
   (let [git-data-flat (flatten (map flattener (:body @git-data)))
         clj-data (reduce #(update-in %1 [(:repo %2)] inc) {} git-data-flat)]
     (map-indexed #(hash-map :index %1
@@ -244,6 +245,7 @@
                             :n-commits (second %2)) clj-data))
   )
 
+;; TODO: USE ENTIRE COMMIT HISTORY, NOT JUST RECENT
 (defn commit-history-graph []
   (let [git-data-flat (flatten (map flattener (:body @git-data)))
         commit-data (reduce #(update-in %1 [(:repo %2)] inc) {} git-data-flat)

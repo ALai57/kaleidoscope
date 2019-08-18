@@ -18,8 +18,8 @@
                  [cljsjs/react "16.8.6-0"]
                  [cljsjs/react-dom "16.8.6-0"]
                  [org.clojure/clojurescript "1.10.520"]
-                 [org.clojars.alai/reframe-components "0.3.0-SNAPSHOT"]
 
+                 [org.clojars.alai/reframe-components "0.3.0"]
                  ;; TODO: clean up for advanced opt.
                  [clj-commons/secretary "1.2.4"]
                  [day8.re-frame/tracing "0.5.1"]
@@ -44,8 +44,7 @@
   :main andrewslai.clj.handler
   :figwheel {:ring-handler andrewslai.clj.handler/app
              :css-dirs ["resources/public/css"]}
-  :clean-targets ^{:protect false} ["./resources/public/js/complied"
-                                    "./target"]
+  :clean-targets ^{:protect false} [:target-path "resources/public/js/compiled"]
 
   :cljsbuild
   {:builds
@@ -90,4 +89,20 @@
                     :plugins [[lein-ancient "0.6.15"]
                               [lein-bikeshed "0.5.2"]
                               [lein-kibit "0.1.6"]
-                              [lein-ring "0.12.5"]]}})
+                              [lein-ring "0.12.5"]]}
+             :uberjar {:source-paths ["src/andrewslai/cljs"]
+                       :cljsbuild
+                       {:builds {:deploy
+                                 {:source-paths ["src/andrewslai/cljs"]
+                                  :jar true
+                                  :compiler {:main andrewslai.cljs.core
+                                             :asset-path "js/compiled/out_andrewslai"
+                                             :optimizations :advanced
+                                             :output-to "resources/public/js/compiled/andrewslai.js"
+                                             :output-dir "resources/public/js/compiled/out_deploy"
+                                             :npm-deps {:react-spinners "0.4.8"
+                                                        :react "16.8.6"
+                                                        :emotion "10.0.9"}
+                                             :install-deps true
+                                             :source-map-timestamp true}}}}
+                       :prep-tasks ["compile" ["cljsbuild" "once" "deploy"]]}})
