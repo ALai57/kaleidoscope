@@ -198,7 +198,10 @@
                                     (* 100)
                                     (+ 100))))
             (attr "cy" (fn [d] 100))
-            (attr "r" (fn [d] (* 3 (.-commits d))))
+            (attr "r" (fn [d]
+                        (let [commits
+                              (:commits (js->clj d :keywordize-keys true))]
+                          (* 3 commits))))
             (attr "fill" (fn [d] "red"))
             (on "mouseover" (fn [d]
                               (let [x (.-pageX js/d3.event)
@@ -222,18 +225,22 @@
                                  (duration 200)
                                  (style "opacity" 0)))))))
 
-    :component-did-update (fn [this]
-                            (let [[_ data] (reagent/argv this)
-                                  d3data (clj->js data)]
-                              (.. js/d3
-                                  (selectAll "circle")
-                                  (data d3data)
-                                  (attr "cx" (fn [d] (->> (.-index d)
-                                                          (* 100)
-                                                          (+ 100))))
-                                  (attr "cy" (fn [d] 100))
-                                  (attr "r" (fn [d] (* 3 (.-commits d))))))
-                            )}))
+    :component-did-update
+    (fn [this]
+      (let [[_ data] (reagent/argv this)
+            d3data (clj->js data)]
+        (.. js/d3
+            (selectAll "circle")
+            (data d3data)
+            (attr "cx" (fn [d] (->> (.-index d)
+                                    (* 100)
+                                    (+ 100))))
+            (attr "cy" (fn [d] 100))
+            (attr "r" (fn [d]
+                        (let [commits
+                              (:commits (js->clj d :keywordize-keys true))]
+                          (* 3 commits))))
+            )))}))
 
 
 (comment
