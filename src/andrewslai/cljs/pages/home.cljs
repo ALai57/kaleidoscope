@@ -205,7 +205,9 @@
             (attr "fill" (fn [d] "red"))
             (on "mouseover" (fn [d]
                               (let [x (.-pageX js/d3.event)
-                                    y (.-pageY js/d3.event)]
+                                    y (.-pageY js/d3.event)
+                                    commits (:commits (js->clj d :keywordize-keys true))
+                                    repo (:repo (js->clj d :keywordize-keys true))]
                                 (.. js/d3
                                     (select ".tooltip")
                                     (transition)
@@ -213,8 +215,8 @@
                                     (style "opacity" 0.9))
                                 (.. js/d3
                                     (select ".tooltip")
-                                    (html (str "Repo: " (.-repo d) "<br/>"
-                                               "N commits: " (.-commits d)
+                                    (html (str "Repo: " repo "<br/>"
+                                               "N commits: " commits
                                                ))
                                     (style "left" (str x "px"))
                                     (style "top" (str y "px"))))))
