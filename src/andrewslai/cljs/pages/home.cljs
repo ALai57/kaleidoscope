@@ -103,9 +103,6 @@
 (defn clojure []
   [:div#selected-menu-item
    [:h3#menu-title "Clojure"]])
-(defn volunteering []
-  [:div#selected-menu-item
-   [:h3#menu-title "Volunteering"]])
 (defn tango []
   [:div#selected-menu-item
    [:h3#menu-title "Tango"]])
@@ -267,7 +264,6 @@
         (attr "class" "tooltip")
         (style "opacity" 0))
     [:div {:class "container"}
-     "Hey there!"
      [:div {:class "row"}
       [:div {:class "col-md-5"}
        [d3-inner indexed-data]]]]))
@@ -283,8 +279,44 @@
                                   :overflow "auto"}}
        [github-table git-data-flat]]]]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; TEAMWORK
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn teamwork []
   [:div#selected-menu-item
+   [:h3#menu-title "Teamwork"]])
+
+
+(def Card (reagent/adapt-react-class (aget js/ReactBootstrap "Card")))
+
+(defn make-volunteer-card
+  [{:keys [image-url url title] :as info}]
+
+  ^{:key url}
+  [Card {:class "text-white bg-light mb-3 article-card"
+         :style {:border-radius "10px"}}
+   [:div.container-fluid
+    [:div.row.flex-items-xs-middle
+     [:div.col-sm-3.bg-primary.text-xs-center.card-icon
+      {:style {:border-radius "10px"}}
+      [:div.p-y-3
+       [:h1.p-y-2
+        [:img.fa.fa-2x {:src image-url
+                        :style {:width "100%"}}]]]]
+     [:div.col-sm-9.bg-light.text-dark.card-description
+      [:h5.card-title>a {:href (str "#/no-link-yet")}
+       title]
+      [:p.card-text url]]]]])
+
+(defn volunteering []
+  [:div#selected-menu-item
+   (make-volunteer-card {:image-url "images/ymca-logo.svg"
+                         :url "Project Soar"
+                         :title "YMCA"})
+   (make-volunteer-card {:image-url "images/vai-logo.svg"
+                         :url "Vietnamese Association of IL"
+                         :title "VAI"})
    [:h3#menu-title "Teamwork"]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
