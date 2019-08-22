@@ -265,7 +265,7 @@
         (style "opacity" 0))
     [:div {:class "container"}
      [:div {:class "row"}
-      [:div {:class "col-md-5"}
+      [:div {:class "col-md-5" :style {:width "400px"}}
        [d3-inner indexed-data]]]]))
 
 (defn github []
@@ -309,14 +309,20 @@
        title]
       [:p.card-text url]]]]])
 
+(def volunteer-cards
+  [{:image-url "images/ymca-logo.svg" :url "Project Soar" :title "YMCA"}
+   {:image-url "images/vai-logo.svg" :url "Vietnamese Association of IL" :title "VAI"}
+   {:image-url "images/nu-helix-logo.svg" :url "Helix Magazine" :title "HELIX"}
+   {:image-url "images/n-logo.svg" :url "Northwestern University" :title "Northwestern"}
+   {:image-url "images/datacamp-logo.svg" :url "Datacamp" :title "Datacamp"}
+   {:image-url "images/python-logo.svg" :url "Python" :title "Python"}
+   {:image-url "images/postgres-logo.svg" :url "PostgreSQL" :title "Postgres"}
+   {:image-url "images/chipy-logo.svg" :url "Chicago Python User Group" :title "ChiPy"}
+   ])
+
 (defn volunteering []
   [:div#selected-menu-item
-   (make-volunteer-card {:image-url "images/ymca-logo.svg"
-                         :url "Project Soar"
-                         :title "YMCA"})
-   (make-volunteer-card {:image-url "images/vai-logo.svg"
-                         :url "Vietnamese Association of IL"
-                         :title "VAI"})
+   (map make-volunteer-card volunteer-cards)
    [:h3#menu-title "Teamwork"]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
