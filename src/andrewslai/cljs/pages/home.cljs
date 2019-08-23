@@ -318,6 +318,14 @@
    {:image-url "images/python-logo.svg" :url "Python" :title "Python"}
    {:image-url "images/postgres-logo.svg" :url "PostgreSQL" :title "Postgres"}
    {:image-url "images/chipy-logo.svg" :url "Chicago Python User Group" :title "ChiPy"}
+   {:image-url "images/d3js-logo.svg" :url "D3" :title "D3"}
+   {:image-url "images/matlab-logo.svg" :url "Matlab" :title "Matlab"}
+   {:image-url "images/center-for-leadership-logo.svg" :url "Northwestern Center for Leadership" :title "Fellow"}
+   {:image-url "images/cephos-logo.svg" :url "Cephos Corporation" :title "Cephos"}
+   {:image-url "images/opploans-logo.svg" :url "OppLoans" :title "Opploans"}
+   {:image-url "images/pandas-logo.svg" :url "Pandas" :title "Pandas"}
+   {:image-url "images/aws-logo.svg" :url "Amazon Web Services" :title "AWS"}
+   {:image-url "images/terraform-logo.svg" :url "Terraform" :title "Terraform"}
    ])
 
 (defn volunteering []
