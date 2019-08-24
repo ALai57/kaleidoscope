@@ -97,9 +97,9 @@
 ;; MENU CONTENTS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn me []
-  [:div#selected-menu-item
-   [:h3#menu-title "About me"]])
+#_(defn me []
+    [:div#selected-menu-item
+     [:h3#menu-title "About me"]])
 (defn clojure []
   [:div#selected-menu-item
    [:h3#menu-title "Clojure"]])
@@ -110,7 +110,9 @@
   [:div#selected-menu-item
    [:h3#menu-title "CV"]
    ])
-
+(defn volunteering []
+  [:div#selected-menu-item
+   [:h3#menu-title "Volunteering"]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; GITHUB DATA
@@ -290,7 +292,7 @@
 
 (def Card (reagent/adapt-react-class (aget js/ReactBootstrap "Card")))
 
-(defn make-volunteer-card
+(defn make-card
   [{:keys [image-url url title] :as info}]
 
   ^{:key url}
@@ -309,7 +311,7 @@
        title]
       [:p.card-text url]]]]])
 
-(def volunteer-cards
+(def cards
   [{:image-url "images/ymca-logo.svg" :url "Project Soar" :title "YMCA"}
    {:image-url "images/vai-logo.svg" :url "Vietnamese Association of IL" :title "VAI"}
    {:image-url "images/chipy-logo.svg" :url "Chicago Python User Group" :title "ChiPy"}
@@ -347,11 +349,16 @@
    {:image-url "images/data-cleaning-logo.svg" :url "Data Cleaning" :title "Data Cleaning"}
    {:image-url "images/aligning-stakeholders-logo.svg" :url "Project Management" :title "Aligning stakeholders"}
    {:image-url "images/data-analysis-logo.svg" :url "Data analysis" :title "Data analysis"}
+
    ;; TODO
    ;; Deployment
    ;; Dockerizing
    ;; Data visualization
    ;; Hypothesis testing
+   ;; Teaching - BME 307
+   ;; Identify anomalies
+   ;; Process improvement
+   ;; Designing and running experiments
    ;; Additional experiments
    ;; Chi Hack Night
    ;; INFORMS
@@ -360,13 +367,13 @@
    ;; Pentathlon
    ;; Leadership mentoring
    ;; Tango instructor
-   ;; Ali
+   ;; TMEN topics?
    ])
 
-(defn volunteering []
+(defn me []
   [:div#selected-menu-item
-   (map make-volunteer-card volunteer-cards)
-   [:h3#menu-title "Teamwork"]])
+   [:h3#menu-title "A bit about me!"]
+   (map make-card cards)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RADIAL MENU
