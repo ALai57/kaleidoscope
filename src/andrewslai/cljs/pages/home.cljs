@@ -327,7 +327,6 @@
    {:image-url "images/periscope-logo.svg" :url "Periscope" :title "Periscope"}
    {:image-url "images/sumologic-logo.svg" :url "Sumologic" :title "Sumologic"}
    {:image-url "images/heap-logo.svg" :url "Heap Analytics" :title "Heap"}
-   {:image-url "images/coordinating-stakeholders-logo.svg" :url "Project Management" :title "Coordinating stakeholders"}
 
    {:image-url "images/d3js-logo.svg" :url "D3" :title "D3"}
    {:image-url "images/matlab-logo.svg" :url "Matlab" :title "Matlab"}
@@ -343,6 +342,25 @@
    {:image-url "images/jupyter-logo.svg" :url "Jupyter Notebooks" :title "Jupyter"}
    {:image-url "images/microchip-logo.svg" :url "Microcontroller App Development" :title "PIC32"}
    {:image-url "images/esl-logo.svg" :url "English as a Second Langauge" :title "ESL Teaching"}
+
+   {:image-url "images/pipeline-logo.svg" :url "Build data pipeline" :title "Build data pipeline"}
+   {:image-url "images/data-cleaning-logo.svg" :url "Data Cleaning" :title "Data Cleaning"}
+   {:image-url "images/aligning-stakeholders-logo.svg" :url "Project Management" :title "Aligning stakeholders"}
+   {:image-url "images/data-analysis-logo.svg" :url "Data analysis" :title "Data analysis"}
+   ;; TODO
+   ;; Deployment
+   ;; Dockerizing
+   ;; Data visualization
+   ;; Hypothesis testing
+   ;; Additional experiments
+   ;; Chi Hack Night
+   ;; INFORMS
+   ;; Publications
+   ;; MGLC
+   ;; Pentathlon
+   ;; Leadership mentoring
+   ;; Tango instructor
+   ;; Ali
    ])
 
 (defn volunteering []
