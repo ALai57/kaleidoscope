@@ -312,20 +312,37 @@
 (def volunteer-cards
   [{:image-url "images/ymca-logo.svg" :url "Project Soar" :title "YMCA"}
    {:image-url "images/vai-logo.svg" :url "Vietnamese Association of IL" :title "VAI"}
+   {:image-url "images/chipy-logo.svg" :url "Chicago Python User Group" :title "ChiPy"}
    {:image-url "images/nu-helix-logo.svg" :url "Helix Magazine" :title "HELIX"}
+   {:image-url "images/center-for-leadership-logo.svg" :url "Northwestern Center for Leadership" :title "Center for Leadership"}
+   {:image-url "images/opploans-logo.svg" :url "OppLoans" :title "Opploans"}
+   {:image-url "images/cephos-logo.svg" :url "Cephos Corporation" :title "Cephos"}
+   {:image-url "images/lafayette-logo.svg" :url "Lafayette College" :title "Lafayette"}
    {:image-url "images/n-logo.svg" :url "Northwestern University" :title "Northwestern"}
+
    {:image-url "images/datacamp-logo.svg" :url "Datacamp" :title "Datacamp"}
+
    {:image-url "images/python-logo.svg" :url "Python" :title "Python"}
    {:image-url "images/postgres-logo.svg" :url "PostgreSQL" :title "Postgres"}
-   {:image-url "images/chipy-logo.svg" :url "Chicago Python User Group" :title "ChiPy"}
+   {:image-url "images/periscope-logo.svg" :url "Periscope" :title "Periscope"}
+   {:image-url "images/sumologic-logo.svg" :url "Sumologic" :title "Sumologic"}
+   {:image-url "images/heap-logo.svg" :url "Heap Analytics" :title "Heap"}
+   {:image-url "images/coordinating-stakeholders-logo.svg" :url "Project Management" :title "Coordinating stakeholders"}
+
    {:image-url "images/d3js-logo.svg" :url "D3" :title "D3"}
    {:image-url "images/matlab-logo.svg" :url "Matlab" :title "Matlab"}
-   {:image-url "images/center-for-leadership-logo.svg" :url "Northwestern Center for Leadership" :title "Fellow"}
-   {:image-url "images/cephos-logo.svg" :url "Cephos Corporation" :title "Cephos"}
-   {:image-url "images/opploans-logo.svg" :url "OppLoans" :title "Opploans"}
+   {:image-url "images/ultrasound-logo.svg" :url "Shear wave elastography" :title "Ultrasound"}
+   {:image-url "images/emg-logo.svg" :url "Single Motor Unit Analysis" :title "Electromyography"}
+   {:image-url "images/dimensionality-reduction-logo.svg" :url "NNMF" :title "Dimensionality Reduction"}
+   {:image-url "images/hierarchical-mixed-models-logo.svg" :url "Statistical Modeling" :title "Hierarchical Mixed Modeling"}
    {:image-url "images/pandas-logo.svg" :url "Pandas" :title "Pandas"}
    {:image-url "images/aws-logo.svg" :url "Amazon Web Services" :title "AWS"}
+   {:image-url "images/docker-logo.svg" :url "Docker" :title "Docker"}
    {:image-url "images/terraform-logo.svg" :url "Terraform" :title "Terraform"}
+   {:image-url "images/emacs-logo.svg" :url "EMACS" :title "EMACS"}
+   {:image-url "images/jupyter-logo.svg" :url "Jupyter Notebooks" :title "Jupyter"}
+   {:image-url "images/microchip-logo.svg" :url "Microcontroller App Development" :title "PIC32"}
+   {:image-url "images/esl-logo.svg" :url "English as a Second Langauge" :title "ESL Teaching"}
    ])
 
 (defn volunteering []
