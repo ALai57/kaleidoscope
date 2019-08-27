@@ -83,6 +83,24 @@
         content (get-article-content article-id)]
     (assoc-in article [:content] content)))
 
+(defn get-resume-info []
+  (try
+    (let [organizations (sql/query pg-db
+                                   [(str "SELECT *"
+                                         "FROM organizations ")])
+          projects (sql/query pg-db
+                              [(str "SELECT *"
+                                    "FROM projects ")])
+          skills (sql/query pg-db
+                            [(str "SELECT *"
+                                  "FROM skills ")])]
+      {:organizations organizations
+       :projects projects
+       :skills skills})
+    (catch Exception e
+      (str "get-resume-info caught exception: " (.getMessage e)
+           "postgres config: " (assoc pg-db :password "xxxxxx")))))
+
 (comment
 
   (get-full-article "neural-network-explode-equation")

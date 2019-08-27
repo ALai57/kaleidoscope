@@ -39,6 +39,9 @@
      (GET "/get-recent-articles" [article-type article-name]
        (ok (db/get-recent-articles 6)))
 
+     (GET "/get-resume-info" []
+       (ok (db/get-resume-info)))
+
      ) "public")))
 
 (defn -main [& _]
