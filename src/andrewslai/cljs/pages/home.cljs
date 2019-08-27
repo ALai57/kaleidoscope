@@ -293,7 +293,7 @@
 (def Card (reagent/adapt-react-class (aget js/ReactBootstrap "Card")))
 
 (defn make-card
-  [{:keys [image-url url title] :as info}]
+  [{:keys [image_url url description] :as info}]
 
   ^{:key url}
   [Card {:class "text-white bg-light mb-3 article-card"
@@ -304,142 +304,163 @@
       {:style {:border-radius "10px"}}
       [:div.p-y-3
        [:h1.p-y-2
-        [:img.fa.fa-2x {:src image-url
+        [:img.fa.fa-2x {:src image_url
                         :style {:width "100%"}}]]]]
      [:div.col-sm-9.bg-light.text-dark.card-description
-      [:h5.card-title>a {:href (str "#/no-link-yet")}
-       title]
-      [:p.card-text url]]]]])
+      [:h5.card-title>a {:href url}
+       (:name info)]
+      [:p.card-text description]]]]])
 
-(def cards
-  [
-   ;; Organizations
-   {:image-url "images/ymca-logo.svg" :url "Project Soar" :title "YMCA"}
-   {:image-url "images/vai-logo.svg" :url "Vietnamese Association of IL" :title "VAI"}
-   {:image-url "images/chipy-logo.svg" :url "Chicago Python User Group" :title "ChiPy"}
-   {:image-url "images/chi-hack-night-logo.svg" :url "Chi Hack Night" :title "Chi Hack Night"}
-   {:image-url "images/nu-helix-logo.svg" :url "Helix Magazine" :title "HELIX"}
-   {:image-url "images/center-for-leadership-logo.svg" :url "Northwestern Center for Leadership" :title "Center for Leadership"}
-   {:image-url "images/mglc-logo.svg" :url "McCormick Graduate Leadership Council" :title "MGLC"}
-   {:image-url "images/opploans-logo.svg" :url "OppLoans" :title "Opploans"}
-   {:image-url "images/cephos-logo.svg" :url "Cephos Corporation" :title "Cephos"}
-   {:image-url "images/lafayette-logo.svg" :url "Lafayette College" :title "Lafayette"}
-   {:image-url "images/n-logo.svg" :url "Northwestern University" :title "Northwestern"}
-   ;; Tea Gschwendner
-   ;; Academic Approach
-   ;; NUTango
+(comment
+  (require '[ajax.core :refer [GET]])
 
-   ;; Leadership
-   ;; MGLC
-   ;; NuTango
-   ;; Opploans - Analytics manager
-
-   ;; Projects
-   ;; PIC32 infrared camera
-   ;; Muscle synergies
-   ;; Motor unit behavior
-   ;; Muscle properties
-   ;; Neural Networks explanaation in D3
-   ;; Galvani article
-   ;; Personal website
-   ;; Launch Neuro ID
-   ;; Software processing audit
-   ;; DL orphans project
-   ;; Science pentathlon
-
-   ;; Certifications
-   ;; PhD
-   ;; Masters
-   ;; BS Chem E
-   {:image-url "images/datacamp-logo.svg" :url "Datacamp" :title "Datacamp"}
-
-   ;; Languages
-   {:image-url "images/python-logo.svg" :url "Python" :title "Python"}
-   {:image-url "images/postgres-logo.svg" :url "PostgreSQL" :title "Postgres"}
-   {:image-url "images/matlab-logo.svg" :url "Matlab" :title "Matlab"}
-   {:image-url "images/docker-logo.svg" :url "Docker" :title "Docker"}
-   {:image-url "images/terraform-logo.svg" :url "Terraform" :title "Terraform"}
-   ;; Clojure
-   ;; Clojurescript
-   ;; JS, CSS, HTML
-   ;; C
-   ;; Espanol?
-
-   ;; Analytics Tools
-   {:image-url "images/periscope-logo.svg" :url "Periscope" :title "Periscope"}
-   {:image-url "images/sumologic-logo.svg" :url "Sumologic" :title "Sumologic"}
-   {:image-url "images/heap-logo.svg" :url "Heap Analytics" :title "Heap"}
-   {:image-url "images/jupyter-logo.svg" :url "Jupyter Notebooks" :title "Jupyter"}
-   {:image-url "images/pandas-logo.svg" :url "Pandas" :title "Pandas"}
-
-   ;; Software tools
-   {:image-url "images/emacs-logo.svg" :url "EMACS" :title "EMACS"}
-   {:image-url "images/d3js-logo.svg" :url "D3" :title "D3"}
-   ;; Reframe
-   ;; React
-   ;; Jenkins
-   ;; Git
-
-   ;; Research/Experimental skills
-   {:image-url "images/ultrasound-logo.svg" :url "Shear wave elastography" :title "Shear wave elastography"}
-   {:image-url "images/ultrasound-logo.svg" :url "B-mode ultrasound" :title "B-mode Ultrasound"}
-   {:image-url "images/emg-logo.svg" :url "Surface EMG" :title "Surface Electromyography"}
-   {:image-url "images/emg-logo.svg" :url "Single Motor Unit Analysis" :title "Single motor unit analysis"}
-
-   ;; Data
-   {:image-url "images/pipeline-logo.svg" :url "Build data pipeline" :title "Build data pipeline"}
-   {:image-url "images/data-cleaning-logo.svg" :url "Data Cleaning" :title "Data Cleaning"}
-   {:image-url "images/dimensionality-reduction-logo.svg" :url "NNMF" :title "Dimensionality Reduction"}
-   {:image-url "images/hierarchical-mixed-models-logo.svg" :url "Statistical Modeling" :title "Hierarchical Mixed Modeling"}
-   ;; Power spectral analysis
-   ;; Clustering
-
-   ;; Teaching
-   ;; Scientific experimentation - TAing
-   ;; Citizenship
-   ;; ACT prep
-   ;; Leadership Coaching
-   ;; Tango
-   ;; Youth mentoring - SOAR
-   {:image-url "images/esl-logo.svg" :url "English as a Second Langauge" :title "ESL Teaching"}
-
-   ;; MISC
-   {:image-url "images/microchip-logo.svg" :url "Microcontroller App Development" :title "PIC32"}
-
-   ;; Project management skills
-   ;; Writing specs
-   ;; Delivering results on time
-   ;; Defining new directions
-   {:image-url "images/aligning-stakeholders-logo.svg" :url "Project Management" :title "Aligning stakeholders"}
-
-   ;; Skill profiles
-   {:image-url "images/data-analysis-logo.svg" :url "Data analysis" :title "Data analysis"}
-   {:image-url "images/data-storytelling-logo.svg" :url "Data storytelling" :title "Data storytelling"}
-   {:image-url "images/cloud-deployment-logo.svg" :url "Cloud Deployment" :title "Cloud deployment"}
-   {:image-url "images/backend-development-logo.svg" :url "Software Development" :title "Backend"}
-   {:image-url "images/frontend-development-logo.svg" :url "Software Development" :title "Frontend"}
-   {:image-url "images/project-management-logo.svg" :url "Project management" :title "Project management"}
-
-   ;; TODO
-   ;; Deployment
-   ;; Dockerizing
-   ;; Data visualization
-   ;; Hypothesis testing
-   ;; Teaching - BME 307
-   ;; Identify anomalies
-   ;; Process improvement
-   ;; Designing and running experiments
-   ;; Additional experiments
-   ;; INFORMS
-   ;; Publications
-   ;; Pentathlon
-   ;; ThematicMEN topics?
-   ])
+  (GET "/get-resume-info"
+      {:handler (fn [response] (println "+++++ " response))
+       :error-handler (fn [response] "unable to load content")})
+  )
 
 (defn me []
-  [:div#selected-menu-item
-   [:h3#menu-title "A bit about me!"]
-   (map make-card cards)])
+  (let [resume-info (subscribe [:resume-info])]
+    (println "me section:: " @resume-info)
+    [:div#selected-menu-item
+     [:h3#menu-title "Organizations"]
+     (map make-card (:organizations @resume-info))
+     [:h3#menu-title "Projects"]
+     (map make-card (:projects @resume-info))
+     [:h3#menu-title "Skills"]
+     (map make-card (:skills @resume-info))]))
+
+#_(def cards
+    [
+     ;; Organizations
+     {:image-url "images/ymca-logo.svg" :url "Project Soar" :title "YMCA"}
+     {:image-url "images/vai-logo.svg" :url "Vietnamese Association of IL" :title "VAI"}
+     {:image-url "images/chipy-logo.svg" :url "Chicago Python User Group" :title "ChiPy"}
+     {:image-url "images/chi-hack-night-logo.svg" :url "Chi Hack Night" :title "Chi Hack Night"}
+     {:image-url "images/nu-helix-logo.svg" :url "Helix Magazine" :title "HELIX"}
+     {:image-url "images/center-for-leadership-logo.svg" :url "Northwestern Center for Leadership" :title "Center for Leadership"}
+     {:image-url "images/mglc-logo.svg" :url "McCormick Graduate Leadership Council" :title "MGLC"}
+     {:image-url "images/opploans-logo.svg" :url "OppLoans" :title "Opploans"}
+     {:image-url "images/cephos-logo.svg" :url "Cephos Corporation" :title "Cephos"}
+     {:image-url "images/lafayette-logo.svg" :url "Lafayette College" :title "Lafayette"}
+     {:image-url "images/n-logo.svg" :url "Northwestern University" :title "Northwestern"}
+     ;; Tea Gschwendner
+     ;; Academic Approach
+     ;; NUTango
+
+     ;; Leadership
+     ;; MGLC
+     ;; NuTango
+     ;; Opploans - Analytics manager
+
+     ;; Projects
+     ;; PIC32 infrared camera
+     ;; Muscle synergies
+     ;; Motor unit behavior
+     ;; Muscle properties
+     ;; Neural Networks explanaation in D3
+     ;; Galvani article
+     ;; Personal website
+     ;; Launch Neuro ID
+     ;; Software processing audit
+     ;; DL orphans project
+     ;; Science pentathlon
+
+     ;; Certifications
+     ;; PhD
+     ;; Masters
+     ;; BS Chem E
+     {:image-url "images/datacamp-logo.svg" :url "Datacamp" :title "Datacamp"}
+
+     ;; Language skills
+     {:image-url "images/python-logo.svg" :url "Python" :title "Python"}
+     {:image-url "images/postgres-logo.svg" :url "PostgreSQL" :title "Postgres"}
+     {:image-url "images/matlab-logo.svg" :url "Matlab" :title "Matlab"}
+     {:image-url "images/docker-logo.svg" :url "Docker" :title "Docker"}
+     {:image-url "images/terraform-logo.svg" :url "Terraform" :title "Terraform"}
+     ;; Clojure
+     ;; Clojurescript
+     ;; Ruby/ Rails
+     ;; JS, CSS, HTML
+     ;; C
+     ;; Espanol?
+     ;; Functional programming
+
+     ;; Analytics Tools
+     {:image-url "images/periscope-logo.svg" :url "Periscope" :title "Periscope"}
+     {:image-url "images/sumologic-logo.svg" :url "Sumologic" :title "Sumologic"}
+     {:image-url "images/heap-logo.svg" :url "Heap Analytics" :title "Heap"}
+     {:image-url "images/jupyter-logo.svg" :url "Jupyter Notebooks" :title "Jupyter"}
+     {:image-url "images/pandas-logo.svg" :url "Pandas" :title "Pandas"}
+
+     ;; Software tools
+     {:image-url "images/emacs-logo.svg" :url "EMACS" :title "EMACS"}
+     {:image-url "images/d3js-logo.svg" :url "D3" :title "D3"}
+     ;; Reframe
+     ;; React
+     ;; Jenkins
+     ;; Git
+
+     ;; Research/Experimental skills
+     {:image-url "images/ultrasound-logo.svg" :url "Shear wave elastography" :title "Shear wave elastography"}
+     {:image-url "images/ultrasound-logo.svg" :url "B-mode ultrasound" :title "B-mode Ultrasound"}
+     {:image-url "images/emg-logo.svg" :url "Surface EMG" :title "Surface Electromyography"}
+     {:image-url "images/emg-logo.svg" :url "Single Motor Unit Analysis" :title "Single motor unit analysis"}
+
+     ;; Data
+     {:image-url "images/pipeline-logo.svg" :url "Build data pipeline" :title "Build data pipeline"}
+     {:image-url "images/data-cleaning-logo.svg" :url "Data Cleaning" :title "Data Cleaning"}
+     {:image-url "images/dimensionality-reduction-logo.svg" :url "NNMF" :title "Dimensionality Reduction"}
+     {:image-url "images/hierarchical-mixed-models-logo.svg" :url "Statistical Modeling" :title "Hierarchical Mixed Modeling"}
+     ;; Power spectral analysis
+     ;; Clustering
+
+     ;; Teaching
+     ;; Scientific experimentation - TAing
+     ;; Citizenship
+     ;; ACT prep
+     ;; Leadership Coaching
+     ;; Tango
+     ;; Youth mentoring - SOAR
+     {:image-url "images/esl-logo.svg" :url "English as a Second Langauge" :title "ESL Teaching"}
+
+     ;; MISC
+     {:image-url "images/microchip-logo.svg" :url "Microcontroller App Development" :title "PIC32"}
+
+     ;; Project management skills
+     ;; Writing specs
+     ;; Delivering results on time
+     ;; Defining new directions
+     {:image-url "images/aligning-stakeholders-logo.svg" :url "Project Management" :title "Aligning stakeholders"}
+
+     ;; Skill profiles
+     {:image-url "images/data-analysis-logo.svg" :url "Data analysis" :title "Data analysis"}
+     {:image-url "images/data-storytelling-logo.svg" :url "Data storytelling" :title "Data storytelling"}
+     {:image-url "images/cloud-deployment-logo.svg" :url "Cloud Deployment" :title "Cloud deployment"}
+     {:image-url "images/backend-development-logo.svg" :url "Software Development" :title "Backend"}
+     {:image-url "images/frontend-development-logo.svg" :url "Software Development" :title "Frontend"}
+     {:image-url "images/project-management-logo.svg" :url "Project management" :title "Project management"}
+
+     ;; TODO
+     ;; Deployment
+     ;; Dockerizing
+     ;; Data visualization
+     ;; Hypothesis testing
+     ;; Teaching - BME 307
+     ;; Identify anomalies
+     ;; Process improvement
+     ;; Designing and running experiments
+     ;; Additional experiments
+     ;; INFORMS
+     ;; Publications
+     ;; Pentathlon
+     ;; ThematicMEN topics?
+     ])
+
+#_(defn me []
+    [:div#selected-menu-item
+     [:h3#menu-title "A bit about me!"]
+     (map make-card cards)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RADIAL MENU

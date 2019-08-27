@@ -57,6 +57,32 @@
    (modify-db db {:loading? false
                   :active-content "Unable to load content"})))
 
+(reg-event-db
+ :retrieve-resume-info
+ (fn [db [_]]
+
+   (println "Retrieve resume-info")
+   (println db)
+
+   (GET "/get-resume-info"
+       {:handler #(dispatch [:process-resume-info %1])
+        :error-handler #(dispatch [:bad-resume-info %1])})
+
+   (modify-db db {:loading-resume? true
+                  :resume-info nil})))
+
+(reg-event-db
+ :process-resume-info
+ (fn [db [_ response]]
+   (println db)
+   (modify-db db {:loading-resume? false
+                  :resume-info response})))
+
+(reg-event-db
+ :bad-resume-info
+ (fn [db [_ response]]
+   (modify-db db {:resume-info "Unable to load content"})))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for get-recent-articles
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

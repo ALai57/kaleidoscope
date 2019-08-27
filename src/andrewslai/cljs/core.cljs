@@ -14,6 +14,7 @@
 
 
 (dispatch-sync [:initialize-db])
+(dispatch-sync [:retrieve-resume-info])
 
 ;; -- Debugging aids ----------------------------------------------------------
 ;;(devtools/install!)       ;; https://github.com/binaryage/cljs-devtools

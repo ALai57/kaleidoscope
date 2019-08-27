@@ -19,8 +19,10 @@
 (def default-db
   {:active-panel :home
    :active-content nil
+   :resume-info nil
    :recent-content nil
    :loading? false
+   :loading-resume? false
    :radial-menu-open? true
    :active-icon [:me {:image-url "images/my-silhouette.svg"}]
    :github-data nil
