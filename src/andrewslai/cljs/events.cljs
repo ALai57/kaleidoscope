@@ -139,10 +139,43 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for clicking on resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (reg-event-db
  :click-resume-info-card
- (fn [db [_ click-type object-name]]
+ (fn [db [_ click-type resume-card-name]]
 
-   (println "click-type: " click-type
-            "object-name: " object-name)
-   db))
+   (let [all-projects (-> db
+                          :resume-info
+                          :projects)
+
+         project (case click-type
+                   :project (filter #(= resume-card-name (:name %))
+                                    all-projects)
+                   :organization (filter #(some (fn [x] (= resume-card-name x))
+                                                (:organization_names %))
+                                         all-projects)
+                   :skill
+                   (let [xy (flatten (map :skills_names (-> db
+                                                            :resume-info
+                                                            :projects)))
+                         yz (js->clj (.parse js/JSON (first xy)))
+
+                         get-skill-name (fn [y] (-> (.parse js/JSON y)
+                                                    js->clj
+                                                    keys
+                                                    first))
+                         contains-skill? (fn [x]
+                                           (= resume-card-name (get-skill-name x)))]
+                     (filter #(some contains-skill? (:skills_names %))
+                             all-projects))
+                   nil)]
+
+     (println "click-type: " click-type
+              "resume-card-name: " resume-card-name)
+
+     (println "resume-info: " (:projects (:resume-info db)))
+     (println "project: " project)
+
+     (modify-db db {:current-resume-info nil
+                    :current-resume-category click-type
+                    :current-resume-card resume-card-name}))))
