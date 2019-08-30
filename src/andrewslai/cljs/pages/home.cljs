@@ -289,13 +289,15 @@
   [:div#selected-menu-item
    [:h3#menu-title "Teamwork"]])
 
+(cljs.pprint/pprint (:resume-info @re-frame.db/app-db))
+
 
 (def Card (reagent/adapt-react-class (aget js/ReactBootstrap "Card")))
 
 (defn make-card
   [{:keys [image_url url description] :as info}]
 
-  ^{:key url}
+  ^{:key (str url description)}
   [Card {:class "text-white bg-light mb-3 article-card"
          :style {:border-radius "10px"}}
    [:div.container-fluid
@@ -305,7 +307,8 @@
       [:div.p-y-3
        [:h1.p-y-2
         [:img.fa.fa-2x {:src image_url
-                        :style {:width "100%"}}]]]]
+                        :style {:width "100%"}
+                        :onClick (fn [x] (.log js/console "CLICKEDME!"))}]]]]
      [:div.col-sm-9.bg-light.text-dark.card-description
       [:h5.card-title>a {:href url}
        (:name info)]

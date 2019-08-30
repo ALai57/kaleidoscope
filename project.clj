@@ -9,8 +9,8 @@
                  [org.clojure/clojure "1.9.0" :upgrade false]
                  [org.clojure/core.async "0.3.442"
                   :exclusions [org.clojure/tools.reader]]
-                 [org.clojure/java.jdbc "0.6.1"]
-                 [org.postgresql/postgresql "9.4-1201-jdbc41"]
+                 [org.clojure/java.jdbc "0.7.10"]
+                 [org.postgresql/postgresql "42.1.4"]
 
                  [cljs-http "0.1.46"]
                  [cljs-ajax "0.7.5"]

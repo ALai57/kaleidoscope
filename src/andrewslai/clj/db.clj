@@ -6,6 +6,7 @@
 
 
 (import 'org.postgresql.util.PGobject)
+
 (extend-protocol sql/IResultSetReadColumn
   PGobject
   (result-set-read-column [pgobj conn metadata]
@@ -15,6 +16,11 @@
         "json" (keywordize-keys
                 (json/parse-string value))
         :else value))))
+
+(extend-protocol sql/IResultSetReadColumn
+  org.postgresql.jdbc.PgArray
+  (result-set-read-column [pgobj metadata i]
+    (vec (.getArray pgobj))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Default
@@ -103,44 +109,13 @@
 
 (comment
 
+  (get-resume-info)
+  (:organization_names (first (:projects (get-resume-info))))
+
   (get-full-article "neural-network-explode-equation")
+
   (get-article-content 2)
+
   (:article_id (get-article-metadata "my-first-article"))
 
-  (:metadata
-   (first
-    (get-in
-     (get-full-article "my-first-article")
-     [:content])))
-
-  (clojure.pprint/pprint
-   (get-in
-    (get-content (first (get-article "my-first-article")))
-    [:content]))
-  (clojure.pprint/pprint sql/IResultSetReadColumn)
-
-  (defn create-table [table specs]
-    (sql/db-do-commands pg-db [(sql/create-table-ddl table specs)]))
-
-  (defn insert [table data]
-    (sql/insert-multi! pg-db table data))
-
-  (defn select-all [table]
-    (sql/query pg-db [(str "SELECT * FROM " (name table))]))
-
   )
-
-
-#_(defn get-content [{:keys [article_id] :as article}]
-    (try
-      (let [content
-            (sql/query pg-db
-                       [(str "SELECT "
-                             "article_id, metadata, content_order, "
-                             "content_type, content "
-                             "FROM content "
-                             "WHERE article_id = ?") article_id])]
-        (assoc-in article [:content] content))
-      (catch Exception e
-        (str "get-content caught exception: " (.getMessage e)
-             "postgres config: " (assoc pg-db :password "xxxxxx")))))

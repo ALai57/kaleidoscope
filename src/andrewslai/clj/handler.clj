@@ -50,14 +50,10 @@
 
 (comment
   (-main)
+
   (db/get-article "my-first-article")
 
   (clojure.pprint/pprint
    (db/get-content (first (db/get-article "my-second-article"))))
-
-  (ok {:content-type content-type
-       :content-name content-name
-       ;;:article (first (db/get-article content-name))
-       :article (db/get-content (first (db/get-article content-name)))
-       })
+  
   )

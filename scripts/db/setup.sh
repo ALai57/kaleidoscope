@@ -16,7 +16,7 @@
 ##########################################
 # Setup
 ##########################################
-export ANDREWSLAI_DB="andrewslai_db"
+export ANDREWSLAI_DB_NAME="andrewslai_db"
 export ANDREWSLAI_DB_USER="andrewslai"
 export ANDREWSLAI_DB_PASSWORD="andrewslai"
 # POSTGRES_USER_PASSWORD exported  FROM .bashrc
@@ -80,8 +80,16 @@ create_new_db_user () {
        CREATE USER $ANDREWSLAI_DB_USER
               WITH ENCRYPTED PASSWORD '$ANDREWSLAI_DB_PASSWORD';
        GRANT ALL ON DATABASE $ANDREWSLAI_DB TO $ANDREWSLAI_DB_USER;
+grant_db_permissions () {
+  USER=${1:?"You must enter a username"}
+  DB=${2:?"You must enter a database"}
+
+  echo "Grant permissions... "
+
+   psql -U postgres -d $DB -c \
+       "GRANT ALL ON DATABASE $DB TO $USER;
        GRANT ALL PRIVILEGES ON ALL TABLES
-             IN SCHEMA public TO $ANDREWSLAI_DB_USER;"
+             IN SCHEMA public TO $USER;"
   echo "\n"
 }
 
