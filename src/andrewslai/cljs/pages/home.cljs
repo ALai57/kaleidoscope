@@ -295,7 +295,7 @@
 (def Card (reagent/adapt-react-class (aget js/ReactBootstrap "Card")))
 
 (defn make-card
-  [{:keys [image_url url description] :as info}]
+  [{:keys [name image_url url description] :as info} event-type]
 
   ^{:key (str url description)}
   [Card {:class "text-white bg-light mb-3 article-card"
@@ -308,7 +308,8 @@
        [:h1.p-y-2
         [:img.fa.fa-2x {:src image_url
                         :style {:width "100%"}
-                        :onClick (fn [x] (.log js/console "CLICKEDME!"))}]]]]
+                        :onClick (fn [x]
+                                   (dispatch [:click-resume-info-card event-type name]))}]]]]
      [:div.col-sm-9.bg-light.text-dark.card-description
       [:h5.card-title>a {:href url}
        (:name info)]
@@ -327,11 +328,11 @@
     (println "me section:: " @resume-info)
     [:div#selected-menu-item
      [:h3#menu-title "Organizations"]
-     (map make-card (:organizations @resume-info))
+     (map #(make-card % :organization) (:organizations @resume-info))
      [:h3#menu-title "Projects"]
-     (map make-card (:projects @resume-info))
+     (map #(make-card % :project) (:projects @resume-info))
      [:h3#menu-title "Skills"]
-     (map make-card (:skills @resume-info))]))
+     (map #(make-card % :skill) (:skills @resume-info))]))
 
 #_(def cards
     [
@@ -514,34 +515,5 @@
 
 
 (comment
-  (require '[ajax.core :refer [GET]])
-  (defonce git-resp (atom nil))
-  (GET "https://api.github.com/users/ALai57/events"
-      {:handler (fn [response] (println (str response))
-                  (println "hello!")
-                  (reset! git-resp response))})
-  (cljs.pprint/pprint (first @git-resp))
 
-  (let [x (first @git-resp)]
-    (println (str "https://github.com/"
-                  (get-in x ["repo" "name"])
-                  "/commit/"
-                  (get-in x ["payload" "commits" 0 "sha"]))))
-
-  
-  (cljs.pprint/pprint (first @git-resp))
-
-  (defn flattener [d]
-    (let [base-data {:type (get-in d ["type"])
-                     :user (get-in d ["actor" "login"])
-                     :repo (get-in d ["repo" "name"])
-                     :repo-url (get-in d ["repo" "url"])
-                     :created-at (get-in d ["created_at"])}]
-      (map #(merge base-data
-                   {:message (get-in %1 ["message"])
-                    :commit-sha (get-in %1 ["sha"])})
-           (get-in d ["payload" "commits"]))))
-
-  (cljs.pprint/pprint (map flattener @git-resp))
-
-  (cljs.pprint/pprint (flattener (first @git-resp))))
+  )

@@ -55,5 +55,5 @@
 
   (clojure.pprint/pprint
    (db/get-content (first (db/get-article "my-second-article"))))
-  
+
   )

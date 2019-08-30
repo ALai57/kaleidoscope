@@ -135,3 +135,14 @@
    [db [_ idx param val]]
    #_(println "idx " idx "param " param "val " val)
    (assoc-in db [:circles idx param ] val)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; db events for clicking on resume info
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(reg-event-db
+ :click-resume-info-card
+ (fn [db [_ click-type object-name]]
+
+   (println "click-type: " click-type
+            "object-name: " object-name)
+   db))
