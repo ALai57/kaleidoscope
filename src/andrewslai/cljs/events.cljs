@@ -148,26 +148,20 @@
                           :resume-info
                           :projects)
 
-         project (case click-type
-                   :project (filter #(= resume-card-name (:name %))
-                                    all-projects)
-                   :organization (filter #(some (fn [x] (= resume-card-name x))
-                                                (:organization_names %))
-                                         all-projects)
-                   :skill
-                   (let [xy (flatten (map :skills_names (-> db
-                                                            :resume-info
-                                                            :projects)))
-                         yz (js->clj (.parse js/JSON (first xy)))
+         get-skill-name (fn [y] (-> (.parse js/JSON y)
+                                    js->clj
+                                    keys
+                                    first))
+         contains-skill? (fn [skills] (= resume-card-name (get-skill-name skills)))
 
-                         get-skill-name (fn [y] (-> (.parse js/JSON y)
-                                                    js->clj
-                                                    keys
-                                                    first))
-                         contains-skill? (fn [x]
-                                           (= resume-card-name (get-skill-name x)))]
-                     (filter #(some contains-skill? (:skills_names %))
-                             all-projects))
+         associated-orgs-filter (fn [projects] some #(= resume-card-name %) (:organization_names projects))
+         project-filter (fn [projects] (= resume-card-name (:name projects)))
+         skill-filter (fn [projects] (some contains-skill? (:skills_names projects)))
+
+         project (case click-type
+                   :project (filter project-filter all-projects)
+                   :organization (filter associated-orgs-filter all-projects)
+                   :skill (filter skill-filter all-projects)
                    nil)]
 
      (println "click-type: " click-type

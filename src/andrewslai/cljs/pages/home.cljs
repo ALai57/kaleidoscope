@@ -202,23 +202,24 @@
                               (:commits (js->clj d :keywordize-keys true))]
                           (* 3 commits))))
             (attr "fill" (fn [d] "red"))
-            (on "mouseover" (fn [d]
-                              (let [x (.-pageX js/d3.event)
-                                    y (.-pageY js/d3.event)
-                                    commits (:commits (js->clj d :keywordize-keys true))
-                                    repo (:repo (js->clj d :keywordize-keys true))]
-                                (.. js/d3
-                                    (select ".tooltip")
-                                    (transition)
-                                    (duration 200)
-                                    (style "opacity" 0.9))
-                                (.. js/d3
-                                    (select ".tooltip")
-                                    (html (str "Repo: " repo "<br/>"
-                                               "N commits: " commits
-                                               ))
-                                    (style "left" (str x "px"))
-                                    (style "top" (str y "px"))))))
+            (on "mouseover"
+                (fn [d]
+                  (let [x (.-pageX js/d3.event)
+                        y (.-pageY js/d3.event)
+                        commits (:commits (js->clj d :keywordize-keys true))
+                        repo (:repo (js->clj d :keywordize-keys true))]
+                    (.. js/d3
+                        (select ".tooltip")
+                        (transition)
+                        (duration 200)
+                        (style "opacity" 0.9))
+                    (.. js/d3
+                        (select ".tooltip")
+                        (html (str "Repo: " repo "<br/>"
+                                   "N commits: " commits
+                                   ))
+                        (style "left" (str x "px"))
+                        (style "top" (str y "px"))))))
             (on "mouseout" (fn [d]
                              (.. js/d3
                                  (select ".tooltip")
@@ -315,22 +316,16 @@
       {:style {:border-radius "10px"}}
       [:div.p-y-3
        [:h1.p-y-2
-        [:img.fa.fa-2x {:src image_url
-                        :style {:width "100%"}
-                        :onClick (fn [x]
-                                   (dispatch [:click-resume-info-card event-type name]))}]]]]
+        [:img.fa.fa-2x
+         {:src image_url
+          :style {:width "100%"}
+          :onClick
+          (fn [x]
+            (dispatch [:click-resume-info-card event-type name]))}]]]]
      [:div.col-sm-9.bg-light.text-dark.card-description
       [:h5.card-title>a {:href url}
        (:name info)]
       [:p.card-text description]]]]])
-
-(comment
-  (require '[ajax.core :refer [GET]])
-
-  (GET "/get-resume-info"
-      {:handler (fn [response] (println "+++++ " response))
-       :error-handler (fn [response] "unable to load content")})
-  )
 
 (defn me []
   (let [resume-info (subscribe [:resume-info])]
