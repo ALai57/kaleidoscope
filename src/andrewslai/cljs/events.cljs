@@ -140,36 +140,72 @@
 ;; db events for clicking on resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn get-skill-name [y]
+  (-> (.parse js/JSON y)
+      js->clj
+      keys
+      first))
+
+(defn find-associated-projects [clicked-item-name click-type all-projects]
+  (let [contains-clicked-item? (fn [v] (= clicked-item-name v))
+
+        skill-filter (fn [p]
+                       (some contains-clicked-item?
+                             (map get-skill-name (:skills_names p))))
+        orgs-filter (fn [p] (some contains-clicked-item?
+                                  (:organization_names p)))
+        project-filter (fn [p] (some contains-clicked-item? [(:name p)]))
+
+        project (case click-type
+                  :project (filter project-filter all-projects)
+                  :organization (filter orgs-filter all-projects)
+                  :skill (filter skill-filter all-projects)
+                  nil)]
+    project))
+
 (reg-event-db
  :click-resume-info-card
- (fn [db [_ click-type resume-card-name]]
+ (fn [db [_ click-type clicked-item-name]]
 
    (let [all-projects (-> db
                           :resume-info
                           :projects)
+         all-orgs (-> db
+                      :resume-info
+                      :organizations)
+         all-skills (-> db
+                        :resume-info
+                        :skills)
 
-         get-skill-name (fn [y] (-> (.parse js/JSON y)
-                                    js->clj
-                                    keys
-                                    first))
-         contains-skill? (fn [skills] (= resume-card-name (get-skill-name skills)))
+         associated-projects (find-associated-projects clicked-item-name
+                                                       click-type
+                                                       all-projects)
 
-         associated-orgs-filter (fn [projects] some #(= resume-card-name %) (:organization_names projects))
-         project-filter (fn [projects] (= resume-card-name (:name projects)))
-         skill-filter (fn [projects] (some contains-skill? (:skills_names projects)))
+         associated-org-names (flatten (map :organization_names
+                                            associated-projects))
 
-         project (case click-type
-                   :project (filter project-filter all-projects)
-                   :organization (filter associated-orgs-filter all-projects)
-                   :skill (filter skill-filter all-projects)
-                   nil)]
+         orgs-filter (fn [o]
+                       (some (fn [org-name] (= org-name (:name o)))
+                             associated-org-names))
 
-     (println "click-type: " click-type
-              "resume-card-name: " resume-card-name)
+         associated-orgs (filter orgs-filter all-orgs)
 
-     (println "resume-info: " (:projects (:resume-info db)))
-     (println "project: " project)
 
-     (modify-db db {:current-resume-info nil
-                    :current-resume-category click-type
-                    :current-resume-card resume-card-name}))))
+         associated-skills-names (map get-skill-name
+                                      (flatten (map :skills_names associated-projects)))
+         skills-filter (fn [s]
+                         (some (fn [skill-name] (= skill-name (:name s)))
+                               associated-skills-names))
+
+         associated-skills (filter skills-filter all-skills)
+         ]
+
+     (println "associated-projects: " associated-projects)
+     (println "associated-orgs: " associated-orgs)
+     (println "associated-skills: " associated-skills)
+
+     (modify-db db {:selected-resume-info {:organizations associated-orgs
+                                           :projects associated-projects
+                                           :skills associated-skills}
+                    :selected-resume-category click-type
+                    :selected-resume-card clicked-item-name}))))

@@ -20,8 +20,8 @@
   {:active-panel :home
    :active-content nil
    :resume-info nil
-   :current-resume-category nil
-   :current-resume-card nil
+   :selected-resume-category nil
+   :selected-resume-card nil
    :recent-content nil
    :loading? false
    :loading-resume? false
