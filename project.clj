@@ -9,6 +9,7 @@
                  [org.clojure/clojure "1.9.0" :upgrade false]
                  [org.clojure/core.async "0.3.442"
                   :exclusions [org.clojure/tools.reader]]
+                 [org.clojure/data.csv "0.1.4"]
                  [org.clojure/java.jdbc "0.7.10"]
                  [org.postgresql/postgresql "42.1.4"]
 

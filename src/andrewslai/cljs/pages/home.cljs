@@ -328,8 +328,8 @@
       [:p.card-text description]]]]])
 
 ;; Next commits:
+;; Upload csv to Postgres DB using Clojure
 ;; Refactored
-;; Clicking "me" button shows all resume data
 
 (defn me []
   (let [resume-info (subscribe [:selected-resume-info])]
@@ -345,13 +345,6 @@
 #_(def cards
     [
      ;; Organizations
-     {:image-url "images/ymca-logo.svg" :url "Project Soar" :title "YMCA"}
-     {:image-url "images/vai-logo.svg" :url "Vietnamese Association of IL" :title "VAI"}
-     {:image-url "images/chipy-logo.svg" :url "Chicago Python User Group" :title "ChiPy"}
-     {:image-url "images/chi-hack-night-logo.svg" :url "Chi Hack Night" :title "Chi Hack Night"}
-     {:image-url "images/nu-helix-logo.svg" :url "Helix Magazine" :title "HELIX"}
-     {:image-url "images/center-for-leadership-logo.svg" :url "Northwestern Center for Leadership" :title "Center for Leadership"}
-     {:image-url "images/mglc-logo.svg" :url "McCormick Graduate Leadership Council" :title "MGLC"}
      {:image-url "images/opploans-logo.svg" :url "OppLoans" :title "Opploans"}
      {:image-url "images/cephos-logo.svg" :url "Cephos Corporation" :title "Cephos"}
      {:image-url "images/lafayette-logo.svg" :url "Lafayette College" :title "Lafayette"}
@@ -397,13 +390,6 @@
      ;; C
      ;; Espanol?
      ;; Functional programming
-
-     ;; Analytics Tools
-     {:image-url "images/periscope-logo.svg" :url "Periscope" :title "Periscope"}
-     {:image-url "images/sumologic-logo.svg" :url "Sumologic" :title "Sumologic"}
-     {:image-url "images/heap-logo.svg" :url "Heap Analytics" :title "Heap"}
-     {:image-url "images/jupyter-logo.svg" :url "Jupyter Notebooks" :title "Jupyter"}
-     {:image-url "images/pandas-logo.svg" :url "Pandas" :title "Pandas"}
 
      ;; Software tools
      {:image-url "images/emacs-logo.svg" :url "EMACS" :title "EMACS"}

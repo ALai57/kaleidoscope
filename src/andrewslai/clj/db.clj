@@ -1,8 +1,10 @@
 (ns andrewslai.clj.db
   (:require [cheshire.core :as json]
             [andrewslai.clj.env :as env]
+            [clojure.data.csv :as csv]
             [clojure.java.jdbc :as sql]
-            [clojure.walk :refer [keywordize-keys]]))
+            [clojure.walk :refer [keywordize-keys]]
+            [clojure.java.io :as io]))
 
 
 (import 'org.postgresql.util.PGobject)
@@ -118,4 +120,38 @@
 
   (:article_id (get-article-metadata "my-first-article"))
 
+  )
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; For uploading data to SQL databases
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(comment
+  (require '[clojure.java.io :as io])
+
+  (defn read-csv-file [file-name]
+    (with-open [reader (io/reader file-name)]
+      (let [parse-first-row (fn [csv]
+                              [(map keyword (first csv)) (rest csv)])
+            [first-row rows] (parse-first-row (doall (csv/read-csv reader)))]
+        (map #(apply hash-map (interleave first-row %)) rows))))
+
+  ;; Dangerous!! Deletes all entries and repopulates
+  (defn repopulate-db [file-name table]
+    (let [convert-to-int (fn [field r]
+                           (map #(update %1 field (fn [x] (Integer/parseInt (field %)))) r))
+
+          dirty-rows (read-csv-file file-name)
+          rows (convert-to-int :id dirty-rows)]
+      (sql/delete! pg-db table [])
+      (sql/insert-multi! pg-db table rows)))
+
+  (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/organizations.csv"
+                 :organizations)
+
+  (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/projects.csv"
+                 :projects)
+
+  (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/skills.csv"
+                 :skills)
   )
