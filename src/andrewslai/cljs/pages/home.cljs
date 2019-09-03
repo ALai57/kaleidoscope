@@ -328,7 +328,7 @@
       [:p.card-text description]]]]])
 
 ;; Next commits:
-;; Upload csv to Postgres DB using Clojure
+;; Implement logic for repopulating `projects` table
 ;; Refactored
 
 (defn me []

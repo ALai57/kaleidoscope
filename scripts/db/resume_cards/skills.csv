@@ -1,0 +1,14 @@
+id,name,url,image_url,description,skill_category
+1,Periscope Data,,images/periscope-logo.svg,,Analytics Tool
+2,Sumologic,,images/sumologic-logo.svg,,Analytics Tool
+3,Heap Analytics,,images/heap-logo.svg,,Analytics Tool
+4,Jupyter Notebooks,,images/jupyter-logo.svg,,Analytics Tool
+5,Pandas,,images/pandas-logo.svg,,Analytics Tool
+6,Python,,images/python-logo.svg,,Programming Language
+7,PostgreSQL,,images/postgres-logo.svg,,Programming Language
+8,Matlab,,images/matlab-logo.svg,,Analytics Tool
+9,Docker,,images/docker-logo.svg,,Programming Language
+10,Terraform,,images/terraform-logo.svg,,Programming Language
+11,Clojure,,images/clojure-logo.svg,,Programming Language
+12,EMACS,,images/emacs-logo.svg,,Software Tools
+13,D3js,,images/d3js-logo.svg,,Programming Language

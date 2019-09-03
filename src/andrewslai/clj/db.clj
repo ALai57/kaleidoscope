@@ -149,6 +149,7 @@
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/organizations.csv"
                  :organizations)
 
+  ;; TODO: Still not implemented -- Start here
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/projects.csv"
                  :projects)
 

@@ -1,0 +1,13 @@
+id,name,url,image_url,description
+1,HELIX,https://helix.northwestern.edu,images/nu-helix-logo.svg,Science Outreach Magazine
+2,YMCA,http://mcgawymca.org,images/ymca-logo.svg,Community Organization
+3,VAI,www.hnvi.org,images/vai-logo.svg,Vietnamese Association of Illinois
+4,ChiPy,https://chipy.org,images/chipy-logo.svg,Chicago Python Meetup
+5,ChiHackNight,https://chihacknight.org,images/chi-hack-night-logo.svg,Civic Hacking Meetup
+6,Center for Leadership,https://lead.northwestern.edu/leadership/index.html,images/center-for-leadership-logo.svg,Northwestern University
+7,MGLC,https://www.mccormick.northwestern.edu/graduate-leadership-council,images/mglc-logo.svg,Northwestern Engineering Graduate Leadership Council
+8,Opploans,https://www.opploans.com,images/opploans-logo.svg,Fintech Startup/Online Lender
+9,Cephos Corp.,http://www.cephoscorp.com/about/,images/cephos-logo.svg,fMRI Lie Detection
+10,Lafayette College,https://www.lafayette.edu,images/lafayette-logo.svg,B.S. Chemical Engineering
+11,Northwestern University,https://www.northwestern.edu,images/n-logo.svg,"M.S. Biomedical Engineering
+Ph.D. Biomedical Engineering"
