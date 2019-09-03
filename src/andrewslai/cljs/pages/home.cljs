@@ -329,7 +329,7 @@
 
 ;; Next commits:
 ;; Refactored
-;; Add button that shows all resume data
+;; Clicking "me" button shows all resume data
 
 (defn me []
   (let [resume-info (subscribe [:selected-resume-info])]

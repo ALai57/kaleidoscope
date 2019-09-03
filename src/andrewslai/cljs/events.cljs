@@ -128,7 +128,11 @@
 (reg-event-db
  :click-radial-icon
  (fn [db [_ value]]
-   (assoc db :active-icon value)))
+   (let [resume-info (:resume-info db)
+         db-mod (if (= (first value) :me)
+                  (assoc db :selected-resume-info resume-info)
+                  db)]
+     (assoc db-mod :active-icon value))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for d3 example
