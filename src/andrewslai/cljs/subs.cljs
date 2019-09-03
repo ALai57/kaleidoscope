@@ -27,6 +27,11 @@
    (:resume-info db)))
 
 (reg-sub
+ :selected-resume-info
+ (fn [db _]
+   (:selected-resume-info db)))
+
+(reg-sub
  :recent-content
  (fn [db _]
    (:recent-content db)))

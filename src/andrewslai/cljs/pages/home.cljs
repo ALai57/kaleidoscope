@@ -328,13 +328,11 @@
       [:p.card-text description]]]]])
 
 ;; Next commits:
-;; Clicking on resume-icon modifies database (selected-resume-info)
 ;; Refactored
-;; Default resume icons load from selected-resume-info
 ;; Add button that shows all resume data
 
 (defn me []
-  (let [resume-info (subscribe [:resume-info])]
+  (let [resume-info (subscribe [:selected-resume-info])]
     (println "me section:: " @resume-info)
     [:div#selected-menu-item
      [:h3#menu-title "Organizations"]

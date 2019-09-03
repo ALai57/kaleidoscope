@@ -57,6 +57,9 @@
    (modify-db db {:loading? false
                   :active-content "Unable to load content"})))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; db events for resume-info
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (reg-event-db
  :retrieve-resume-info
  (fn [db [_]]
@@ -76,7 +79,8 @@
  (fn [db [_ response]]
    (println db)
    (modify-db db {:loading-resume? false
-                  :resume-info response})))
+                  :resume-info response
+                  :selected-resume-info response})))
 
 (reg-event-db
  :bad-resume-info
@@ -167,15 +171,9 @@
  :click-resume-info-card
  (fn [db [_ click-type clicked-item-name]]
 
-   (let [all-projects (-> db
-                          :resume-info
-                          :projects)
-         all-orgs (-> db
-                      :resume-info
-                      :organizations)
-         all-skills (-> db
-                        :resume-info
-                        :skills)
+   (let [{all-projects :projects
+          all-orgs :organizations
+          all-skills :skills} (:resume-info db)
 
          associated-projects (find-associated-projects clicked-item-name
                                                        click-type
