@@ -1,0 +1,11 @@
+id,name,url,image_url,description,organization_names,skills_names
+1,Article: The experiment that shocked the world,https://helix.northwestern.edu/article/experiment-shocked-world,images/nu-helix-logo.svg,Authored a pop-sci article on Luigi Galvani and his discovery of animal electricity,"[""HELIX""]",[]
+2,Youth Mentor,http://www.mcgawymca.org/youth-teens/after-school-care-activities/mentoring/project-soar-news/,images/ymca-logo.svg,Participated in youth mentoring program through the YMCA (Project SOAR – similar to Big Brothers),"[""YMCA""]",[]
+3,Instructor: ESL and Citizenship,www.hnvi.org,images/vai-logo.svg,Teaching English as a Second Language and preparing students for the US citizenship exam,"[""VAI""]",[]
+4,Mentee: ChiPy Mentorship Program,https://chipymentor.org,images/chipy-logo.svg,Participated in a Python mentorship program as a mentee,[],[]
+5,andrewslai.com,http://andrewslai.com,images/nav-bar/favicon.svg,"Built my own website in Clojure/Clojurescript, hosted on AWS",[],"[{""Clojure"" ""Built server in clj""}, 
+{""Docker"" ""Containerized the website application""},
+{""Terraform"" ""AWS infrastructure as code""},
+{""D3js"" ""Wrote interactive visualizations in D3""}]"
+6,PIC32 infrared camera,,images/,Built part of a TCP/IP stack to connect a PIC32 microcontroller to an infrared camera,[],[]
+7,Research: Muscle coordination after nerve block,https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6192169/,images/nav-bar/neuron-icon.svg,Research project: What happens to muscle coordination when a single muscle is knocked out? ,"[""Northwestern""]","[{""Matlab"" ""Data processing, dimensionality reduction, and statistical analysis""}]"

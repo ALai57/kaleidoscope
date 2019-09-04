@@ -1,10 +1,12 @@
 (ns andrewslai.clj.db
   (:require [cheshire.core :as json]
+            [clj-postgresql.core :as pg]
             [andrewslai.clj.env :as env]
             [clojure.data.csv :as csv]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            ))
 
 
 (import 'org.postgresql.util.PGobject)
@@ -127,7 +129,6 @@
 ;; For uploading data to SQL databases
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (comment
-  (require '[clojure.java.io :as io])
 
   (defn read-csv-file [file-name]
     (with-open [reader (io/reader file-name)]
@@ -154,5 +155,32 @@
                  :projects)
 
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/skills.csv"
-                 :skills)
+                 :skills))
+
+
+(comment
+  ;; TODO: clean this up
+  (import 'org.postgresql.util.PGobject)
+  (defn repopulate-db-projects [file-name table]
+    (let [convert-to-int (fn [field r]
+                           (map #(update %1 field (fn [x] (Integer/parseInt (field %)))) r))
+          convert-to-map (fn [field r]
+                           (map #(update %1 field (fn [x] (json/parse-string (field %)))) r))
+          convert-to-pg (fn [field r]
+                          (map #(update %1 field (fn [x] (map json/generate-string (field %)))) r))
+          convert-to-array (fn [field r]
+                             (map #(update %1 field (fn [x] (read-string (field %)))) r))
+
+          dirty-rows (read-csv-file file-name)
+          rows (->> dirty-rows
+                    (convert-to-int :id)
+                    (convert-to-array :organization_names)
+                    (convert-to-array :skills_names)
+                    (convert-to-pg :skills_names))]
+      (sql/delete! pg-db table [])
+      (sql/insert-multi! pg-db table rows)
+      rows))
+
+  (clojure.pprint/pprint (repopulate-db-projects "/home/alai/dev/andrewslai/scripts/db/resume_cards/projects.csv" :projects))
+
   )

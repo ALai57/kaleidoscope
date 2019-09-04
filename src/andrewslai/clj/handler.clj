@@ -51,6 +51,10 @@
 (comment
   (-main)
 
+  (def resume-info (db/get-resume-info))
+
+  (clojure.pprint/pprint (:projects resume-info))
+
   (db/get-article "my-first-article")
 
   (clojure.pprint/pprint

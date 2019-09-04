@@ -2,6 +2,7 @@
   :description "Template for full stack development in Clojure"
   :dependencies [[cheshire "5.8.1"]
                  [clj-http "3.9.1"]
+                 [clj-postgresql "0.7.0"]
                  [coreagile/defenv "1.0.2"]
                  [hiccup "1.0.5"]
                  [http-kit "2.3.0"]
