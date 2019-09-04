@@ -5,8 +5,7 @@
             [clojure.data.csv :as csv]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]]
-            [clojure.java.io :as io]
-            ))
+            [clojure.java.io :as io]))
 
 
 (import 'org.postgresql.util.PGobject)
