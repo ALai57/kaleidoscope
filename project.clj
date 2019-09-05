@@ -2,8 +2,6 @@
   :description "Template for full stack development in Clojure"
   :dependencies [[cheshire "5.8.1"]
                  [clj-http "3.9.1"]
-                 [prismatic/plumbing "0.5.5"]
-                 [clj-postgresql "0.7.0"]
                  [coreagile/defenv "1.0.2"]
                  [hiccup "1.0.5"]
                  [http-kit "2.3.0"]
@@ -93,6 +91,14 @@
                               [lein-bikeshed "0.5.2"]
                               [lein-kibit "0.1.6"]
                               [lein-ring "0.12.5"]]}
+             :upload {:dependencies [[prismatic/plumbing "0.5.5"]
+                                     [clj-postgresql "0.7.0"]]
+                      :repl-options {:nrepl-middleware
+                                     [cider.piggieback/wrap-cljs-repl]}
+                      :plugins [[lein-ancient "0.6.15"]
+                                [lein-bikeshed "0.5.2"]
+                                [lein-kibit "0.1.6"]
+                                [lein-ring "0.12.5"]]}
              :uberjar {:source-paths ["src/andrewslai/cljs"]
                        :cljsbuild
                        {:builds {:deploy

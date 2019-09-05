@@ -1,11 +1,8 @@
 (ns andrewslai.clj.db
   (:require [cheshire.core :as json]
-            [clj-postgresql.core :as pg]
             [andrewslai.clj.env :as env]
-            [clojure.data.csv :as csv]
             [clojure.java.jdbc :as sql]
-            [clojure.walk :refer [keywordize-keys]]
-            [clojure.java.io :as io]))
+            [clojure.walk :refer [keywordize-keys]]))
 
 
 (import 'org.postgresql.util.PGobject)
@@ -128,6 +125,9 @@
 ;; For uploading data to SQL databases
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (comment
+  (require '[clj-postgresql.core :as pg])
+  (require '[clojure.data.csv :as csv])
+  (require '[clojure.java.io :as io])
 
   (defn read-csv-file [file-name]
     (with-open [reader (io/reader file-name)]
