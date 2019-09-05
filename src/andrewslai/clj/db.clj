@@ -159,7 +159,6 @@
 
 (comment
   ;; TODO: clean this up
-  (import 'org.postgresql.util.PGobject)
   (defn repopulate-db-projects [file-name table]
     (let [convert-to-int (fn [field r]
                            (map #(update %1 field (fn [x] (Integer/parseInt (field %)))) r))

@@ -202,9 +202,9 @@
          associated-skills (filter skills-filter all-skills)
          ]
 
-     (println "associated-projects: " associated-projects)
-     (println "associated-orgs: " associated-orgs)
-     (println "associated-skills: " associated-skills)
+     #_(println "associated-projects: " associated-projects)
+     #_(println "associated-orgs: " associated-orgs)
+     #_(println "associated-skills: " associated-skills)
 
      (modify-db db {:selected-resume-info {:organizations associated-orgs
                                            :projects associated-projects

@@ -290,7 +290,7 @@
   [:div#selected-menu-item
    [:h3#menu-title "Teamwork"]])
 
-(cljs.pprint/pprint (:resume-info @re-frame.db/app-db))
+#_(cljs.pprint/pprint (:resume-info @re-frame.db/app-db))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RESUME INFO
@@ -333,7 +333,7 @@
 
 (defn me []
   (let [resume-info (subscribe [:selected-resume-info])]
-    (println "me section:: " @resume-info)
+    #_(println "me section:: " @resume-info)
     [:div#selected-menu-item
      [:h3#menu-title "Organizations"]
      (map #(make-card % :organization) (:organizations @resume-info))
