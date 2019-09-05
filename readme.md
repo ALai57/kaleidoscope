@@ -105,6 +105,12 @@ psql \
    --password
 ```
 
+MODIFY RESUME CARDS:
+`cider-jack-in-with-profile upload`
+in the db.clj namespace, look at comment at bottom of file
+use this to update the database - but be careful! It overwrites
+existing DB and repopulates from scratch.
+
 TERRAFORM
 `terraform plan -var-file=andrewslai_secrets.tfvars`
 

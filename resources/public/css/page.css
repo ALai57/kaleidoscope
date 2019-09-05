@@ -131,3 +131,8 @@ pre {
 	font-family: "Times New Roman", Times, serif;
 	/* overflow-x: auto; */                /* Firefox 2 only */
 	/* width: 99%; */		       /* only if needed */}
+
+
+.card-icon:hover {
+  background-color: #343a40 !important;
+}
