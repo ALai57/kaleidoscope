@@ -308,11 +308,11 @@
   [{:keys [name image_url url description] :as info} event-type]
 
   ^{:key (str url description)}
-  [Card {:class "text-white bg-light mb-3 article-card"
+  [Card {:class "text-white bg-light mb-3 article-card resume-info-card"
          :style {:border-radius "10px"}}
    [:div.container-fluid
     [:div.row.flex-items-xs-middle
-     [:div.col-sm-3.bg-primary.text-xs-center.card-icon
+     [:div.col-sm-3.bg-primary.text-xs-center.card-icon.resume-info-icon
       {:style {:border-radius "10px"}}
       [:div.p-y-3
        [:h1.p-y-2

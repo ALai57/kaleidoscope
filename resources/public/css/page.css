@@ -133,6 +133,12 @@ pre {
 	/* width: 99%; */		       /* only if needed */}
 
 
-.card-icon:hover {
-  background-color: #343a40 !important;
+.resume-info-icon:hover {
+    background-color: #343a40 !important;
+}
+
+.resume-info-card:hover {
+    -ms-transform: scale(1.1); /* IE 9 */
+    -webkit-transform: scale(1.1); /* Safari 3-8 */
+    transform: scale(1.1);
 }
