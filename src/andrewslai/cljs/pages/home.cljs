@@ -305,13 +305,17 @@
 (def Card (reagent/adapt-react-class (aget js/ReactBootstrap "Card")))
 
 (defn make-card
-  [{:keys [name image_url url description] :as info} event-type]
-
-  ^{:key (str url description)}
+  [{:keys [id name image_url url description] :as info} event-type selected-card]
+  ^{:key (str name "-" id)}
   [Card {:class "text-white bg-light mb-3 article-card resume-info-card"
          :style {:border-radius "10px"}}
    [:div.container-fluid
-    [:div.row.flex-items-xs-middle
+    [:div.row.flex-items-xs-middle {:style (if (= name selected-card)
+                                             {:border-style "solid"
+                                              :border-width "5px"
+                                              :border-color "black"
+                                              :border-radius "10px"}
+                                             nil)}
      [:div.col-sm-3.bg-primary.text-xs-center.card-icon.resume-info-icon
       {:style {:border-radius "10px"}}
       [:div.p-y-3
@@ -328,19 +332,24 @@
       [:p.card-text description]]]]])
 
 ;; Next commits:
-;; Implement logic for repopulating `projects` table
+;; Add border to selected resume-info card
+;; [WIP] Skills - only select a single skill when clicked
 ;; Refactored
 
 (defn me []
-  (let [resume-info (subscribe [:selected-resume-info])]
+  (let [resume-info (subscribe [:selected-resume-info])
+        selected-card (subscribe [:selected-resume-card])]
     #_(println "me section:: " @resume-info)
     [:div#selected-menu-item
      [:h3#menu-title "Organizations"]
-     (map #(make-card % :organization) (:organizations @resume-info))
+     (doall (map #(make-card % :organization @selected-card)
+                 (:organizations @resume-info)))
      [:h3#menu-title "Projects"]
-     (map #(make-card % :project) (:projects @resume-info))
+     (doall (map #(make-card % :project @selected-card)
+                 (:projects @resume-info)))
      [:h3#menu-title "Skills"]
-     (map #(make-card % :skill) (:skills @resume-info))]))
+     (doall (map #(make-card % :skill @selected-card)
+                 (:skills @resume-info)))]))
 
 #_(def cards
     [

@@ -65,7 +65,6 @@
  (fn [db [_]]
 
    (println "Retrieve resume-info")
-   (println db)
 
    (GET "/get-resume-info"
        {:handler #(dispatch [:process-resume-info %1])
@@ -77,7 +76,6 @@
 (reg-event-db
  :process-resume-info
  (fn [db [_ response]]
-   (println db)
    (modify-db db {:loading-resume? false
                   :resume-info response
                   :selected-resume-info response})))
@@ -174,7 +172,7 @@
 (reg-event-db
  :click-resume-info-card
  (fn [db [_ click-type clicked-item-name]]
-
+   #_(println "clicked!!" clicked-item-name)
    (let [{all-projects :projects
           all-orgs :organizations
           all-skills :skills} (:resume-info db)
@@ -199,8 +197,7 @@
                          (some (fn [skill-name] (= skill-name (:name s)))
                                associated-skills-names))
 
-         associated-skills (filter skills-filter all-skills)
-         ]
+         associated-skills (filter skills-filter all-skills)]
 
      #_(println "associated-projects: " associated-projects)
      #_(println "associated-orgs: " associated-orgs)
