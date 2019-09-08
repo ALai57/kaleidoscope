@@ -332,7 +332,6 @@
       [:p.card-text description]]]]])
 
 ;; Next commits:
-;; Clicking on nothing removes border and "active status" to resume card
 ;; [WIP] Skills - only select a single skill when clicked
 ;; Refactored
 
@@ -490,7 +489,10 @@
                           (let [clicked-element (.-target x)
                                 clicked-class (.-className clicked-element)]
                             (when-not (or (clojure.string/includes? clicked-class "resume-info-image")
-                                          (clojure.string/includes? clicked-class "resume-info-icon"))
+                                          (clojure.string/includes? clicked-class "resume-info-icon")
+                                          (clojure.string/includes? clicked-class "card-description")
+                                          (clojure.string/includes? clicked-class "card-title")
+                                          (clojure.string/includes? clicked-class "card-text"))
                               (dispatch [:reset-resume-info]))))}
      [nav/primary-nav]
      [:div#primary-content
