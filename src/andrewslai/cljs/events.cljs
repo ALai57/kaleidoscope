@@ -208,3 +208,8 @@
                                            :skills associated-skills}
                     :selected-resume-category click-type
                     :selected-resume-card clicked-item-name}))))
+
+(reg-event-db
+ :reset-resume-info
+ (fn [db [_ _]]
+   (assoc db :selected-resume-info (:resume-info db))))

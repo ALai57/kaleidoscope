@@ -320,7 +320,7 @@
       {:style {:border-radius "10px"}}
       [:div.p-y-3
        [:h1.p-y-2
-        [:img.fa.fa-2x
+        [:img.fa.fa-2x.resume-info-image
          {:src image_url
           :style {:width "100%"}
           :onClick
@@ -332,7 +332,7 @@
       [:p.card-text description]]]]])
 
 ;; Next commits:
-;; Add border to selected resume-info card
+;; Clicking on nothing removes border and "active status" to resume card
 ;; [WIP] Skills - only select a single skill when clicked
 ;; Refactored
 
@@ -486,7 +486,12 @@
   (let [radial-menu-open? (subscribe [:radial-menu-open?])
         active-icon (subscribe [:active-icon])
         [menu-item icon-props] @active-icon]
-    [:div
+    [:div#xyz {:onClick (fn [x]
+                          (let [clicked-element (.-target x)
+                                clicked-class (.-className clicked-element)]
+                            (when-not (or (clojure.string/includes? clicked-class "resume-info-image")
+                                          (clojure.string/includes? clicked-class "resume-info-icon"))
+                              (dispatch [:reset-resume-info]))))}
      [nav/primary-nav]
      [:div#primary-content
       [article/primary-content]]
@@ -512,11 +517,3 @@
      [:div#rcb
       [cards/recent-content-display]]
      [loading/load-screen]]))
-
-
-
-
-
-(comment
-
-  )
