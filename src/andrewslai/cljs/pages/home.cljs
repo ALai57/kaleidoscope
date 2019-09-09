@@ -13,12 +13,12 @@
             [ajax.protocols :as pr]
             [ajax.ring :refer [ring-response-format]]
             [cljsjs.react-bootstrap]
+            [cljsjs.react-transition-group :as rtg]
             [cljsjs.d3]
             ["react" :as react]
             ["react-spinners" :as spinner]
             ["emotion" :as emotion]
             [goog.object :as gobj]
-            ["react-spinners/ClipLoader" :as cl-spinner]
             [reframe-components.recom-radial-menu :as rcm]
             [stylefy.core :refer [init]]))
 
@@ -93,6 +93,12 @@
             :animation-duration "1s"
             :animation-fill-mode "forwards"})))
 
+(def transition-group
+  (reagent/adapt-react-class js/ReactTransitionGroup.TransitionGroup))
+(def css-transition-group
+  (reagent/adapt-react-class js/ReactTransitionGroup.CSSTransition))
+
+(.log js/console js/ReactTransitionGroup.CSSTransition)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; MENU CONTENTS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -101,8 +107,23 @@
     [:div#selected-menu-item
      [:h3#menu-title "About me"]])
 (defn clojure []
-  [:div#selected-menu-item
-   [:h3#menu-title "Clojure"]])
+  (let [cp (subscribe [:test-transitions])]
+    (println "cp: " @cp)
+    [:div#selected-menu-item
+     [:h3#menu-title "Clojure"]
+     [transition-group
+      [css-transition-group {:key @cp
+                             :classNames "pageChange"
+                             :timeout 500
+                             :className "transition"}
+       ;;^{:key @cp}
+       [:div.HomePage
+        [:h2 "Testing animations"]
+        [:a "Value of :test-transitions -- " @cp]]]]]))
+
+(dispatch [:test-transitions "v"])
+(dispatch [:test-transitions "d"])
+
 (defn tango []
   [:div#selected-menu-item
    [:h3#menu-title "Tango"]])
@@ -332,6 +353,7 @@
       [:p.card-text description]]]]])
 
 ;; Next commits:
+;; Animate contraction when resume-info cards are selected
 ;; [WIP] Skills - only select a single skill when clicked
 ;; Refactored
 

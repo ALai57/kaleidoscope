@@ -56,6 +56,11 @@
  (fn [db]
    (:active-icon db)))
 
+(reg-sub
+ :test-transitions
+ (fn [db]
+   (:test-transitions db)))
+
 
 ;; -------------------------------------------------------------------------------------
 ;; Layer 3:: Subscription handler

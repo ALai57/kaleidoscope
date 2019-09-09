@@ -18,6 +18,7 @@
                  [cljsjs/react-bootstrap "1.0.0-beta.9-0"] ;; latest release
                  [cljsjs/react "16.8.6-0"]
                  [cljsjs/react-dom "16.8.6-0"]
+                 [cljsjs/react-transition-group "4.2.1-0"]
                  [org.clojure/clojurescript "1.10.520"]
 
                  [org.clojars.alai/reframe-components "0.3.0"]

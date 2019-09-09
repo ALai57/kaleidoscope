@@ -213,3 +213,9 @@
  :reset-resume-info
  (fn [db [_ _]]
    (assoc db :selected-resume-info (:resume-info db))))
+
+
+(reg-event-db
+ :test-transitions
+ (fn [db [_ value]]
+   (assoc db :test-transitions value)))

@@ -142,3 +142,36 @@ pre {
     -webkit-transform: scale(1.1); /* Safari 3-8 */
     transform: scale(1.1);
 }
+
+
+
+.pageChange-enter {
+    opacity: 0.01;
+}
+
+.pageChange-enter-active {
+    opacity: 1;
+    color: blue;
+  transition: opacity 5000ms;
+}
+
+/* .pageChange-enter-done { */
+/*   opacity: 1; */
+/*   transition: opacity 5000ms ease-in; */
+/* } */
+
+.pageChange-exit {
+    opacity: 1;
+    color: yellow;
+}
+
+.pageChange-exit-active {
+    opacity: 0.01;
+    color: red;
+  transition: opacity 5000ms;
+}
+
+.pageChange-exit-done {
+  opacity: 0.01;
+  transition: opacity 5000ms ease-in;
+}
