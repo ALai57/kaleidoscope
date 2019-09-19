@@ -10,5 +10,34 @@ id,name,url,image_url,description,skill_category
 9,Docker,,images/docker-logo.svg,,Programming Language
 10,Terraform,,images/terraform-logo.svg,,Programming Language
 11,Clojure,,images/clojure-logo.svg,,Programming Language
-12,EMACS,,images/emacs-logo.svg,,Software Tools
-13,D3js,,images/d3js-logo.svg,,Programming Language
+12,Clojurescript,,images/clojure-logo.svg,,Programming Language
+13,EMACS,,images/emacs-logo.svg,,Software Tools
+14,D3js,,images/d3js-logo.svg,,Programming Language
+15,React js,,,,Software package
+16,Jenkins,,,,Software Skills
+17,Git,,,,Software Skills
+18,C,,,,Programming Language
+19,Ruby on Rails,,,,Software package
+20,HTML/CSS,,,,Programming Language
+21,JS,,,,Programming Language
+22,Functional programming,,,,Software Skills
+23,Shear wave elastography,,,,Experimental Skills
+24,B-mode ultrasound,,,,Experimental Skills
+25,Surface electromyography,,,,Experimental Skills
+26,Motor unit analysis,,,,Analytics Skills
+27,Spectral analysis,,,,Analytics Skills
+28,Clustering,,,,Analytics Skills
+29,Teaching science experimentation,,,,Teaching
+30,Teaching ACT prep,,,,Teaching
+31,Leadership coaching,,,,Teaching
+32,Teaching tango,,,,Teaching
+33,Youth mentoring,,,,Teaching
+34,Teaching ESL,,,,Teaching
+35,Teaching US citizenship,,,,Teaching
+36,Build data pipelines,,,,Analytics Skills
+37,Data cleaning,,,,Analytics Skills
+38,Dimensionality reduction,,,,Analytics Skills
+39,Hierarchical mixed modeling,,,,Analytics Skills
+40,Writing specs,,,,Project Management
+41,Delivering timely results,,,,Project Management
+42,Aligning stakeholders,,,,Project Management
