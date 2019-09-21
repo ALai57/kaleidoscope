@@ -337,7 +337,9 @@
 (def PosedLi (reagent/adapt-react-class
               (js/posed.li (clj->js {:enter {:opacity 1}
                                      :before {:opacity 0.1}}))))
-
+(def PosedH3 (reagent/adapt-react-class
+              (js/posed.h3 (clj->js {:enter {:opacity 1}
+                                     :before {:opacity 0.1}}))))
 (def PosedCard (reagent/adapt-react-class
                 (js/posed.div (clj->js {:enter {:opacity 1}
                                         :exit {:opacity 0}
@@ -349,25 +351,30 @@
   [PosedCard {:style {:float "left"
                       :display "table-row"}} (make-card info event-type selected-card)])
 
+(defn make-posed-h3
+  [name id]
+  ^{:key (str "posed-" name "-" id)}
+  [PosedCard {:style {:float "left"
+                      :display "table-row"}} [:h3 name]])
+
 (defn me []
   (let [resume-info (subscribe [:selected-resume-info])
         selected-card (subscribe [:selected-resume-card])]
     [:div#selected-menu-item
-     [:h3#menu-title "Organizations"]
      [:div {:style {:float "left"}}
       [PoseGroup
+       (make-posed-h3 "Organizations" "h3")
+       [:br {:style {:clear "both"}}]
        (doall (map #(make-posed-card % :organization @selected-card)
-                   (:organizations @resume-info)))]]
-     [:br {:style {:clear "both"}}]
-     [:h3#menu-title "Projects"]
-     [:div {:style {:float "left"}}
-      [PoseGroup
+                   (:organizations @resume-info)))
+       [:br {:style {:clear "both"}}]
+       (make-posed-h3 "Projects" "h3")
+       [:br {:style {:clear "both"}}]
        (doall (map #(make-posed-card % :project @selected-card)
-                   (:projects @resume-info)))]]
-     [:br {:style {:clear "both"}}]
-     [:h3#menu-title "Skills"]
-     [:div {:style {:float "left"}}
-      [PoseGroup
+                   (:projects @resume-info)))
+       [:br {:style {:clear "both"}}]
+       (make-posed-h3 "Skills" "h3")
+       [:br {:style {:clear "both"}}]
        (doall (map #(make-posed-card % :skill @selected-card)
                    (:skills @resume-info)))]]]))
 
