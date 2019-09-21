@@ -521,23 +521,23 @@
      [:div#primary-content
       [article/primary-content]]
      [:div#menu
-      [:div#radial-menu {:style {:height "275px"}}
-       ((rcm/radial-menu)
-        :radial-menu-name "radial-menu-1"
-        :menu-radius "100px"
-        :icons icons
-        :open? @radial-menu-open?
-        :tooltip [:div#tooltip {:style {:text-align "left"
-                                        :width "100px"}}
-                  [:p "My button is here!"]]
+      #_[:div#radial-menu {:style {:height "275px"}}
+         ((rcm/radial-menu)
+          :radial-menu-name "radial-menu-1"
+          :menu-radius "100px"
+          :icons icons
+          :open? @radial-menu-open?
+          :tooltip [:div#tooltip {:style {:text-align "left"
+                                          :width "100px"}}
+                    [:p "My button is here!"]]
 
-        :center-icon-radius center-icon-radius
-        :on-center-icon-click expand-or-contract
-        :center-icon-style-fn center-icon-style
+          :center-icon-radius center-icon-radius
+          :on-center-icon-click expand-or-contract
+          :center-icon-style-fn center-icon-style
 
-        :radial-icon-radius radial-icon-radius
-        :on-radial-icon-click icon-click-handler
-        :radial-icon-style-fn make-radial-icon-style)]
+          :radial-icon-radius radial-icon-radius
+          :on-radial-icon-click icon-click-handler
+          :radial-icon-style-fn make-radial-icon-style)]
       (get menu-contents menu-item)]
      [:div#rcb
       [cards/recent-content-display]]
