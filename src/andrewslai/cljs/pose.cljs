@@ -29,26 +29,41 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def PoseGroup (reagent/adapt-react-class js/PoseGroup))
 (def PosedLi (reagent/adapt-react-class
-              (js/posed.li (clj->js {:enter {:opacity 0.2
-                                             :y "100px"}
+              (js/posed.li (clj->js {:enter {:opacity 0.5
+                                             ;;:y "100px"
+                                             }
                                      :before {:opacity 1
-                                              :y "10px"}}))))
+                                              ;;:y "10px"
+                                              }}))))
 
-(def lst (atom [[:li "Hello"]
-                [:li "Bye"]]))
+(def lst (reagent/atom [[PosedLi "HiHi"]
+                        [PosedLi "ByeBye"]
+                        [PosedLi "What's Up?"]]))
 
 (defn make-item [x k]
   ^{:key k}
   x)
 
-(swap! lst conj [:li "Wh"])
+(comment
+  (swap! lst conj [PosedLi "My Int " (rand 10)])
+  js/popmotion
+  )
+
+(defn rnd-int []
+  [PosedLi "My Int " (rand 10)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn pose
-  []
-  [:ul
-   [PoseGroup {:animateOnMount true :preEnterPose "before"}
-    [PosedLi "HiHi"]
-    (map make-item @lst [1 2])]])
+(defn pose []
+  [:div
+   [:button {:style {:color "black"
+                     :background-color "red"}
+             :onClick (fn [x] (swap! lst shuffle))} "Reorder list"]
+   [:button
+    {:style {:color "white"
+             :background-color "blue"}
+     :onClick (fn [x] (swap! lst conj (rnd-int)))} "Add Item"]
+   [:ul
+    [PoseGroup {:animateOnMount true :preEnterPose "before"}
+     (map make-item @lst (range (count @lst)))]]])
 
