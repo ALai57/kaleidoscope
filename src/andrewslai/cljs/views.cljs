@@ -3,6 +3,7 @@
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.circle-nav :as circle-nav]
             [andrewslai.cljs.loading :as loading]
+            [andrewslai.cljs.pose :as pose]
             [andrewslai.cljs.navbar :as nav]
 
             [andrewslai.cljs.pages.home :refer [home]]
@@ -79,6 +80,17 @@
     [cards/recent-content-display "thoughts"]]
    [loading/load-screen-test]])
 
+(defn pose
+  []
+  [:div
+   [nav/primary-nav]
+   [:p "Testing poses"]
+   [:div#primary-content
+    [article/primary-content]]
+   [:div#rcb
+    [cards/recent-content-display "thoughts"]]
+   [pose/pose]])
+
 (def panels {:home [home]
              :thoughts [thoughts]
              :archive [archive]
@@ -86,7 +98,8 @@
              :research [research]
              :data-analysis [data-analysis]
              :load-screen [load-page]
-             :d3-example [d3-example]})
+             :d3-example [d3-example]
+             :pose [pose]})
 
 (defn app
   []
