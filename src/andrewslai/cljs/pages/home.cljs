@@ -15,6 +15,7 @@
             [cljsjs.react-bootstrap]
             [cljsjs.react-transition-group :as rtg]
             [cljsjs.d3]
+            [cljsjs.react-pose]
             ["react" :as react]
             ["react-spinners" :as spinner]
             ["emotion" :as emotion]
@@ -93,36 +94,12 @@
             :animation-duration "1s"
             :animation-fill-mode "forwards"})))
 
-(def transition-group
-  (reagent/adapt-react-class js/ReactTransitionGroup.TransitionGroup))
-(def css-transition-group
-  (reagent/adapt-react-class js/ReactTransitionGroup.CSSTransition))
-
-(.log js/console js/ReactTransitionGroup.CSSTransition)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; MENU CONTENTS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#_(defn me []
-    [:div#selected-menu-item
-     [:h3#menu-title "About me"]])
 (defn clojure []
-  (let [cp (subscribe [:test-transitions])]
-    (println "cp: " @cp)
-    [:div#selected-menu-item
-     [:h3#menu-title "Clojure"]
-     [transition-group
-      [css-transition-group {:key @cp
-                             :classNames "pageChange"
-                             :timeout 500
-                             :className "transition"}
-       ;;^{:key @cp}
-       [:div.HomePage
-        [:h2 "Testing animations"]
-        [:a "Value of :test-transitions -- " @cp]]]]]))
-
-(dispatch [:test-transitions "v"])
-(dispatch [:test-transitions "d"])
+  [:div "Clojure"])
 
 (defn tango []
   [:div#selected-menu-item
@@ -332,10 +309,10 @@
          :style {:border-radius "10px"}}
    [:div.container-fluid
     [:div.row.flex-items-xs-middle {:style (if (= name selected-card)
-                                             {:border-style "solid"
-                                              :border-width "5px"
-                                              :border-color "black"
-                                              :border-radius "10px"}
+                                             nil #_{:border-style "solid"
+                                                    :border-width "5px"
+                                                    :border-color "black"
+                                                    :border-radius "10px"}
                                              nil)}
      [:div.col-sm-3.bg-primary.text-xs-center.card-icon.resume-info-icon
       {:style {:border-radius "10px"}}
@@ -343,7 +320,7 @@
        [:h1.p-y-2
         [:img.fa.fa-2x.resume-info-image
          {:src image_url
-          :style {:width "100%"}
+          :style {:width "100%" :height "50px"}
           :onClick
           (fn [x]
             (dispatch [:click-resume-info-card event-type name]))}]]]]
@@ -353,24 +330,46 @@
       [:p.card-text description]]]]])
 
 ;; Next commits:
-;; Animate contraction when resume-info cards are selected
 ;; [WIP] Skills - only select a single skill when clicked
 ;; Refactored
+
+(def PoseGroup (reagent/adapt-react-class js/PoseGroup))
+(def PosedLi (reagent/adapt-react-class
+              (js/posed.li (clj->js {:enter {:opacity 1}
+                                     :before {:opacity 0.1}}))))
+
+(def PosedCard (reagent/adapt-react-class
+                (js/posed.div (clj->js {:enter {:opacity 1}
+                                        :exit {:opacity 0}
+                                        :before {:opacity 0.1}}))))
+
+(defn make-posed-card
+  [{:keys [name id] :as info} event-type selected-card]
+  ^{:key (str "posed-" name "-" id)}
+  [PosedCard {:style {:float "left"
+                      :display "table-row"}} (make-card info event-type selected-card)])
 
 (defn me []
   (let [resume-info (subscribe [:selected-resume-info])
         selected-card (subscribe [:selected-resume-card])]
-    #_(println "me section:: " @resume-info)
     [:div#selected-menu-item
      [:h3#menu-title "Organizations"]
-     (doall (map #(make-card % :organization @selected-card)
-                 (:organizations @resume-info)))
+     [:div {:style {:float "left"}}
+      [PoseGroup
+       (doall (map #(make-posed-card % :organization @selected-card)
+                   (:organizations @resume-info)))]]
+     [:br {:style {:clear "both"}}]
      [:h3#menu-title "Projects"]
-     (doall (map #(make-card % :project @selected-card)
-                 (:projects @resume-info)))
+     [:div {:style {:float "left"}}
+      [PoseGroup
+       (doall (map #(make-posed-card % :project @selected-card)
+                   (:projects @resume-info)))]]
+     [:br {:style {:clear "both"}}]
      [:h3#menu-title "Skills"]
-     (doall (map #(make-card % :skill @selected-card)
-                 (:skills @resume-info)))]))
+     [:div {:style {:float "left"}}
+      [PoseGroup
+       (doall (map #(make-posed-card % :skill @selected-card)
+                   (:skills @resume-info)))]]]))
 
 #_(def cards
     [
@@ -484,11 +483,6 @@
      ;; Pentathlon
      ;; ThematicMEN topics?
      ])
-
-#_(defn me []
-    [:div#selected-menu-item
-     [:h3#menu-title "A bit about me!"]
-     (map make-card cards)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RADIAL MENU
