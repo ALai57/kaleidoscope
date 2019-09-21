@@ -36,13 +36,14 @@
                                               ;;:y "10px"
                                               }}))))
 
-(def lst (reagent/atom [[PosedLi "HiHi"]
-                        [PosedLi "ByeBye"]
-                        [PosedLi "What's Up?"]]))
 
-(defn make-item [x k]
-  ^{:key k}
-  x)
+
+(def lst (reagent/atom ["HiHi"
+                        "ByeBye"
+                        "What's Up?"]))
+
+(defn make-item [x]
+  ^{:key x} [PosedLi x])
 
 (comment
   (swap! lst conj [PosedLi "My Int " (rand 10)])
@@ -50,7 +51,7 @@
   )
 
 (defn rnd-int []
-  [PosedLi "My Int " (rand 10)])
+  (str "My Num " (rand 10)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -65,5 +66,4 @@
      :onClick (fn [x] (swap! lst conj (rnd-int)))} "Add Item"]
    [:ul
     [PoseGroup {:animateOnMount true :preEnterPose "before"}
-     (map make-item @lst (range (count @lst)))]]])
-
+     (map make-item @lst)]]])
