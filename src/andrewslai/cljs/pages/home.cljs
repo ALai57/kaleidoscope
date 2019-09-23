@@ -2,6 +2,7 @@
   (:require [andrewslai.cljs.article :as article]
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.circle-nav :as circle-nav]
+            [andrewslai.cljs.components.github-commit-history :as gh]
             [andrewslai.cljs.loading :as loading]
             [andrewslai.cljs.navbar :as nav]
             [reagent.core  :as reagent]
@@ -111,174 +112,6 @@
 (defn volunteering []
   [:div#selected-menu-item
    [:h3#menu-title "Volunteering"]])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; GITHUB DATA
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defonce git-data (atom nil))
-
-(defonce _
-  (GET "https://api.github.com/users/ALai57/events"
-      {:response-format
-       (ring-response-format {:format {:read (fn [x]
-                                               (->> x
-                                                    pr/-body
-                                                    (.parse js/JSON)
-                                                    js->clj))
-                                       :description "JSON"
-                                       :content-type ["application/json"]}})
-       :handler (fn [response] (reset! git-data response))}))
-
-(defn flattener [d]
-  (let [assoc-urls
-        (fn [{:keys [repo commit-sha] :as commit}]
-          (let [repo-url (str "https://github.com/" repo)
-                commit-url (str repo-url "/commit/" commit-sha)]
-            (-> commit
-                (assoc :commit-url commit-url)
-                (assoc :repo-url repo-url))))
-
-        push-data {:type (get-in d ["type"])
-                   :user (get-in d ["actor" "login"])
-                   :repo (get-in d ["repo" "name"])
-                   :repo-url (get-in d ["repo" "url"])
-                   :created-at (get-in d ["created_at"])}
-
-        commits (get-in d ["payload" "commits"])
-
-        append-push-data
-        (fn [commit-data]
-          (merge push-data {:message (get-in commit-data ["message"])
-                            :commit-sha (get-in commit-data ["sha"])}))]
-    (map (comp assoc-urls append-push-data) commits)))
-
-(defn github-table [d]
-  (let [row->table
-        (fn [i r]
-          ^{:key (str i)}
-          [:tr nil
-           ;; TODO proper date parsing
-           [:td {:style {:min-width "7em"}} (take 10 (:created-at r))]
-           [:td {:style {:white-space "nowrap"
-                         :min-width "15em"}}
-            [:a {:href (:repo-url r)}
-             [:div {:style {:width "100%" :height "100%"}} (:repo r)]] ]
-           [:td {:style {:white-space "nowrap"
-                         :max-width "15em"}}
-            [:a {:href (:commit-url r)}
-             [:div {:style {:width "100%" :height "100%"}} (:message r)]]]])]
-    [:table nil
-     [:thead nil
-      [:tr nil
-       [:th nil "Date"]
-       [:th nil "Repo"]
-       [:th nil "Message"]]]
-     [:tbody nil
-      (map-indexed row->table d)]]))
-
-(defn d3-inner [data]
-  (reagent/create-class
-   {:reagent-render (fn [] [:div [:svg {:width 400 :height 300}]])
-
-    :component-did-mount
-    (fn []
-      (let [d3data (clj->js data)]
-
-        (.. js/d3
-            (select "svg")
-            (selectAll "circle")
-            (data d3data)
-            enter
-            (append "circle")
-            (attr "cx" (fn [d] (->> (.-index d)
-                                    (* 100)
-                                    (+ 100))))
-            (attr "cy" (fn [d] 100))
-            (attr "r" (fn [d]
-                        (let [commits
-                              (:commits (js->clj d :keywordize-keys true))]
-                          (* 3 commits))))
-            (attr "fill" (fn [d] "red"))
-            (on "mouseover"
-                (fn [d]
-                  (let [x (.-pageX js/d3.event)
-                        y (.-pageY js/d3.event)
-                        commits (:commits (js->clj d :keywordize-keys true))
-                        repo (:repo (js->clj d :keywordize-keys true))]
-                    (.. js/d3
-                        (select ".tooltip")
-                        (transition)
-                        (duration 200)
-                        (style "opacity" 0.9))
-                    (.. js/d3
-                        (select ".tooltip")
-                        (html (str "Repo: " repo "<br/>"
-                                   "N commits: " commits
-                                   ))
-                        (style "left" (str x "px"))
-                        (style "top" (str y "px"))))))
-            (on "mouseout" (fn [d]
-                             (.. js/d3
-                                 (select ".tooltip")
-                                 (transition)
-                                 (duration 200)
-                                 (style "opacity" 0)))))))
-
-    :component-did-update
-    (fn [this]
-      (let [[_ data] (reagent/argv this)
-            d3data (clj->js data)]
-        (.. js/d3
-            (selectAll "circle")
-            (data d3data)
-            (attr "cx" (fn [d] (->> (.-index d)
-                                    (* 100)
-                                    (+ 100))))
-            (attr "cy" (fn [d] 100))
-            (attr "r" (fn [d]
-                        (let [commits
-                              (:commits (js->clj d :keywordize-keys true))]
-                          (* 3 commits))))
-            )))}))
-
-
-(comment
-  ;; USE GITHUB DATA
-  (let [git-data-flat (flatten (map flattener (:body @git-data)))
-        clj-data (reduce #(update-in %1 [(:repo %2)] inc) {} git-data-flat)]
-    (map-indexed #(hash-map :index %1
-                            :repo (first %2)
-                            :n-commits (second %2)) clj-data))
-  )
-
-;; TODO: USE ENTIRE COMMIT HISTORY, NOT JUST RECENT
-(defn commit-history-graph []
-  (let [git-data-flat (flatten (map flattener (:body @git-data)))
-        commit-data (reduce #(update-in %1 [(:repo %2)] inc) {} git-data-flat)
-        indexed-data (map-indexed #(hash-map :index %1
-                                             :repo (first %2)
-                                             :commits (second %2)) commit-data)]
-    (.. js/d3
-        (select "body")
-        (append "div")
-        (attr "class" "tooltip")
-        (style "opacity" 0))
-    [:div {:class "container"}
-     [:div {:class "row"}
-      [:div {:class "col-md-5" :style {:width "400px"}}
-       [d3-inner indexed-data]]]]))
-
-(defn github []
-  (let [git-data-flat (flatten (map flattener (:body @git-data)))]
-    [:div#selected-menu-item
-     [:h3#menu-title "Github"]
-     [commit-history-graph]
-     [:div#table-wrapper {:style {:position "relative"}}
-      [:div#table-scroll {:style {:width "100%"
-                                  :height "15em"
-                                  :overflow "auto"}}
-       [github-table git-data-flat]]]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; TEAMWORK
@@ -500,7 +333,7 @@
                     :volunteering [volunteering]
                     :tango [tango]
                     :cv [cv]
-                    :github [github]
+                    :github [gh/github]
                     :teamwork [teamwork]})
 
 (defn home
@@ -521,23 +354,23 @@
      [:div#primary-content
       [article/primary-content]]
      [:div#menu
-      #_[:div#radial-menu {:style {:height "275px"}}
-         ((rcm/radial-menu)
-          :radial-menu-name "radial-menu-1"
-          :menu-radius "100px"
-          :icons icons
-          :open? @radial-menu-open?
-          :tooltip [:div#tooltip {:style {:text-align "left"
-                                          :width "100px"}}
-                    [:p "My button is here!"]]
+      [:div#radial-menu {:style {:height "275px"}}
+       ((rcm/radial-menu)
+        :radial-menu-name "radial-menu-1"
+        :menu-radius "100px"
+        :icons icons
+        :open? @radial-menu-open?
+        :tooltip [:div#tooltip {:style {:text-align "left"
+                                        :width "100px"}}
+                  [:p "My button is here!"]]
 
-          :center-icon-radius center-icon-radius
-          :on-center-icon-click expand-or-contract
-          :center-icon-style-fn center-icon-style
+        :center-icon-radius center-icon-radius
+        :on-center-icon-click expand-or-contract
+        :center-icon-style-fn center-icon-style
 
-          :radial-icon-radius radial-icon-radius
-          :on-radial-icon-click icon-click-handler
-          :radial-icon-style-fn make-radial-icon-style)]
+        :radial-icon-radius radial-icon-radius
+        :on-radial-icon-click icon-click-handler
+        :radial-icon-style-fn make-radial-icon-style)]
       (get menu-contents menu-item)]
      [:div#rcb
       [cards/recent-content-display]]
