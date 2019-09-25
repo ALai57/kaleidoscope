@@ -1,9 +1,9 @@
 id,name,url,image_url,description,organization_names,skills_names
 1,Article: The experiment that shocked the world,https://helix.northwestern.edu/article/experiment-shocked-world,images/nu-helix-logo.svg,Authored a pop-sci article on Luigi Galvani and his discovery of animal electricity,"[""HELIX""]","[{""Science writing"" ""Wrote/published pop-sci article""}]"
-2,Youth Mentor,http://www.mcgawymca.org/youth-teens/after-school-care-activities/mentoring/project-soar-news/,images/ymca-logo.svg,Participated in youth mentoring program through the YMCA (Project SOAR – similar to Big Brothers),"[""YMCA""]","[{""Youth mentoring"" ""Big brother in YMCA youth program""}]"
-3,Instructor: ESL and Citizenship,www.hnvi.org,images/vai-logo.svg,Teaching English as a Second Language and preparing students for the US citizenship exam,"[""VAI""]","[{""Teaching US citizenship"" ""Prepared students for US citizenship exam""}, 
+2,Youth Mentor,http://www.mcgawymca.org/youth-teens/after-school-care-activities/mentoring/project-soar-news/,images/ymca-logo.svg,Youth mentor through the YMCA (Project SOAR),"[""YMCA""]","[{""Youth mentoring"" ""Big brother in YMCA youth program""}]"
+3,Instructor: ESL and Citizenship,www.hnvi.org,images/vai-logo.svg,Volunteer teacher at the Vietnamese Association of Illinois,"[""VAI""]","[{""Teaching US citizenship"" ""Prepared students for US citizenship exam""}, 
 {""Teaching ESL"" ""Teaching basic English""}]"
-4,Mentee: ChiPy Mentorship Program,https://chipymentor.org,images/chipy-logo.svg,Participated in a Python mentorship program as a mentee,"[""ChiPy""]","[{""Python"" ""Analyzed CPS data""},
+4,Mentee: ChiPy Mentorship Program,https://chipymentor.org,images/chipy-logo.svg,Python mentorship program - mentee,"[""ChiPy""]","[{""Python"" ""Analyzed CPS data""},
 {""Pandas"" ""Preprocessed CPS data""},
 {""Data cleaning"" ""Cleaned CPS data from Chicago Data Portal""},
 {""Jupyter Notebooks"" ""Visualized CPS funding disparities""}]"
@@ -18,7 +18,7 @@ id,name,url,image_url,description,organization_names,skills_names
 {""Build data pipelines"" ""Preprocess and store large experimental datasets (GB)""},
 {""Dimensionality reduction"" ""Used NNMF to find muscle co-activation patterns""},
 {""Hierarchical mixed modeling"" ""Model muscle elasticity in stroke survivors and healthy controls""}]"
-9,Launch intelligent loan processing,,,"Managed implementation of a key automated, intelligent loan processing system","[""Opploans""]",[]
+9,Launch intelligent loan processing,,,"Managed implementation of an automated, intelligent loan processing system","[""Opploans""]",[]
 10,Software audit,,,"Planned, conducted, and visualized an end-to-end analysis of software performance (including multiple microservices)","[""Opploans""]",[]
-11,Science Pentathlon (science outreach),https://www.tgs.northwestern.edu/campus-life/student-groups/volunteerism-and-community-outreach.html,,Planned events and lead volunteer recruitment for Middle School science pentathlon,"[""Northwestern"", ""MGLC""]","[{""Youth mentoring"" ""Led middle school students in bottle rocket building""},
+11,Science Pentathlon (science outreach),https://www.tgs.northwestern.edu/campus-life/student-groups/volunteerism-and-community-outreach.html,,Middle School science pentathlon: Event lead and volunteer recruitment lead,"[""Northwestern"", ""MGLC""]","[{""Youth mentoring"" ""Led middle school students in bottle rocket building""},
 {""Management"" ""Recruited, coordinated and managed volunteers""}]"

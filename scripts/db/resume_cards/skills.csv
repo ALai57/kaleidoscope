@@ -22,8 +22,8 @@ id,name,url,image_url,description,skill_category
 21,JS,,,,Programming Language
 22,Functional programming,,,,Software Skills
 23,Shear wave elastography,,,,Experimental Skills
-24,B-mode ultrasound,,,,Experimental Skills
-25,Surface electromyography,,,,Experimental Skills
+24,B-mode ultrasound,,images/ultrasound-logo.svg,,Experimental Skills
+25,Surface electromyography,,images/emg-logo.svg,,Experimental Skills
 26,Motor unit analysis,,,,Analytics Skills
 27,Spectral analysis,,,,Analytics Skills
 28,Clustering,,,,Analytics Skills
@@ -35,9 +35,11 @@ id,name,url,image_url,description,skill_category
 34,Teaching ESL,,,,Teaching
 35,Teaching US citizenship,,,,Teaching
 36,Build data pipelines,,,,Analytics Skills
-37,Data cleaning,,,,Analytics Skills
-38,Dimensionality reduction,,,,Analytics Skills
-39,Hierarchical mixed modeling,,,,Analytics Skills
+37,Data cleaning,,images/data-cleaning-logo.svg,,Analytics Skills
+38,Dimensionality reduction,,images/dimensionality-reduction-logo.svg,,Analytics Skills
+39,Hierarchical mixed modeling,,images/hierarchical-mixed-models-logo.svg,,Analytics Skills
 40,Writing specs,,,,Project Management
 41,Delivering timely results,,,,Project Management
-42,Aligning stakeholders,,,,Project Management
+42,Aligning stakeholders,,images/aligning-stakeholders-logo.svg,,Project Management
+43,Scientific writing,,,,Communication Skills
+44,Management,,,,Project Management
