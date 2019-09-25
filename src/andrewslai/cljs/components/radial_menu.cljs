@@ -1,5 +1,6 @@
 (ns andrewslai.cljs.components.radial-menu
   (:require [andrewslai.cljs.components.github-commit-history :as gh]
+            [reframe-components.recom-radial-menu :as rcm]
             [reagent.core  :as reagent]
             [re-frame.core :refer [subscribe
                                    dispatch
@@ -87,31 +88,24 @@
 ;; TODO: Set up configuration for menu in this ns
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#_(def menu-contents {:me [me]
-                      :clojure [clojure]
-                      :volunteering [volunteering]
-                      :tango [tango]
-                      :cv [cv]
-                      :github [gh/github]
-                      :teamwork [teamwork]})
+(defn radial-menu []
+  (let [radial-menu-open? (subscribe [:radial-menu-open?])
+        active-icon (subscribe [:active-icon])
+        [menu-item icon-props] @active-icon]
+    [:div#radial-menu {:style {:height "275px"}}
+     ((rcm/radial-menu)
+      :radial-menu-name "radial-menu-1"
+      :menu-radius "100px"
+      :icons icons
+      :open? @radial-menu-open?
+      :tooltip [:div#tooltip {:style {:text-align "left"
+                                      :width "100px"}}
+                [:p "My button is here!"]]
 
-#_(defn rm []
-    [:div#menu
-     [:div#radial-menu {:style {:height "275px"}}
-      ((rcm/radial-menu)
-       :radial-menu-name "radial-menu-1"
-       :menu-radius "100px"
-       :icons rm/icons
-       :open? @radial-menu-open?
-       :tooltip [:div#tooltip {:style {:text-align "left"
-                                       :width "100px"}}
-                 [:p "My button is here!"]]
+      :center-icon-radius center-icon-radius
+      :on-center-icon-click expand-or-contract
+      :center-icon-style-fn center-icon-style
 
-       :center-icon-radius rm/center-icon-radius
-       :on-center-icon-click rm/expand-or-contract
-       :center-icon-style-fn rm/center-icon-style
-
-       :radial-icon-radius rm/radial-icon-radius
-       :on-radial-icon-click rm/icon-click-handler
-       :radial-icon-style-fn rm/make-radial-icon-style)]
-     (get rm/menu-contents menu-item)])
+      :radial-icon-radius radial-icon-radius
+      :on-radial-icon-click icon-click-handler
+      :radial-icon-style-fn make-radial-icon-style)]))

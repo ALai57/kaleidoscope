@@ -70,53 +70,7 @@
 ;; [WIP] Skills - only select a single skill when clicked
 ;; Refactored
 
-(def PoseGroup (reagent/adapt-react-class js/PoseGroup))
-(def PosedLi (reagent/adapt-react-class
-              (js/posed.li (clj->js {:enter {:opacity 1}
-                                     :before {:opacity 0.1}}))))
-(def PosedH3 (reagent/adapt-react-class
-              (js/posed.h3 (clj->js {:enter {:opacity 1}
-                                     :before {:opacity 0.1}}))))
-(def PosedCard (reagent/adapt-react-class
-                (js/posed.div (clj->js {:enter {:opacity 1}
-                                        :exit {:opacity 0}
-                                        :before {:opacity 0.1}}))))
-
-(defn make-posed-card
-  [{:keys [name id] :as info} event-type selected-card]
-  ^{:key (str "posed-" name "-" id)}
-  [PosedCard {:style {:float "left"
-                      :display "table-row"}}
-   (resume-cards/make-card info event-type selected-card)])
-
-(defn make-posed-h3
-  [name id]
-  ^{:key (str "posed-" name "-" id)}
-  [PosedCard {:style {:float "left"
-                      :display "table-row"}} [:h3 name]])
-
-(defn me []
-  (let [resume-info (subscribe [:selected-resume-info])
-        selected-card (subscribe [:selected-resume-card])]
-    [:div#selected-menu-item
-     [:div {:style {:float "left"}}
-      [PoseGroup
-       (make-posed-h3 "Organizations" "h3")
-       [:br {:style {:clear "both"}}]
-       (doall (map #(make-posed-card % :organization @selected-card)
-                   (:organizations @resume-info)))
-       [:br {:style {:clear "both"}}]
-       (make-posed-h3 "Projects" "h3")
-       [:br {:style {:clear "both"}}]
-       (doall (map #(make-posed-card % :project @selected-card)
-                   (:projects @resume-info)))
-       [:br {:style {:clear "both"}}]
-       (make-posed-h3 "Skills" "h3")
-       [:br {:style {:clear "both"}}]
-       (doall (map #(make-posed-card % :skill @selected-card)
-                   (:skills @resume-info)))]]]))
-
-(def menu-contents {:me [me]
+(def menu-contents {:me [resume-cards/me]
                     :clojure [clojure]
                     :volunteering [volunteering]
                     :tango [tango]
@@ -124,41 +78,26 @@
                     :github [gh/github]
                     :teamwork [teamwork]})
 
-(defn home
-  []
+(defn reset-resume-info [x]
+  (let [clicked-element (.-target x)
+        clicked-class (.-className clicked-element)]
+    (when-not (or (clojure.string/includes? clicked-class "resume-info-image")
+                  (clojure.string/includes? clicked-class "resume-info-icon")
+                  (clojure.string/includes? clicked-class "card-description")
+                  (clojure.string/includes? clicked-class "card-title")
+                  (clojure.string/includes? clicked-class "card-text"))
+      (dispatch [:reset-resume-info]))))
+
+(defn home []
   (let [radial-menu-open? (subscribe [:radial-menu-open?])
         active-icon (subscribe [:active-icon])
         [menu-item icon-props] @active-icon]
-    [:div#xyz {:onClick (fn [x]
-                          (let [clicked-element (.-target x)
-                                clicked-class (.-className clicked-element)]
-                            (when-not (or (clojure.string/includes? clicked-class "resume-info-image")
-                                          (clojure.string/includes? clicked-class "resume-info-icon")
-                                          (clojure.string/includes? clicked-class "card-description")
-                                          (clojure.string/includes? clicked-class "card-title")
-                                          (clojure.string/includes? clicked-class "card-text"))
-                              (dispatch [:reset-resume-info]))))}
+    [:div#xyz {:onClick reset-resume-info}
      [nav/primary-nav]
      [:div#primary-content
       [article/primary-content]]
      [:div#menu
-      [:div#radial-menu {:style {:height "275px"}}
-       ((rcm/radial-menu)
-        :radial-menu-name "radial-menu-1"
-        :menu-radius "100px"
-        :icons rm/icons
-        :open? @radial-menu-open?
-        :tooltip [:div#tooltip {:style {:text-align "left"
-                                        :width "100px"}}
-                  [:p "My button is here!"]]
-
-        :center-icon-radius rm/center-icon-radius
-        :on-center-icon-click rm/expand-or-contract
-        :center-icon-style-fn rm/center-icon-style
-
-        :radial-icon-radius rm/radial-icon-radius
-        :on-radial-icon-click rm/icon-click-handler
-        :radial-icon-style-fn rm/make-radial-icon-style)]
+      [rm/radial-menu]
       (get menu-contents menu-item)]
      [:div#rcb
       [cards/recent-content-display]]
