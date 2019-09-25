@@ -1,15 +1,24 @@
 id,name,url,image_url,description,organization_names,skills_names
-1,Article: The experiment that shocked the world,https://helix.northwestern.edu/article/experiment-shocked-world,images/nu-helix-logo.svg,Authored a pop-sci article on Luigi Galvani and his discovery of animal electricity,"[""HELIX""]",[]
-2,Youth Mentor,http://www.mcgawymca.org/youth-teens/after-school-care-activities/mentoring/project-soar-news/,images/ymca-logo.svg,Participated in youth mentoring program through the YMCA (Project SOAR – similar to Big Brothers),"[""YMCA""]",[]
-3,Instructor: ESL and Citizenship,www.hnvi.org,images/vai-logo.svg,Teaching English as a Second Language and preparing students for the US citizenship exam,"[""VAI""]",[]
-4,Mentee: ChiPy Mentorship Program,https://chipymentor.org,images/chipy-logo.svg,Participated in a Python mentorship program as a mentee,[“ChiPy”],[]
+1,Article: The experiment that shocked the world,https://helix.northwestern.edu/article/experiment-shocked-world,images/nu-helix-logo.svg,Authored a pop-sci article on Luigi Galvani and his discovery of animal electricity,"[""HELIX""]","[{""Science writing"" ""Wrote/published pop-sci article""}]"
+2,Youth Mentor,http://www.mcgawymca.org/youth-teens/after-school-care-activities/mentoring/project-soar-news/,images/ymca-logo.svg,Participated in youth mentoring program through the YMCA (Project SOAR – similar to Big Brothers),"[""YMCA""]","[{""Youth mentoring"" ""Big brother in YMCA youth program""}]"
+3,Instructor: ESL and Citizenship,www.hnvi.org,images/vai-logo.svg,Teaching English as a Second Language and preparing students for the US citizenship exam,"[""VAI""]","[{""Teaching US citizenship"" ""Prepared students for US citizenship exam""}, 
+{""Teaching ESL"" ""Teaching basic English""}]"
+4,Mentee: ChiPy Mentorship Program,https://chipymentor.org,images/chipy-logo.svg,Participated in a Python mentorship program as a mentee,"[""ChiPy""]","[{""Python"" ""Analyzed CPS data""},
+{""Pandas"" ""Preprocessed CPS data""},
+{""Data cleaning"" ""Cleaned CPS data from Chicago Data Portal""},
+{""Jupyter Notebooks"" ""Visualized CPS funding disparities""}]"
 5,andrewslai.com,http://andrewslai.com,images/nav-bar/favicon-white.svg,"Built my own website in Clojure/Clojurescript, hosted on AWS",[],"[{""Clojure"" ""Built server in clj""},
 {""Docker"" ""Containerized the website application""},
 {""Terraform"" ""AWS infrastructure as code""},
 {""D3js"" ""Wrote interactive visualizations in D3""}]"
-6,PIC32 infrared camera,,images/microcontroller-logo.svg,Built part of a TCP/IP stack to connect a PIC32 microcontroller to an infrared camera,[“Northwestern”],[]
+6,PIC32 infrared camera,,images/microcontroller-logo.svg,Built part of a TCP/IP stack to connect a PIC32 microcontroller to an infrared camera,"[""Northwestern""]","[{""C"" ""Wrote part of TCP/IP stack""}]"
 7,Research: Muscle coordination after nerve block,https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6192169/,images/nav-bar/neuron-icon.svg,Research project: What happens to muscle coordination when a single muscle is knocked out? ,"[""Northwestern""]","[{""Matlab"" ""Data processing, dimensionality reduction, and statistical analysis""}]"
-8,Muscle properties after stroke,https://arch.library.northwestern.edu/concern/generic_works/wd375w58n?locale=en,,,"[""Northwestern""]",
-9,Launch intelligent loan processing,,,"Managed implementation of a key automated, intelligent loan processing system",[“Opploans”],
-10,Software audit,,,"Planned, conducted, and visualized an end-to-end analysis of software performance (including multiple microservices)",[“Opploans”],
-11,Science Pentathlon (science outreach),https://www.tgs.northwestern.edu/campus-life/student-groups/volunteerism-and-community-outreach.html,,Planned events and lead volunteer recruitment for Middle School science pentathlon,"[“Northwestern”, “MGLC”]",
+8,Muscle properties after stroke,https://arch.library.northwestern.edu/concern/generic_works/wd375w58n?locale=en,,,"[""Northwestern""]","[{""Matlab"" ""Data processing, dimensionality reduction, and statistical analysis""},
+{""Data cleaning"" ""Outlier removal using statistical analysis""},
+{""Build data pipelines"" ""Preprocess and store large experimental datasets (GB)""},
+{""Dimensionality reduction"" ""Used NNMF to find muscle co-activation patterns""},
+{""Hierarchical mixed modeling"" ""Model muscle elasticity in stroke survivors and healthy controls""}]"
+9,Launch intelligent loan processing,,,"Managed implementation of a key automated, intelligent loan processing system","[""Opploans""]",[]
+10,Software audit,,,"Planned, conducted, and visualized an end-to-end analysis of software performance (including multiple microservices)","[""Opploans""]",[]
+11,Science Pentathlon (science outreach),https://www.tgs.northwestern.edu/campus-life/student-groups/volunteerism-and-community-outreach.html,,Planned events and lead volunteer recruitment for Middle School science pentathlon,"[""Northwestern"", ""MGLC""]","[{""Youth mentoring"" ""Led middle school students in bottle rocket building""},
+{""Management"" ""Recruited, coordinated and managed volunteers""}]"
