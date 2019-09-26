@@ -20,8 +20,8 @@ id,name,url,image_url,description,skill_category
 19,Ruby on Rails,,images/ruby-on-rails-logo.svg,,Software package
 20,HTML/CSS,,images/html-logo.svg,,Programming Language
 21,JS,,images/javascript-logo.svg,,Programming Language
-22,Functional programming,,,,Software Skills
-23,Shear wave elastography,,,,Experimental Skills
+22,Functional programming,,images/functional-logo.svg,,Software Skills
+23,Shear wave elastography,,images/ultrasound-logo.svg,,Experimental Skills
 24,B-mode ultrasound,,images/ultrasound-logo.svg,,Experimental Skills
 25,Surface electromyography,,images/emg-logo.svg,,Experimental Skills
 26,Motor unit analysis,,images/nav-bar/neuron-icon.svg,,Analytics Skills
@@ -30,10 +30,10 @@ id,name,url,image_url,description,skill_category
 29,Teaching science experimentation,,,,Teaching
 30,Teaching ACT prep,,,,Teaching
 31,Leadership coaching,,,,Teaching
-32,Teaching tango,,,,Teaching
+32,Teaching tango,,images/tango-image-ccby.svg,,Teaching
 33,Youth mentoring,,,,Teaching
-34,Teaching ESL,,,,Teaching
-35,Teaching US citizenship,,,,Teaching
+34,Teaching ESL,,images/esl-logo.svg,,Teaching
+35,Teaching US citizenship,,images/american-flag-logo.svg,,Teaching
 36,Build data pipelines,,,,Analytics Skills
 37,Data cleaning,,images/data-cleaning-logo.svg,,Analytics Skills
 38,Dimensionality reduction,,images/dimensionality-reduction-logo.svg,,Analytics Skills
