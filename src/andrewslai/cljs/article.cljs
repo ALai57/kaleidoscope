@@ -3,6 +3,7 @@
             [re-frame.core :refer [subscribe]]
             [clojure.string :as str]
 
+            [hickory.core :as h]
             [cljsjs.react-bootstrap]))
 
 
@@ -33,9 +34,7 @@
   (into
    [:div#article-content]
    (for [entry (sort-by :content_order content)]
-     (condp = (:content_type entry)
-       "text" ^{:key (:content_order entry)} [:p (:content entry)]
-       "js" ^{:key (:content_order entry)} (format-js (:content entry))))))
+     ^{:key (:content_order entry)} (h/as-hiccup (h/parse (:content entry))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Fully formatted primary content

@@ -21,7 +21,7 @@
                  [cljsjs/react-pose "1.6.4-1"]
                  [cljsjs/react-transition-group "4.2.1-0"]
                  [org.clojure/clojurescript "1.10.520"]
-
+                 [hickory "0.7.1"]
                  [org.clojars.alai/reframe-components "0.3.0"]
                  ;; TODO: clean up for advanced opt.
                  [clj-commons/secretary "1.2.4"]

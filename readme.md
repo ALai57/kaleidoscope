@@ -156,8 +156,7 @@ PSQL:
 ```
 
 
-###### Deploy and test that it works
-## Start developing landing pages
-## Clean up formatting code
-## Circle with icons that move upon click
-## navigation a
+###### TO DO
+## Modify default data in database so that HTML is directly saved in DB
+## Modify the cljs code to recognize new data format
+## Start writing articles about building an OS

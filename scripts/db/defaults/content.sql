@@ -7,9 +7,9 @@ CREATE TABLE content(
        content text
        );
 INSERT INTO content VALUES
-       (1, 1, 'text', '{"style": null}', 'This is an example content piece'),
-       (1, 2, 'text', '{"style": null}', 'This is second example content piece'),
-       (1, 3,   'js', '{"style": null, "id": "the-script"}', 'test-paragraph.js'),
-       (1, 4, 'text', '{"style": null}', 'This is fourth example content piece'),
-       (2, 1, 'text', '{"style": {"color": "red"}}', 'Content from 2'),
-       (3, 1, 'text', '{"style": null}', 'Content from 3');
+       (1, 1, 'text', '{"style": null}', '<h1>This is an example content piece</h1>'),
+       (1, 2, 'text', '{"style": null}', '<h2>This is second example content piece</h2>'),
+       (1, 3,   'js', '{"style": null, "id": "the-script"}', '<script src="test-paragraph.js">'),
+       (1, 4, 'text', '{"style": null}', '<p>This is fourth example content piece</p>'),
+       (2, 1, 'text', '{"style": {"color": "red"}}', '<p>Content from 2</p>'),
+       (3, 1, 'text', '{"style": null}', '<p>Content from 3</p>');
