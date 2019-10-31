@@ -14,7 +14,7 @@
   (get-in active-content [:article :title]))
 
 (defn get-content [active-content]
-  (get-in active-content [:article :content]))
+  (first (get-in active-content [:article :content])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Formatting title, JS and content
@@ -30,19 +30,28 @@
                   (-> (.setAttribute "src" (str "js/" js-script)))))
   [:div])
 
-(defn format-content [content]
-  (into
-   [:div#article-content]
-   (for [entry (sort-by :content_order content)]
-     ^{:key (:content_order entry)} (h/as-hiccup (h/parse (:content entry))))))
+(defn format-content [{:keys [content]}]
+  [:div#article-content
+   (first (map h/as-hiccup (h/parse-fragment content)))])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Fully formatted primary content
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn primary-content
   []
-  (let [active-content (subscribe [:active-content])]
+  (let [active-content (subscribe [:active-content])
+        _ (println "content " (get-content @active-content))]
     [:div#goodies
      (format-title (get-title @active-content))
-     (format-content (get-content @active-content))]))
+     (format-content (get-content @active-content))
+     ]))
 
+(comment
+  (let [x {:article_id 1, :content "<h1>This is an example content piece</h1><h2>This is second example content piece</h2><p class=\"dynamicjs\"></p><script src=\"js/test-paragraph.js\"></script><p>This is fourth example content piece</p>"}
+        content (:content x)]
+    ;; (println "\n\n++++++++" (format-content x))
+    (println (for [entry (map h/as-hiccup (h/parse-fragment content))]
+               (println (str entry)))))
+  (binding [*print-meta* true]
+    (println ^{:key (str 23)} [:p {} "This is fourth example content piece"]))
+  )

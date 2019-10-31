@@ -70,8 +70,7 @@
   (try
     (sql/query pg-db
                [(str "SELECT "
-                     "article_id, metadata, content_order, "
-                     "content_type, content "
+                     "article_id, content "
                      "FROM content "
                      "WHERE article_id = ?") article-id])
     (catch Exception e
@@ -114,7 +113,7 @@
 
   (get-full-article "neural-network-explode-equation")
 
-  (get-article-content 2)
+  (get-article-content 1)
 
   (:article_id (get-article-metadata "my-first-article"))
 
