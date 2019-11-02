@@ -70,7 +70,7 @@
   (try
     (sql/query pg-db
                [(str "SELECT "
-                     "article_id, content "
+                     "article_id, content, dynamicjs "
                      "FROM content "
                      "WHERE article_id = ?") article-id])
     (catch Exception e

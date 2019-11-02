@@ -159,4 +159,7 @@ PSQL:
 ###### TO DO
 ## Modify default data in database so that HTML is directly saved in DB
 ## Modify the cljs code to recognize new data format
+## Get JS working on load (component did mount)
+
+## Modify AWS DB and deploy new code to website;;
 ## Start writing articles about building an OS

@@ -55,7 +55,7 @@
 
   (clojure.pprint/pprint (:projects resume-info))
 
-  (db/get-article "my-first-article")
+  (db/get-full-article "my-first-article")
 
   (clojure.pprint/pprint
    (db/get-content (first (db/get-article "my-second-article"))))
