@@ -24,23 +24,23 @@
               :tags [{:name "api", :description "some apis"}]}}}
 
      (GET "/" []
-       (-> (resource-response "index.html" {:root "public"})
-           (content-type "text/html")))
+          (-> (resource-response "index.html" {:root "public"})
+              (content-type "text/html")))
 
      (GET "/ping" []
-       (ok {:service-status "ok"}))
+          (ok {:service-status "ok"}))
 
      (GET "/get-article/:article-type/:article-name"
-         [article-type article-name]
-       (ok {:article-type article-type
-            :article-name article-name
-            :article (db/get-full-article article-name)}))
+          [article-type article-name]
+          (ok {:article-type article-type
+               :article-name article-name
+               :article (db/get-full-article article-name)}))
 
-     (GET "/get-recent-articles" [article-type article-name]
-       (ok (db/get-recent-articles 6)))
+     (GET "/get-all-articles" [article-type article-name]
+          (ok (db/get-all-articles)))
 
      (GET "/get-resume-info" []
-       (ok (db/get-resume-info)))
+          (ok (db/get-resume-info)))
 
      ) "public")))
 

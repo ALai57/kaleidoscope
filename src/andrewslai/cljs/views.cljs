@@ -5,10 +5,12 @@
             [andrewslai.cljs.loading :as loading]
             [andrewslai.cljs.pose :as pose]
             [andrewslai.cljs.navbar :as nav]
+            [andrewslai.cljs.resume-cards :as resume-cards]
 
             [andrewslai.cljs.pages.home :refer [home]]
             [andrewslai.cljs.d3 :refer [d3-example]]
-            [re-frame.core :refer [subscribe]]))
+            [re-frame.core :refer [subscribe
+                                   dispatch]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Landing pages
@@ -36,15 +38,25 @@
     [cards/recent-content-display "archive"]]
    [loading/load-screen]])
 
+(defn reset-resume-info [x]
+  (let [clicked-element (.-target x)
+        clicked-class (.-className clicked-element)]
+    (when-not (or (clojure.string/includes? clicked-class "resume-info-image")
+                  (clojure.string/includes? clicked-class "resume-info-icon")
+                  (clojure.string/includes? clicked-class "card-description")
+                  (clojure.string/includes? clicked-class "card-title")
+                  (clojure.string/includes? clicked-class "card-text"))
+      (dispatch [:reset-resume-info]))))
+
 (defn about
   []
-  [:div
+  [:div {:onClick reset-resume-info
+         :style {:height "100%"
+                 :width "100%"
+                 :position "absolute"}} 
    [nav/primary-nav]
-   [:p "About"]
-   [:div#primary-content
-    [article/primary-content]]
-   [:div#rcb
-    [cards/recent-content-display "about"]]
+   [:div {:style {:height "100%"}}
+    [resume-cards/me]]
    [loading/load-screen]])
 
 (defn research
@@ -68,6 +80,10 @@
    [:div#rcb
     [cards/recent-content-display "data-analysis"]]
    [loading/load-screen]])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Test pages
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn load-page
   []

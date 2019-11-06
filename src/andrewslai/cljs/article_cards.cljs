@@ -23,22 +23,22 @@
     "thoughts" "images/nav-bar/andrew-head-icon.svg"))
 
 (defn make-card
-  [{:keys [article_tags title article_url article_id] :as article}]
-
-  ^{:key article_id}
-  [Card {:class "text-white bg-light mb-3 article-card"}
-   [:div.container-fluid
-    [:div.row.flex-items-xs-middle
-     [:div.col-sm-3.bg-primary.text-xs-center.card-icon
-      [:div.p-y-3
-       [:h1.p-y-2
-        [:img.fa.fa-2x {:src (article-tags->icon article_tags)
-                        :style {:width "100%"}}]]]]
-     [:div.col-sm-9.bg-light.text-dark.card-description
-      [:h5.card-title>a {:href (str "#/" article_tags
-                                    "/content/" article_url)}
-       title]
-      [:p.card-text article_url]]]]])
+  [{:keys [article_tags title article_url article_id timestamp] :as article}]
+  (let [date (first (.split (.toISOString timestamp) "T"))]
+    ^{:key article_id}
+    [Card {:class "text-white bg-light mb-3 article-card"}
+     [:div.container-fluid
+      [:div.row.flex-items-xs-middle
+       [:div.col-sm-3.bg-primary.text-xs-center.card-icon
+        [:div.p-y-3
+         [:h1.p-y-2
+          [:img.fa.fa-2x {:src (article-tags->icon article_tags)
+                          :style {:width "100%"}}]]]]
+       [:div.col-sm-9.bg-light.text-dark.card-description
+        [:h5.card-title>a {:href (str "#/" article_tags
+                                      "/content/" article_url)}
+         title]
+        [:p.card-text date]]]]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

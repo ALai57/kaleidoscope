@@ -58,13 +58,12 @@
       (str "get-article caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
-(defn get-recent-articles [n]
+(defn get-all-articles []
   (try
     (sql/query pg-db
-               [(str "SELECT * FROM articles"
-                     " LIMIT ?") n])
+               [(str "SELECT * FROM articles ORDER BY timestamp DESC")])
     (catch Exception e
-      (str "get-recent-articles caught exception: " (.getMessage e)))))
+      (str "get-all-articles caught exception: " (.getMessage e)))))
 
 (defn- get-article-content [article-id]
   (try
@@ -124,7 +123,6 @@
 ;; For uploading data to SQL databases
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (comment
-  (require '[clj-postgresql.core :as pg])
   (require '[clojure.data.csv :as csv])
   (require '[clojure.java.io :as io])
 
@@ -148,12 +146,8 @@
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/organizations.csv"
                  :organizations)
 
-  ;; TODO: Still not implemented -- Start here
-  (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/projects.csv"
-                 :projects)
-
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/skills.csv"
-                 :skills))
+                 :skills)) 
 
 
 (comment

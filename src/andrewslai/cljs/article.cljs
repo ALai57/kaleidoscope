@@ -32,7 +32,8 @@
 
 (defn format-content [{:keys [content]}]
   [:div#article-content
-   (first (map h/as-hiccup (h/parse-fragment content)))])
+   (when content
+     (first (map h/as-hiccup (h/parse-fragment content))))])
 
 (defn insert-dynamic-js! [{:keys [dynamicjs]}]
   (map format-js dynamicjs))

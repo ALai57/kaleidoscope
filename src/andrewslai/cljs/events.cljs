@@ -12,7 +12,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helper functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn make-recent-articles-url [] "/get-recent-articles")
+(defn make-get-all-articles-url [] "/get-all-articles")
 (defn make-article-url [article-type article-name]
   (str "/get-article/" (name article-type) "/" (name article-name)))
 
@@ -92,9 +92,9 @@
  :set-active-panel
  (fn [db [_ value]]
 
-   (GET (make-recent-articles-url)
-       {:handler #(dispatch [:process-recent-response %1])
-        :error-handler #(dispatch [:bad-recent-response %1])})
+   (GET (make-get-all-articles-url)
+        {:handler #(dispatch [:process-recent-response %1])
+         :error-handler #(dispatch [:bad-recent-response %1])})
 
    (modify-db db {:loading? true
                   :active-panel value
