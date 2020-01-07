@@ -66,6 +66,12 @@ lein do clean, uberjar
 docker build -t andrewslai .
 use_db aws
 sudo docker run --env-file=.env -p 5000:5000 andrewslai
+aws elasticbeanstalk create-application-version \
+    --application-name andrewslai_website \
+    --version-label v1.17 \
+    --source-bundle S3Bucket="andrewslai-eb",S3Key="deployment-2019-07-19.zip" \
+    --auto-create-application \
+    --region us-east-1
 ```
 
 UPLOAD ARTIFACT TO S3

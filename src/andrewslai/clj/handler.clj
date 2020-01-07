@@ -7,10 +7,17 @@
             [ring.util.http-response :refer :all]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.content-type :refer [wrap-content-type]]
+            [clojure.java.shell :as shell]
             [clojure.java.jdbc :as sql]))
 
 (defn init []
   (println "Hello! Starting service..."))
+
+(defn get-sha []
+  (->> "HEAD"
+       (shell/sh "git" "rev-parse" "--short")
+       :out
+       clojure.string/trim))
 
 (def app
   (wrap-content-type
@@ -24,23 +31,24 @@
               :tags [{:name "api", :description "some apis"}]}}}
 
      (GET "/" []
-          (-> (resource-response "index.html" {:root "public"})
-              (content-type "text/html")))
+       (-> (resource-response "index.html" {:root "public"})
+           (content-type "text/html")))
 
      (GET "/ping" []
-          (ok {:service-status "ok"}))
+       (ok {:service-status "ok"
+            :sha (get-sha)}))
 
      (GET "/get-article/:article-type/:article-name"
-          [article-type article-name]
-          (ok {:article-type article-type
-               :article-name article-name
-               :article (db/get-full-article article-name)}))
+         [article-type article-name]
+       (ok {:article-type article-type
+            :article-name article-name
+            :article (db/get-full-article article-name)}))
 
      (GET "/get-all-articles" [article-type article-name]
-          (ok (db/get-all-articles)))
+       (ok (db/get-all-articles)))
 
      (GET "/get-resume-info" []
-          (ok (db/get-resume-info)))
+       (ok (db/get-resume-info)))
 
      ) "public")))
 
