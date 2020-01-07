@@ -5,8 +5,18 @@ The app runs on Java 11, inside a Docker container
 
 The website includes:
 - Server with handler
-- Postgres backend (local and AWS RDS)
+- Postgres backend (AWS RDS)
 - Single page React app with navigation between screens
+
+
+*** PREREQUISITES
+INSTALL NPM: Must have NPM installed to manage JS dependencies.
+
+On Ubuntu::
+```
+sudo apt-get update
+sudo apt-get install npm
+```
 
 
 *** Development environment
@@ -30,22 +40,6 @@ EMACS AND REPL/FIGWHEEL
 (cljs-repl "dev")
 ```
 
-ADD TO BASH PROFILE: FOR SWITCHING DATABASES
-`source ./PATH/TO/andrewslai/scripts/db/use_db.sh`
-usage: `use_db aws` `use_db local`
-
-
-LOCAL DATABASE SETUP (POSTGRES)
-Run setup.sh in scripts/db
-
-
-INSTALL NPM: Must have NPM installed to manage JS dependencies.
-
-On Ubuntu::
-```
-sudo apt-get update
-sudo apt-get install npm
-```
 
 
 *** Deployment
@@ -58,57 +52,6 @@ aws elasticbeanstalk create-environment \
     --solution-stack-name "64bit Amazon Linux 2018.03 v2.12.14 running Docker 18.06.1-ce" \
     --region us-east-1
     --option-settings file://eb-default-vpc.json
-```
-
-PACKAGE ARTIFACT AND CHECK IF IT RUNS
-```
-lein do clean, uberjar
-docker build -t andrewslai .
-use_db aws
-sudo docker run --env-file=.env -p 5000:5000 andrewslai
-aws elasticbeanstalk create-application-version \
-    --application-name andrewslai_website \
-    --version-label v1.17 \
-    --source-bundle S3Bucket="andrewslai-eb",S3Key="deployment-2019-07-19.zip" \
-    --auto-create-application \
-    --region us-east-1
-```
-
-UPLOAD ARTIFACT TO S3
-```
-zip --exclude '*.git*' --exclude '*node_modules/*' --exclude '*.elasticbeanstalk*' --exclude '*deployment*.zip' -r deployment.zip .
-aws s3 mb s3://andrewslai-eb --region us-east-1
-aws s3 cp deployment.zip s3://andrewslai-eb --region us-east-1
-```
-
-CREATE NEW APPLICATION VERSION
-```
-aws elasticbeanstalk create-application-version \
-    --application-name andrewslai_website \
-    --version-label v1 \
-    --source-bundle S3Bucket="andrewslai-eb",S3Key="deployment.zip" \
-    --auto-create-application \
-    --region us-east-1
-```
-
-UPDATE ENVIRONMENT WITH NEW APPLICATION VERSION
-```
-aws elasticbeanstalk update-environment \
-    --application-name andrewslai_website \
-    --environment-name staging \
-    --version-label v1 \
-    --region us-east-1
-```
-NEED TO MANUALLY INPUT ENV VARIABLES RIGHT NOW
-
-REMOTE DATABASE CONNECTION
-```
-psql \
-   --host=$ANDREWSLAI_DB_HOST \
-   --port=$ANDREWSLAI_DB_PORT \
-   --username=$ANDREWSLAI_DB_USER \
-   --dbname=$ANDREWSLAI_DB_NAME \
-   --password
 ```
 
 MODIFY RESUME CARDS:
