@@ -12,6 +12,7 @@
                  [org.clojure/data.csv "0.1.4"]
                  [org.clojure/java.jdbc "0.7.10"]
                  [org.postgresql/postgresql "42.1.4"]
+                 [ring/ring-mock "0.4.0"]
 
                  [cljs-http "0.1.46"]
                  [cljs-ajax "0.7.5"]
