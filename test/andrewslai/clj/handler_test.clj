@@ -11,4 +11,9 @@
                                        parse-response-body
                                        keys
                                        set)))))
+(deftest home-test
+  (testing "Index page works properly")
+  (is (= 200 (-> (mock/request :get "/")
+                 h/app
+                 :status))))
 
