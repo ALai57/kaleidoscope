@@ -1,6 +1,7 @@
-(ns andrewslai.clj.config
-  (:require [cheshire.core :as json]
-            [andrewslai.clj.env :as env]
+(ns andrewslai.clj.persistence.config
+  (:require [andrewslai.clj.env :as env]
+            [andrewslai.clj.persistence.mock :as mock]
+            [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]])
   (:import (org.postgresql.util PGobject)))
@@ -37,3 +38,13 @@
             :host db-host
             :user db-user
             :password db-password})
+
+;; TODO: use environment variable to switch
+(def db (if nil #_live-db?
+            nil
+            (mock/make-db)))
+
+(comment
+  (require '[andrewslai.clj.persistence.core :as core])
+  (core/save-article! db)
+  )

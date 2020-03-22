@@ -1,6 +1,6 @@
 (ns andrewslai.clj.db
   (:require [cheshire.core :as json]
-            [andrewslai.clj.config :refer :all]
+            [andrewslai.clj.persistence.config :refer :all]
             [clojure.java.jdbc :as sql]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
