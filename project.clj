@@ -5,9 +5,9 @@
                  [coreagile/defenv "1.0.9"]
                  [hiccup "1.0.5"]
                  [http-kit "2.3.0"]
-                 [metosin/compojure-api "1.1.12"]
-                 [org.clojure/clojure "1.9.0" :upgrade false]
-                 [org.clojure/core.async "0.3.442"
+                 [metosin/compojure-api "1.1.12" :upgrade false]
+                 [org.clojure/clojure "1.10.1"]
+                 [org.clojure/core.async "1.0.567"
                   :exclusions [org.clojure/tools.reader]]
                  [org.clojure/data.csv "1.0.0"]
                  [org.clojure/java.jdbc "0.7.11"]
@@ -15,30 +15,30 @@
                  [ring/ring-mock "0.4.0"]
 
                  [cljs-http "0.1.46"]
-                 [cljs-ajax "0.7.5"]
-                 [cljsjs/react-bootstrap "1.0.0-beta.9-0"] ;; latest release
-                 [cljsjs/react "16.8.6-0"]
-                 [cljsjs/react-dom "16.8.6-0"]
+                 [cljs-ajax "0.8.0"]
+                 [cljsjs/react-bootstrap "1.0.0-beta.14-0"] ;; latest release
+                 [cljsjs/react "16.13.0-0"]
+                 [cljsjs/react-dom "16.13.0-0"]
                  [cljsjs/react-pose "1.6.4-1"]
-                 [cljsjs/react-transition-group "4.2.1-0"]
-                 [org.clojure/clojurescript "1.10.520"]
+                 [cljsjs/react-transition-group "4.3.0-0"]
+                 [org.clojure/clojurescript "1.10.597"]
                  [hickory "0.7.1"]
                  [org.clojars.alai/reframe-components "0.3.0"]
                  ;; TODO: clean up for advanced opt.
                  [clj-commons/secretary "1.2.4"]
-                 [day8.re-frame/tracing "0.5.1"]
-                 [cljsjs/d3 "5.9.2-0"]
-                 [reagent "0.8.1"]
-                 [re-frame "0.10.5"]
-                 [ring "1.7.1"]
-                 [sablono "0.7.4"]
+                 [day8.re-frame/tracing "0.5.3"]
+                 [cljsjs/d3 "5.12.0-0"]
+                 [reagent "0.10.0"]
+                 [re-frame "0.12.0"]
+                 [ring "1.8.0"]
+                 [sablono "0.8.6"]
                  ]
 
-  :plugins [[lein-figwheel "0.5.18"]
+  :plugins [[lein-figwheel "0.5.19"]
             [lein-cljsbuild "1.1.7"]]
 
   ;; Used to make this compatible with Java 11
-  :managed-dependencies [[org.clojure/core.rrb-vector "0.0.13"]
+  :managed-dependencies [[org.clojure/core.rrb-vector "0.1.1"]
                          [org.flatland/ordered "1.5.7"]]
 
   :ring {:handler andrewslai.clj.handler/app
@@ -79,9 +79,9 @@
                       :source-map-timestamp true}}}
 
    }
-  :profiles {:dev {:dependencies [[binaryage/devtools "0.9.10"]
-                                  [figwheel-sidecar "0.5.18"]
-                                  [cider/piggieback "0.4.1"]]
+  :profiles {:dev {:dependencies [[binaryage/devtools "1.0.0"]
+                                  [figwheel-sidecar "0.5.19"]
+                                  [cider/piggieback "0.4.2"]]
                    :source-paths ["src/andrewslai/cljs"]
                    :repl-options {:nrepl-middleware
                                   [cider.piggieback/wrap-cljs-repl]}
