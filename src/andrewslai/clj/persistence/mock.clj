@@ -34,12 +34,8 @@
   (reify Persistence
     (save-article! [_]
       (save-article!))
-    (get-article [_]
-      (get-article))
     (get-all-articles [_]
-      (get-all-articles))
-    (get-article-metadata [_]
-      (get-article-metadata))))
+      (get-all-articles))))
 
 (comment
   (core/get-all-articles (make-db)))

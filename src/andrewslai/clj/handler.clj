@@ -44,7 +44,7 @@
             [article-type article-name]
           (ok {:article-type article-type
                :article-name article-name
-               :article (db/get-full-article article-name)}))
+               :article (db2/get-full-article (db-cfg/db-conn) article-name)}))
 
         (GET "/get-all-articles" [article-type article-name]
           (ok (db2/get-all-articles (db-cfg/db-conn))))

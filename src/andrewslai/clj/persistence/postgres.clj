@@ -33,19 +33,37 @@
       (str "get-article caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
+(defn- get-article-content [article-id]
+  (try
+    (sql/query pg-db
+               [(str "SELECT "
+                     "article_id, content, dynamicjs "
+                     "FROM content "
+                     "WHERE article_id = ?") article-id])
+    (catch Exception e
+      (str "get-content caught exception: " (.getMessage e)
+           "postgres config: " (assoc pg-db :password "xxxxxx")))))
+
+(defn- get-full-article [article-name]
+  (let [article (get-article-metadata article-name)
+        article-id (:article_id article)
+        content (get-article-content article-id)]
+    (assoc-in article [:content] content)))
+
 (defn make-db []
   (reify Persistence
     (save-article! [_]
       nil)
     (get-article [_]
       nil)
+    (get-full-article [_ article-name]
+      (get-full-article article-name))
     (get-all-articles [_]
-      (get-all-articles))
-    (get-article-metadata [_ article-name]
-      (get-article-metadata article-name))))
+      (get-all-articles))))
 
 (comment
   (get-all-articles)
   (db2/get-all-articles (make-db))
-  (db2/get-article-metadata (make-db) "test-article")
+  (db2/get-full-article (make-db) "test-article")
+  (db2/get-article-content (make-db) 1)
   )

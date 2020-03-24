@@ -14,34 +14,11 @@
 ;; Functions to test DB connection
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-all-articles []
-  (try
-    (sql/query pg-db
-               [(str "SELECT * FROM articles ORDER BY timestamp DESC")])
-    (catch Exception e
-      (str "get-all-articles caught exception: " (.getMessage e)))))
-
-(defn- get-article-content [article-id]
-  (try
-    (sql/query pg-db
-               [(str "SELECT "
-                     "article_id, content, dynamicjs "
-                     "FROM content "
-                     "WHERE article_id = ?") article-id])
-    (catch Exception e
-      (str "get-content caught exception: " (.getMessage e)
-           "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
 (defn get-article-id [article-name]
   (-> (db2/get-article-metadata (db-cfg/db-conn) article-name)
       first
       :article_id))
-
-(defn get-full-article [article-name]
-  (let [article (db2/get-article-metadata (db-cfg/db-conn) article-name)
-        article-id (:article_id article)
-        content (get-article-content article-id)]
-    (assoc-in article [:content] content)))
 
 (defn get-resume-info []
   (try

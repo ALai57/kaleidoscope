@@ -2,6 +2,5 @@
 
 (defprotocol Persistence
   (save-article! [_])
-  (get-article [_])
-  (get-all-articles [_])
-  (get-article-metadata [_ article-name]))
+  (get-full-article [_ article-name])
+  (get-all-articles [_]))
