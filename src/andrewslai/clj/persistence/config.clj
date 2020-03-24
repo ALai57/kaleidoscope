@@ -1,6 +1,7 @@
 (ns andrewslai.clj.persistence.config
   (:require [andrewslai.clj.env :as env]
             [andrewslai.clj.persistence.mock :as mock]
+            [andrewslai.clj.persistence.postgres :as postgres]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]])
@@ -39,12 +40,15 @@
             :user db-user
             :password db-password})
 
-;; TODO: use environment variable to switch
-(def db (if nil #_live-db?
-            nil
-            (mock/make-db)))
+(defn db-conn []
+  (if live-db?
+    (postgres/make-db)
+    (mock/make-db)))
 
 (comment
   (require '[andrewslai.clj.persistence.core :as core])
-  (core/save-article! db)
+  (core/save-article! (db-conn))
+
+  (with-redefs [live-db? false]
+    (count (core/get-all-articles (db-conn))))
   )
