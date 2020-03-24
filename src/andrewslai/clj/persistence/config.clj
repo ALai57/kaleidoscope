@@ -23,22 +23,7 @@
   (result-set-read-column [pgobj metadata i]
     (vec (.getArray pgobj))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Database connection
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def db-port (@env/env :db-port))
-(def db-host (@env/env :db-host))
-(def db-name (@env/env :db-name))
-(def db-user (@env/env :db-user))
-(def db-password (@env/env :db-password))
 (def live-db? (@env/env :live-db?))
-
-(def pg-db {:dbtype "postgresql"
-            :dbname db-name
-            :host db-host
-            :user db-user
-            :password db-password})
 
 (defn db-conn []
   (if live-db?

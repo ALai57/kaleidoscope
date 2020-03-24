@@ -4,4 +4,4 @@
   (save-article! [_])
   (get-article [_])
   (get-all-articles [_])
-  (get-article-metadata [_]))
+  (get-article-metadata [_ article-name]))

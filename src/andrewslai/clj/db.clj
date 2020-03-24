@@ -1,21 +1,18 @@
 (ns andrewslai.clj.db
   (:require [cheshire.core :as json]
-            [andrewslai.clj.persistence.config :refer :all]
+            [andrewslai.clj.persistence.core :as db2]
+            [andrewslai.clj.persistence.config :as db-cfg]
+            [andrewslai.clj.persistence.postgres :refer [db-port
+                                                         db-host
+                                                         db-name
+                                                         db-user
+                                                         db-password
+                                                         pg-db]]
             [clojure.java.jdbc :as sql]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn- get-article-metadata [article-name]
-  (try
-    (first
-     (sql/query pg-db
-                [(str "SELECT * FROM articles"
-                      " WHERE article_url = ?") article-name]))
-    (catch Exception e
-      (str "get-article caught exception: " (.getMessage e)
-           "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
 (defn get-all-articles []
   (try
@@ -36,12 +33,12 @@
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
 (defn get-article-id [article-name]
-  (-> (get-article-metadata article-name)
+  (-> (db2/get-article-metadata (db-cfg/db-conn) article-name)
       first
       :article_id))
 
 (defn get-full-article [article-name]
-  (let [article (get-article-metadata article-name)
+  (let [article (db2/get-article-metadata (db-cfg/db-conn) article-name)
         article-id (:article_id article)
         content (get-article-content article-id)]
     (assoc-in article [:content] content)))

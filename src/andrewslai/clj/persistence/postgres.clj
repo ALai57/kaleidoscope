@@ -9,7 +9,6 @@
 (def db-name (@env/env :db-name))
 (def db-user (@env/env :db-user))
 (def db-password (@env/env :db-password))
-(def live-db? (@env/env :live-db?))
 
 (def pg-db {:dbtype "postgresql"
             :dbname db-name
@@ -24,6 +23,16 @@
     (catch Exception e
       (str "get-all-articles caught exception: " (.getMessage e)))))
 
+(defn- get-article-metadata [article-name]
+  (try
+    (first
+      (sql/query pg-db
+                 [(str "SELECT * FROM articles"
+                       " WHERE article_url = ?") article-name]))
+    (catch Exception e
+      (str "get-article caught exception: " (.getMessage e)
+           "postgres config: " (assoc pg-db :password "xxxxxx")))))
+
 (defn make-db []
   (reify Persistence
     (save-article! [_]
@@ -32,10 +41,11 @@
       nil)
     (get-all-articles [_]
       (get-all-articles))
-    (get-article-metadata [_]
-      nil)))
+    (get-article-metadata [_ article-name]
+      (get-article-metadata article-name))))
 
 (comment
   (get-all-articles)
   (db2/get-all-articles (make-db))
+  (db2/get-article-metadata (make-db) "test-article")
   )
