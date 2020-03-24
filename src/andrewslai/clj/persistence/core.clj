@@ -3,4 +3,5 @@
 (defprotocol Persistence
   (save-article! [_])
   (get-full-article [_ article-name])
-  (get-all-articles [_]))
+  (get-all-articles [_])
+  (get-resume-info [_]))

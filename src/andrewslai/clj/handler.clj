@@ -1,16 +1,15 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [andrewslai.clj.env :as env]
-            [andrewslai.clj.db :as db]
             [andrewslai.clj.persistence.config :as db-cfg]
-            [andrewslai.clj.persistence.core :as db2]
+            [andrewslai.clj.persistence.core :as db]
             [compojure.api.sweet :refer :all]
             [org.httpkit.server :as httpkit]
             [ring.util.http-response :refer :all]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [clojure.java.shell :as shell]
-            [clojure.java.jdbc :as sql]))
+            ))
 
 (defn init []
   (println "Hello! Starting service..."))
@@ -44,13 +43,13 @@
             [article-type article-name]
           (ok {:article-type article-type
                :article-name article-name
-               :article (db2/get-full-article (db-cfg/db-conn) article-name)}))
+               :article (db/get-full-article (db-cfg/db-conn) article-name)}))
 
         (GET "/get-all-articles" [article-type article-name]
-          (ok (db2/get-all-articles (db-cfg/db-conn))))
+          (ok (db/get-all-articles (db-cfg/db-conn))))
 
         (GET "/get-resume-info" []
-          (ok (db/get-resume-info)))
+          (ok (db/get-resume-info (db-cfg/db-conn))))
 
         ) "public")))
 
@@ -61,13 +60,12 @@
 (comment
   (-main)
 
-  (def resume-info (db/get-resume-info))
+  (let [resume-info (db/get-resume-info (db-cfg/db-conn))]
+    (clojure.pprint/pprint (:projects resume-info)))
 
-  (clojure.pprint/pprint (:projects resume-info))
-
-  (db/get-full-article "my-first-article")
+  (db/get-full-article (db-cfg/db-conn) "my-first-article")
 
   (clojure.pprint/pprint
-   (db/get-content (first (db/get-article "my-second-article"))))
+    (first (db/get-article (db-cfg/db-conn) "my-second-article")))
 
   )
