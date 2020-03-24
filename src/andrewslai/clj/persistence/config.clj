@@ -46,9 +46,9 @@
     (mock/make-db)))
 
 (comment
-  (require '[andrewslai.clj.persistence.core :as core])
-  (core/save-article! (db-conn))
+  (require '[andrewslai.clj.persistence.core :as db2])
+  (db2/save-article! (db-conn))
 
   (with-redefs [live-db? false]
-    (count (core/get-all-articles (db-conn))))
+    (count (db2/get-all-articles (db-conn))))
   )

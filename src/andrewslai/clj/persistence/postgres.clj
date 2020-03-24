@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.postgres
-  (:require [andrewslai.clj.persistence.core :refer [Persistence] :as core]
+  (:require [andrewslai.clj.persistence.core :refer [Persistence] :as db2]
             [andrewslai.clj.env :as env]
             [clojure.java.jdbc :as sql]))
 
@@ -37,5 +37,5 @@
 
 (comment
   (get-all-articles)
-  (core/get-all-articles (make-db))
+  (db2/get-all-articles (make-db))
   )
