@@ -86,7 +86,8 @@
 (comment
   (get-all-articles)
   (db2/get-all-articles (make-db))
-  (db2/get-full-article (make-db) "test-article")
+  (clojure.pprint/pprint (db2/get-full-article (make-db) "test-article"))
+
   (db2/get-article-content (make-db) 1)
   )
 
@@ -119,7 +120,8 @@
                  :organizations)
 
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/skills.csv"
-                 :skills)) 
+                 :skills)
+  )
 
 
 (comment
