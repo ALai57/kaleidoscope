@@ -1,17 +1,17 @@
 (defproject andrewslai "0.0.1"
   :description "Template for full stack development in Clojure"
-  :dependencies [[cheshire "5.8.1"]
-                 [clj-http "3.9.1"]
-                 [coreagile/defenv "1.0.2"]
+  :dependencies [[cheshire "5.10.0"]
+                 [clj-http "3.10.0"]
+                 [coreagile/defenv "1.0.9"]
                  [hiccup "1.0.5"]
                  [http-kit "2.3.0"]
                  [metosin/compojure-api "1.1.12"]
                  [org.clojure/clojure "1.9.0" :upgrade false]
                  [org.clojure/core.async "0.3.442"
                   :exclusions [org.clojure/tools.reader]]
-                 [org.clojure/data.csv "0.1.4"]
-                 [org.clojure/java.jdbc "0.7.10"]
-                 [org.postgresql/postgresql "42.1.4"]
+                 [org.clojure/data.csv "1.0.0"]
+                 [org.clojure/java.jdbc "0.7.11"]
+                 [org.postgresql/postgresql "42.2.11"]
                  [ring/ring-mock "0.4.0"]
 
                  [cljs-http "0.1.46"]
@@ -87,12 +87,11 @@
                                   [cider.piggieback/wrap-cljs-repl]}
                    :plugins [[lein-ancient "0.6.15"]
                              [lein-bikeshed "0.5.2"]
-                             [lein-kibit "0.1.6"]
+                             [lein-kibit "0.1.8"]
                              [lein-ring "0.12.5"]]}
              :prod {:source-paths ["src/andrewslai/cljs"]
                     :plugins [[lein-ancient "0.6.15"]
                               [lein-bikeshed "0.5.2"]
-                              [lein-kibit "0.1.6"]
                               [lein-ring "0.12.5"]]}
              :upload {:dependencies [[prismatic/plumbing "0.5.5"]
                                      [clj-postgresql "0.7.0"]]
@@ -100,7 +99,7 @@
                                      [cider.piggieback/wrap-cljs-repl]}
                       :plugins [[lein-ancient "0.6.15"]
                                 [lein-bikeshed "0.5.2"]
-                                [lein-kibit "0.1.6"]
+                                [lein-kibit "0.1.8"]
                                 [lein-ring "0.12.5"]]}
              :uberjar {:source-paths ["src/andrewslai/cljs"]
                        :cljsbuild
