@@ -23,17 +23,17 @@
   (result-set-read-column [pgobj metadata i]
     (vec (.getArray pgobj))))
 
-(def live-db? (@env/env :live-db?))
+(def ^:dynamic *live-db?* (@env/env :live-db?))
 
 (defn db-conn []
-  (if live-db?
+  (if *live-db?*
     (postgres/make-db)
     (mock/make-db)))
 
 (comment
-  (require '[andrewslai.clj.persistence.core :as db2])
-  (db2/save-article! (db-conn))
+  (require '[andrewslai.clj.persistence.core :as db])
+  (db/save-article! (db-conn))
 
-  (with-redefs [live-db? false]
-    (count (db2/get-all-articles (db-conn))))
+  (binding [*live-db?* false]
+    (count (db/get-all-articles (db-conn))))
   )
