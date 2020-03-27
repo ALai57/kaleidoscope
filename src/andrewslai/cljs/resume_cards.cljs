@@ -3,7 +3,6 @@
             [re-frame.core :refer [subscribe
                                    dispatch]]
             [cljsjs.react-bootstrap]
-            [cljsjs.d3]
             [cljsjs.react-pose]
             ["react" :as react]
             [goog.object :as gobj]))

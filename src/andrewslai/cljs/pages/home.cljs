@@ -2,9 +2,6 @@
   (:require [andrewslai.cljs.article :as article]
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.resume-cards :as resume-cards]
-            [andrewslai.cljs.circle-nav :as circle-nav]
-            [andrewslai.cljs.components.github-commit-history :as gh]
-            [andrewslai.cljs.components.radial-menu :as rm]
             [andrewslai.cljs.loading :as loading]
             [andrewslai.cljs.navbar :as nav]
             [reagent.core  :as reagent]
@@ -16,14 +13,11 @@
             [ajax.protocols :as pr]
             [ajax.ring :refer [ring-response-format]]
             [cljsjs.react-bootstrap]
-            [cljsjs.react-transition-group :as rtg]
-            [cljsjs.d3]
             [cljsjs.react-pose]
             ["react" :as react]
             ["react-spinners" :as spinner]
-            ["emotion" :as emotion]
+            ["@emotion/core" :as emotion]
             [goog.object :as gobj]
-            [reframe-components.recom-radial-menu :as rcm]
             [stylefy.core :refer [init]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -49,7 +43,6 @@
   [:div#selected-menu-item
    [:h3#menu-title "Teamwork"]])
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RESUME INFO
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -65,7 +58,6 @@
                     :volunteering [volunteering]
                     :tango [tango]
                     :cv [cv]
-                    :github [gh/github]
                     :teamwork [teamwork]})
 
 (defn reset-resume-info [x]
@@ -79,13 +71,11 @@
       (dispatch [:reset-resume-info]))))
 
 (defn home []
-  (let [radial-menu-open? (subscribe [:radial-menu-open?])
-        active-icon (subscribe [:active-icon])
-        [menu-item icon-props] @active-icon]
-    [:div 
-     [nav/primary-nav]
-     [cards/recent-content-display]
-     [loading/load-screen]]))
+  (println "Home")
+  [:div 
+   [nav/primary-nav]
+   [cards/recent-content-display]
+   #_[loading/load-screen]])
 
 (comment
   (cljs.pprint/pprint (:resume-info @re-frame.db/app-db))

@@ -1,7 +1,6 @@
 (ns andrewslai.cljs.pose
   (:require [andrewslai.cljs.article :as article]
             [andrewslai.cljs.article-cards :as cards]
-            [andrewslai.cljs.circle-nav :as circle-nav]
             [andrewslai.cljs.loading :as loading]
             [andrewslai.cljs.navbar :as nav]
             [reagent.core  :as reagent]
@@ -13,15 +12,12 @@
             [ajax.protocols :as pr]
             [ajax.ring :refer [ring-response-format]]
             [cljsjs.react-bootstrap]
-            [cljsjs.react-transition-group :as rtg]
-            [cljsjs.d3]
             ["react" :as react]
             ["react-spinners" :as spinner]
-            ["emotion" :as emotion]
+            ["@emotion/core" :as emotion]
             [cljsjs.react-pose]
             [goog.object :as gobj]
-            [reframe-components.recom-radial-menu :as rcm]
-            [stylefy.core :refer [init]]))
+            ))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

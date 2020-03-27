@@ -1,14 +1,12 @@
 (ns andrewslai.cljs.views
   (:require [andrewslai.cljs.article :as article]
             [andrewslai.cljs.article-cards :as cards]
-            [andrewslai.cljs.circle-nav :as circle-nav]
             [andrewslai.cljs.loading :as loading]
             [andrewslai.cljs.pose :as pose]
             [andrewslai.cljs.navbar :as nav]
             [andrewslai.cljs.resume-cards :as resume-cards]
 
             [andrewslai.cljs.pages.home :refer [home]]
-            [andrewslai.cljs.d3 :refer [d3-example]]
             [re-frame.core :refer [subscribe
                                    dispatch]]))
 
@@ -114,11 +112,11 @@
              :research [research]
              :data-analysis [data-analysis]
              :load-screen [load-page]
-             :d3-example [d3-example]
              :pose [pose]})
 
 (defn app
   []
   (let [active-panel (subscribe [:active-panel])]
     (fn []
+      (println "active panel" active-panel)
       (get panels @active-panel))))

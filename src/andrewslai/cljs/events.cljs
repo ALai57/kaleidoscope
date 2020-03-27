@@ -74,16 +74,18 @@
                   :resume-info nil})))
 
 (reg-event-db
- :process-resume-info
- (fn [db [_ response]]
-   (modify-db db {:loading-resume? false
-                  :resume-info response
-                  :selected-resume-info response})))
+  :process-resume-info
+  (fn [db [_ response]]
+    (println "response" response)    
+    (modify-db db {:loading-resume? false
+                   :resume-info response
+                   :selected-resume-info response})))
 
 (reg-event-db
- :bad-resume-info
- (fn [db [_ response]]
-   (modify-db db {:resume-info "Unable to load content"})))
+  :bad-resume-info  
+  (fn [db [_ response]]
+    (println "bad response" response)
+    (modify-db db {:resume-info "Unable to load content"})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for get-recent-articles
@@ -102,45 +104,19 @@
                   :recent-content nil})))
 
 (reg-event-db
- :process-recent-response
- (fn [db [_ response]]
-   ;;(println "SUCCESS Retreived recent articles: " response)
-   (modify-db db {:loading? false
-                  :recent-content response})))
+  :process-recent-response
+  (fn [db [_ response]]
+    (println "SUCCESS Retreived recent articles: " response)
+    (modify-db db {:loading? false
+                   :recent-content response})))
 
 (reg-event-db
- :bad-recent-response
- (fn [db [_ response]]
-   (modify-db db {:loading? false
-                  :recent-content "Unable to load content"})))
+  :bad-recent-response
+  (fn [db [_ response]]
+    (println "FAIL Retreived recent articles: " response)
+    (modify-db db {:loading? false
+                   :recent-content "Unable to load content"})))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; db events for radial menu
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(reg-event-db
- :toggle-menu
- (fn [db [_ _]]
-   (let [new-value (not (:radial-menu-open? db))]
-     (assoc db :radial-menu-open? new-value))))
-
-(reg-event-db
- :click-radial-icon
- (fn [db [_ value]]
-   (let [resume-info (:resume-info db)
-         db-mod (if (= (first value) :me)
-                  (assoc db :selected-resume-info resume-info)
-                  db)]
-     (assoc db-mod :active-icon value))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; db events for d3 example
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(reg-event-db
- :update-circles
- (fn
-   [db [_ idx param val]]
-   #_(println "idx " idx "param " param "val " val)
-   (assoc-in db [:circles idx param ] val)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for clicking on resume info

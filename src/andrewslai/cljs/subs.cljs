@@ -42,24 +42,14 @@
    (:recent-content db)))
 
 (reg-sub
- :loading?
- (fn [db _]
-   (:loading? db)))
+  :loading?
+  (fn [db _]
+    (:loading? db)))
 
 (reg-sub
- :radial-menu-open?
- (fn [db]
-   (:radial-menu-open? db)))
-
-(reg-sub
- :active-icon
- (fn [db]
-   (:active-icon db)))
-
-(reg-sub
- :test-transitions
- (fn [db]
-   (:test-transitions db)))
+  :test-transitions
+  (fn [db]
+    (:test-transitions db)))
 
 
 ;; -------------------------------------------------------------------------------------

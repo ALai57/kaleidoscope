@@ -2,6 +2,7 @@
   (:require-macros [secretary.core :refer [defroute]])
   (:require [goog.events :as events]
             [reagent.core :as reagent]
+            [reagent.dom :refer [render]]
             [re-frame.core :refer [dispatch dispatch-sync]]
             [secretary.core :as secretary]
             [andrewslai.cljs.events] ;; required to make the compiler
@@ -47,5 +48,5 @@
 (defn ^:export main
   []
   ;; `andrewslai.cljs.views/app` is the root view for the entire UI.
-  (reagent/render [andrewslai.cljs.views/app]
-                  (.getElementById js/document "app")))
+  (render [andrewslai.cljs.views/app]
+          (.getElementById js/document "app")))

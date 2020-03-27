@@ -6,8 +6,8 @@
             [clojure.string :as str]
             [cljsjs.react-bootstrap]
             ["react" :as react]
-            ;;["react-spinners" :as spinner]
-            ["emotion" :as emotion]
+            ["react-spinners" :as spinner]
+            ["@emotion/core" :as emotion]
             ["react-spinners/ClipLoader" :as cl-spinner]
             ))
 
@@ -41,13 +41,14 @@
       (.remove (get-first-item)))))
 
 (defn load-screen []
-  (let [loading? (subscribe [:loading?])
-        spinner (.. cl-spinner -default -prototype)
-        spinner-props (.. spinner -constructor -defaultProps)]
+  [:div "Loading"]
+  #_(let [loading? (subscribe [:loading?])
+          spinner (.. cl-spinner -default -prototype)
+          spinner-props (.. spinner -constructor -defaultProps)]
 
-    (set! (.. spinner-props -loading) (js->clj @loading?))
-    (if (true? @loading?) (remove-dynamic-js))
-    [:div#loading.load-icon (.render spinner)]))
+      (set! (.. spinner-props -loading) (js->clj @loading?))
+      (if (true? @loading?) (remove-dynamic-js))
+      [:div#loading.load-icon (.render spinner)]))
 
 (defn load-screen-test []
   (let [loading? (subscribe [:loading?])

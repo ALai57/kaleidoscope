@@ -25,9 +25,6 @@
    :recent-content nil
    :loading? false
    :loading-resume? false
-   :radial-menu-open? true
-   :active-icon [:me {:image-url "images/my-silhouette.svg"}]
-   :github-data nil
    :circles [{:name "circle 1"
               :x 10
               :y 10

@@ -1,38 +1,32 @@
 (defproject andrewslai "0.0.1"
   :description "Template for full stack development in Clojure"
   :dependencies [[cheshire "5.10.0"]
+                 ;; TODO: clean up for advanced opt.
+                 [clj-commons/secretary "1.2.4"]
                  [clj-http "3.10.0"]
+                 [cljs-ajax "0.8.0"]
+                 [cljs-http "0.1.46"]
+                 [cljsjs/react-bootstrap "1.0.0-beta.14-0"] ;; latest release
+                 [cljsjs/react-pose "1.6.4-1"]
                  [coreagile/defenv "1.0.9"]
+                 [day8.re-frame/tracing "0.5.3"]
                  [hiccup "1.0.5"]
+                 [hickory "0.7.1"]
                  [http-kit "2.3.0"]
                  [metosin/compojure-api "1.1.12" :upgrade false]
+                 [org.clojars.alai/reframe-components "0.3.0"]
                  [org.clojure/clojure "1.10.1"]
+                 [org.clojure/clojurescript "1.10.597"]
                  [org.clojure/core.async "1.0.567"
                   :exclusions [org.clojure/tools.reader]]
                  [org.clojure/data.csv "1.0.0"]
                  [org.clojure/java.jdbc "0.7.11"]
                  [org.postgresql/postgresql "42.2.11"]
-                 [ring/ring-mock "0.4.0"]
-
-                 [cljs-http "0.1.46"]
-                 [cljs-ajax "0.8.0"]
-                 [cljsjs/react-bootstrap "1.0.0-beta.14-0"] ;; latest release
-                 [cljsjs/react "16.13.0-0"]
-                 [cljsjs/react-dom "16.13.0-0"]
-                 [cljsjs/react-pose "1.6.4-1"]
-                 [cljsjs/react-transition-group "4.3.0-0"]
-                 [org.clojure/clojurescript "1.10.597"]
-                 [hickory "0.7.1"]
-                 [org.clojars.alai/reframe-components "0.3.0"]
-                 ;; TODO: clean up for advanced opt.
-                 [clj-commons/secretary "1.2.4"]
-                 [day8.re-frame/tracing "0.5.3"]
-                 [cljsjs/d3 "5.12.0-0"]
-                 [reagent "0.10.0"]
                  [re-frame "0.12.0"]
+                 [reagent "0.10.0"]
                  [ring "1.8.0"]
-                 [sablono "0.8.6"]
-                 ]
+                 [ring/ring-mock "0.4.0"]
+                 [sablono "0.8.6"]]
 
   :plugins [[lein-figwheel "0.5.19"]
             [lein-cljsbuild "1.1.7"]]
@@ -60,9 +54,9 @@
                      :optimizations :none
                      :output-to "resources/public/js/compiled/andrewslai.js"
                      :output-dir "resources/public/js/compiled/out_andrewslai"
-                     :npm-deps {:react-spinners "0.4.8"
-                                :react "16.8.6"
-                                :emotion "10.0.9"}
+                     :npm-deps {:react-spinners "0.8.1"
+                                :react "16.13.0"
+                                :emotion "10.0.27"}
                      :install-deps true
                      :source-map true
                      :source-map-timestamp true}}
@@ -72,16 +66,16 @@
                       :optimizations :advanced
                       :output-to "resources/public/js/compiled/andrewslai.js"
                       :output-dir "resources/public/js/compiled/out_prod"
-                      :npm-deps {:react-spinners "0.4.8"
-                                 :react "16.8.6"
-                                 :emotion "10.0.9"}
+                      :npm-deps {:react-spinners "0.8.1"
+                                 :react "16.13.0"
+                                 :emotion "10.0.27"}
                       :install-deps true
                       :source-map-timestamp true}}}
 
    }
   :profiles {:dev {:dependencies [[binaryage/devtools "1.0.0"]
-                                  [figwheel-sidecar "0.5.19"]
-                                  [cider/piggieback "0.4.2"]]
+                                  [cider/piggieback "0.4.2"]
+                                  [figwheel-sidecar "0.5.19"]]
                    :source-paths ["src/andrewslai/cljs"]
                    :repl-options {:nrepl-middleware
                                   [cider.piggieback/wrap-cljs-repl]}
@@ -93,8 +87,8 @@
                     :plugins [[lein-ancient "0.6.15"]
                               [lein-bikeshed "0.5.2"]
                               [lein-ring "0.12.5"]]}
-             :upload {:dependencies [[prismatic/plumbing "0.5.5"]
-                                     [clj-postgresql "0.7.0"]]
+             :upload {:dependencies [[clj-postgresql "0.7.0"]
+                                     [prismatic/plumbing "0.5.5"]]
                       :repl-options {:nrepl-middleware
                                      [cider.piggieback/wrap-cljs-repl]}
                       :plugins [[lein-ancient "0.6.15"]
@@ -111,9 +105,9 @@
                                              :optimizations :advanced
                                              :output-to "resources/public/js/compiled/andrewslai.js"
                                              :output-dir "resources/public/js/compiled/out_deploy"
-                                             :npm-deps {:react-spinners "0.4.8"
-                                                        :react "16.8.6"
-                                                        :emotion "10.0.9"}
+                                             :npm-deps {:react-spinners "0.8.1"
+                                                        :react "16.13.0"
+                                                        :emotion "10.0.27"}
                                              :install-deps true
                                              :source-map-timestamp true}}}}
                        :prep-tasks ["compile" ["cljsbuild" "once" "deploy"]]}})

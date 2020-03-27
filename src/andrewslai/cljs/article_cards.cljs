@@ -25,6 +25,7 @@
 (defn make-card
   [{:keys [article_tags title article_url article_id timestamp] :as article}]
   (let [date (first (.split (.toISOString timestamp) "T"))]
+    (println article date)
     ^{:key article_id}
     [Card {:class "text-white bg-light mb-3 article-card"}
      [:div.container-fluid
@@ -51,6 +52,7 @@
                       (filter #(= (:article_tags %1) content-type)
                               @recent-content)
                       @recent-content)]
+    (println "Article cards Getting recent content" the-content)
     [:div#recent-content
      [:div#recent-article-cards.card-group
       (map make-card the-content)]]))
