@@ -6,9 +6,10 @@
      (binding [andrewslai.clj.persistence.config/*live-db?* false]
        ~@body)))
 
-(defmacro with-captured-input-as [captured-inputs capture-input & body]
+(defmacro with-captured-input-as [captured-inputs capture-fn & body]
   `(let [~captured-inputs (atom [])
-         ~capture-input (fn [& inputs#] (swap! ~captured-inputs conj inputs#))]
+         ~capture-fn (fn [captured-fn# & inputs#]
+                       (swap! ~captured-inputs conj {captured-fn# inputs#}))]
      ~@body))
 
 (comment

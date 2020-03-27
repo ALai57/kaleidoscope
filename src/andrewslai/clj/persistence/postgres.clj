@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.postgres
-  (:require [andrewslai.clj.persistence.core :refer [Persistence] :as db2]
+  (:require [andrewslai.clj.persistence.core :refer [Persistence] :as db]
             [andrewslai.clj.env :as env]
             [clojure.java.jdbc :as sql]))
 
@@ -85,10 +85,13 @@
 
 (comment
   (get-all-articles)
-  (db2/get-all-articles (make-db))
-  (clojure.pprint/pprint (db2/get-full-article (make-db) "test-article"))
+  (db/get-all-articles (make-db))
+  (clojure.pprint/pprint (db/get-full-article (make-db) "test-article"))
 
-  (db2/get-article-content (make-db) 1)
+  (db/get-article-content (make-db) 1)
+
+  (clojure.pprint/pprint (db/get-resume-info (make-db)))
+  (clojure.pprint/pprint (first (:skills (db/get-resume-info (make-db)))))
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
