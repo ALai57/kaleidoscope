@@ -1,8 +1,5 @@
 (ns andrewslai.cljs.pages.home
   (:require [andrewslai.cljs.article :as article]
-            [andrewslai.cljs.article-cards :as cards]
-            [andrewslai.cljs.resume-cards :as resume-cards]
-            [andrewslai.cljs.loading :as loading]
             [andrewslai.cljs.navbar :as nav]
             [reagent.core  :as reagent]
             [re-frame.core :refer [subscribe
@@ -12,13 +9,7 @@
             [ajax.core :refer [GET]]
             [ajax.protocols :as pr]
             [ajax.ring :refer [ring-response-format]]
-            [cljsjs.react-bootstrap]
-            [cljsjs.react-pose]
-            ["react" :as react]
-            ["react-spinners" :as spinner]
-            ["@emotion/core" :as emotion]
-            [goog.object :as gobj]
-            [stylefy.core :refer [init]]))
+            [goog.object :as gobj]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; MENU CONTENTS
@@ -53,28 +44,11 @@
 ;;  populate accordingly -- e.g. I click on Project SOAR, and YMCA pops up
 ;;  on top and the mentoring and volunteering cards pop up on bottom
 
-(def menu-contents {:me [resume-cards/me]
-                    :clojure [clojure]
-                    :volunteering [volunteering]
-                    :tango [tango]
-                    :cv [cv]
-                    :teamwork [teamwork]})
-
-(defn reset-resume-info [x]
-  (let [clicked-element (.-target x)
-        clicked-class (.-className clicked-element)]
-    (when-not (or (clojure.string/includes? clicked-class "resume-info-image")
-                  (clojure.string/includes? clicked-class "resume-info-icon")
-                  (clojure.string/includes? clicked-class "card-description")
-                  (clojure.string/includes? clicked-class "card-title")
-                  (clojure.string/includes? clicked-class "card-text"))
-      (dispatch [:reset-resume-info]))))
-
 (defn home []
   (println "Home")
   [:div 
    [nav/primary-nav]
-   [cards/recent-content-display]
+   #_[cards/recent-content-display]
    #_[loading/load-screen]])
 
 (comment

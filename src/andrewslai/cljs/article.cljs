@@ -4,7 +4,7 @@
             [clojure.string :as str]
 
             [hickory.core :as h]
-            [cljsjs.react-bootstrap]))
+            ))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
