@@ -1,7 +1,6 @@
 (ns andrewslai.cljs.core
   (:require-macros [secretary.core :refer [defroute]])
   (:require [goog.events :as events]
-            [reagent.core :as reagent]
             [reagent.dom :refer [render]]
             [re-frame.core :refer [dispatch dispatch-sync]]
             [secretary.core :as secretary]

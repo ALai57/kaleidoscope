@@ -1,11 +1,7 @@
 (ns andrewslai.cljs.article
-  (:require [reagent.core  :as reagent]
-            [re-frame.core :refer [subscribe]]
-            [clojure.string :as str]
-
+  (:require [clojure.string :as str]
             [hickory.core :as h]
-            ))
-
+            [re-frame.core :refer [subscribe]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helper functions

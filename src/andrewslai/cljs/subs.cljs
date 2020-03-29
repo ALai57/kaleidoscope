@@ -1,6 +1,5 @@
 (ns andrewslai.cljs.subs
-  (:require-macros [reagent.ratom :refer [reaction]])
-  (:require [re-frame.core :refer [reg-sub subscribe]]))
+  (:require [re-frame.core :refer [reg-sub]]))
 
 ;; -------------------------------------------------------------------------------------
 ;; Layer 2: "extractors"

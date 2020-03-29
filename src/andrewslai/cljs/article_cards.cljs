@@ -1,19 +1,14 @@
 (ns andrewslai.cljs.article-cards
-  (:require [reagent.core  :as reagent]
-            [clojure.string :as str]
-            [re-frame.core :refer [subscribe
-                                   dispatch
-                                   reg-sub]]
-            [cljsjs.react :as react]
-            [reagent.dom :as dom]
-            ;;[cljsjs.react-dom :as react-dom]
+  (:require [cljsjs.react :as react]
             [cljsjs.react-bootstrap :as react-bootstrap]
-            ))
+            [clojure.string :as str]
+            [re-frame.core :refer [subscribe]]
+            [reagent.core :refer [adapt-react-class]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Base card
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def Card (reagent/adapt-react-class (aget js/ReactBootstrap "Card")))
+(def Card (adapt-react-class (aget js/ReactBootstrap "Card")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Card formatting

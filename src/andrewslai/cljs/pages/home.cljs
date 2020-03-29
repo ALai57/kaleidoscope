@@ -2,14 +2,6 @@
   (:require [andrewslai.cljs.article :as article]
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.navbar :as nav]
-            [reagent.core  :as reagent]
-            [re-frame.core :refer [subscribe
-                                   dispatch
-                                   reg-sub]]
-
-            [ajax.core :refer [GET]]
-            [ajax.protocols :as pr]
-            [ajax.ring :refer [ring-response-format]]
             [goog.object :as gobj]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

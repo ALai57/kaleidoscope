@@ -1,13 +1,8 @@
 (ns andrewslai.cljs.events
-  (:require
-   [andrewslai.cljs.db :refer [default-db]]
-   [re-frame.core :refer [reg-event-db
-                          reg-event-fx
-                          inject-cofx
-                          path
-                          after
-                          dispatch]]
-   [ajax.core :refer [GET]]))
+  (:require [andrewslai.cljs.db :refer [default-db]]
+            [re-frame.core :refer [reg-event-db
+                                   dispatch]]
+            [ajax.core :refer [GET]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helper functions

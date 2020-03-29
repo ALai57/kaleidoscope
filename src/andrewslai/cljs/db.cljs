@@ -1,7 +1,5 @@
 (ns andrewslai.cljs.db
-  (:require [cljs.reader]
-            [cljs.spec.alpha :as s]
-            [re-frame.core :as re-frame]))
+  (:require [cljs.spec.alpha :as s]))
 
 
 ;; -- Spec --------------------------------------------------------------------

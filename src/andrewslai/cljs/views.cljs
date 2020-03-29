@@ -2,10 +2,8 @@
   (:require [andrewslai.cljs.article :as article]
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.navbar :as nav]
-
             [andrewslai.cljs.pages.home :refer [home]]
-            [re-frame.core :refer [subscribe
-                                   dispatch]]))
+            [re-frame.core :refer [subscribe]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Landing pages
