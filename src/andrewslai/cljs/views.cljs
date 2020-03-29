@@ -1,5 +1,6 @@
 (ns andrewslai.cljs.views
   (:require [andrewslai.cljs.article :as article]
+            [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.navbar :as nav]
 
             [andrewslai.cljs.pages.home :refer [home]]
@@ -18,7 +19,7 @@
    [:div#primary-content
     [article/primary-content]]
    [:div#rcb
-    ]])
+    [cards/recent-content-display "thoughts"]]])
 
 (defn archive
   []
@@ -32,13 +33,13 @@
 
 (defn about
   []
-  [:div {:onClick reset-resume-info
+  [:div {:onClick (fn [& x] (println "about"))
          :style {:height "100%"
                  :width "100%"
                  :position "absolute"}} 
    [nav/primary-nav]
    [:div {:style {:height "100%"}}
-    ]])
+    [cards/recent-content-display "about"]]])
 
 (defn research
   []
@@ -48,7 +49,7 @@
    [:div#primary-content
     [article/primary-content]]
    [:div#rcb
-    ]])
+    [cards/recent-content-display "research"]]])
 
 (defn data-analysis
   []
@@ -58,7 +59,7 @@
    [:div#primary-content
     [article/primary-content]]
    [:div#rcb
-    ]])
+    [cards/recent-content-display "data-analysis"]]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test pages

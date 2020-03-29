@@ -1,5 +1,6 @@
 (ns andrewslai.cljs.pages.home
   (:require [andrewslai.cljs.article :as article]
+            [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.navbar :as nav]
             [reagent.core  :as reagent]
             [re-frame.core :refer [subscribe
@@ -48,9 +49,11 @@
   (println "Home")
   [:div 
    [nav/primary-nav]
-   #_[cards/recent-content-display]
+   [cards/recent-content-display]
    #_[loading/load-screen]])
 
 (comment
   (cljs.pprint/pprint (:resume-info @re-frame.db/app-db))
+  (require '["react-bootstrap" :as react-bootstrap])
+
   )
