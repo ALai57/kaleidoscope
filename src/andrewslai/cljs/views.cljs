@@ -11,8 +11,7 @@
 ;; Landing pages
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn thoughts
-  []
+(defn thoughts []
   [:div
    [nav/primary-nav]
    [:p "Thoughts"]
@@ -21,8 +20,7 @@
    [:div#rcb
     [cards/recent-content-display "thoughts"]]])
 
-(defn archive
-  []
+(defn archive []
   [:div
    [nav/primary-nav]
    [:p "Archive"]
@@ -31,8 +29,7 @@
    [:div#rcb
     ]])
 
-(defn about
-  []
+(defn about []
   [:div {:onClick (fn [& x] (println "about"))
          :style {:height "100%"
                  :width "100%"
@@ -41,8 +38,7 @@
    [:div {:style {:height "100%"}}
     [cards/recent-content-display "about"]]])
 
-(defn research
-  []
+(defn research []
   [:div
    [nav/primary-nav]
    [:p "Research"]
@@ -51,8 +47,7 @@
    [:div#rcb
     [cards/recent-content-display "research"]]])
 
-(defn data-analysis
-  []
+(defn data-analysis []
   [:div
    [nav/primary-nav]
    [:p "Data Analysis"]
@@ -74,8 +69,7 @@
              :data-analysis [data-analysis]
              })
 
-(defn app
-  []
+(defn app []
   (let [active-panel (subscribe [:active-panel])]
     (fn []
       (println "active panel" active-panel)
