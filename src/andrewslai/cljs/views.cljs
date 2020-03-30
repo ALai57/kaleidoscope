@@ -3,7 +3,10 @@
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.navbar :as nav]
             [andrewslai.cljs.pages.home :refer [home]]
-            [re-frame.core :refer [subscribe]]))
+            [andrewslai.cljs.resume-cards :as resume-cards]
+            [clojure.string :refer [includes?]]
+            [re-frame.core :refer [subscribe
+                                   dispatch]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Landing pages
@@ -27,14 +30,24 @@
    [:div#rcb
     ]])
 
+(defn reset-resume-info [x]
+  (let [clicked-element (.-target x)
+        clicked-class (.-className clicked-element)]
+    (when-not (or (includes? clicked-class "resume-info-image")
+                  (includes? clicked-class "resume-info-icon")
+                  (includes? clicked-class "card-description")
+                  (includes? clicked-class "card-title")
+                  (includes? clicked-class "card-text"))
+      (dispatch [:reset-resume-info]))))
+
 (defn about []
-  [:div {:onClick (fn [& x] (println "about"))
+  [:div {:onClick reset-resume-info
          :style {:height "100%"
                  :width "100%"
-                 :position "absolute"}} 
+                 :position "absolute"}}
    [nav/primary-nav]
    [:div {:style {:height "100%"}}
-    [cards/recent-content-display "about"]]])
+    [resume-cards/me]]])
 
 (defn research []
   [:div

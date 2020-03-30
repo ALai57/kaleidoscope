@@ -26,7 +26,6 @@
 (def ^:dynamic *live-db?* (@env/env :live-db?))
 
 (defn db-conn []
-  (println "using live db?" *live-db?*)
   (if *live-db?*
     (postgres/make-db)
     (mock/make-db)))

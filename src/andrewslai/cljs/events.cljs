@@ -26,19 +26,19 @@
 ;; db events for get-article
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (reg-event-db
- :retrieve-content
- (fn [db [_ article-type article-name]]
+  :retrieve-content
+  (fn [db [_ article-type article-name]]
 
-   (println "Retrieve-article path:"
-            (make-article-url article-type article-name))
+    (println "Retrieving article:"
+             (make-article-url article-type article-name))
 
-   (GET (make-article-url article-type article-name)
-       {:handler #(dispatch [:process-response %1])
-        :error-handler #(dispatch [:bad-response %1])})
+    (GET (make-article-url article-type article-name)
+        {:handler #(dispatch [:process-response %1])
+         :error-handler #(dispatch [:bad-response %1])})
 
-   (modify-db db {:loading? true
-                  :active-panel article-type
-                  :active-content nil})))
+    (modify-db db {:loading? true
+                   :active-panel article-type
+                   :active-content nil})))
 
 (reg-event-db
  :process-response
@@ -56,22 +56,19 @@
 ;; db events for resume-info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (reg-event-db
- :retrieve-resume-info
- (fn [db [_]]
+  :retrieve-resume-info
+  (fn [db [_]]
 
-   (println "Retrieve resume-info")
+    (GET "/get-resume-info"
+        {:handler #(dispatch [:process-resume-info %1])
+         :error-handler #(dispatch [:bad-resume-info %1])})
 
-   (GET "/get-resume-info"
-       {:handler #(dispatch [:process-resume-info %1])
-        :error-handler #(dispatch [:bad-resume-info %1])})
-
-   (modify-db db {:loading-resume? true
-                  :resume-info nil})))
+    (modify-db db {:loading-resume? true
+                   :resume-info nil})))
 
 (reg-event-db
   :process-resume-info
   (fn [db [_ response]]
-    (println "response" response)    
     (modify-db db {:loading-resume? false
                    :resume-info response
                    :selected-resume-info response})))
@@ -79,7 +76,6 @@
 (reg-event-db
   :bad-resume-info  
   (fn [db [_ response]]
-    (println "bad response" response)
     (modify-db db {:resume-info "Unable to load content"})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -101,14 +97,12 @@
 (reg-event-db
   :process-recent-response
   (fn [db [_ response]]
-    (println "SUCCESS Retreived recent articles: " response)
     (modify-db db {:loading? false
                    :recent-content response})))
 
 (reg-event-db
   :bad-recent-response
   (fn [db [_ response]]
-    (println "FAIL Retreived recent articles: " response)
     (modify-db db {:loading? false
                    :recent-content "Unable to load content"})))
 
@@ -141,44 +135,45 @@
     project))
 
 (reg-event-db
- :click-resume-info-card
- (fn [db [_ click-type clicked-item-name]]
-   #_(println "clicked!!" clicked-item-name)
-   (let [{all-projects :projects
-          all-orgs :organizations
-          all-skills :skills} (:resume-info db)
+  :click-resume-info-card
+  (fn [db [_ click-type clicked-item-name]]
+    (let [{all-projects :projects
+           all-orgs :organizations
+           all-skills :skills} (:resume-info db)
 
-         associated-projects (find-associated-projects clicked-item-name
-                                                       click-type
-                                                       all-projects)
+          associated-projects (find-associated-projects clicked-item-name
+                                                        click-type
+                                                        all-projects)
 
-         associated-org-names (flatten (map :organization_names
-                                            associated-projects))
+          associated-org-names (flatten (map :organization_names
+                                             associated-projects))
 
-         orgs-filter (fn [o]
-                       (some (fn [org-name] (= org-name (:name o)))
-                             associated-org-names))
+          orgs-filter (fn [o]
+                        (some (fn [org-name] (= org-name (:name o)))
+                              associated-org-names))
 
-         associated-orgs (filter orgs-filter all-orgs)
+          associated-orgs (filter orgs-filter all-orgs)
 
 
-         associated-skills-names (map get-skill-name
-                                      (flatten (map :skills_names associated-projects)))
-         skills-filter (fn [s]
-                         (some (fn [skill-name] (= skill-name (:name s)))
-                               associated-skills-names))
+          associated-skills-names
+          (map get-skill-name
+               (flatten (map :skills_names associated-projects)))
 
-         associated-skills (filter skills-filter all-skills)]
+          skills-filter (fn [s]
+                          (some (fn [skill-name] (= skill-name (:name s)))
+                                associated-skills-names))
 
-     #_(println "associated-projects: " associated-projects)
-     #_(println "associated-orgs: " associated-orgs)
-     #_(println "associated-skills: " associated-skills)
+          associated-skills (filter skills-filter all-skills)]
 
-     (modify-db db {:selected-resume-info {:organizations associated-orgs
-                                           :projects associated-projects
-                                           :skills associated-skills}
-                    :selected-resume-category click-type
-                    :selected-resume-card clicked-item-name}))))
+      #_(println "associated-projects: " associated-projects)
+      #_(println "associated-orgs: " associated-orgs)
+      #_(println "associated-skills: " associated-skills)
+
+      (modify-db db {:selected-resume-info {:organizations associated-orgs
+                                            :projects associated-projects
+                                            :skills associated-skills}
+                     :selected-resume-category click-type
+                     :selected-resume-card clicked-item-name}))))
 
 (reg-event-db
  :reset-resume-info

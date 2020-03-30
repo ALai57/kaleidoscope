@@ -46,7 +46,6 @@
                :article (db/get-full-article (db-cfg/db-conn) article-name)}))
 
         (GET "/get-all-articles" [article-type article-name]
-          (println "start request for all articles:")
           (ok (db/get-all-articles (db-cfg/db-conn))))
 
         (GET "/get-resume-info" []

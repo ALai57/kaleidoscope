@@ -9,6 +9,7 @@
                  [cljsjs/react "16.13.0-0"]
                  [cljsjs/react-dom "16.13.0-0"]
                  [cljsjs/react-bootstrap "1.0.0-beta.14-0"] ;; latest release
+                 [cljsjs/react-pose "1.6.4-1"]
                  [coreagile/defenv "1.0.9"]
                  [day8.re-frame/tracing "0.5.3"]
                  [hiccup "1.0.5"]
@@ -54,7 +55,6 @@
                      :optimizations :none
                      :output-to "resources/public/js/compiled/andrewslai.js"
                      :output-dir "resources/public/js/compiled/out_andrewslai"
-                     ;;:install-deps true
                      :source-map true
                      :source-map-timestamp true}}
     :prod {:source-paths ["src/andrewslai/cljs"]
@@ -63,42 +63,46 @@
                       :optimizations :advanced
                       :output-to "resources/public/js/compiled/andrewslai.js"
                       :output-dir "resources/public/js/compiled/out_prod"
-                      ;;:install-deps true
                       :source-map-timestamp true}}}
 
    }
-  :profiles {:dev {:dependencies [[binaryage/devtools "1.0.0"]
-                                  [cider/piggieback "0.4.2"]
-                                  [figwheel-sidecar "0.5.19"]]
-                   :source-paths ["src/andrewslai/cljs"]
-                   :repl-options {:nrepl-middleware
-                                  [cider.piggieback/wrap-cljs-repl]}
-                   :plugins [[lein-ancient "0.6.15"]
-                             [lein-bikeshed "0.5.2"]
-                             [lein-kibit "0.1.8"]
-                             [lein-ring "0.12.5"]]}
-             :prod {:source-paths ["src/andrewslai/cljs"]
-                    :plugins [[lein-ancient "0.6.15"]
-                              [lein-bikeshed "0.5.2"]
-                              [lein-ring "0.12.5"]]}
-             :upload {:dependencies [[clj-postgresql "0.7.0"]
-                                     [prismatic/plumbing "0.5.5"]]
-                      :repl-options {:nrepl-middleware
-                                     [cider.piggieback/wrap-cljs-repl]}
-                      :plugins [[lein-ancient "0.6.15"]
-                                [lein-bikeshed "0.5.2"]
-                                [lein-kibit "0.1.8"]
-                                [lein-ring "0.12.5"]]}
-             :uberjar {:source-paths ["src/andrewslai/cljs"]
-                       :cljsbuild
-                       {:builds {:deploy
-                                 {:source-paths ["src/andrewslai/cljs"]
-                                  :jar true
-                                  :compiler {:main andrewslai.cljs.core
-                                             :asset-path "js/compiled/out_andrewslai"
-                                             :optimizations :advanced
-                                             :output-to "resources/public/js/compiled/andrewslai.js"
-                                             :output-dir "resources/public/js/compiled/out_deploy"
-                                             ;;:install-deps true
-                                             :source-map-timestamp true}}}}
-                       :prep-tasks ["compile" ["cljsbuild" "once" "deploy"]]}})
+
+  :profiles
+  {:dev {:dependencies [[binaryage/devtools "1.0.0"]
+                        [cider/piggieback "0.4.2"]
+                        [figwheel-sidecar "0.5.19"]]
+         :source-paths ["src/andrewslai/cljs"]
+         :repl-options {:nrepl-middleware
+                        [cider.piggieback/wrap-cljs-repl]}
+         :plugins [[lein-ancient "0.6.15"]
+                   [lein-bikeshed "0.5.2"]
+                   [lein-kibit "0.1.8"]
+                   [lein-ring "0.12.5"]]}
+
+   :prod {:source-paths ["src/andrewslai/cljs"]
+          :plugins [[lein-ancient "0.6.15"]
+                    [lein-bikeshed "0.5.2"]
+                    [lein-ring "0.12.5"]]}
+
+   :upload {:dependencies [[clj-postgresql "0.7.0"]
+                           [prismatic/plumbing "0.5.5"]]
+            :repl-options {:nrepl-middleware
+                           [cider.piggieback/wrap-cljs-repl]}
+            :plugins [[lein-ancient "0.6.15"]
+                      [lein-bikeshed "0.5.2"]
+                      [lein-kibit "0.1.8"]
+                      [lein-ring "0.12.5"]]}
+
+   :uberjar {:source-paths ["src/andrewslai/cljs"]
+             :cljsbuild
+             {:builds {:deploy
+                       {:source-paths ["src/andrewslai/cljs"]
+                        :jar true
+                        :compiler
+                        {:main andrewslai.cljs.core
+                         :asset-path "js/compiled/out_andrewslai"
+                         :optimizations :advanced
+                         :output-to "resources/public/js/compiled/andrewslai.js"
+                         :output-dir "resources/public/js/compiled/out_deploy"
+                         :source-map-timestamp true}}}}
+             :prep-tasks ["compile" ["cljsbuild" "once" "deploy"]]}})
