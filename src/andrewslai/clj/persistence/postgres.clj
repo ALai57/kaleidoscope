@@ -1,8 +1,25 @@
 (ns andrewslai.clj.persistence.postgres
   (:require [andrewslai.clj.persistence.core :refer [Persistence] :as db]
             [andrewslai.clj.env :as env]
-            [clojure.java.jdbc :as sql]))
+            [cheshire.core :as json]
+            [clojure.java.jdbc :as sql]
+            [clojure.walk :refer [keywordize-keys]])
+  (:import (org.postgresql.util PGobject)))
 
+(extend-protocol sql/IResultSetReadColumn
+  PGobject
+  (result-set-read-column [pgobj conn metadata]
+    (let [type  (.getType pgobj)
+          value (.getValue pgobj)]
+      (case type
+        "json" (keywordize-keys
+                 (json/parse-string value))
+        :else value))))
+
+(extend-protocol sql/IResultSetReadColumn
+  org.postgresql.jdbc.PgArray
+  (result-set-read-column [pgobj metadata i]
+    (vec (.getArray pgobj))))
 
 (def db-port (@env/env :db-port))
 (def db-host (@env/env :db-host))
@@ -90,8 +107,13 @@
 
   (db/get-article-content (make-db) 1)
 
-  (clojure.pprint/pprint (db/get-resume-info (make-db)))
+  (clojure.pprint/pprint (:projects (db/get-resume-info (make-db))))
+
   (clojure.pprint/pprint (first (:skills (db/get-resume-info (make-db)))))
+
+  (sql/query pg-db ["SELECT name FROM projects "])
+
+
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
