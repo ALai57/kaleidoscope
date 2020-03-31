@@ -41,8 +41,7 @@
   (println "Home")
   [:div 
    [nav/primary-nav]
-   [cards/recent-content-display]
-   #_[loading/load-screen]])
+   [cards/recent-content-display]])
 
 (comment
   (cljs.pprint/pprint (:resume-info @re-frame.db/app-db))

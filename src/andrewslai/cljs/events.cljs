@@ -7,9 +7,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helper functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn make-get-all-articles-url [] "/get-all-articles")
-(defn make-article-url [article-type article-name]
-  (str "/get-article/" (name article-type) "/" (name article-name)))
+(defn make-get-all-articles-url [] "/articles")
+(defn make-article-url [article-name]
+  (str "/articles/" (name article-name)))
 
 (defn modify-db [db mods]
   (reduce-kv #(assoc %1 %2 %3) db mods))
@@ -30,9 +30,9 @@
   (fn [db [_ article-type article-name]]
 
     (println "Retrieving article:"
-             (make-article-url article-type article-name))
+             (make-article-url article-name))
 
-    (GET (make-article-url article-type article-name)
+    (GET (make-article-url article-name)
         {:handler #(dispatch [:process-response %1])
          :error-handler #(dispatch [:bad-response %1])})
 

@@ -24,14 +24,12 @@
 
 (defsitetest get-full-article-test
   (testing "get-article endpoint returns an article data structure"
-    (let [response (->> "test-article"
-                        (str "/get-article/thoughts/")
+    (let [response (->> "/articles/test-article"
                         (mock/request :get)
                         h/app)]
       (is (= 200 (:status response)))
       (is (= #{:article
-               :article-name
-               :article-type}
+               :article-name}
              (set (keys (parse-response-body response)))))))
   (testing "Persistence protocol receives correct input"
     (with-captured-input-as captured-input capture-fn
@@ -40,7 +38,7 @@
         (let [article-name "test-article"
 
               response (->> article-name
-                            (str "/get-article/thoughts/")
+                            (str "/articles/")
                             (mock/request :get)
                             h/app)]
           (is (= 200 (:status response)))
@@ -48,7 +46,7 @@
 
 (defsitetest get-all-articles-test
   (testing "get-all-articles endpoint returns all articles"
-    (let [response (->> "/get-all-articles"
+    (let [response (->> "/articles"
                         (mock/request :get)
                         h/app)]
       (is (= 200 (:status response)))

@@ -39,14 +39,13 @@
           (ok {:service-status "ok"
                :sha (get-sha)}))
 
-        (GET "/get-article/:article-type/:article-name"
-            [article-type article-name]
-          (ok {:article-type article-type
-               :article-name article-name
-               :article (db/get-full-article (db-cfg/db-conn) article-name)}))
+        (context "/articles" []
+          (GET "/" []
+            (ok (db/get-all-articles (db-cfg/db-conn))))
 
-        (GET "/get-all-articles" [article-type article-name]
-          (ok (db/get-all-articles (db-cfg/db-conn))))
+          (GET "/:article-name" [article-name]
+            (ok {:article-name article-name
+                 :article (db/get-full-article (db-cfg/db-conn) article-name)})))
 
         (GET "/get-resume-info" []
           (ok (db/get-resume-info (db-cfg/db-conn))))
