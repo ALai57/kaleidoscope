@@ -18,6 +18,8 @@
             [clojure.java.shell :as shell]
             ))
 
+;; https://adambard.com/blog/buddy-password-auth-example/
+
 (defn init []
   (println "Hello! Starting service..."))
 
