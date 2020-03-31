@@ -1,6 +1,9 @@
 (defproject andrewslai "0.0.1"
   :description "Template for full stack development in Clojure"
-  :dependencies [[cheshire "5.10.0"]
+  :dependencies [[buddy/buddy-auth "2.2.0"]
+                 [buddy/buddy-hashers "1.4.0"]
+                 [buddy/buddy-sign "3.1.0"]
+                 [cheshire "5.10.0"]
                  ;; TODO: clean up for advanced opt.
                  [clj-commons/secretary "1.2.4"]
                  [clj-http "3.10.0"]
