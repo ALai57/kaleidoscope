@@ -1,6 +1,7 @@
 (ns andrewslai.clj.persistence.postgres
   (:require [andrewslai.clj.persistence.core :refer [Persistence] :as db]
             [andrewslai.clj.env :as env]
+            [andrewslai.clj.auth.crypto :as encryption]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]])
@@ -85,6 +86,57 @@
       (str "get-resume-info caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
+;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
+(defn- create-user! [{:keys [username email first_name last_name password] :as user}]
+  (try
+    (let [id (java.util.UUID/randomUUID)
+          result (sql/with-db-transaction [conn pg-db]
+                   (sql/insert! pg-db "users" {:id id
+                                               :username username
+                                               :email email})
+                   (sql/insert! pg-db "logins"
+                                {:id id
+                                 :hashed_password
+                                 (encryption/encrypt (encryption/make-encryption)
+                                                     password)}))
+          ;;privileges (sql/insert! pg-db "privileges")
+          ]
+      #_(println "Insert successful!" result))
+    (catch Exception e
+      (str "create-user! caught exception: " (.getMessage e)
+           "postgres config: " (assoc pg-db :password "xxxxxx")))))
+
+(comment
+
+  (sql/db-do-commands pg-db
+                      (sql/create-table-ddl "users"
+                                            [[:id :uuid "not null" "primary key"]
+                                             [:first_name "varchar(32)"]
+                                             [:last_name "varchar(32)"]
+                                             [:username "varchar(32)" "not null"]
+                                             [:email "varchar" "not null"]
+                                             ]))
+  (sql/db-do-commands pg-db (sql/drop-table-ddl "users"))
+  (sql/query pg-db ["SELECT * FROM users"])
+
+  (sql/db-do-commands pg-db
+                      (sql/create-table-ddl "logins"
+                                            [[:id :uuid "not null" ]
+                                             [:hashed_password "text" "not null"]
+                                             ["foreign key (id) references users(id)"]]))
+  (sql/db-do-commands pg-db (sql/drop-table-ddl "logins"))
+  (sql/query pg-db ["SELECT * FROM logins"])
+
+  (create-user! {:username "andrewlai"
+                 :email "andrewlai@andrewlai.com"
+                 :first_name "andrew"
+                 :last_name "lai"
+                 :password "mypassword"})
+  )
+
+(defn- get-password [user-id]
+  nil)
+
 (defn make-db []
   (reify Persistence
     (save-article! [_]
@@ -94,7 +146,11 @@
     (get-all-articles [_]
       (get-all-articles))
     (get-resume-info [_]
-      (get-resume-info))))
+      (get-resume-info))
+    (create-user! [_ user]
+      (create-user! user))
+    (get-password [_ user-id]
+      (get-password user-id))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection
