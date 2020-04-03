@@ -108,24 +108,24 @@
 
 (comment
 
-  (sql/db-do-commands pg-db
-                      (sql/create-table-ddl "users"
-                                            [[:id :uuid "not null" "primary key"]
-                                             [:first_name "varchar(32)"]
-                                             [:last_name "varchar(32)"]
-                                             [:username "varchar(32)" "not null"]
-                                             [:email "varchar" "not null"]
-                                             ]))
-  (sql/db-do-commands pg-db (sql/drop-table-ddl "users"))
-  (sql/query pg-db ["SELECT * FROM users"])
+  (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/setup_users.sql")
+                             (slurp "./scripts/db/setup_rbac/setup_logins.sql")
+                             (slurp "./scripts/db/setup_rbac/setup_roles.sql")
+                             (slurp "./scripts/db/setup_rbac/setup_permissions.sql")
+                             (slurp "./scripts/db/setup_rbac/setup_roles_permissions.sql")
+                             (slurp "./scripts/db/setup_rbac/add_user_role.sql")])
 
-  (sql/db-do-commands pg-db
-                      (sql/create-table-ddl "logins"
-                                            [[:id :uuid "not null" ]
-                                             [:hashed_password "text" "not null"]
-                                             ["foreign key (id) references users(id)"]]))
-  (sql/db-do-commands pg-db (sql/drop-table-ddl "logins"))
+  (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/delete_logins.sql")
+                             (slurp "./scripts/db/setup_rbac/delete_users.sql")
+                             (slurp "./scripts/db/setup_rbac/delete_roles_permissions.sql")
+                             (slurp "./scripts/db/setup_rbac/delete_roles.sql")
+                             (slurp "./scripts/db/setup_rbac/delete_permissions.sql")])
+
+
+  (sql/query pg-db ["SELECT * FROM users"])
   (sql/query pg-db ["SELECT * FROM logins"])
+  (sql/query pg-db ["SELECT * FROM roles"])
+  (sql/query pg-db ["SELECT * FROM permissions"])
 
   (create-user! {:username "andrewlai"
                  :email "andrewlai@andrewlai.com"
