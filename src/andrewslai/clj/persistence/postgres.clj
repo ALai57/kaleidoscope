@@ -121,7 +121,8 @@
                              (slurp "./scripts/db/setup_rbac/delete_roles.sql")
                              (slurp "./scripts/db/setup_rbac/delete_permissions.sql")])
 
- (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/insert_users.sql")])
+  (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/insert_roles.sql")
+                             (slurp "./scripts/db/setup_rbac/insert_permissions.sql")])
 
   (sql/query pg-db ["SELECT * FROM users"])
   (sql/query pg-db ["SELECT * FROM logins"])
