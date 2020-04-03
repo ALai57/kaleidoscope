@@ -72,17 +72,13 @@
           (is (= 200 (:status response)))
           (is (= [{:get-full-article [article-name]}] @captured-input)))))))
 
-;; Stream is closing... why?
-#_(deftest get-all-articles-test
-    (testing "get-all-articles endpoint returns all articles"
-      (let [response (->> "/articles"
-                          (mock/request :get)
-                          test-app)]
-        (println "***************" (slurp (:body response)))
-        (is (= 200 (:status response)))
-        (is (= 3 (slurp (:body response)))))))
-
-(get-all-articles-test)
+(deftest get-all-articles-test
+  (testing "get-all-articles endpoint returns all articles"
+    (let [response (->> "/articles"
+                        (mock/request :get)
+                        test-app)]
+      (is (= 200 (:status response)))
+      (is (= 3 (count (parse-response-body response)))))))
 
 (defsitetest get-resume-info-test
   (testing "get-resume-info endpoint returns an resume-info data structure"
