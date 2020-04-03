@@ -12,26 +12,26 @@
   (get-all-articles [a]
     (:articles (deref a))))
 
-(def test-app
-  (h/app
-    {:db (atom {:articles
-                [{:title "Test article",
-                  :article_tags "thoughts",
-                  :timestamp #inst "2019-11-07T00:48:08.136082000-00:00",
-                  :author "Andrew Lai", :article_url "test-article",
-                  :article_id 10}
-                 {:title "Databases without Databases",
-                  :article_tags "thoughts",
-                  :timestamp #inst "2019-11-05T03:10:39.191325000-00:00",
-                  :author "Andrew Lai",
-                  :article_url "databases-without-databases",
-                  :article_id 8}
-                 {:title "Neural network explanation",
-                  :article_tags "thoughts",
-                  :timestamp #inst "2019-11-02T02:05:30.298225000-00:00",
-                  :author "Andrew Lai",
-                  :article_url "neural-network-explanation",
-                  :article_id 6}]})}))
+(def test-db (atom {:articles
+                    [{:title "Test article",
+                      :article_tags "thoughts",
+                      :timestamp "2019-11-07T00:48:08.136082000-00:00",
+                      :author "Andrew Lai", :article_url "test-article",
+                      :article_id 10}
+                     {:title "Databases without Databases",
+                      :article_tags "thoughts",
+                      :timestamp "2019-11-05T03:10:39.191325000-00:00",
+                      :author "Andrew Lai",
+                      :article_url "databases-without-databases",
+                      :article_id 8}
+                     {:title "Neural network explanation",
+                      :article_tags "thoughts",
+                      :timestamp "2019-11-02T02:05:30.298225000-00:00",
+                      :author "Andrew Lai",
+                      :article_url "neural-network-explanation",
+                      :article_id 6}]}))
+
+(def test-app (h/app {:db test-db}))
 
 
 (defsitetest ping-test
@@ -78,7 +78,8 @@
                         (mock/request :get)
                         test-app)]
       (is (= 200 (:status response)))
-      (is (= 3 (count (parse-response-body response)))))))
+      (is (= (:articles @test-db)
+             (parse-response-body response))))))
 
 (defsitetest get-resume-info-test
   (testing "get-resume-info endpoint returns an resume-info data structure"
