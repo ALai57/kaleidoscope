@@ -6,10 +6,12 @@
             [clojure.test :refer [testing is]]
             [ring.mock.request :as mock]))
 
+(def test-app (h/app {}))
+
 (defsitetest ping-test
   (testing "Ping works properly"
     (let [response (-> (mock/request :get "/ping")
-                       h/app)]
+                       test-app)]
       (is (= 200 (:status response)))
       (is (= #{:sha :service-status} (-> response
                                          parse-response-body
@@ -19,14 +21,14 @@
 (defsitetest home-test
   (testing "Index page works properly"
     (is (= 200 (-> (mock/request :get "/")
-                   h/app
+                   test-app
                    :status)))))
 
 (defsitetest get-full-article-test
   (testing "get-article endpoint returns an article data structure"
     (let [response (->> "/articles/test-article"
                         (mock/request :get)
-                        h/app)]
+                        test-app)]
       (is (= 200 (:status response)))
       (is (= #{:article
                :article-name}
@@ -40,7 +42,7 @@
               response (->> article-name
                             (str "/articles/")
                             (mock/request :get)
-                            h/app)]
+                            test-app)]
           (is (= 200 (:status response)))
           (is (= [{:get-full-article [article-name]}] @captured-input)))))))
 
@@ -48,7 +50,7 @@
   (testing "get-all-articles endpoint returns all articles"
     (let [response (->> "/articles"
                         (mock/request :get)
-                        h/app)]
+                        test-app)]
       (is (= 200 (:status response)))
       (is (= 3 (count (parse-response-body response)))))))
 
@@ -56,7 +58,7 @@
   (testing "get-resume-info endpoint returns an resume-info data structure"
     (let [response (->> "/get-resume-info"
                         (mock/request :get)
-                        h/app)]
+                        test-app)]
       (is (= 200 (:status response)))
       (is (= #{:organizations, :projects, :skills}
              (set (keys (parse-response-body response))))))))

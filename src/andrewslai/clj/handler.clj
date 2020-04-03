@@ -4,6 +4,7 @@
             [andrewslai.clj.env :as env]
             [andrewslai.clj.persistence.config :as db-cfg]
             [andrewslai.clj.persistence.core :as db]
+            [andrewslai.clj.persistence.postgres :as postgres]
             [buddy.auth.accessrules :refer [restrict]]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
@@ -34,7 +35,7 @@
 (defroutes admin-routes
   (GET "/" [] (ok {:message "Got to the admin-route!"})))
 
-(def app
+(defn app [components]
   (-> {:swagger
        {:ui "/swagger"
         :spec "/swagger.json"
@@ -51,9 +52,9 @@
           (ok {:service-status "ok"
                :sha (get-sha)}))
 
-        (context "/articles" []
+        (context "/articles" [request]
           (GET "/" []
-            (ok (db/get-all-articles (db-cfg/db-conn))))
+            (ok (db/get-all-articles (get-in request [:components :db]))))
 
           (GET "/:article-name" [article-name]
             (ok {:article-name article-name
@@ -84,7 +85,8 @@
 
 (defn -main [& _]
   (init)
-  (httpkit/run-server #'app {:port (@env/env :port)}))
+  (let [app-with-components (app {:db (postgres/make-db)})]
+    (httpkit/run-server app-with-components {:port (@env/env :port)})))
 
 (comment
   (-main)

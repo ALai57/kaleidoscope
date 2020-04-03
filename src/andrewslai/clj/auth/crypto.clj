@@ -1,5 +1,6 @@
 (ns andrewslai.clj.auth.crypto
-  (:require [crypto.password.bcrypt :as password]))
+  (:require [andrewslai.clj.env :as env]
+            [crypto.password.bcrypt :as password]))
 
 (defprotocol Encryption
   (encrypt [_ password])
