@@ -107,7 +107,7 @@
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
 (comment
-
+  ;;https://mysql.tutorials24x7.com/blog/guide-to-design-database-for-rbac-in-mysql 
   (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/setup_users.sql")
                              (slurp "./scripts/db/setup_rbac/setup_logins.sql")
                              (slurp "./scripts/db/setup_rbac/setup_roles.sql")
@@ -121,6 +121,7 @@
                              (slurp "./scripts/db/setup_rbac/delete_roles.sql")
                              (slurp "./scripts/db/setup_rbac/delete_permissions.sql")])
 
+ (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/insert_users.sql")])
 
   (sql/query pg-db ["SELECT * FROM users"])
   (sql/query pg-db ["SELECT * FROM logins"])
