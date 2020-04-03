@@ -54,7 +54,12 @@
 
         (context "/articles" [request]
           (GET "/" []
-            (ok (db/get-all-articles (get-in request [:components :db]))))
+            (println "REQUEST" request)
+            (println "COMPONENTS" components)
+            (println "SATISFIES?" (satisfies? db/Persistence (atom {})))
+            (println "SATISFIES?" (satisfies? db/Persistence (:db components)))
+            (println "RESULT" (db/get-all-articles (:db components)))
+            (ok (db/get-all-articles (:db components))))
 
           (GET "/:article-name" [article-name]
             (ok {:article-name article-name
