@@ -92,15 +92,16 @@
     (let [id (java.util.UUID/randomUUID)
           result (sql/with-db-transaction [conn pg-db]
                    (sql/insert! pg-db "users" {:id id
+                                               :first_name first_name
+                                               :last_name last_name
                                                :username username
-                                               :email email})
+                                               :email email
+                                               :role_id 2})
                    (sql/insert! pg-db "logins"
                                 {:id id
                                  :hashed_password
                                  (encryption/encrypt (encryption/make-encryption)
-                                                     password)}))
-          ;;privileges (sql/insert! pg-db "privileges")
-          ]
+                                                     password)}))]
       #_(println "Insert successful!" result))
     (catch Exception e
       (str "create-user! caught exception: " (.getMessage e)
