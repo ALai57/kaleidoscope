@@ -6,3 +6,8 @@
       :body
       slurp
       (json/parse-string keyword)))
+
+(defn body->map [body]
+  (-> body
+      slurp
+      (json/parse-string keyword)))
