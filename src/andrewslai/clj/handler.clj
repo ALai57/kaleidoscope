@@ -2,13 +2,14 @@
   (:gen-class)
   (:require [andrewslai.clj.auth.mock :as auth-mock]
             [andrewslai.clj.env :as env]
-            [andrewslai.clj.persistence.config :as db-cfg]
             [andrewslai.clj.persistence.core :as db]
             [andrewslai.clj.persistence.postgres :as postgres]
+            [andrewslai.clj.persistence.users :as users]
             [buddy.auth.accessrules :refer [restrict]]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
+            [cheshire.core :as json]
             [compojure.api.sweet :refer :all]
             [org.httpkit.server :as httpkit]
             [ring.util.http-response :refer :all]
@@ -62,11 +63,15 @@
         (GET "/get-resume-info" []
           (ok (db/get-resume-info (:db components))))
 
-        (GET "/login/" []
+        (GET "/login" []
           (ok {:message "Login get message"}))
 
-        (POST "/login/" []
-          auth-mock/post-login)
+        (POST "/login" [body :as request]
+          (let [credentials (-> request
+                                :body
+                                slurp
+                                (json/parse-string keyword))]
+            (ok {:logged-in? (users/login (:user components) credentials)})))
 
         (POST "/logout/" []
           auth-mock/post-logout)
@@ -84,7 +89,8 @@
 
 (defn -main [& _]
   (init)
-  (let [app-with-components (app {:db (postgres/->Database postgres/pg-db)})]
+  (let [app-with-components (app {:db (postgres/->Database postgres/pg-db)
+                                  :user (users/->UserDatabase postgres/pg-db)})]
     (httpkit/run-server app-with-components {:port (@env/env :port)})))
 
 (comment

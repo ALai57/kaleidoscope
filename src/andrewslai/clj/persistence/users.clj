@@ -24,10 +24,11 @@
   (create-user! [_ user])
   (get-user [_ username])
   (get-users [_])
-  (get-password [_ user-id]))
+  (get-password [_ user-id])
+  (login [_ credentials]))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn- create-user! [db {:keys [username email first_name last_name password] :as user}]
+(defn- -create-user! [db {:keys [username email first_name last_name password] :as user}]
   (try
     (let [id (java.util.UUID/randomUUID)
           result (sql/with-db-transaction [conn (:conn db)]
@@ -47,26 +48,40 @@
       (str "create-user! caught exception: " (.getMessage e)
            "postgres config: " (assoc (:conn db) :password "xxxxxx")))))
 
-(defn get-users [db]
+(defn -get-users [db]
   (sql/query (:conn db) ["SELECT * FROM users"]))
 
-(defn get-user [db username]
+(defn -get-user [db username]
   (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" username]))
 
-(defn- get-password [db user-id]
+(defn- -get-password [db user-id]
   (sql/query (:conn db) ["SELECT hashed_password FROM logins WHERE id = ?" user-id]))
-(clojure.pprint/pprint (sql/query postgres/pg-db
-                                  ["SELECT * FROM logins"]))
+
+(defn -login [db {:keys [username password]}]
+  (let [{:keys [id]} (get-user db username)]
+    (when (and id (get-password db id))
+      (encryption/check (encryption/make-encryption)
+                        password
+                        (get-password db id))))
+  #_(if-let [user (get-user-by-username-and-password username password)]
+
+      (assoc (redirect "/")
+             :session (assoc session :identity (:id user)))
+
+      (redirect "/login/")))
+
 (defrecord UserDatabase [conn]
   UserPersistence
   (create-user! [this user]
-    (create-user! this user))
+    (-create-user! this user))
   (get-users [this]
-    (get-users this))
+    (-get-users this))
   (get-user [this username]
-    (get-user this username))
+    (-get-user this username))
   (get-password [this user-id]
-    (get-password this user-id)))
+    (-get-password this user-id))
+  (login [this credentials]
+    (-login this credentials)))
 
 (comment
   (create-user! (->UserDatabase postgres/pg-db)
@@ -77,6 +92,8 @@
                  :password "mypassword"})
   (get-users (->UserDatabase postgres/pg-db))
   (get-user (->UserDatabase postgres/pg-db) "testuser")
+  (login (->UserDatabase postgres/pg-db) {:username "Andrew"
+                                          :password "La"})
   )
 
 

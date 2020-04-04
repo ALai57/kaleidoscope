@@ -86,27 +86,6 @@
       (str "get-resume-info caught exception: " (.getMessage e)
            "postgres config: " (assoc (:conn db) :password "xxxxxx")))))
 
-;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn- create-user! [db {:keys [username email first_name last_name password] :as user}]
-  (try
-    (let [id (java.util.UUID/randomUUID)
-          result (sql/with-db-transaction [conn (:conn db)]
-                   (sql/insert! (:conn db) "users" {:id id
-                                                    :first_name first_name
-                                                    :last_name last_name
-                                                    :username username
-                                                    :email email
-                                                    :role_id 2})
-                   (sql/insert! (:conn db) "logins"
-                                {:id id
-                                 :hashed_password
-                                 (encryption/encrypt (encryption/make-encryption)
-                                                     password)}))]
-      #_(println "Insert successful!" result))
-    (catch Exception e
-      (str "create-user! caught exception: " (.getMessage e)
-           "postgres config: " (assoc (:conn db) :password "xxxxxx")))))
-
 (defn save-article! [db]
   nil)
 
@@ -123,9 +102,7 @@
   (get-all-articles [this]
     (get-all-articles this))
   (get-resume-info [this]
-    (get-resume-info this))
-  (create-user! [this user]
-    (create-user! this user)))
+    (get-resume-info this)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
