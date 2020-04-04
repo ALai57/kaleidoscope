@@ -62,11 +62,12 @@
       (str "get-content caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
-(defn- get-full-article [db article-name]
+(defn get-full-article [db article-name]
   (let [article (db/get-article-metadata db article-name)
         article-id (:article_id article)
         content (db/get-article-content db article-id)]
-    (assoc-in article [:content] content)))
+    {:article-name article-name
+     :article (assoc-in article [:content] content)}))
 
 (defn- get-resume-info [db]
   (try

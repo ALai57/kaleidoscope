@@ -1,8 +1,9 @@
 (ns andrewslai.clj.handler-test
   (:require [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.core :refer :all]
+            [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.utils :refer [parse-response-body]]
-            [clojure.test :refer [deftest testing is]]
+            [clojure.test :refer [deftest is testing]]
             [ring.mock.request :as mock]))
 
 (extend-protocol Persistence
@@ -16,7 +17,7 @@
     (first (filter #(= article-id (:article_id %))
                    (:content (deref a)))))
   (get-full-article [a article-name]
-    (:articles (deref a)))
+    (postgres/get-full-article a article-name))
   (get-resume-info [a]
     (:resume-info (deref a))))
 

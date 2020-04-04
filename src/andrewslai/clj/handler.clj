@@ -57,8 +57,7 @@
             (ok (db/get-all-articles (:db components))))
 
           (GET "/:article-name" [article-name]
-            (ok {:article-name article-name
-                 :article (db/get-full-article (:db components) article-name)})))
+            (ok (db/get-full-article (:db components) article-name))))
 
         (GET "/get-resume-info" []
           (ok (db/get-resume-info (:db components))))
