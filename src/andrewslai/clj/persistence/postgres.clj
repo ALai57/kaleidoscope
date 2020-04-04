@@ -34,26 +34,26 @@
             :user db-user
             :password db-password})
 
-(defn- get-all-articles [conn]
+(defn- get-all-articles [db]
   (try
-    (sql/query conn
+    (sql/query (:conn db)
                [(str "SELECT * FROM articles ORDER BY timestamp DESC")])
     (catch Exception e
       (str "get-all-articles caught exception: " (.getMessage e)))))
 
-(defn- get-article-metadata [article-name]
+(defn- get-article-metadata [db article-name]
   (try
     (first
-      (sql/query pg-db
+      (sql/query (:conn db)
                  [(str "SELECT * FROM articles"
                        " WHERE article_url = ?") article-name]))
     (catch Exception e
       (str "get-article caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
-(defn- get-article-content [conn article-id]
+(defn- get-article-content [db article-id]
   (try
-    (sql/query conn
+    (sql/query (:conn db)
                [(str "SELECT "
                      "article_id, content, dynamicjs "
                      "FROM content "
@@ -62,21 +62,21 @@
       (str "get-content caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
-(defn- get-full-article [conn article-name]
-  (let [article (get-article-metadata conn article-name)
+(defn- get-full-article [db article-name]
+  (let [article (get-article-metadata db article-name)
         article-id (:article_id article)
-        content (get-article-content conn article-id)]
+        content (get-article-content db article-id)]
     (assoc-in article [:content] content)))
 
-(defn- get-resume-info [conn]
+(defn- get-resume-info [db]
   (try
-    (let [organizations (sql/query conn
+    (let [organizations (sql/query (:conn db)
                                    [(str "SELECT *"
                                          "FROM organizations ")])
-          projects (sql/query conn
+          projects (sql/query (:conn db)
                               [(str "SELECT *"
                                     "FROM projects ")])
-          skills (sql/query conn
+          skills (sql/query (:conn db)
                             [(str "SELECT *"
                                   "FROM skills ")])]
       {:organizations organizations
@@ -84,20 +84,20 @@
        :skills skills})
     (catch Exception e
       (str "get-resume-info caught exception: " (.getMessage e)
-           "postgres config: " (assoc conn :password "xxxxxx")))))
+           "postgres config: " (assoc (:conn db) :password "xxxxxx")))))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn- create-user! [conn {:keys [username email first_name last_name password] :as user}]
+(defn- create-user! [db {:keys [username email first_name last_name password] :as user}]
   (try
     (let [id (java.util.UUID/randomUUID)
-          result (sql/with-db-transaction [connection conn]
-                   (sql/insert! pg-db "users" {:id id
-                                               :first_name first_name
-                                               :last_name last_name
-                                               :username username
-                                               :email email
-                                               :role_id 2})
-                   (sql/insert! pg-db "logins"
+          result (sql/with-db-transaction [conn (:conn db)]
+                   (sql/insert! (:conn db) "users" {:id id
+                                                    :first_name first_name
+                                                    :last_name last_name
+                                                    :username username
+                                                    :email email
+                                                    :role_id 2})
+                   (sql/insert! (:conn db) "logins"
                                 {:id id
                                  :hashed_password
                                  (encryption/encrypt (encryption/make-encryption)
@@ -105,7 +105,28 @@
       #_(println "Insert successful!" result))
     (catch Exception e
       (str "create-user! caught exception: " (.getMessage e)
-           "postgres config: " (assoc pg-db :password "xxxxxx")))))
+           "postgres config: " (assoc (:conn db) :password "xxxxxx")))))
+
+(defn- get-password [user-id]
+  nil)
+
+(defn save-article! [db]
+  nil)
+
+(defrecord Database [conn]
+  Persistence
+  (save-article! [this]
+    (save-article! this))
+  (get-full-article [this article-name]
+    (get-full-article this article-name))
+  (get-all-articles [this]
+    (get-all-articles this))
+  (get-resume-info [this]
+    (get-resume-info this ))
+  (create-user! [this user]
+    (create-user! this user))
+  (get-password [this user-id]
+    (get-password this user-id)))
 
 (comment
   ;;https://mysql.tutorials24x7.com/blog/guide-to-design-database-for-rbac-in-mysql 
@@ -137,24 +158,6 @@
                  :password "mypassword"})
   )
 
-(defn- get-password [user-id]
-  nil)
-
-(defn make-db [conn]
-  (reify Persistence
-    (save-article! [_]
-      nil)
-    (get-full-article [_ article-name]
-      (get-full-article conn article-name))
-    (get-all-articles [_]
-      (get-all-articles conn))
-    (get-resume-info [_]
-      (get-resume-info conn))
-    (create-user! [_ user]
-      (create-user! conn user))
-    (get-password [_ user-id]
-      (get-password conn user-id))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection
@@ -162,14 +165,14 @@
 
 (comment
   (get-all-articles)
-  (db/get-all-articles (make-db))
-  (clojure.pprint/pprint (db/get-full-article (make-db) "test-article"))
+  (db/get-all-articles (->Database pg-db))
+  (clojure.pprint/pprint (db/get-full-article (->Database pg-db) "test-article"))
 
-  (db/get-all-articles (make-db pg-db))
+  (db/get-all-articles (->Database pg-db))
 
-  (clojure.pprint/pprint (:projects (db/get-resume-info (make-db))))
+  (clojure.pprint/pprint (:projects (db/get-resume-info (->Database pg-db))))
 
-  (clojure.pprint/pprint (first (:skills (db/get-resume-info (make-db)))))
+  (clojure.pprint/pprint (first (:skills (db/get-resume-info (->Database pg-db)))))
 
   (sql/query pg-db ["SELECT name FROM projects "])
 

@@ -85,7 +85,7 @@
 
 (defn -main [& _]
   (init)
-  (let [app-with-components (app {:db (postgres/make-db postgres/pg-db)})]
+  (let [app-with-components (app {:db (postgres/->Database postgres/pg-db)})]
     (httpkit/run-server app-with-components {:port (@env/env :port)})))
 
 (comment

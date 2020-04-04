@@ -7,7 +7,7 @@
 
 (defn db-conn []
   (if *live-db?*
-    (postgres/make-db postgres/pg-db)
+    (postgres/->Database postgres/pg-db)
     (mock/make-db)))
 
 (comment
