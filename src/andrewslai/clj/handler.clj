@@ -13,6 +13,7 @@
             [compojure.api.sweet :refer :all]
             [org.httpkit.server :as httpkit]
             [ring.util.http-response :refer :all]
+            [ring.util.response :refer [redirect]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.params :refer [wrap-params]]
@@ -66,12 +67,16 @@
         (GET "/login" []
           (ok {:message "Login get message"}))
 
-        (POST "/login" [body :as request]
+        (POST "/login" [body session :as request]
           (let [credentials (-> request
                                 :body
                                 slurp
-                                (json/parse-string keyword))]
-            (ok {:logged-in? (users/login (:user components) credentials)})))
+                                (json/parse-string keyword))
+                login-response (users/login (:user components) credentials)
+                updated-session (assoc session :identity login-response)]
+            (if login-response
+              (assoc (redirect "/") :session updated-session)
+              (redirect "/login/"))))
 
         (POST "/logout/" []
           auth-mock/post-logout)
@@ -83,7 +88,6 @@
       (wrap-authentication backend)
       (wrap-authorization backend)
       wrap-session
-      wrap-params
       (wrap-resource "public")
       wrap-content-type))
 

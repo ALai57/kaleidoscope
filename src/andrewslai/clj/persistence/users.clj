@@ -1,7 +1,7 @@
 (ns andrewslai.clj.persistence.users
   (:require [andrewslai.clj.auth.crypto :as encryption]
-            [clojure.java.jdbc :as sql]
-            [andrewslai.clj.persistence.postgres :as postgres]))
+            [andrewslai.clj.persistence.postgres :as postgres]
+            [clojure.java.jdbc :as sql]))
 
 ;; RESOURCES FOR AUTHENTICATION RELATED TOPICS
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
@@ -59,16 +59,12 @@
 
 (defn -login [db {:keys [username password]}]
   (let [{:keys [id]} (get-user db username)]
-    (when (and id (get-password db id))
-      (encryption/check (encryption/make-encryption)
-                        password
-                        (get-password db id))))
-  #_(if-let [user (get-user-by-username-and-password username password)]
-
-      (assoc (redirect "/")
-             :session (assoc session :identity (:id user)))
-
-      (redirect "/login/")))
+    (when (and id
+               (get-password db id)
+               (encryption/check (encryption/make-encryption)
+                                 password
+                                 (get-password db id)))
+      id)))
 
 (defrecord UserDatabase [conn]
   UserPersistence

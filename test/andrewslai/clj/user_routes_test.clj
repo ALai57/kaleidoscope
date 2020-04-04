@@ -32,16 +32,16 @@
     (let [credentials (json/generate-string {:username "Andrew"
                                              :password "Lai"})
 
-          response (test-users-app (mock/request :post
-                                                 "/login"
-                                                 credentials))]
-      (is (= 200 (:status response)))
-      (is (= true (:logged-in? (parse-response-body response))))))
-  (testing "login incorrect"
+          {:keys [status headers]} (test-users-app (mock/request :post
+                                                                 "/login"
+                                                                 credentials))]
+      (is (= 302 status))
+      (is (contains? headers "Set-Cookie"))))
+  (testing "login with incorrect password"
     (let [credentials (json/generate-string {:username "Andrew"
                                              :password "Laia"})
-          response (test-users-app (mock/request :post
-                                                 "/login"
-                                                 credentials))]
-      (is (= 200 (:status response)))
-      (is (= false (:logged-in? (parse-response-body response)))))))
+          {:keys [status headers]} (test-users-app (mock/request :post
+                                                                 "/login"
+                                                                 credentials))]
+      (is (= 302 status))
+      (is (not (contains? headers "Set-Cookie"))))))
