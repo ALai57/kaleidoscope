@@ -31,11 +31,6 @@
                          :default "andrewslai"
                          :doc "Postgres Database Password"}
 
-           :live-db? {:env-name "ANDREWSLAI_LIVE_DB"
-                      :tfn parse-boolean
-                      :default "true"
-                      :doc "Using a live database or mock?"}
-
            :work-factor {:env-name "ANDREWSLAI_ENCRYPTION_WORK FACTOR"
                          :default 12
                          :doc "Work factor for encryption"}
