@@ -91,12 +91,12 @@
 (comment
   (-main)
 
-  (let [resume-info (db/get-resume-info (db-cfg/db-conn))]
+  (let [resume-info (db/get-resume-info (postgres/->Database postgres/pg-db))]
     (clojure.pprint/pprint (:projects resume-info)))
 
-  (db/get-full-article (db-cfg/db-conn) "my-first-article")
+  (db/get-full-article (postgres/->Database postgres/pg-db) "my-first-article")
 
   (clojure.pprint/pprint
-    (first (db/get-article (db-cfg/db-conn) "my-second-article")))
+    (first (db/get-article(postgres/->Database postgres/pg-db) "my-second-article")))
 
   )

@@ -87,7 +87,6 @@
                :article-name}
              (set (keys (parse-response-body response))))))))
 
-
 (deftest get-resume-info-test
   (testing "get-resume-info endpoint returns an resume-info data structure"
     (let [response (->> "/get-resume-info"
