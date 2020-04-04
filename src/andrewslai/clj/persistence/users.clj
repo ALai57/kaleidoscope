@@ -3,7 +3,9 @@
             [clojure.java.jdbc :as sql]
             [andrewslai.clj.persistence.postgres :as postgres]))
 
+;; RESOURCES FOR AUTHENTICATION RELATED TOPICS
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
+;; https://funcool.github.io/buddy-auth/latest/#signed-jwt
 
 ;; TODO: Basic endpoint that we can hit with a username/pw and receive Y/N for authenticaiton
 ;; TODO: After authentication, send a token back to browser
