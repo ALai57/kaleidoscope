@@ -7,5 +7,4 @@
   (get-full-article [_ article-name])
   (get-all-articles [_])
   (get-resume-info [_])
-  (create-user! [_ user])
-  (get-password [_ user-id]))
+  (create-user! [_ user]))

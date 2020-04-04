@@ -1,7 +1,6 @@
 (ns andrewslai.clj.persistence.postgres
   (:require [andrewslai.clj.persistence.core :refer [Persistence] :as db]
             [andrewslai.clj.env :as env]
-            [andrewslai.clj.auth.crypto :as encryption]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]])
@@ -108,9 +107,6 @@
       (str "create-user! caught exception: " (.getMessage e)
            "postgres config: " (assoc (:conn db) :password "xxxxxx")))))
 
-(defn- get-password [user-id]
-  nil)
-
 (defn save-article! [db]
   nil)
 
@@ -127,11 +123,9 @@
   (get-all-articles [this]
     (get-all-articles this))
   (get-resume-info [this]
-    (get-resume-info this ))
+    (get-resume-info this))
   (create-user! [this user]
-    (create-user! this user))
-  (get-password [this user-id]
-    (get-password this user-id)))
+    (create-user! this user)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -154,37 +148,6 @@
 
 
   )
-
-(comment
-  ;;https://mysql.tutorials24x7.com/blog/guide-to-design-database-for-rbac-in-mysql 
-  (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/setup_users.sql")
-                             (slurp "./scripts/db/setup_rbac/setup_logins.sql")
-                             (slurp "./scripts/db/setup_rbac/setup_roles.sql")
-                             (slurp "./scripts/db/setup_rbac/setup_permissions.sql")
-                             (slurp "./scripts/db/setup_rbac/setup_roles_permissions.sql")
-                             (slurp "./scripts/db/setup_rbac/add_user_role.sql")])
-
-  (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/delete_logins.sql")
-                             (slurp "./scripts/db/setup_rbac/delete_users.sql")
-                             (slurp "./scripts/db/setup_rbac/delete_roles_permissions.sql")
-                             (slurp "./scripts/db/setup_rbac/delete_roles.sql")
-                             (slurp "./scripts/db/setup_rbac/delete_permissions.sql")])
-
-  (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/insert_roles.sql")
-                             (slurp "./scripts/db/setup_rbac/insert_permissions.sql")])
-
-  (sql/query pg-db ["SELECT * FROM users"])
-  (sql/query pg-db ["SELECT * FROM logins"])
-  (sql/query pg-db ["SELECT * FROM roles"])
-  (sql/query pg-db ["SELECT * FROM permissions"])
-
-  (create-user! {:username "andrewlai"
-                 :email "andrewlai@andrewlai.com"
-                 :first_name "andrew"
-                 :last_name "lai"
-                 :password "mypassword"})
-  )
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
