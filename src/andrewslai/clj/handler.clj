@@ -58,10 +58,10 @@
 
           (GET "/:article-name" [article-name]
             (ok {:article-name article-name
-                 :article (db/get-full-article (db-cfg/db-conn) article-name)})))
+                 :article (db/get-full-article (:db components) article-name)})))
 
         (GET "/get-resume-info" []
-          (ok (db/get-resume-info (db-cfg/db-conn))))
+          (ok (db/get-resume-info (:db components))))
 
         (GET "/login/" []
           (ok {:message "Login get message"}))

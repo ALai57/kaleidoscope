@@ -63,9 +63,9 @@
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
 (defn- get-full-article [db article-name]
-  (let [article (get-article-metadata db article-name)
+  (let [article (db/get-article-metadata db article-name)
         article-id (:article_id article)
-        content (get-article-content db article-id)]
+        content (db/get-article-content db article-id)]
     (assoc-in article [:content] content)))
 
 (defn- get-resume-info [db]
@@ -117,6 +117,10 @@
   Persistence
   (save-article! [this]
     (save-article! this))
+  (get-article-metadata [this article-name]
+    (get-article-metadata this article-name))
+  (get-article-content [this article-id]
+    (get-article-content this article-id))
   (get-full-article [this article-name]
     (get-full-article this article-name))
   (get-all-articles [this]
@@ -127,6 +131,28 @@
     (create-user! this user))
   (get-password [this user-id]
     (get-password this user-id)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Functions to test DB connection
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(comment
+  (get-all-articles)
+  (db/get-all-articles (->Database pg-db))
+  (clojure.pprint/pprint (db/get-full-article (->Database pg-db) "test-article"))
+  (clojure.pprint/pprint (db/get-article-content (->Database pg-db) 10))
+
+  (db/get-all-articles (->Database pg-db))
+
+  (clojure.pprint/pprint (:projects (db/get-resume-info (->Database pg-db))))
+
+  (clojure.pprint/pprint (first (:organizations (db/get-resume-info (->Database pg-db)))))
+
+  (sql/query pg-db ["SELECT name FROM projects "])
+
+
+  )
 
 (comment
   ;;https://mysql.tutorials24x7.com/blog/guide-to-design-database-for-rbac-in-mysql 
@@ -159,25 +185,6 @@
   )
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Functions to test DB connection
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(comment
-  (get-all-articles)
-  (db/get-all-articles (->Database pg-db))
-  (clojure.pprint/pprint (db/get-full-article (->Database pg-db) "test-article"))
-
-  (db/get-all-articles (->Database pg-db))
-
-  (clojure.pprint/pprint (:projects (db/get-resume-info (->Database pg-db))))
-
-  (clojure.pprint/pprint (first (:skills (db/get-resume-info (->Database pg-db)))))
-
-  (sql/query pg-db ["SELECT name FROM projects "])
-
-
-  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; For uploading data to SQL databases
