@@ -7,10 +7,6 @@
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
 ;; https://funcool.github.io/buddy-auth/latest/#signed-jwt
 
-;; TODO: Basic endpoint that we can hit with a username/pw and receive Y/N for authenticaiton
-;; TODO: After authentication, send a token back to browser
-;; TODO: Store token in cookie? JWT? Localstore?
-
 ;; TODO: Send token in all client transactions
 ;; TODO: Log client out after 30 mins
 
@@ -18,6 +14,7 @@
 ;; TODO: Verify that username doesn't already exist
 ;; TODO: If username exists, throw a non-200
 
+;; TODO: wrap-components instead of directly referring to them
 
 
 (defprotocol UserPersistence
@@ -94,7 +91,7 @@
 
 
 (comment
-  ;;https://mysql.tutorials24x7.com/blog/guide-to-design-database-for-rbac-in-mysql 
+  ;;https://mysql.tutorials24x7.com/blog/guide-to-design-database-for-rbac-in-mysql
   (sql/db-do-commands pg-db [(slurp "./scripts/db/setup_rbac/setup_users.sql")
                              (slurp "./scripts/db/setup_rbac/setup_logins.sql")
                              (slurp "./scripts/db/setup_rbac/setup_roles.sql")
@@ -122,4 +119,3 @@
                  :last_name "lai"
                  :password "mypassword"})
   )
-

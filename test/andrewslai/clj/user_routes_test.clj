@@ -27,6 +27,12 @@
 
 (def test-users-app (h/app {:user test-user-db}))
 
+(defn extract-ring-session [cookie]
+  (let [ring-session-regex #"^.*ring-session=(?<ringsession>[a-z0-9-]*);.*$"
+        matcher (re-matcher ring-session-regex cookie)]
+    (.matches matcher)
+    (str (.group matcher "ringsession"))))
+
 (deftest login-test
   (testing "login happy path"
     (let [credentials (json/generate-string {:username "Andrew"
@@ -34,9 +40,12 @@
 
           {:keys [status headers]} (test-users-app (mock/request :post
                                                                  "/login"
-                                                                 credentials))]
+                                                                 credentials))
+          cookie (first (get headers "Set-Cookie"))
+          ring-session (extract-ring-session cookie)]
       (is (= 302 status))
-      (is (contains? headers "Set-Cookie"))))
+      (is (contains? headers "Set-Cookie"))
+      (println "Cookie " ring-session)))
   (testing "login with incorrect password"
     (let [credentials (json/generate-string {:username "Andrew"
                                              :password "Laia"})
