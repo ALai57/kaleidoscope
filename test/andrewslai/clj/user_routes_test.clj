@@ -9,6 +9,9 @@
 
 (extend-protocol users/UserPersistence
   clojure.lang.IAtom
+  (get-user-by-id [a user-id]
+    (first (filter #(= user-id (:id %))
+                   (:users (deref a)))))
   (get-user [a username]
     (first (filter #(= username (:username %))
                    (:users (deref a)))))
@@ -34,18 +37,20 @@
     (str (.group matcher "ringsession"))))
 
 (deftest login-test
-  (testing "login happy path"
-    (let [credentials (json/generate-string {:username "Andrew"
-                                             :password "Lai"})
+  (let [credentials (json/generate-string {:username "Andrew"
+                                           :password "Lai"})
 
-          {:keys [status headers]} (test-users-app (mock/request :post
-                                                                 "/login"
-                                                                 credentials))
-          cookie (first (get headers "Set-Cookie"))
-          ring-session (extract-ring-session cookie)]
+        {:keys [status headers]} (test-users-app (mock/request :post
+                                                               "/login"
+                                                               credentials))
+        cookie (first (get headers "Set-Cookie"))]
+    (testing "login happy path"
       (is (= 302 status))
-      (is (contains? headers "Set-Cookie"))
-      (println "Cookie " ring-session)))
+      (is (contains? headers "Set-Cookie")))
+    (testing "cookies work properly"
+      (test-users-app (assoc-in (mock/request :post
+                                              "/logout/")
+                                [:headers "cookie"] cookie))))
   (testing "login with incorrect password"
     (let [credentials (json/generate-string {:username "Andrew"
                                              :password "Laia"})
@@ -54,3 +59,16 @@
                                                                  credentials))]
       (is (= 302 status))
       (is (not (contains? headers "Set-Cookie"))))))
+
+(comment
+  (require '[ring.middleware.cookies :as cook])
+  (cook/cookies-request {:protocol "HTTP/1.1",
+                         :server-port 80,
+                         :server-name "localhost",
+                         :remote-addr "127.0.0.1",
+                         :uri "/logout/",
+                         :scheme :http,
+                         :request-method :post,
+                         :headers {"host" "localhost"
+                                   "cookie" "ring-session=16d02d7d-8522-4548-8b2e-f209ec153194;Path=/;HttpOnly",
+                                   }}))

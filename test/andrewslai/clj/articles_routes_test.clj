@@ -1,5 +1,6 @@
 (ns andrewslai.clj.articles-routes-test
   (:require [andrewslai.clj.handler :as h]
+            [andrewslai.clj.persistence.core :refer [Persistence]]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.utils :refer [parse-response-body]]
             [clojure.test :refer [deftest is testing]]

@@ -7,6 +7,7 @@
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
 ;; https://funcool.github.io/buddy-auth/latest/#signed-jwt
 
+;; TODO: Add more test cases for verifying identity/ authentication
 ;; TODO: Send token in all client transactions
 ;; TODO: Log client out after 30 mins
 
@@ -20,6 +21,7 @@
 (defprotocol UserPersistence
   (create-user! [_ user])
   (get-user [_ username])
+  (get-user-by-id [_ id])
   (get-users [_])
   (get-password [_ user-id])
   (login [_ credentials]))
@@ -51,6 +53,9 @@
 (defn -get-user [db username]
   (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" username]))
 
+(defn -get-user-by-id [db user-id]
+  (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" user-id]))
+
 (defn- -get-password [db user-id]
   (sql/query (:conn db) ["SELECT hashed_password FROM logins WHERE id = ?" user-id]))
 
@@ -71,10 +76,18 @@
     (-get-users this))
   (get-user [this username]
     (-get-user this username))
+  (get-user-by-id [this user-id]
+    (-get-user-by-id this user-id))
   (get-password [this user-id]
     (-get-password this user-id))
   (login [this credentials]
     (-login this credentials)))
+
+(defn wrap-user [handler]
+  (fn [{user-id :identity components :components :as req}]
+    (if (:user components)
+      (handler (assoc req :user (get-user-by-id (:user components) user-id)))
+      (handler (assoc req :user nil)))))
 
 (comment
   (create-user! (->UserDatabase postgres/pg-db)

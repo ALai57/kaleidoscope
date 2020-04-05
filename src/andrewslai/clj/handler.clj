@@ -14,6 +14,7 @@
             [org.httpkit.server :as httpkit]
             [ring.util.http-response :refer :all]
             [ring.util.response :refer [redirect]]
+            [ring.middleware.cookies :refer [wrap-cookies]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.params :refer [wrap-params]]
@@ -34,10 +35,17 @@
 
 (def backend (session-backend))
 
+(defn is-authenticated? [{:keys [user] :as req}]
+  (seq user))
+
 (defroutes admin-routes
   (GET "/" [] (ok {:message "Got to the admin-route!"})))
 
-(defn app [components]
+(defn wrap-components [handler components]
+  (fn [request]
+    (handler (assoc request :components components))))
+
+(defn app [app-components]
   (-> {:swagger
        {:ui "/swagger"
         :spec "/swagger.json"
@@ -54,41 +62,44 @@
           (ok {:service-status "ok"
                :sha (get-sha)}))
 
-        (context "/articles" [request]
+        (context "/articles" {:keys [components]}
           (GET "/" []
             (ok (db/get-all-articles (:db components))))
 
-          (GET "/:article-name" [article-name]
-            (ok (db/get-full-article (:db components) article-name))))
+          (GET "/:article-name" [article-name :as request]
+            (ok (db/get-full-article (get-in request [:components :db]) article-name))))
 
-        (GET "/get-resume-info" []
+        (GET "/get-resume-info" {:keys [components]}
           (ok (db/get-resume-info (:db components))))
 
         (GET "/login" []
           (ok {:message "Login get message"}))
 
-        (POST "/login" [body session :as request]
+        (POST "/login" {:keys [components body session] :as request}
           (let [credentials (-> request
                                 :body
                                 slurp
                                 (json/parse-string keyword))
-                login-response (users/login (:user components) credentials)
-                updated-session (assoc session :identity login-response)]
-            (if login-response
+                user-id (users/login (:user components) credentials)
+                updated-session (assoc session :identity user-id)]
+            (if user-id
               (assoc (redirect "/") :session updated-session)
               (redirect "/login/"))))
 
-        (POST "/logout/" []
-          auth-mock/post-logout)
+        (POST "/logout/" request
+          (println "Is authenticated?" (is-authenticated? request))
+          (println (:cookies request)))
 
         (context "/admin" []
           (restrict admin-routes {:handler auth-mock/is-authenticated?}))
         )
-      auth-mock/wrap-user
+      users/wrap-user
       (wrap-authentication backend)
       (wrap-authorization backend)
       wrap-session
       (wrap-resource "public")
+      wrap-cookies
+      (wrap-components app-components)
       wrap-content-type))
 
 (defn -main [& _]
