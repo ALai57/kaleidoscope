@@ -39,14 +39,16 @@
 (defn is-authenticated? [{:keys [user] :as req}]
   (seq user))
 
-(defroutes admin-routes
-  (GET "/" [] (ok {:message "Got to the admin-route!"})))
-
 (defn wrap-components [handler components]
   (fn [request]
     (handler (assoc request :components components))))
 
-(defn app [app-components]
+
+
+(defroutes admin-routes
+  (GET "/" [] (ok {:message "Got to the admin-route!"})))
+
+(def bare-app
   (-> {:swagger
        {:ui "/swagger"
         :spec "/swagger.json"
@@ -91,12 +93,14 @@
           (println "Is authenticated?" (is-authenticated? request)))
 
         (context "/admin" []
-          (restrict admin-routes {:handler auth-mock/is-authenticated?}))
-        )
+          (restrict admin-routes {:handler auth-mock/is-authenticated?})))))
+
+(defn app [handler app-components]
+  (-> handler
       users/wrap-user
       (wrap-authentication backend)
       (wrap-authorization backend)
-      (wrap-session (:session-options app-components))
+      (wrap-session (or (:session-options app-components) {}))
       (wrap-resource "public")
       wrap-cookies
       (wrap-components app-components)
@@ -104,7 +108,8 @@
 
 (defn -main [& _]
   (init)
-  (let [app-with-components (app {:db (postgres/->Database postgres/pg-db)
+  (let [app-with-components (app bare-app
+                                 {:db (postgres/->Database postgres/pg-db)
                                   :user (users/->UserDatabase postgres/pg-db)
                                   :session-options
                                   {:store (mem/memory-store (atom {}))}})]

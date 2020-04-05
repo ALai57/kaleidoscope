@@ -41,20 +41,13 @@
 (def session-atom (atom {}))
 (def components {:user test-user-db
                  :session-options {:store (mem/memory-store session-atom)}})
-(def test-users-app (h/app components))
+(def test-users-app (h/app h/bare-app components))
 
-(defn identity-handler-with-middleware [app-components]
-  (-> (api
-        (GET "/echo" request
-          {:user-authentication (h/is-authenticated? request)}))
-      users/wrap-user
-      (wrap-authentication h/backend)
-      (wrap-authorization h/backend)
-      (wrap-session (:session-options app-components))
-      wrap-cookies
-      (h/wrap-components app-components)))
 
-(def identity-handler (identity-handler-with-middleware components))
+(def identity-handler
+  (h/app (api
+           (GET "/echo" request
+             {:user-authentication (h/is-authenticated? request)})) components))
 
 (defn extract-ring-session [cookie]
   (let [ring-session-regex #"^.*ring-session=(?<ringsession>[a-z0-9-]*);.*$"
