@@ -38,18 +38,23 @@
                    :hashed_password (encryption/encrypt (encryption/make-encryption)
                                                         "Lai")}]}))
 
-(def test-users-app (h/app {:user test-user-db}))
+(def session-atom (atom {}))
+(def components {:user test-user-db
+                 :session-options {:store (mem/memory-store session-atom)}})
+(def test-users-app (h/app components))
 
-(defn identity-handler [app-components]
+(defn identity-handler-with-middleware [app-components]
   (-> (api
         (GET "/echo" request
           {:user-authentication (h/is-authenticated? request)}))
       users/wrap-user
       (wrap-authentication h/backend)
       (wrap-authorization h/backend)
-      (wrap-session {:store (mem/memory-store h/session-atom)})
+      (wrap-session (:session-options app-components))
       wrap-cookies
       (h/wrap-components app-components)))
+
+(def identity-handler (identity-handler-with-middleware components))
 
 (defn extract-ring-session [cookie]
   (let [ring-session-regex #"^.*ring-session=(?<ringsession>[a-z0-9-]*);.*$"
@@ -70,10 +75,9 @@
       (is (contains? headers "Set-Cookie")))
     (testing "cookies work properly"
       (let [{:keys [user-authentication]}
-            ((identity-handler {:user test-user-db})
-             (assoc-in (mock/request :get
-                                     "/echo")
-                       [:headers "cookie"] cookie))]
+            (identity-handler (assoc-in (mock/request :get
+                                                      "/echo")
+                                        [:headers "cookie"] cookie))]
         (is (= (first (:users @test-user-db))
                (into {} user-authentication))))))
   (testing "login with incorrect password"

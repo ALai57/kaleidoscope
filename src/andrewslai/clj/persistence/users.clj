@@ -7,7 +7,6 @@
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
 ;; https://funcool.github.io/buddy-auth/latest/#signed-jwt
 
-;; TODO: Add more test cases for verifying identity/ authentication
 ;; TODO: Send token in all client transactions
 ;; TODO: Log client out after 30 mins
 
