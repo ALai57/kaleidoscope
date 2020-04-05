@@ -3,9 +3,19 @@
             [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.utils :refer [parse-response-body]]
+
+
+            [buddy.auth.backends.session :refer [session-backend]]
+            [buddy.auth.middleware :refer [wrap-authentication
+                                           wrap-authorization]]
+
+            [ring.middleware.cookies :refer [wrap-cookies]]
+            [ring.middleware.session :refer [wrap-session]]
             [cheshire.core :as json]
+            [compojure.api.sweet :refer [api GET POST]]
             [clojure.test :refer [deftest is testing]]
-            [ring.mock.request :as mock]))
+            [ring.mock.request :as mock]
+            [ring.middleware.session.memory :as mem]))
 
 (extend-protocol users/UserPersistence
   clojure.lang.IAtom
@@ -30,6 +40,17 @@
 
 (def test-users-app (h/app {:user test-user-db}))
 
+(defn identity-handler [app-components]
+  (-> (api
+        (GET "/echo" request
+          {:user-authentication (h/is-authenticated? request)}))
+      users/wrap-user
+      (wrap-authentication h/backend)
+      (wrap-authorization h/backend)
+      (wrap-session {:store (mem/memory-store h/session-atom)})
+      wrap-cookies
+      (h/wrap-components app-components)))
+
 (defn extract-ring-session [cookie]
   (let [ring-session-regex #"^.*ring-session=(?<ringsession>[a-z0-9-]*);.*$"
         matcher (re-matcher ring-session-regex cookie)]
@@ -48,9 +69,13 @@
       (is (= 302 status))
       (is (contains? headers "Set-Cookie")))
     (testing "cookies work properly"
-      (test-users-app (assoc-in (mock/request :post
-                                              "/logout/")
-                                [:headers "cookie"] cookie))))
+      (let [{:keys [user-authentication]}
+            ((identity-handler {:user test-user-db})
+             (assoc-in (mock/request :get
+                                     "/echo")
+                       [:headers "cookie"] cookie))]
+        (is (= (first (:users @test-user-db))
+               (into {} user-authentication))))))
   (testing "login with incorrect password"
     (let [credentials (json/generate-string {:username "Andrew"
                                              :password "Laia"})

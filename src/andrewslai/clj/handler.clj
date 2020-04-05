@@ -17,6 +17,7 @@
             [ring.middleware.cookies :refer [wrap-cookies]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.session :refer [wrap-session]]
+            [ring.middleware.session.memory :as mem]
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [clojure.java.shell :as shell]
@@ -44,6 +45,8 @@
 (defn wrap-components [handler components]
   (fn [request]
     (handler (assoc request :components components))))
+
+(def session-atom (atom {}))
 
 (defn app [app-components]
   (-> {:swagger
@@ -87,8 +90,7 @@
               (redirect "/login/"))))
 
         (POST "/logout/" request
-          (println "Is authenticated?" (is-authenticated? request))
-          (println (:cookies request)))
+          (println "Is authenticated?" (is-authenticated? request)))
 
         (context "/admin" []
           (restrict admin-routes {:handler auth-mock/is-authenticated?}))
@@ -96,7 +98,7 @@
       users/wrap-user
       (wrap-authentication backend)
       (wrap-authorization backend)
-      wrap-session
+      (wrap-session {:store (mem/memory-store session-atom)})
       (wrap-resource "public")
       wrap-cookies
       (wrap-components app-components)
