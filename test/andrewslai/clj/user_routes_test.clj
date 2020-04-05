@@ -2,20 +2,18 @@
   (:require [andrewslai.clj.auth.crypto :as encryption]
             [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.users :as users]
-            [andrewslai.clj.utils :refer [parse-response-body]]
-
-
+            [andrewslai.clj.utils :refer [parse-response-body
+                                          body->map]]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
-
+            [cheshire.core :as json]
+            [clojure.test :refer [deftest is testing]]
+            [compojure.api.sweet :refer [api GET POST]]
             [ring.middleware.cookies :refer [wrap-cookies]]
             [ring.middleware.session :refer [wrap-session]]
-            [cheshire.core :as json]
-            [compojure.api.sweet :refer [api GET POST]]
-            [clojure.test :refer [deftest is testing]]
-            [ring.mock.request :as mock]
-            [ring.middleware.session.memory :as mem]))
+            [ring.middleware.session.memory :as mem]
+            [ring.mock.request :as mock]))
 
 (extend-protocol users/UserPersistence
   clojure.lang.IAtom
@@ -47,7 +45,7 @@
 (def identity-handler
   (h/app (api
            (GET "/echo" request
-             {:user-authentication (h/is-authenticated? request)})) components))
+             {:user-authentication (:user request)})) components))
 
 (defn extract-ring-session [cookie]
   (let [ring-session-regex #"^.*ring-session=(?<ringsession>[a-z0-9-]*);.*$"
@@ -72,7 +70,19 @@
                                                       "/echo")
                                         [:headers "cookie"] cookie))]
         (is (= (first (:users @test-user-db))
-               (into {} user-authentication))))))
+               (into {} user-authentication)))))
+    (testing "Can hit admin route with valid session token"
+      (let [{:keys [status body]}
+            (test-users-app (assoc-in (mock/request :get
+                                                    "/admin/")
+                                      [:headers "cookie"] cookie))]
+        (is (= 200 status))
+        (is (= {:message "Got to the admin-route!"} (body->map body)))))
+    (testing "Rejected from admin route when valid session token not present"
+      (let [{:keys [status body]}
+            (test-users-app (mock/request :get "/admin/"))]
+        (is (= 401 status))
+        (is (= "Not authorized" body)))))
   (testing "login with incorrect password"
     (let [credentials (json/generate-string {:username "Andrew"
                                              :password "Laia"})

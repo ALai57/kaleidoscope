@@ -37,13 +37,16 @@
 (def backend (session-backend))
 
 (defn is-authenticated? [{:keys [user] :as req}]
-  (seq user))
+  (not (nil? user)))
+
+(defn access-error [request value]
+  {:status 401
+   :headers {}
+   :body "Not authorized"})
 
 (defn wrap-components [handler components]
   (fn [request]
     (handler (assoc request :components components))))
-
-
 
 (defroutes admin-routes
   (GET "/" [] (ok {:message "Got to the admin-route!"})))
@@ -93,7 +96,8 @@
           (println "Is authenticated?" (is-authenticated? request)))
 
         (context "/admin" []
-          (restrict admin-routes {:handler auth-mock/is-authenticated?})))))
+          (restrict admin-routes {:handler is-authenticated?
+                                  :on-error access-error})))))
 
 (defn app [handler app-components]
   (-> handler
