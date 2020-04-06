@@ -2,7 +2,7 @@
   (:require [andrewslai.cljs.db :refer [default-db]]
             [re-frame.core :refer [reg-event-db
                                    dispatch]]
-            [ajax.core :refer [GET]]))
+            [ajax.core :refer [GET POST]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helper functions
@@ -15,12 +15,22 @@
   (reduce-kv #(assoc %1 %2 %3) db mods))
 
 ;; Dispatched when setting the active panel
+#_(GET "/admin/"
+      {:handler (fn [response] (println response))
+       :error-handler (fn [response] (println response))})
 
+#_(POST "/login"
+      {:handler (fn [response]
+                  (println "Good!")
+                  (println response))
+       :error-handler (fn [response]
+                        (println "Errors!")
+                        (println response))})
 
 (reg-event-db
- :initialize-db
- (fn [_ _]
-   default-db))
+  :initialize-db
+  (fn [_ _]
+    default-db))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for get-article

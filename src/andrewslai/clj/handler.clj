@@ -10,20 +10,31 @@
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
             [cheshire.core :as json]
+            [clojure.java.shell :as shell]
             [compojure.api.sweet :refer :all]
             [org.httpkit.server :as httpkit]
-            [ring.util.http-response :refer :all]
-            [ring.util.response :refer [redirect]]
+            [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.cookies :refer [wrap-cookies]]
+            [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
-            [ring.middleware.params :refer [wrap-params]]
-            [ring.middleware.content-type :refer [wrap-content-type]]
-            [clojure.java.shell :as shell]
+            [ring.util.http-response :refer :all]
+            [ring.util.response :refer [redirect]]
+            [taoensso.timbre :as timbre]
+            [taoensso.timbre.appenders.core :as appenders]
             ))
 
 ;; https://adambard.com/blog/buddy-password-auth-example/
+
+
+(timbre/merge-config!
+  {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}})
+
+(defn wrap-logging [handler]
+  (fn [request]
+    (timbre/info "Request: " request)
+    (handler request)))
 
 (defn init []
   (println "Hello! Starting service..."))
@@ -37,7 +48,8 @@
 (def backend (session-backend))
 
 (defn is-authenticated? [{:keys [user] :as req}]
-  (not (nil? user)))
+  (timbre/info "Is authenticated?" user)
+  (not (empty? user)))
 
 (defn access-error [request value]
   {:status 401
@@ -48,8 +60,10 @@
   (fn [request]
     (handler (assoc request :components components))))
 
+
 (defroutes admin-routes
-  (GET "/" [] (ok {:message "Got to the admin-route!"})))
+  (GET "/" request (do (println "Inside admin-routes" request)
+                       (ok {:message "Got to the admin-route!"}))))
 
 (def bare-app
   (-> {:swagger
@@ -90,7 +104,7 @@
                 updated-session (assoc session :identity user-id)]
             (if user-id
               (assoc (redirect "/") :session updated-session)
-              (redirect "/login/"))))
+              (redirect "/login"))))
 
         (POST "/logout/" request
           (println "Is authenticated?" (is-authenticated? request)))
@@ -101,6 +115,7 @@
 
 (defn wrap-middleware [handler app-components]
   (-> handler
+      wrap-logging
       users/wrap-user
       (wrap-authentication backend)
       (wrap-authorization backend)
@@ -108,7 +123,8 @@
       (wrap-resource "public")
       wrap-cookies
       (wrap-components app-components)
-      wrap-content-type))
+      wrap-content-type
+      ))
 
 (def app (wrap-middleware bare-app
                           {:db (postgres/->Database postgres/pg-db)

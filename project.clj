@@ -31,7 +31,8 @@
                  [reagent "0.10.0"]
                  [ring "1.8.0"]
                  [ring/ring-mock "0.4.0"]
-                 [sablono "0.8.6"]]
+                 [sablono "0.8.6"]
+                 [com.taoensso/timbre "4.10.0"]]
 
   :plugins [[lein-figwheel "0.5.19"]
             [lein-cljsbuild "1.1.7"]]
