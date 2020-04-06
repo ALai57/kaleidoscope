@@ -50,7 +50,7 @@
                                         :image_url "images/nu-helix-logo.svg",
                                         :description "Science Outreach Magazine"}]}}))
 
-(def test-app (h/app h/bare-app {:db test-db}))
+(def test-app (h/wrap-middleware h/bare-app {:db test-db}))
 
 (deftest get-all-articles-test
   (testing "get-all-articles endpoint returns all articles"

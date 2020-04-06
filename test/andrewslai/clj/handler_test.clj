@@ -6,7 +6,7 @@
 
 (deftest ping-test
   (testing "Ping works properly"
-    (let [{:keys [status body]} ((h/app h/bare-app {}) (mock/request :get "/ping"))]
+    (let [{:keys [status body]} ((h/wrap-middleware h/bare-app {}) (mock/request :get "/ping"))]
       (is (= 200 status))
       (is (= #{:sha :service-status} (-> body
                                          body->map
@@ -15,5 +15,5 @@
 
 (deftest home-test
   (testing "Index page works properly"
-    (let [{:keys [status]} ((h/app h/bare-app {}) (mock/request :get "/"))]
+    (let [{:keys [status]} ((h/wrap-middleware h/bare-app {}) (mock/request :get "/"))]
       (is (= 200 status)))))

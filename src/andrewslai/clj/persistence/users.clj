@@ -7,14 +7,11 @@
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
 ;; https://funcool.github.io/buddy-auth/latest/#signed-jwt
 
-;; TODO: Send token in all client transactions
 ;; TODO: Log client out after 30 mins
 
 ;; TODO: Basic endpoint for adding a new username
 ;; TODO: Verify that username doesn't already exist
 ;; TODO: If username exists, throw a non-200
-
-;; TODO: wrap-components instead of directly referring to them
 
 
 (defprotocol UserPersistence

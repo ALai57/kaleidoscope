@@ -99,7 +99,7 @@
           (restrict admin-routes {:handler is-authenticated?
                                   :on-error access-error})))))
 
-(defn app [handler app-components]
+(defn wrap-middleware [handler app-components]
   (-> handler
       users/wrap-user
       (wrap-authentication backend)
@@ -110,14 +110,15 @@
       (wrap-components app-components)
       wrap-content-type))
 
+(def app (wrap-middleware bare-app
+                          {:db (postgres/->Database postgres/pg-db)
+                           :user (users/->UserDatabase postgres/pg-db)
+                           :session-options
+                           {:store (mem/memory-store (atom {}))}}))
+
 (defn -main [& _]
   (init)
-  (let [app-with-components (app bare-app
-                                 {:db (postgres/->Database postgres/pg-db)
-                                  :user (users/->UserDatabase postgres/pg-db)
-                                  :session-options
-                                  {:store (mem/memory-store (atom {}))}})]
-    (httpkit/run-server app-with-components {:port (@env/env :port)})))
+  (httpkit/run-server app {:port (@env/env :port)}))
 
 (comment
   (-main)

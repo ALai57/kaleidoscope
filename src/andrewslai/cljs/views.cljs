@@ -8,6 +8,15 @@
             [re-frame.core :refer [subscribe
                                    dispatch]]))
 
+;; TODO: Start up CLJS repl and try to hit login endpoint
+;; TODO: Verify that a token comes back
+;; TODO: Verify that the authenticated endpoint can be hit when token is set
+
+;; Write tests with cookies....
+;; https://github.com/reagent-project/reagent-utils/blob/master/test/reagent/cookies_test.cljs
+;; https://github.com/SMX-LTD/re-frame-cookie-fx
+;; TODO: Send token in all client transactions
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Landing pages
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
