@@ -33,8 +33,9 @@
 
 (defn wrap-logging [handler]
   (fn [request]
-    (timbre/info "Request: " request)
-    (handler request)))
+    (timbre/with-config (get-in request [:components :logging])
+      (timbre/debug "Request received for: " (:uri request))
+      (handler request))))
 
 (defn init []
   (println "Hello! Starting service..."))
@@ -48,10 +49,11 @@
 (def backend (session-backend))
 
 (defn is-authenticated? [{:keys [user] :as req}]
-  (timbre/info "Is authenticated?" user)
+  (timbre/info "Is authenticated?" (not (empty? user)))
   (not (empty? user)))
 
 (defn access-error [request value]
+  (timbre/info "Not authorized for endpoint")
   {:status 401
    :headers {}
    :body "Not authorized"})
@@ -62,7 +64,7 @@
 
 
 (defroutes admin-routes
-  (GET "/" request (do (println "Inside admin-routes" request)
+  (GET "/" request (do (timbre/log "User Authorized for /admin/ route")
                        (ok {:message "Got to the admin-route!"}))))
 
 (def bare-app
@@ -129,12 +131,20 @@
 (def app (wrap-middleware bare-app
                           {:db (postgres/->Database postgres/pg-db)
                            :user (users/->UserDatabase postgres/pg-db)
+                           :logging (merge timbre/*config* {:level :debug})
                            :session-options
                            {:store (mem/memory-store (atom {}))}}))
 
 (defn -main [& _]
   (init)
-  (httpkit/run-server app {:port (@env/env :port)}))
+  (httpkit/run-server
+    (wrap-middleware bare-app
+                     {:db (postgres/->Database postgres/pg-db)
+                      :user (users/->UserDatabase postgres/pg-db)
+                      :logging (merge timbre/*config* {:level :info})
+                      :session-options
+                      {:store (mem/memory-store (atom {}))}})
+    {:port (@env/env :port)}))
 
 (comment
   (-main)
