@@ -2,7 +2,8 @@
   (:require [andrewslai.cljs.db :refer [default-db]]
             [re-frame.core :refer [reg-event-db
                                    dispatch]]
-            [ajax.core :refer [GET POST]]))
+            [ajax.core :refer [GET POST]]
+            [ajax.json :as json]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helper functions
@@ -192,6 +193,44 @@
 
 
 (reg-event-db
- :test-transitions
- (fn [db [_ value]]
-   (assoc db :test-transitions value)))
+  :test-transitions
+  (fn [db [_ value]]
+    (assoc db :test-transitions value)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; db events for logging in
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(reg-event-db
+  :process-login-response
+  (fn [db [_ response]]
+    (println "Login response" response)
+    db
+    #_(modify-db db {:login-response response})))
+
+(reg-event-db
+  :change-password
+  (fn [db [_ password]]
+    (assoc db :password password)))
+
+(reg-event-db
+  :change-username
+  (fn [db [_ username]]
+    (assoc db :username username)))
+
+(reg-event-db
+  :login-click
+  (fn [{:keys [username password] :as db}]
+    ;;(println "username and password:: "username password)
+
+    (POST "/login"
+        {:params {:username username :password password}
+         :format :json
+         :handler #(dispatch [:process-login-response %1])
+         :error-handler #(dispatch [:bad-recent-response %1])})
+
+    #_(modify-db db {:loading? true
+                     :active-panel value
+                     :active-content nil
+                     :recent-content nil})
+    ;;(println "After the POST")
+    db))

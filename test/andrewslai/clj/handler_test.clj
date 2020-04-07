@@ -18,7 +18,8 @@
 
 (deftest home-test
   (testing "Index page works properly"
-    (let [{:keys [status]} ((h/wrap-middleware h/bare-app {}) (mock/request :get "/"))]
+    (let [{:keys [status]}
+          ((h/wrap-middleware h/bare-app {}) (mock/request :get "/"))]
       (is (= 200 status)))))
 
 ;; TODO: Add tests that logging works properly
@@ -37,7 +38,8 @@
   (testing "Logging works properly"
     (let [logging-atom (atom [])
           {:keys [status body]}
-          ((h/wrap-middleware h/bare-app {:logging (captured-logging logging-atom)})
+          ((h/wrap-middleware h/bare-app
+                              {:logging (captured-logging logging-atom)})
            (mock/request :get "/ping"))]
       (is (= 1 (count @logging-atom))))))
 

@@ -2,7 +2,8 @@
   (:require [andrewslai.cljs.article :as article]
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.navbar :as nav]
-            [goog.object :as gobj]))
+            [goog.object :as gobj]
+            [re-frame.core :refer [dispatch]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; MENU CONTENTS
@@ -37,11 +38,29 @@
 ;;  populate accordingly -- e.g. I click on Project SOAR, and YMCA pops up
 ;;  on top and the mentoring and volunteering cards pop up on bottom
 
+(defn login-ui []
+  [:form
+   [:input {:type "text"
+            :placeholder "Username"
+            :name "username"
+            :on-change #(dispatch [:change-username (-> % .-target .-value)])}]
+   [:br]
+   [:input {:type "text"
+            :placeholder "Password"
+            :name "password"
+            :on-change #(dispatch [:change-password (-> % .-target .-value)])}]
+   [:br]
+   [:input {:type "button"
+            :value "Login"
+            :onClick (fn [event]
+                       (dispatch [:login-click event]))}]])
+
 (defn home []
   (println "Home")
-  [:div 
+  [:div
    [nav/primary-nav]
-   [cards/recent-content-display]])
+   [cards/recent-content-display]
+   [login-ui]])
 
 (comment
   (cljs.pprint/pprint (:resume-info @re-frame.db/app-db))

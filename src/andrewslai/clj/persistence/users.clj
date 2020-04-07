@@ -51,7 +51,7 @@
   (first (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" username])))
 
 (defn -get-user-by-id [db user-id]
-  (first (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" user-id])))
+  (first (sql/query (:conn db) ["SELECT * FROM users WHERE id = ?" user-id])))
 
 (defn- -get-password [db user-id]
   (:hashed_password (first (sql/query (:conn db) ["SELECT hashed_password FROM logins WHERE id = ?" user-id]))))
@@ -82,7 +82,7 @@
 
 (defn wrap-user [handler]
   (fn [{user-id :identity components :components :as req}]
-    (if (:user components)
+    (if (and user-id (:user components))
       (handler (assoc req :user (get-user-by-id (:user components) user-id)))
       (handler (assoc req :user nil)))))
 

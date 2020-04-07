@@ -109,7 +109,7 @@
             (if user-id
               (do (timbre/info "Authenticated login!")
                   (assoc (redirect "/") :session updated-session))
-              (do (timbre/info "Invalid username/password" credentials)
+              (do (timbre/info "Invalid username/password")
                   (redirect "/login")))))
 
         (POST "/logout/" request
