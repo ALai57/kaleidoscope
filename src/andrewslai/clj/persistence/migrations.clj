@@ -38,7 +38,7 @@
 (comment
   ;; MIGHT HAVE TO REQUIRE SOME MODULES... THIS WAS FAILING UNTIL I EVALUATED
   ;; THE BUFFER WITH THIS MODULE
-  (-main "create" "initial-tables")
+  (-main "create" "seed-articles-table")
   (-main "init")
   (-main "migrate")
   (-main "up")
