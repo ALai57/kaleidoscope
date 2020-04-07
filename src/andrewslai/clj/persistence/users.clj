@@ -48,13 +48,13 @@
   (sql/query (:conn db) ["SELECT * FROM users"]))
 
 (defn -get-user [db username]
-  (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" username]))
+  (first (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" username])))
 
 (defn -get-user-by-id [db user-id]
-  (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" user-id]))
+  (first (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" user-id])))
 
 (defn- -get-password [db user-id]
-  (sql/query (:conn db) ["SELECT hashed_password FROM logins WHERE id = ?" user-id]))
+  (:hashed_password (first (sql/query (:conn db) ["SELECT hashed_password FROM logins WHERE id = ?" user-id]))))
 
 (defn -login [db {:keys [username password]}]
   (let [{:keys [id]} (get-user db username)]
@@ -88,7 +88,7 @@
 
 (comment
   (create-user! (->UserDatabase postgres/pg-db)
-                {:username "testuser"
+                {:username "testuser1"
                  :email "testuser@andrewlai.com"
                  :first_name "test"
                  :last_name "user"

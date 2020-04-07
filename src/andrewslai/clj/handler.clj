@@ -34,7 +34,9 @@
 (defn wrap-logging [handler]
   (fn [request]
     (timbre/with-config (get-in request [:components :logging])
-      (timbre/debug "Request received for: " (:uri request))
+      (timbre/info "Request received for: "
+                   (:request-method request)
+                   (:uri request))
       (handler request))))
 
 (defn init []
@@ -64,7 +66,7 @@
 
 
 (defroutes admin-routes
-  (GET "/" request (do (timbre/log "User Authorized for /admin/ route")
+  (GET "/" request (do (timbre/info "User Authorized for /admin/ route")
                        (ok {:message "Got to the admin-route!"}))))
 
 (def bare-app
@@ -105,11 +107,13 @@
                 user-id (users/login (:user components) credentials)
                 updated-session (assoc session :identity user-id)]
             (if user-id
-              (assoc (redirect "/") :session updated-session)
-              (redirect "/login"))))
+              (do (timbre/info "Authenticated login!")
+                  (assoc (redirect "/") :session updated-session))
+              (do (timbre/info "Invalid username/password" credentials)
+                  (redirect "/login")))))
 
         (POST "/logout/" request
-          (println "Is authenticated?" (is-authenticated? request)))
+          (timbre/info "Is authorized for admin?" (is-authenticated? request)))
 
         (context "/admin" []
           (restrict admin-routes {:handler is-authenticated?
