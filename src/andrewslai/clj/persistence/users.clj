@@ -7,7 +7,6 @@
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
 ;; https://funcool.github.io/buddy-auth/latest/#signed-jwt
 
-;; TODO: Add logging for better visibility
 ;; TODO: Log client out after 30 mins
 
 ;; TODO: Basic endpoint for adding a new username

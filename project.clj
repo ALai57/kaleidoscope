@@ -20,12 +20,13 @@
                  [hickory "0.7.1"]
                  [http-kit "2.3.0"]
                  [metosin/compojure-api "1.1.12" :upgrade false]
+                 [migratus "1.2.8"]
                  [org.clojure/clojure "1.10.1"]
                  [org.clojure/clojurescript "1.10.597"]
                  [org.clojure/core.async "1.0.567"
                   :exclusions [org.clojure/tools.reader]]
                  [org.clojure/data.csv "1.0.0"]
-                 [org.clojure/java.jdbc "0.7.11"]
+                 [org.clojure/java.jdbc "0.7.8"]
                  [org.postgresql/postgresql "42.2.11"]
                  [re-frame "0.12.0"]
                  [reagent "0.10.0"]
@@ -35,7 +36,8 @@
                  [com.taoensso/timbre "4.10.0"]]
 
   :plugins [[lein-figwheel "0.5.19"]
-            [lein-cljsbuild "1.1.7"]]
+            [lein-cljsbuild "1.1.7"]
+            #_[migratus-lein "0.7.3"]]
 
   ;; Used to make this compatible with Java 11
   :managed-dependencies [[org.clojure/core.rrb-vector "0.1.1"]
@@ -79,6 +81,7 @@
          :source-paths ["src/andrewslai/cljs"]
          :repl-options {:nrepl-middleware
                         [cider.piggieback/wrap-cljs-repl]}
+         :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.migrations]}
          :plugins [[lein-ancient "0.6.15"]
                    [lein-bikeshed "0.5.2"]
                    [lein-kibit "0.1.8"]
