@@ -87,15 +87,15 @@
 
 (comment
   (create-user! (->UserDatabase postgres/pg-db)
-                {:username "testuser1"
+                {:username "testuser"
                  :email "testuser@andrewlai.com"
                  :first_name "test"
                  :last_name "user"
-                 :password "mypassword"})
+                 :password "password"})
   (get-users (->UserDatabase postgres/pg-db))
   (get-user (->UserDatabase postgres/pg-db) "testuser")
-  (login (->UserDatabase postgres/pg-db) {:username "Andrew"
-                                          :password "La"})
+  (login (->UserDatabase postgres/pg-db) {:username "testuser"
+                                          :password "password"})
   )
 
 

@@ -8,9 +8,11 @@
             [re-frame.core :refer [subscribe
                                    dispatch]]))
 
-;; TODO: Start up CLJS repl and try to hit login endpoint
-;; TODO: Verify that a token comes back
-;; TODO: Verify that the authenticated endpoint can be hit when token is set
+;; Verify that App still works after migrations
+;; Add a login panel
+;; Redirect with a "Welcome User" message upon login
+;; Add a user Icon/avatar so we know when you're logged in
+
 
 ;; Write tests with cookies....
 ;; https://github.com/reagent-project/reagent-utils/blob/master/test/reagent/cookies_test.cljs
