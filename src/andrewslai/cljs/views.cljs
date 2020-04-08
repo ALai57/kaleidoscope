@@ -8,7 +8,8 @@
             [re-frame.core :refer [subscribe
                                    dispatch]]))
 
-;; Verify that App still works after migrations
+;; Migrate to SSL
+;; Upgrade to application load balancer
 ;; Add a login panel
 ;; Redirect with a "Welcome User" message upon login
 ;; Add a user Icon/avatar so we know when you're logged in
