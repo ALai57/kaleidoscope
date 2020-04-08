@@ -63,7 +63,7 @@ INSERT INTO roles (title, description, active) VALUES
 --;;
 
 CREATE TABLE organizations(
-       id INT,
+       id integer,
        name text,
        url text,
        image_url text,
@@ -76,8 +76,8 @@ ALTER TABLE organizations ADD CONSTRAINT unique_organizations UNIQUE (name);
 
 --;;
 
-CREATE TABLE IF NOT EXISTS projects(
-       id INT,
+CREATE TABLE projects(
+       id integer,
        name text,
        url text,
        image_url text,
@@ -92,8 +92,8 @@ ALTER TABLE projects ADD CONSTRAINT unique_projects UNIQUE (name);
 
 --;;
 
-CREATE TABLE IF NOT EXISTS skills(
-       id INT,
+CREATE TABLE skills(
+       id integer,
        name text,
        url text,
        image_url text,
@@ -119,7 +119,7 @@ CREATE TABLE articles(
 --;;
 
 CREATE TABLE content(
-       article_id INT,
+       article_id integer,
        content text,
        dynamicjs text[]
 );
