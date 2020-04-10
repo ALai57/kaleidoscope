@@ -3,13 +3,12 @@
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.navbar :as nav]
             [andrewslai.cljs.pages.home :refer [home]]
+            [andrewslai.cljs.pages.admin :refer [login-ui]]
             [andrewslai.cljs.resume-cards :as resume-cards]
             [clojure.string :refer [includes?]]
             [re-frame.core :refer [subscribe
                                    dispatch]]))
 
-;; Migrate to SSL
-;; Upgrade to application load balancer
 ;; Add a login panel
 ;; Redirect with a "Welcome User" message upon login
 ;; Add a user Icon/avatar so we know when you're logged in
@@ -90,6 +89,7 @@
              :about [about]
              :research [research]
              :data-analysis [data-analysis]
+             :admin [login-ui]
              })
 
 (defn app []

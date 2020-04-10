@@ -15,19 +15,6 @@
 (defn modify-db [db mods]
   (reduce-kv #(assoc %1 %2 %3) db mods))
 
-;; Dispatched when setting the active panel
-#_(GET "/admin/"
-      {:handler (fn [response] (println response))
-       :error-handler (fn [response] (println response))})
-
-#_(POST "/login"
-      {:handler (fn [response]
-                  (println "Good!")
-                  (println response))
-       :error-handler (fn [response]
-                        (println "Errors!")
-                        (println response))})
-
 (reg-event-db
   :initialize-db
   (fn [_ _]
@@ -202,10 +189,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (reg-event-db
   :process-login-response
-  (fn [db [_ response]]
-    (println "Login response" response)
-    db
-    #_(modify-db db {:login-response response})))
+  (fn [db [_ {:keys [user-id]}]]
+    (assoc db :active-user user-id)))
 
 (reg-event-db
   :change-password

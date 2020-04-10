@@ -37,4 +37,5 @@
               :x 100
               :y 100
               :r 30
-              :color "blue"}]})
+              :color "blue"}]
+   :active-user nil})

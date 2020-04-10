@@ -11,6 +11,7 @@
                                            wrap-authorization]]
             [cheshire.core :as json]
             [clojure.java.shell :as shell]
+            [clojure.java.io :as io]
             [compojure.api.sweet :refer :all]
             [org.httpkit.server :as httpkit]
             [ring.middleware.content-type :refer [wrap-content-type]]
@@ -20,7 +21,7 @@
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
             [ring.util.http-response :refer :all]
-            [ring.util.response :refer [redirect]]
+            [ring.util.response :refer [redirect] :as response]
             [taoensso.timbre :as timbre]
             [taoensso.timbre.appenders.core :as appenders]
             ))
@@ -104,16 +105,22 @@
                                 :body
                                 slurp
                                 (json/parse-string keyword))
-                user-id (users/login (:user components) credentials)
-                updated-session (assoc session :identity user-id)]
+                user-id (users/login (:user components) credentials)]
             (if user-id
               (do (timbre/info "Authenticated login!")
-                  (assoc (redirect "/") :session updated-session))
+                  (assoc (ok {:user-id user-id})
+                         :session
+                         (assoc session :identity user-id)))
               (do (timbre/info "Invalid username/password")
-                  (redirect "/login")))))
+                  (ok {:user-id nil, :session session})))))
 
         (POST "/logout/" request
           (timbre/info "Is authorized for admin?" (is-authenticated? request)))
+
+        (context "/users" []
+          (GET "/:id/avatar" [id]
+            (-> (response/response (slurp (io/resource "avatars/happy_emoji.jpg")))
+                (response/content-type "image/jpeg"))))
 
         (context "/admin" []
           (restrict admin-routes {:handler is-authenticated?
