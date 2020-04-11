@@ -36,8 +36,7 @@
                  [com.taoensso/timbre "4.10.0"]]
 
   :plugins [[lein-figwheel "0.5.19"]
-            [lein-cljsbuild "1.1.7"]
-            #_[migratus-lein "0.7.3"]]
+            [lein-cljsbuild "1.1.7"]]
 
   ;; Used to make this compatible with Java 11
   :managed-dependencies [[org.clojure/core.rrb-vector "0.1.1"]

@@ -55,7 +55,10 @@
   (fn [db]
     (:active-user db)))
 
-
+(reg-sub
+  :avatar
+  (fn [db]
+    (:avatar db)))
 ;; -------------------------------------------------------------------------------------
 ;; Layer 3:: Subscription handler
 ;;

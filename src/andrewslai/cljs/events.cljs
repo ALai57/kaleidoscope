@@ -189,8 +189,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (reg-event-db
   :process-login-response
-  (fn [db [_ {:keys [user-id]}]]
-    (assoc db :active-user user-id)))
+  (fn [db [_ {:keys [user-id avatar]}]]
+    (assoc db
+           :active-user user-id
+           :avatar avatar)))
 
 (reg-event-db
   :change-password

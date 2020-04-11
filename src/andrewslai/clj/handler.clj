@@ -104,13 +104,12 @@
           (let [credentials (-> request
                                 :body
                                 slurp
-                                (json/parse-string keyword))
-                user-id (users/login (:user components) credentials)]
-            (if user-id
-              (do (timbre/info "Authenticated login!")
-                  (assoc (ok {:user-id user-id})
-                         :session
-                         (assoc session :identity user-id)))
+                                (json/parse-string keyword))]
+            (if-let [user-id (users/login (:user components) credentials)]
+              (let [user (users/get-user-by-id (:user components) user-id)]
+                (timbre/info "Authenticated login!")
+                (assoc (ok {:user-id user-id, :avatar (:avatar user)})
+                       :session (assoc session :identity user-id)))
               (do (timbre/info "Invalid username/password")
                   (ok {:user-id nil, :session session})))))
 
