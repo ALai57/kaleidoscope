@@ -92,6 +92,16 @@
       (is (= 302 status))
       (is (not (contains? headers "Set-Cookie"))))))
 
+(deftest user-avatar-test
+  (testing "Get user avatar"
+    (let [{:keys [status body headers]}
+          (test-users-app (mock/request :get
+                                        "/users/1/avatar"
+                                        ))]
+      (is (= 200 status))
+      (is (= java.io.BufferedInputStream (type body))))))
+
+
 (comment
   (require '[ring.middleware.cookies :as cook])
   (cook/cookies-request {:protocol "HTTP/1.1",
