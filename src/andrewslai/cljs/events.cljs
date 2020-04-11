@@ -194,10 +194,9 @@
 ;; TODO: Revoke URLs when logged out!
 (reg-event-db
   :process-login-response
-  (fn [db [_ {:keys [user-id avatar]}]]
-    (assoc db
-           :active-user user-id
-           :avatar (image->blob avatar))))
+  (fn [db [_ {:keys [avatar] :as user}]]
+    (let [updated-user (assoc user :avatar (image->blob avatar))]
+      (assoc db :user updated-user))))
 
 (reg-event-db
   :change-password

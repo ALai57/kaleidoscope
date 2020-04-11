@@ -7,35 +7,52 @@
 ;; TODO: Make sure refreshing the page doesn't clobber the authentication
 
 (defn login-form []
-  [:form
-   [:input {:type "text"
-            :placeholder "Username"
-            :name "username"
-            :on-change #(dispatch [:change-username (-> % .-target .-value)])}]
-   [:br]
-   [:input {:type "password"
-            :placeholder "Password"
-            :name "password"
-            :on-change #(dispatch [:change-password (-> % .-target .-value)])}]
-   [:br]
-   [:input {:type "button"
-            :value "Login"
-            :onClick (fn [event]
-                       (dispatch [:login-click event]))}]])
+  [:div {:style {:text-align "center"}}
+   [:h1 "Admin portal"]
+   [:form
+    [:input {:type "text"
+             :placeholder "Username"
+             :name "username"
+             :on-change #(dispatch [:change-username (-> % .-target .-value)])}]
+    [:br]
+    [:input {:type "password"
+             :placeholder "Password"
+             :name "password"
+             :on-change #(dispatch [:change-password (-> % .-target .-value)])}]
+    [:br]
+    [:input {:type "button"
+             :value "Login"
+             :onClick (fn [event]
+                        (dispatch [:login-click event]))}]]])
 
-(defn user-profile []
-  (let [user-info (subscribe [:active-user])
-        avatar (subscribe [:avatar])]
-    [:div
-     ;;[:p "Active user" @user-info]
-     (when @avatar
-       [:img {:src @avatar}])]))
+(defn editable-text-input [field-name title initial-value & description]
+  [:dl.form-group
+   [:dt [:label {:for field-name} title]]
+   [:dd [:input.form-control {:type "text"
+                              :value initial-value}]]
+   (when description
+     [:note (first description)])])
 
+;; TODO: Make uploadable avatar
+;; TODO: POST to update user...
+(defn user-profile [{:keys [avatar first_name last_name email] :as user}]
+  [:div {:style {:margin "20px"}}
+   [:img {:src avatar
+          :style {:width "100px"}}]
+   [:br]
+   [:br]
+   [:br]
+   [editable-text-input "user_first_name" "First Name" first_name]
+   [editable-text-input "user_last_name" "Last Name" last_name]
+   [editable-text-input "user_email" "Email" email]])
+
+;; TODO: Make user login timeout, so after 30 mins or so you can't see
+;;       the profile information
 (defn login-ui []
-  [:div
-   [nav/primary-nav]
-   [:br]
-   [:div {:style {:text-align "center"}}
-    [:h1 "Admin portal"]
-    [login-form]
-    [user-profile]]])
+  (let [user (subscribe [:user])]
+    [:div
+     [nav/primary-nav]
+     [:br]
+     (if @user
+       [:div [user-profile @user]]
+       [login-form])]))

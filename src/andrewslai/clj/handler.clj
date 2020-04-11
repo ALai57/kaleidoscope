@@ -108,10 +108,10 @@
             (if-let [user-id (users/login (:user components) credentials)]
               (let [user (users/get-user-by-id (:user components) user-id)]
                 (timbre/info "Authenticated login!")
-                (assoc (ok {:user-id user-id, :avatar (:avatar user)})
+                (assoc (ok user)
                        :session (assoc session :identity user-id)))
               (do (timbre/info "Invalid username/password")
-                  (ok {:user-id nil, :session session})))))
+                  (ok {:id nil, :session session})))))
 
         (POST "/logout/" request
           (timbre/info "Is authorized for admin?" (is-authenticated? request)))

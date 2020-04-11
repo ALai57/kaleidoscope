@@ -12,21 +12,20 @@
 
 (defn- login-icon
   [avatar]
-  [:a.zoom-icon {:href (str "#/profile")}
+  [:a.zoom-icon {:href (str "#/admin")}
    [:img.navbutton
     {:src (or avatar "/images/nav-bar/unknown-user.svg")
      :on-click #(dispatch [:set-active-panel :admin])}]])
 
 (defn primary-nav []
-  (let [avatar (subscribe [:avatar])]
-    (println @avatar)
+  (let [user (subscribe [:user])]
     [:div#primary-nav
      [:a.zoom-icon {:href "#/home"
                     :style {:float "left"}}
       [:img.navbutton {:src "images/nav-bar/favicon-white.svg"
                        :on-click #(dispatch [:set-active-panel :home])}]]
      [:div#secondary-nav
-      [login-icon @avatar]
+      [login-icon (:avatar @user)]
       [nav-icon "thoughts" "andrew-head-icon.svg"]
       [nav-icon "archive" "archive-icon.svg"]
       [nav-icon "about" "andrew-silhouette-icon.svg"]

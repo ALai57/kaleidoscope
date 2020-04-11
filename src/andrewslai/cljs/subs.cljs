@@ -51,14 +51,10 @@
     (:test-transitions db)))
 
 (reg-sub
-  :active-user
+  :user
   (fn [db]
-    (:active-user db)))
+    (:user db)))
 
-(reg-sub
-  :avatar
-  (fn [db]
-    (:avatar db)))
 ;; -------------------------------------------------------------------------------------
 ;; Layer 3:: Subscription handler
 ;;
