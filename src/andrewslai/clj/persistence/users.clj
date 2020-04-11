@@ -94,10 +94,13 @@
                  :password "password"})
   (get-users (->UserDatabase postgres/pg-db))
   (get-user (->UserDatabase postgres/pg-db) "testuser")
+
   (login (->UserDatabase postgres/pg-db) {:username "testuser"
                                           :password "password"})
   )
 
+(defn get-avatar []
+  (first (sql/query postgres/pg-db ["SELECT avatar from users;"])))
 
 (comment
   ;;https://mysql.tutorials24x7.com/blog/guide-to-design-database-for-rbac-in-mysql
@@ -121,6 +124,22 @@
   (sql/query pg-db ["SELECT * FROM logins"])
   (sql/query pg-db ["SELECT * FROM roles"])
   (sql/query pg-db ["SELECT * FROM permissions"])
+
+  (defn file->bytes [file]
+    (with-open [xin (clojure.java.io/input-stream file)
+                xout (java.io.ByteArrayOutputStream.)]
+      (clojure.java.io/copy xin xout)
+      (.toByteArray xout)))
+
+  (file->bytes (clojure.java.io/resource "avatars/happy_emoji.jpg"))
+
+  (sql/update! postgres/pg-db
+               "users"
+               {:avatar (file->bytes
+                          (java.io.File. "/home/alai/dev/andrewslai/resources/avatars/happy_emoji.jpg"))}
+               ["last_name = ?" "user"])
+
+
 
   (create-user! {:username "andrewlai"
                  :email "andrewlai@andrewlai.com"

@@ -31,7 +31,8 @@
 
 (def test-user-db
   (atom {:users [{:id 1
-                  :username "Andrew"}]
+                  :username "Andrew"
+                  :avatar (byte-array (map (comp byte int) "Hello world!"))}]
          :logins [{:id 1
                    :hashed_password (encryption/encrypt (encryption/make-encryption)
                                                         "Lai")}]}))
@@ -62,7 +63,7 @@
                                                                credentials))
         cookie (first (get headers "Set-Cookie"))]
     (testing "login happy path"
-      (is (= 302 status))
+      (is (= 200 status))
       (is (contains? headers "Set-Cookie")))
     (testing "cookies work properly"
       (let [{:keys [user-authentication]}
@@ -89,14 +90,14 @@
           {:keys [status headers]} (test-users-app (mock/request :post
                                                                  "/login"
                                                                  credentials))]
-      (is (= 302 status))
+      (is (= 200 status))
       (is (not (contains? headers "Set-Cookie"))))))
 
 (deftest user-avatar-test
   (testing "Get user avatar"
     (let [{:keys [status body headers]}
           (test-users-app (mock/request :get
-                                        "/users/1/avatar"
+                                        "/users/Andrew/avatar"
                                         ))]
       (is (= 200 status))
       (is (= java.io.BufferedInputStream (type body))))))

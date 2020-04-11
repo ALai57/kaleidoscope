@@ -117,10 +117,14 @@
         (POST "/logout/" request
           (timbre/info "Is authorized for admin?" (is-authenticated? request)))
 
-        (context "/users" []
-          (GET "/:id/avatar" [id]
-            (-> (response/response (io/input-stream (io/resource "avatars/happy_emoji.jpg")))
-                (response/content-type "image/jpeg"))))
+        (context "/users" {:keys [components]}
+          (GET "/:username/avatar" [username]
+            (let [{:keys [avatar]}
+                  (users/get-user (:user components) username)]
+              (if avatar
+                (-> (response/response (io/input-stream avatar))
+                    (response/content-type "image/jpeg"))
+                (not-found (format "Cannot find user: %s" username))))))
 
         (context "/admin" []
           (restrict admin-routes {:handler is-authenticated?
