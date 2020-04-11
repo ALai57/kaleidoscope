@@ -136,7 +136,7 @@
   (sql/update! postgres/pg-db
                "users"
                {:avatar (file->bytes
-                          (java.io.File. "/home/alai/dev/andrewslai/resources/avatars/happy_emoji.jpg"))}
+                          (java.io.File. "/home/alai/dev/andrewslai/resources/avatars/smiley_emoji.png"))}
                ["last_name = ?" "user"])
 
 

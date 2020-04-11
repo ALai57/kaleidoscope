@@ -38,4 +38,5 @@
               :y 100
               :r 30
               :color "blue"}]
-   :active-user nil})
+   :active-user nil
+   :avatar nil})

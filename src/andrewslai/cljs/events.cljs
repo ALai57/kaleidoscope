@@ -187,12 +187,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for logging in
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn image->blob [the-bytes]
+  (let [data-blob (js/Blob. #js [the-bytes] #js {:type "image/png"})]
+    (.createObjectURL js/URL data-blob)))
+
+;; TODO: Revoke URLs when logged out!
 (reg-event-db
   :process-login-response
   (fn [db [_ {:keys [user-id avatar]}]]
     (assoc db
            :active-user user-id
-           :avatar avatar)))
+           :avatar (image->blob avatar))))
 
 (reg-event-db
   :change-password

@@ -23,18 +23,13 @@
             :onClick (fn [event]
                        (dispatch [:login-click event]))}]])
 
-(defn image->blob [the-bytes]
-  (let [data-blob (js/Blob. #js [the-bytes] #js {:type "image/jpeg"})]
-    (.createObjectURL js/URL data-blob)))
-
 (defn user-profile []
   (let [user-info (subscribe [:active-user])
         avatar (subscribe [:avatar])]
-    (println "User info" @user-info)
     [:div
      ;;[:p "Active user" @user-info]
      (when @avatar
-       [:img {:src (image->blob @avatar)}])]))
+       [:img {:src @avatar}])]))
 
 (defn login-ui []
   [:div

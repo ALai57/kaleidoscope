@@ -122,7 +122,7 @@
                   (users/get-user (:user components) username)]
               (if avatar
                 (-> (response/response (io/input-stream avatar))
-                    (response/content-type "image/jpeg"))
+                    (response/content-type "image/png"))
                 (not-found (format "Cannot find user: %s" username))))))
 
         (context "/admin" []
