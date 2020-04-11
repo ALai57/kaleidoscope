@@ -119,7 +119,7 @@
 
         (context "/users" []
           (GET "/:id/avatar" [id]
-            (-> (response/response (slurp (io/resource "avatars/happy_emoji.jpg")))
+            (-> (response/response (io/input-stream (io/resource "avatars/happy_emoji.jpg")))
                 (response/content-type "image/jpeg"))))
 
         (context "/admin" []
