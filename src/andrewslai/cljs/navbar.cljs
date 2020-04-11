@@ -12,7 +12,6 @@
 
 (defn- login-icon
   [avatar]
-  (println "AVATAR" avatar)
   [:a.zoom-icon {:href (str "#/profile")}
    [:img.navbutton
     {:src (or avatar "/images/nav-bar/unknown-user.svg")
