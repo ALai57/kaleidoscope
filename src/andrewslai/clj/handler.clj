@@ -100,12 +100,6 @@
         (GET "/login" []
           (ok {:message "Login get message"}))
 
-        ;; TODO: Convert this to update-profile endpoint, start trying to
-        ;;       actually update profiles
-        (POST "/echo" request
-          (timbre/info "Echo:" (:body request))
-          (ok {:message "Login get message"}))
-
         (POST "/login" {:keys [components body session] :as request}
           (let [credentials (-> request
                                 :body
@@ -123,6 +117,12 @@
           (timbre/info "Is authorized for admin?" (is-authenticated? request)))
 
         (context "/users" {:keys [components]}
+
+          ;; TODO: Implement PATCH endpoint
+          (PATCH "/:username" request
+                 (timbre/info "Patch :" (:body request))
+                 (ok {:message "Patch reached"}))
+
           (GET "/:username/avatar" [username]
             (let [{:keys [avatar]}
                   (users/get-user (:user components) username)]
