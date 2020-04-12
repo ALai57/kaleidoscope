@@ -191,14 +191,16 @@
   (let [data-blob (js/Blob. #js [the-bytes] #js {:type "image/png"})]
     (.createObjectURL js/URL data-blob)))
 
+(defn update-user-profile [db [_ {:keys [avatar] :as user}]]
+  (if (empty? user)
+    (assoc db :user nil)
+    (let [updated-user (assoc user :avatar (image->blob avatar))]
+      (assoc db :user updated-user))))
+
 ;; TODO: Revoke URLs when logged out!
 (reg-event-db
   :process-login-response
-  (fn [db [_ {:keys [avatar] :as user}]]
-    (if (empty? user)
-      (assoc db :user nil)
-      (let [updated-user (assoc user :avatar (image->blob avatar))]
-        (assoc db :user updated-user)))))
+  update-user-profile)
 
 (reg-event-db
   :change-password
@@ -226,4 +228,31 @@
                      :active-content nil
                      :recent-content nil})
     ;;(println "After the POST")
+    db))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; db events for updating profile
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Right now, we don't have a good way to know if the update was successful
+;;       or not. Need to make the update endpoint send different status codes
+;;       depending on whether the update was successful or not.
+;;       Also need to update this event handler to handle both cases
+(reg-event-db
+  :process-update-profile
+  (fn [db [_ user]]
+    (if (empty? user)
+      (assoc db :user nil)
+      (update-user-profile db [nil user]))))
+
+(reg-event-db
+  :update-profile
+  (fn [db [_ request]]
+
+    (POST "/echo" {:params request
+                   :format :json
+                   :handler #(dispatch [:process-update-profile %])
+                   :error-handler #(dispatch [:bad-recent-response %])})
+
     db))

@@ -100,6 +100,10 @@
         (GET "/login" []
           (ok {:message "Login get message"}))
 
+        (POST "/echo" request
+          (timbre/info "Echo:" (:body request))
+          (ok {:message "Login get message"}))
+
         (POST "/login" {:keys [components body session] :as request}
           (let [credentials (-> request
                                 :body

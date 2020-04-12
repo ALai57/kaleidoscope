@@ -23,28 +23,47 @@
     [:input {:type "button"
              :value "Login"
              :onClick (fn [event]
-                        (dispatch [:login-click event]))}]]])
+                        (dispatch [:login-click event]))}]
+    [:br]
+    ]])
 
 (defn editable-text-input [field-name title initial-value & description]
   [:dl.form-group
    [:dt [:label {:for field-name} title]]
    [:dd [:input.form-control {:type "text"
-                              :value initial-value}]]
+                              :name field-name
+                              :defaultValue initial-value}]]
    (when description
      [:note (first description)])])
+
+(defn form-data->map [form-id]
+  (-> js/FormData
+      (new (.getElementById js/document form-id))
+      js/Object.fromEntries
+      (js->clj :keywordize-keys :true)))
 
 ;; TODO: Make uploadable avatar
 ;; TODO: POST to update user...
 (defn user-profile [{:keys [avatar first_name last_name email] :as user}]
   [:div {:style {:margin "20px"}}
-   [:img {:src avatar
-          :style {:width "100px"}}]
-   [:br]
-   [:br]
-   [:br]
-   [editable-text-input "user_first_name" "First Name" first_name]
-   [editable-text-input "user_last_name" "Last Name" last_name]
-   [editable-text-input "user_email" "Email" email]])
+   [:form {:id "profile-update-form"
+           :method :post
+           :action "/echo"}
+    [:img {:src avatar
+           :style {:width "100px"}}]
+    [:br]
+    [:br]
+    [:br]
+    [editable-text-input "first_name" "First Name" first_name]
+    [editable-text-input "last_name" "Last Name" last_name]
+    [editable-text-input "email" "Email" email]
+    [:br]
+    [:input.btn-primary
+     {:type "button"
+      :value "Submit"
+      :onClick
+      (fn [& args]
+        (dispatch [:update-profile (form-data->map "profile-update-form")]))}]]])
 
 ;; TODO: Make user login timeout, so after 30 mins or so you can't see
 ;;       the profile information
