@@ -100,6 +100,8 @@
         (GET "/login" []
           (ok {:message "Login get message"}))
 
+        ;; TODO: Convert this to update-profile endpoint, start trying to
+        ;;       actually update profiles
         (POST "/echo" request
           (timbre/info "Echo:" (:body request))
           (ok {:message "Login get message"}))
