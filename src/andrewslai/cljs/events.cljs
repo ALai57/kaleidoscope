@@ -195,8 +195,10 @@
 (reg-event-db
   :process-login-response
   (fn [db [_ {:keys [avatar] :as user}]]
-    (let [updated-user (assoc user :avatar (image->blob avatar))]
-      (assoc db :user updated-user))))
+    (if (empty? user)
+      (assoc db :user nil)
+      (let [updated-user (assoc user :avatar (image->blob avatar))]
+        (assoc db :user updated-user)))))
 
 (reg-event-db
   :change-password

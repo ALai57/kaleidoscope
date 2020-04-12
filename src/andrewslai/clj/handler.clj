@@ -111,7 +111,7 @@
                 (assoc (ok user)
                        :session (assoc session :identity user-id)))
               (do (timbre/info "Invalid username/password")
-                  (ok {:id nil, :session session})))))
+                  (ok nil)))))
 
         (POST "/logout/" request
           (timbre/info "Is authorized for admin?" (is-authenticated? request)))
