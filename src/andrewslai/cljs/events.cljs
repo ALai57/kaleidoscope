@@ -215,21 +215,25 @@
 (reg-event-db
   :login-click
   (fn [{:keys [username password] :as db}]
-    ;;(println "username and password:: "username password)
-
     (POST "/login"
         {:params {:username username :password password}
          :format :json
          :handler #(dispatch [:process-login-response %1])
          :error-handler #(dispatch [:bad-recent-response %1])})
-
-    #_(modify-db db {:loading? true
-                     :active-panel value
-                     :active-content nil
-                     :recent-content nil})
-    ;;(println "After the POST")
     db))
 
+(reg-event-db
+  :process-logout-response
+  (fn [db & args]
+    (assoc db :user nil)))
+
+(reg-event-db
+  :logout
+  (fn [{:keys [username password] :as db}]
+    (POST "/logout"
+        {:handler #(dispatch [:process-logout-response %1])
+         :error-handler #(dispatch [:bad-recent-response %1])})
+    db))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for updating profile

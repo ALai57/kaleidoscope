@@ -56,7 +56,7 @@
     [:br]
     [:br]
     [:dl.form-group
-     [:dt [:label {:for "username"} username]]
+     [:dt [:label {:for "username"} "Username"]]
      [:dd [:input.form-control {:type "text"
                                 :name "username"
                                 :readOnly true
@@ -68,10 +68,15 @@
     [:br]
     [:input.btn-primary
      {:type "button"
-      :value "Submit"
+      :value "Update profile"
       :onClick
       (fn [& args]
-        (dispatch [:update-profile (form-data->map "profile-update-form")]))}]]])
+        (dispatch [:update-profile (form-data->map "profile-update-form")]))}]
+    [:input.btn-secondary
+     {:type "button"
+      :value "Logout"
+      :style {:float "right"}
+      :onClick (fn [& args] (dispatch [:logout]))}]]])
 
 ;; TODO: Make user login timeout, so after 30 mins or so you can't see
 ;;       the profile information
