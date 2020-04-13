@@ -113,20 +113,20 @@
               (do (timbre/info "Invalid username/password")
                   (ok nil)))))
 
-        (POST "/logout/" request
-          (timbre/info "Is authorized for admin?" (is-authenticated? request)))
+        (POST "/logout" []
+          (assoc (ok) :session nil))
 
         (context "/users" {:keys [components]}
 
           (PATCH "/:username" request
-                 (let [{:keys [username] :as update-map}
-                       (-> request
-                           :body
-                           slurp
-                           (json/parse-string keyword))]
-                   (ok (users/update-user (:user components)
-                                          username
-                                          (dissoc update-map :username)))))
+            (let [{:keys [username] :as update-map}
+                  (-> request
+                      :body
+                      slurp
+                      (json/parse-string keyword))]
+              (ok (users/update-user (:user components)
+                                     username
+                                     (dissoc update-map :username)))))
 
           (GET "/:username/avatar" [username]
             (let [{:keys [avatar]}
@@ -158,7 +158,9 @@
                            :user (users/->UserDatabase postgres/pg-db)
                            :logging (merge timbre/*config* {:level :debug})
                            :session-options
-                           {:store (mem/memory-store (atom {}))}}))
+                           {:cookie-attrs {:max-age 3600
+                                           :secure true}
+                            :store (mem/memory-store (atom {}))}}))
 
 (defn -main [& _]
   (init)
@@ -168,7 +170,9 @@
                       :user (users/->UserDatabase postgres/pg-db)
                       :logging (merge timbre/*config* {:level :info})
                       :session-options
-                      {:store (mem/memory-store (atom {}))}})
+                      {:cookie-attrs {:max-age 3600
+                                      :secure true}
+                       :store (mem/memory-store (atom {}))}})
     {:port (@env/env :port)}))
 
 (comment

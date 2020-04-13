@@ -74,14 +74,21 @@
                (into {} user-authentication)))))
     (testing "Can hit admin route with valid session token"
       (let [{:keys [status body]}
-            (test-users-app (assoc-in (mock/request :get
-                                                    "/admin/")
+            (test-users-app (assoc-in (mock/request :get "/admin/")
                                       [:headers "cookie"] cookie))]
         (is (= 200 status))
         (is (= {:message "Got to the admin-route!"} (body->map body)))))
     (testing "Rejected from admin route when valid session token not present"
       (let [{:keys [status body]}
             (test-users-app (mock/request :get "/admin/"))]
+        (is (= 401 status))
+        (is (= "Not authorized" body))))
+    (testing "After logout, cannot hit admin routes"
+      (test-users-app (assoc-in (mock/request :post "/logout")
+                                [:headers "cookie"] cookie))
+      (let [{:keys [status body]}
+            (test-users-app (assoc-in (mock/request :get "/admin/")
+                                      [:headers "cookie"] cookie))]
         (is (= 401 status))
         (is (= "Not authorized" body)))))
   (testing "login with incorrect password"
