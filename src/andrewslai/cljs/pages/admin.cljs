@@ -37,10 +37,11 @@
      [:note (first description)])])
 
 (defn form-data->map [form-id]
-  (-> js/FormData
-      (new (.getElementById js/document form-id))
-      js/Object.fromEntries
-      (js->clj :keywordize-keys :true)))
+  (let [m (atom {})]
+    (-> js/FormData
+        (new (.getElementById js/document "profile-update-form"))
+        (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
+    @m))
 
 ;; TODO: Make uploadable avatar
 ;; TODO: POST to update user...
