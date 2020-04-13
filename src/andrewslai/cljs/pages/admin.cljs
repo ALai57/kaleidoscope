@@ -44,7 +44,7 @@
 
 ;; TODO: Make uploadable avatar
 ;; TODO: POST to update user...
-(defn user-profile [{:keys [avatar first_name last_name email] :as user}]
+(defn user-profile [{:keys [avatar username first_name last_name email] :as user}]
   [:div {:style {:margin "20px"}}
    [:form {:id "profile-update-form"
            :method :post
@@ -54,6 +54,13 @@
     [:br]
     [:br]
     [:br]
+    [:dl.form-group
+     [:dt [:label {:for "username"} username]]
+     [:dd [:input.form-control {:type "text"
+                                :name "username"
+                                :readOnly true
+                                :value username}]]
+     [:note "Cannot be modified"]]
     [editable-text-input "first_name" "First Name" first_name]
     [editable-text-input "last_name" "Last Name" last_name]
     [editable-text-input "email" "Email" email]

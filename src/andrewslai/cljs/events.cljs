@@ -2,7 +2,7 @@
   (:require [andrewslai.cljs.db :refer [default-db]]
             [re-frame.core :refer [reg-event-db
                                    dispatch]]
-            [ajax.core :refer [GET POST]]
+            [ajax.core :refer [GET POST PATCH]]
             [ajax.json :as json]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -239,20 +239,24 @@
 ;;       or not. Need to make the update endpoint send different status codes
 ;;       depending on whether the update was successful or not.
 ;;       Also need to update this event handler to handle both cases
+
+;; TODO: Support avatar uploads in this function too. Right now it will be
+;;       unhappy/unable to support conversion of an avatar image into a blob
 (reg-event-db
   :process-update-profile
   (fn [db [_ user]]
     (if (empty? user)
       (assoc db :user nil)
-      (update-user-profile db [nil user]))))
+      (assoc db :user (merge (:user db) user)))))
 
 (reg-event-db
   :update-profile
-  (fn [db [_ request]]
+  (fn [db [_ {:keys [username] :as request}]]
 
-    (POST "/echo" {:params request
-                   :format :json
-                   :handler #(dispatch [:process-update-profile %])
-                   :error-handler #(dispatch [:bad-recent-response %])})
+    (PATCH (str "/users/" username)
+           {:params request
+            :format :json
+            :handler #(dispatch [:process-update-profile %])
+            :error-handler #(dispatch [:bad-recent-response %])})
 
     db))

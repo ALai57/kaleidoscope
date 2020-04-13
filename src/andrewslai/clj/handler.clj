@@ -118,10 +118,15 @@
 
         (context "/users" {:keys [components]}
 
-          ;; TODO: Implement PATCH endpoint
           (PATCH "/:username" request
-                 (timbre/info "Patch :" (:body request))
-                 (ok {:message "Patch reached"}))
+                 (let [{:keys [username] :as update-map}
+                       (-> request
+                           :body
+                           slurp
+                           (json/parse-string keyword))]
+                   (ok (users/update-user (:user components)
+                                          username
+                                          (dissoc update-map :username)))))
 
           (GET "/:username/avatar" [username]
             (let [{:keys [avatar]}

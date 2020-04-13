@@ -19,6 +19,7 @@
   (get-user [_ username])
   (get-user-by-id [_ id])
   (get-users [_])
+  (update-user [_ username update-payload])
   (get-password [_ user-id])
   (login [_ credentials]))
 
@@ -52,6 +53,14 @@
 (defn -get-user-by-id [db user-id]
   (first (sql/query (:conn db) ["SELECT * FROM users WHERE id = ?" user-id])))
 
+(defn -update-user [db username update-payload]
+  (let [n-updates (first (sql/update! (:conn db)
+                                      "users"
+                                      update-payload
+                                      ["username = ?" username]))]
+    (if (= 1 n-updates)
+      update-payload)))
+
 (defn- -get-password [db user-id]
   (:hashed_password (first (sql/query (:conn db) ["SELECT hashed_password FROM logins WHERE id = ?" user-id]))))
 
@@ -74,6 +83,8 @@
     (-get-user this username))
   (get-user-by-id [this user-id]
     (-get-user-by-id this user-id))
+  (update-user [this username update-payload]
+    (-update-user this username update-payload))
   (get-password [this user-id]
     (-get-password this user-id))
   (login [this credentials]
@@ -94,6 +105,16 @@
                  :password "password"})
   (get-users (->UserDatabase postgres/pg-db))
   (get-user (->UserDatabase postgres/pg-db) "testuser")
+
+  (update-user (->UserDatabase postgres/pg-db)
+               "testuser"
+               {:first_name "just_updated1"
+                :email "just_updated1@andrewslai.com"})
+
+  (update-user (->UserDatabase postgres/pg-db)
+               "testuser"
+               {:avatar (file->bytes
+                          (java.io.File. "/home/alai/dev/andrewslai/resources/avatars/smiley_emoji.png"))})
 
   (login (->UserDatabase postgres/pg-db) {:username "testuser"
                                           :password "password"})
@@ -137,7 +158,7 @@
                "users"
                {:avatar (file->bytes
                           (java.io.File. "/home/alai/dev/andrewslai/resources/avatars/smiley_emoji.png"))}
-               ["last_name = ?" "user"])
+               ["username = ?" "testuser"])
 
 
 
