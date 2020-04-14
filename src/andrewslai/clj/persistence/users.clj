@@ -25,13 +25,18 @@
   (get-password [_ user-id])
   (login [_ credentials]))
 
-(defn -create-user! [db {:keys [id username email first_name last_name] :as user}]
-  (sql/insert! (:conn db) "users" {:id id
-                                   :first_name first_name
-                                   :last_name last_name
-                                   :username username
-                                   :email email
-                                   :role_id 2}))
+(defn create-user-payload [{:keys [id username email first_name last_name]}]
+  {:id id
+   :first_name first_name
+   :last_name last_name
+   :username username
+   :email email
+   :role_id 2})
+
+(defn -create-user! [db user]
+  (let [insert-payload (create-user-payload user)]
+    (if (= 1 (first (sql/insert! (:conn db) "users" insert-payload)))
+      insert-payload)))
 
 (defn -create-login! [db id password]
   (sql/insert! (:conn db) "logins"
@@ -44,7 +49,8 @@
   (try
     (let [id (java.util.UUID/randomUUID)
           user-result (create-user! db (assoc user :id id))
-          login-result (create-login! db id password)])
+          login-result (create-login! db id password)]
+      (select-keys user-result [:id :username]))
     (catch Exception e
       (str "create-user! caught exception: " (.getMessage e)
            "db config: " (assoc (:conn db) :password "xxxxxx")))))

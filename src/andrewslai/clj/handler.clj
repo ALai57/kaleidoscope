@@ -118,6 +118,9 @@
 
         (context "/users" {:keys [components]}
 
+          (GET "/:username" [username]
+            (ok (dissoc (users/get-user (:user components) username) :id)))
+
           (PATCH "/:username" request
             (let [{:keys [username] :as update-map}
                   (-> request
@@ -128,13 +131,18 @@
                                      username
                                      (dissoc update-map :username)))))
 
-          (POST "/:username" request
+          (POST "/" request
             (let [{:keys [username] :as user}
                   (-> request
                       :body
                       slurp
-                      (json/parse-string keyword))]
-              (ok (users/register-user! (:user components) user))))
+                      (json/parse-string keyword))
+
+                  {:keys [username] :as result}
+                  (users/register-user! (:user components) user)]
+              (-> (created)
+                  (assoc :headers {"Location" (str "/users/" username)})
+                  (assoc :body result))))
 
           (GET "/:username/avatar" [username]
             (let [{:keys [avatar]}

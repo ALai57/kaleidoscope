@@ -18,7 +18,8 @@
 (extend-protocol users/UserPersistence
   clojure.lang.IAtom
   (create-user! [a user]
-    (swap! a update :users conj user))
+    (swap! a update :users conj (users/create-user-payload user))
+    user)
   (create-login! [a id password]
     (swap! a update :logins conj {:id id, :password password}))
   (register-user! [a user]
@@ -53,6 +54,7 @@
                          :password "password"})
 
   @test-user-db
+  (users/get-user test-user-db "new-user")
   )
 
 (def session-atom (atom {}))
@@ -73,20 +75,18 @@
     (str (.group matcher "ringsession"))))
 
 (deftest login-test
-  (let [credentials (json/generate-string {:username "Andrew"
-                                           :password "Lai"})
+  (let [credentials (json/generate-string {:username "Andrew", :password "Lai"})
 
-        {:keys [status headers]} (test-users-app (mock/request :post
-                                                               "/login"
-                                                               credentials))
+        {:keys [status headers]}
+        (test-users-app (mock/request :post "/login" credentials))
+
         cookie (first (get headers "Set-Cookie"))]
     (testing "login happy path"
       (is (= 200 status))
       (is (contains? headers "Set-Cookie")))
     (testing "cookies work properly"
       (let [{:keys [user-authentication]}
-            (identity-handler (assoc-in (mock/request :get
-                                                      "/echo")
+            (identity-handler (assoc-in (mock/request :get "/echo")
                                         [:headers "cookie"] cookie))]
         (is (= (first (:users @test-user-db))
                (into {} user-authentication)))))
@@ -109,12 +109,10 @@
                                       [:headers "cookie"] cookie))]
         (is (= 401 status))
         (is (= "Not authorized" body)))))
-  (testing "login with incorrect password"
-    (let [credentials (json/generate-string {:username "Andrew"
-                                             :password "Laia"})
-          {:keys [status headers]} (test-users-app (mock/request :post
-                                                                 "/login"
-                                                                 credentials))]
+  (testing "Login with incorrect password"
+    (let [credentials (json/generate-string {:username "Andrew", :password "L"})
+          {:keys [status headers]}
+          (test-users-app (mock/request :post "/login" credentials))]
       (is (= 200 status))
       (is (not (contains? headers "Set-Cookie"))))))
 
@@ -127,6 +125,33 @@
       (is (= 200 status))
       (is (= java.io.BufferedInputStream (type body))))))
 
+(deftest user-registration-test
+  (testing "Registration hapy path"
+    (let [{:keys [status headers] :as response}
+          (test-users-app (mock/request :post "/users"
+                                        (json/generate-string
+                                          {:username "new-user"
+                                           :password "new-password"
+                                           :first_name "new"
+                                           :last_name "user"
+                                           :email "newuser@andrewslai.com"})))
+          user-url (get headers "Location")]
+      (is (= 201 status))
+      (is (= "/users/new-user" user-url))
+      (is (= #{:id :username} (-> response
+                                  parse-response-body
+                                  keys
+                                  set)))
+      (testing "Can retrieve the new user"
+        (let [{:keys [status headers] :as response}
+              (test-users-app (mock/request :get user-url))]
+          (is (= 200 status))
+          (is (= {:username "new-user"
+                  :first_name "new"
+                  :last_name "user"
+                  :email "newuser@andrewslai.com"
+                  :role_id 2}
+                 (parse-response-body response))))))))
 
 (comment
   (require '[ring.middleware.cookies :as cook])
