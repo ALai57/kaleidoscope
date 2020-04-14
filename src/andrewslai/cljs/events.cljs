@@ -258,9 +258,27 @@
   (fn [db [_ {:keys [username] :as request}]]
 
     (PATCH (str "/users/" username)
-           {:params request
-            :format :json
-            :handler #(dispatch [:process-update-profile %])
-            :error-handler #(dispatch [:bad-recent-response %])})
+        {:params request
+         :format :json
+         :handler #(dispatch [:process-update-profile %])
+         :error-handler #(dispatch [:bad-recent-response %])})
+
+    db))
+
+(reg-event-db
+  :process-registration-response
+  (fn [db [_ user]]
+    (println user)
+    db))
+
+(reg-event-db
+  :register-user
+  (fn [db [_ user]]
+
+    (POST "/users/"
+        {:params user
+         :format :json
+         :handler #(dispatch [:process-registration-response %])
+         :error-handler #(dispatch [:bad-recent-response %])})
 
     db))

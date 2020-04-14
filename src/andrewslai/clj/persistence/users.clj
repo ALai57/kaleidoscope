@@ -46,19 +46,19 @@
                                     password)}))
 
 (defn -register-user-impl! [db {:keys [password] :as user}]
-  (try
-    (let [id (java.util.UUID/randomUUID)
-          user-result (create-user! db (assoc user :id id))
-          login-result (create-login! db id password)]
-      (select-keys user-result [:id :username]))
-    (catch Exception e
-      (str "register-user! caught exception: " (.getMessage e)
-           "db config: " (assoc (:conn db) :password "xxxxxx")))))
+  (let [id (java.util.UUID/randomUUID)
+        user-result (create-user! db (assoc user :id id))
+        login-result (create-login! db id password)]
+    (select-keys user-result [:id :username])))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
 (defn- -register-user! [db {:keys [password] :as user}]
-  (sql/with-db-transaction [conn (:conn db)]
-    (-register-user-impl! db user)))
+  (try
+    (sql/with-db-transaction [conn (:conn db)]
+      (-register-user-impl! db user))
+    (catch Exception e
+      (str "register-user! caught exception: " (.getMessage e)
+           "db config: " (assoc (:conn db) :password "xxxxxx")))))
 
 
 (defn -get-users [db]

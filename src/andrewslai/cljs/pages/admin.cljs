@@ -25,6 +25,9 @@
              :onClick (fn [event]
                         (dispatch [:login-click event]))}]
     [:br]
+    [:input {:type "button"
+             :value "Create a new account!"
+             :onClick #(dispatch [:set-active-panel :registration])}]
     ]])
 
 (defn editable-text-input [field-name title initial-value & description]
@@ -39,7 +42,7 @@
 (defn form-data->map [form-id]
   (let [m (atom {})]
     (-> js/FormData
-        (new (.getElementById js/document "profile-update-form"))
+        (new (.getElementById js/document form-id))
         (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
     @m))
 
@@ -88,3 +91,40 @@
      (if @user
        [:div [user-profile @user]]
        [login-form])]))
+
+(defn register-user []
+  [:div {:style {:margin "20px"}}
+   [:form {:id "registration-form"
+           :method :post
+           :action "/echo"}
+    [:img {:src "/images/smiley_emoji.png"
+           :style {:width "100px"}}]
+    [:br]
+    [:br]
+    [:br]
+    [:dl.form-group
+     [:dt [:label {:for "username"} "Username"]]
+     [:dd [:input.form-control {:type "text"
+                                :name "username"
+                                :defaultValue ""}]]]
+    [editable-text-input "first_name" "First Name" ""]
+    [editable-text-input "last_name" "Last Name" ""]
+    [editable-text-input "email" "Email" ""]
+    [:input {:type "password"
+             :placeholder "Password"
+             :name "password"}]
+    #_[editable-text-input "password" "Password" ""]
+    [:br]
+    [:input.btn-primary
+     {:type "button"
+      :value "Create user!"
+      :onClick
+      (fn [& args]
+        (dispatch [:register-user (form-data->map "registration-form")]))}]]])
+
+(defn registration-ui []
+  [:div
+   [nav/primary-nav]
+   [:br]
+   [:div
+    [register-user]]])
