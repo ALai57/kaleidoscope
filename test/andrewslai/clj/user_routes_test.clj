@@ -17,6 +17,12 @@
 
 (extend-protocol users/UserPersistence
   clojure.lang.IAtom
+  (create-user! [a user]
+    (swap! a update :users conj user))
+  (create-login! [a id password]
+    (swap! a update :logins conj {:id id, :password password}))
+  (register-user! [a user]
+    (users/-register-user-impl! a user))
   (get-user-by-id [a user-id]
     (first (filter #(= user-id (:id %))
                    (:users (deref a)))))
@@ -36,6 +42,18 @@
          :logins [{:id 1
                    :hashed_password (encryption/encrypt (encryption/make-encryption)
                                                         "Lai")}]}))
+
+(comment
+  (users/register-user! test-user-db
+                        {:first_name "Andrew"
+                         :last_name "Lai"
+                         :email "me@andrewslai.com"
+                         :username "Andrew"
+                         :avatar (byte-array (map (comp byte int) "Hello world!"))
+                         :password "password"})
+
+  @test-user-db
+  )
 
 (def session-atom (atom {}))
 (def components {:user test-user-db

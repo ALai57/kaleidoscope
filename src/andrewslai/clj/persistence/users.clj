@@ -15,7 +15,9 @@
 
 
 (defprotocol UserPersistence
+  (register-user! [_ user])
   (create-user! [_ user])
+  (create-login! [_ user-id password])
   (get-user [_ username])
   (get-user-by-id [_ id])
   (get-users [_])
@@ -23,26 +25,35 @@
   (get-password [_ user-id])
   (login [_ credentials]))
 
-;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn- -create-user! [db {:keys [username email first_name last_name password] :as user}]
+(defn -create-user! [db {:keys [id username email first_name last_name] :as user}]
+  (sql/insert! (:conn db) "users" {:id id
+                                   :first_name first_name
+                                   :last_name last_name
+                                   :username username
+                                   :email email
+                                   :role_id 2}))
+
+(defn -create-login! [db id password]
+  (sql/insert! (:conn db) "logins"
+               {:id id
+                :hashed_password
+                (encryption/encrypt (encryption/make-encryption)
+                                    password)}))
+
+(defn -register-user-impl! [db {:keys [password] :as user}]
   (try
     (let [id (java.util.UUID/randomUUID)
-          result (sql/with-db-transaction [conn (:conn db)]
-                   (sql/insert! (:conn db) "users" {:id id
-                                                    :first_name first_name
-                                                    :last_name last_name
-                                                    :username username
-                                                    :email email
-                                                    :role_id 2})
-                   (sql/insert! (:conn db) "logins"
-                                {:id id
-                                 :hashed_password
-                                 (encryption/encrypt (encryption/make-encryption)
-                                                     password)}))]
-      #_(println "Insert successful!" result))
+          user-result (create-user! db (assoc user :id id))
+          login-result (create-login! db id password)])
     (catch Exception e
       (str "create-user! caught exception: " (.getMessage e)
-           "postgres config: " (assoc (:conn db) :password "xxxxxx")))))
+           "db config: " (assoc (:conn db) :password "xxxxxx")))))
+
+;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
+(defn- -register-user! [db {:keys [password] :as user}]
+  (sql/with-db-transaction [conn (:conn db)]
+    (-register-user-impl! db user)))
+
 
 (defn -get-users [db]
   (sql/query (:conn db) ["SELECT * FROM users"]))
@@ -75,8 +86,12 @@
 
 (defrecord UserDatabase [conn]
   UserPersistence
+  (register-user! [this user]
+    (-register-user! this user))
   (create-user! [this user]
     (-create-user! this user))
+  (create-login! [this user-id password]
+    (-create-login! this user-id password))
   (get-users [this]
     (-get-users this))
   (get-user [this username]
@@ -97,12 +112,13 @@
       (handler (assoc req :user nil)))))
 
 (comment
-  (create-user! (->UserDatabase postgres/pg-db)
-                {:username "testuser"
-                 :email "testuser@andrewlai.com"
-                 :first_name "test"
-                 :last_name "user"
-                 :password "password"})
+  (register-user! (->UserDatabase postgres/pg-db)
+                  {:username "fantasmita"
+                   :email "littleghost@andrewlai.com"
+                   :first_name "my"
+                   :last_name "user"
+                   :password "password"})
+
   (get-users (->UserDatabase postgres/pg-db))
   (get-user (->UserDatabase postgres/pg-db) "testuser")
 

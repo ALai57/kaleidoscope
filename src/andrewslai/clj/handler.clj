@@ -128,6 +128,14 @@
                                      username
                                      (dissoc update-map :username)))))
 
+          (POST "/:username" request
+            (let [{:keys [username] :as user}
+                  (-> request
+                      :body
+                      slurp
+                      (json/parse-string keyword))]
+              (ok (users/register-user! (:user components) user))))
+
           (GET "/:username/avatar" [username]
             (let [{:keys [avatar]}
                   (users/get-user (:user components) username)]
