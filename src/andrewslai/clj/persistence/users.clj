@@ -52,7 +52,7 @@
           login-result (create-login! db id password)]
       (select-keys user-result [:id :username]))
     (catch Exception e
-      (str "create-user! caught exception: " (.getMessage e)
+      (str "register-user! caught exception: " (.getMessage e)
            "db config: " (assoc (:conn db) :password "xxxxxx")))))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/

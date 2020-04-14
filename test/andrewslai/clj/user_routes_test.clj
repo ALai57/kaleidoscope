@@ -164,4 +164,11 @@
                          :request-method :post,
                          :headers {"host" "localhost"
                                    "cookie" "ring-session=16d02d7d-8522-4548-8b2e-f209ec153194;Path=/;HttpOnly",
-                                   }}))
+                                   }})
+  (clojure.pprint/pprint (json/generate-string
+                           {:username "new-user"
+                            :password "new-password"
+                            :first_name "new"
+                            :last_name "user"
+                            :email "newuser@andrewslai.com"}))
+  )
