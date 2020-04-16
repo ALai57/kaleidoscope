@@ -26,6 +26,7 @@
                  [org.clojure/core.async "1.0.567"
                   :exclusions [org.clojure/tools.reader]]
                  [org.clojure/data.csv "1.0.0"]
+                 [org.clojure/data.codec "0.1.1"]
                  [org.clojure/java.jdbc "0.7.8"]
                  [org.postgresql/postgresql "42.2.11"]
                  [re-frame "0.12.0"]

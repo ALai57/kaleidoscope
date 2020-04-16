@@ -8,6 +8,7 @@
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
             [cheshire.core :as json]
+            [clojure.data.codec.base64 :as b64]
             [clojure.test :refer [deftest is testing]]
             [compojure.api.sweet :refer [api GET POST]]
             [ring.middleware.cookies :refer [wrap-cookies]]
@@ -36,10 +37,17 @@
   (login [a credentials]
     (users/-login a credentials)))
 
+
+(defn file->bytes [file]
+  (with-open [xin (clojure.java.io/input-stream file)
+              xout (java.io.ByteArrayOutputStream.)]
+    (clojure.java.io/copy xin xout)
+    (.toByteArray xout)))
+
 (def test-user-db
   (atom {:users [{:id 1
                   :username "Andrew"
-                  :avatar (byte-array (map (comp byte int) "Hello world!"))}]
+                  :avatar (file->bytes (clojure.java.io/resource "avatars/happy_emoji.jpg"))}]
          :logins [{:id 1
                    :hashed_password (encryption/encrypt (encryption/make-encryption)
                                                         "Lai")}]}))
@@ -55,6 +63,24 @@
 
   @test-user-db
   (users/get-user test-user-db "new-user")
+  )
+
+(comment
+  (require '[clojure.data.codec.base64 :as b64])
+
+  (with-open [in (clojure.java.io/input-stream (clojure.java.io/resource "avatars/happy_emoji.jpg"))
+              out (java.io.ByteArrayOutputStream.)
+              #_(clojure.java.io/output-stream "output.b64")]
+    (b64/encoding-transfer in out))
+
+  (= (String. (file->bytes (clojure.java.io/resource "avatars/happy_emoji.jpg")))
+     (String. (b64/decode (file->bytes (clojure.java.io/file "dev-resources/encoded-png.b64")))))
+
+  (slurp  (b64/decode (b64/encode (.getBytes "Hello"))))
+  (slurp (b64/decode (.getBytes (slurp (b64/encode (.getBytes "Hello"))))))
+  (= (String. (b64/encode (file->bytes (clojure.java.io/resource "avatars/happy_emoji.jpg"))))
+     (String. (file->bytes (clojure.java.io/file "dev-resources/encoded-png.b64"))))
+
   )
 
 (def session-atom (atom {}))
@@ -74,10 +100,12 @@
     (.matches matcher)
     (str (.group matcher "ringsession"))))
 
+
+
 (deftest login-test
   (let [credentials (json/generate-string {:username "Andrew", :password "Lai"})
 
-        {:keys [status headers]}
+        {:keys [status headers] :as initial-response}
         (test-users-app (mock/request :post "/login" credentials))
 
         cookie (first (get headers "Set-Cookie"))]
@@ -126,32 +154,39 @@
       (is (= java.io.BufferedInputStream (type body))))))
 
 (deftest user-registration-test
-  (testing "Registration hapy path"
-    (let [{:keys [status headers] :as response}
-          (test-users-app (mock/request :post "/users"
-                                        (json/generate-string
-                                          {:username "new-user"
-                                           :password "new-password"
-                                           :first_name "new"
-                                           :last_name "user"
-                                           :email "newuser@andrewslai.com"})))
-          user-url (get headers "Location")]
-      (is (= 201 status))
-      (is (= "/users/new-user" user-url))
-      (is (= #{:id :username} (-> response
-                                  parse-response-body
-                                  keys
-                                  set)))
-      (testing "Can retrieve the new user"
-        (let [{:keys [status headers] :as response}
-              (test-users-app (mock/request :get user-url))]
-          (is (= 200 status))
-          (is (= {:username "new-user"
-                  :first_name "new"
-                  :last_name "user"
-                  :email "newuser@andrewslai.com"
-                  :role_id 2}
-                 (parse-response-body response))))))))
+  (let [b64-encoded-avatar (->> "Hello world!"
+                                (map (comp byte int))
+                                byte-array
+                                b64/encode
+                                String.)]
+    (testing "Registration hapy path"
+      (let [{:keys [status headers] :as response}
+            (test-users-app (mock/request :post "/users"
+                                          (json/generate-string
+                                            {:username "new-user"
+                                             :avatar b64-encoded-avatar
+                                             :password "new-password"
+                                             :first_name "new"
+                                             :last_name "user"
+                                             :email "newuser@andrewslai.com"})))
+            user-url (get headers "Location")]
+        (is (= 201 status))
+        (is (= "/users/new-user" user-url))
+        (is (= #{:id :username} (-> response
+                                    parse-response-body
+                                    keys
+                                    set)))
+        (testing "Can retrieve the new user"
+          (let [{:keys [status headers] :as response}
+                (test-users-app (mock/request :get user-url))]
+            (is (= 200 status))
+            (is (= {:username "new-user"
+                    :avatar b64-encoded-avatar
+                    :first_name "new"
+                    :last_name "user"
+                    :email "newuser@andrewslai.com"
+                    :role_id 2}
+                   (parse-response-body response)))))))))
 
 (comment
   (require '[ring.middleware.cookies :as cook])

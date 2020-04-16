@@ -48,6 +48,18 @@
 
 ;; TODO: Make uploadable avatar
 ;; TODO: POST to update user...
+
+(defn load-image [file-added-event]
+  (let [file (first (array-seq (.. file-added-event -target -files)))
+        file-reader (js/FileReader.)]
+    (set! (.-onload file-reader)
+          (fn [file-load-event]
+            (let [preview (.getElementById js/document "avatar-preview")]
+              (aset preview "src" (-> file-load-event .-target .-result)))
+            #_(reset! preview-src (-> file-load-event .-target .-result))))
+    (.readAsDataURL file-reader file)))
+
+
 (defn user-profile [{:keys [avatar username first_name last_name email] :as user}]
   [:div {:style {:margin "20px"}}
    [:form {:id "profile-update-form"
@@ -55,6 +67,12 @@
            :action "/echo"}
     [:img {:src avatar
            :style {:width "100px"}}]
+    [:img {:id "avatar-preview"
+           :style {:width "100px"}}]
+    [:input ;;.btn-primary
+     {:type "file"
+      ;;:accept "image/png"
+      :on-change load-image #_handle-file-change}]
     [:br]
     [:br]
     [:br]

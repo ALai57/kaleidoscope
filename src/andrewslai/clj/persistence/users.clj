@@ -25,12 +25,13 @@
   (get-password [_ user-id])
   (login [_ credentials]))
 
-(defn create-user-payload [{:keys [id username email first_name last_name]}]
+(defn create-user-payload [{:keys [avatar id username email first_name last_name]}]
   {:id id
    :first_name first_name
    :last_name last_name
    :username username
    :email email
+   :avatar avatar
    :role_id 2})
 
 (defn -create-user! [db user]

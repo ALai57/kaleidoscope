@@ -10,6 +10,7 @@
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
             [cheshire.core :as json]
+            [clojure.data.codec.base64 :as b64]
             [clojure.java.shell :as shell]
             [clojure.java.io :as io]
             [compojure.api.sweet :refer :all]
@@ -132,14 +133,18 @@
                                      (dissoc update-map :username)))))
 
           (POST "/" request
-            (let [{:keys [username] :as user}
+            (let [{:keys [username avatar] :as user}
                   (-> request
                       :body
                       slurp
                       (json/parse-string keyword))
 
+                  decoded-avatar (b64/decode (.getBytes avatar))
+
                   {:keys [username] :as result}
-                  (users/register-user! (:user components) user)]
+                  (users/register-user! (:user components) (assoc user
+                                                                  :avatar
+                                                                  decoded-avatar))]
               (-> (created)
                   (assoc :headers {"Location" (str "/users/" username)})
                   (assoc :body result))))
