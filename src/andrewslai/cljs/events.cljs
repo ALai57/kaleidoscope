@@ -248,10 +248,14 @@
 ;;       unhappy/unable to support conversion of an avatar image into a blob
 (reg-event-db
   :process-update-profile
-  (fn [db [_ user]]
+  (fn [db [_ {:keys [avatar] :as user}]]
     (if (empty? user)
       (assoc db :user nil)
-      (assoc db :user (merge (:user db) user)))))
+      (assoc db :user (merge (:user db) (if avatar
+                                          (assoc user
+                                                 :avatar
+                                                 (image->blob avatar))
+                                          user))))))
 
 (reg-event-db
   :update-profile
