@@ -249,4 +249,6 @@
                             :first_name "new"
                             :last_name "user"
                             :email "newuser@andrewslai.com"}))
+
+  (b64/decode (.getBytes (slurp (clojure.java.io/file "dev-resources/encoded-image.png"))))
   )

@@ -44,7 +44,37 @@
     (-> js/FormData
         (new (.getElementById js/document form-id))
         (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
+    (swap! m assoc :avatar (-> js/document
+                               (.getElementById "avatar-preview")
+                               (aget "src")
+                               (clojure.string/split ",")
+                               second))
     @m))
+
+(comment
+  (let [m (atom {})]
+    (-> js/FormData
+        (new (.getElementById js/document "profile-update-form"))
+        (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
+    (swap! m assoc :avatar (-> js/document
+                               (.getElementById "avatar-preview")
+                               (aget "src")
+                               (clojure.string/split ",")
+                               second))
+    @m)
+
+  (let [n (atom {})]
+    (-> js/FormData
+        (new (.getElementById js/document "profile-update-form"))
+        (.forEach (fn [v k obj] (swap! n conj {(keyword k) v}))))
+    @n)
+
+  (.log js/console (second
+                     (clojure.string/split
+                       (aget (.getElementById js/document "avatar-preview") "src")
+                       ",")))
+
+  )
 
 ;; TODO: Make uploadable avatar
 ;; TODO: POST to update user...
@@ -67,11 +97,11 @@
     [:img {:src avatar
            :style {:width "100px"}}]
     [:img {:id "avatar-preview"
+           :name "avatar"
            :style {:width "100px"}}]
     [:input.btn-primary
      {:type "file"
       :accept "image/png"
-      :name "avatar"
       :on-change load-image}]
     [:br]
     [:br]

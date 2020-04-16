@@ -14,8 +14,29 @@ resource "aws_s3_bucket_object" "andrewslai_artifact" {
   source = "deployment.zip"
 }
 
+resource "aws_acm_certificate" "cert" {
+  domain_name       = "andrewslai.com"
+  validation_method = "DNS"
+
+  tags = {
+    Environment = "test"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# resource "aws_route53_record" "validation" {
+  # zone_id = "${aws_route53_zone.public_zone.zone_id}"
+  # name = "${aws_acm_certificate.cert.domain_validation_options.0.resource_record_name}"
+  # type = "${aws_acm_certificate.cert.domain_validation_options.0.resource_record_type}"
+  # records = ["${aws_acm_certificate.cert.domain_validation_options.0.resource_record_value}"]
+  # ttl = "300"
+# }
+
 resource "aws_elastic_beanstalk_application" "andrewslai_app" {
-  name        = "andrewslai-website"
+  name        = "andrewslai_website"
   description = "My personal website"
 }
 

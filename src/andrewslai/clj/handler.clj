@@ -133,7 +133,6 @@
                                   (if avatar
                                     (assoc m :avatar (b64/decode (.getBytes avatar)))
                                     m))]
-
               (ok (users/update-user (:user components)
                                      username
                                      (-> update-map
