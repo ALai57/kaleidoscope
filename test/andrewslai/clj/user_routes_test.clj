@@ -25,6 +25,10 @@
     (swap! a update :logins conj {:id id, :password password}))
   (register-user! [a user]
     (users/-register-user-impl! a user))
+  (update-user [a username update-map]
+    (let [idx (first (keep-indexed #(when (= username (:username %2)) %1) (:users @a)))]
+      (swap! a update-in [:users idx] merge update-map)
+      (get-in @a [:users idx])))
   (get-user-by-id [a user-id]
     (first (filter #(= user-id (:id %))
                    (:users (deref a)))))
@@ -93,13 +97,6 @@
   (h/wrap-middleware (api
                        (GET "/echo" request
                          {:user-authentication (:user request)})) components))
-
-(defn extract-ring-session [cookie]
-  (let [ring-session-regex #"^.*ring-session=(?<ringsession>[a-z0-9-]*);.*$"
-        matcher (re-matcher ring-session-regex cookie)]
-    (.matches matcher)
-    (str (.group matcher "ringsession"))))
-
 
 
 (deftest login-test
@@ -184,6 +181,52 @@
                     :avatar b64-encoded-avatar
                     :first_name "new"
                     :last_name "user"
+                    :email "newuser@andrewslai.com"
+                    :role_id 2}
+                   (parse-response-body response)))))))))
+
+(deftest update-user-test
+  (let [b64-encoded-avatar (->> "Hello world!"
+                                (map (comp byte int))
+                                byte-array
+                                b64/encode
+                                String.)]
+    (testing "Registration hapy path"
+      (let [{:keys [headers] :as response}
+            (test-users-app (mock/request :post "/users"
+                                          (json/generate-string
+                                            {:username "new-user"
+                                             :avatar b64-encoded-avatar
+                                             :password "new-password"
+                                             :first_name "new"
+                                             :last_name "user"
+                                             :email "newuser@andrewslai.com"})))
+            user-url (get headers "Location")]
+        (testing "Can update the new user"
+          (let [{:keys [status headers] :as response}
+                (test-users-app (mock/request :patch user-url
+                                              (json/generate-string
+                                                {:username "new-user"
+                                                 :first_name "new.2"
+                                                 :last_name "user.2"})))]
+            (is (= 200 status))
+            (is (= {:username "new-user"
+                    :avatar b64-encoded-avatar
+                    :first_name "new.2"
+                    :last_name "user.2"
+                    :email "newuser@andrewslai.com"
+                    :role_id 2}
+                   (-> response
+                       parse-response-body
+                       (dissoc :id))))))
+        (testing "Can retrieve the new user"
+          (let [{:keys [status headers] :as response}
+                (test-users-app (mock/request :get user-url))]
+            (is (= 200 status))
+            (is (= {:username "new-user"
+                    :avatar b64-encoded-avatar
+                    :first_name "new.2"
+                    :last_name "user.2"
                     :email "newuser@andrewslai.com"
                     :role_id 2}
                    (parse-response-body response)))))))))

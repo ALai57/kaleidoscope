@@ -123,14 +123,22 @@
             (ok (dissoc (users/get-user (:user components) username) :id)))
 
           (PATCH "/:username" request
-            (let [{:keys [username] :as update-map}
+            (let [{:keys [username avatar] :as update-map}
                   (-> request
                       :body
                       slurp
-                      (json/parse-string keyword))]
+                      (json/parse-string keyword))
+
+                  update-avatar (fn [m]
+                                  (if avatar
+                                    (assoc m :avatar (b64/decode (.getBytes avatar)))
+                                    m))]
+
               (ok (users/update-user (:user components)
                                      username
-                                     (dissoc update-map :username)))))
+                                     (-> update-map
+                                         (dissoc :username)
+                                         update-avatar)))))
 
           (POST "/" request
             (let [{:keys [username avatar] :as user}

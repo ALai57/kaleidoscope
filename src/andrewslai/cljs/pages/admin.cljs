@@ -48,7 +48,6 @@
 
 ;; TODO: Make uploadable avatar
 ;; TODO: POST to update user...
-
 (defn load-image [file-added-event]
   (let [file (first (array-seq (.. file-added-event -target -files)))
         file-reader (js/FileReader.)]
@@ -69,10 +68,11 @@
            :style {:width "100px"}}]
     [:img {:id "avatar-preview"
            :style {:width "100px"}}]
-    [:input ;;.btn-primary
+    [:input.btn-primary
      {:type "file"
-      ;;:accept "image/png"
-      :on-change load-image #_handle-file-change}]
+      :accept "image/png"
+      :name "avatar"
+      :on-change load-image}]
     [:br]
     [:br]
     [:br]
