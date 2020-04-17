@@ -71,6 +71,12 @@
   (GET "/" request (do (timbre/info "User Authorized for /admin/ route")
                        (ok {:message "Got to the admin-route!"}))))
 
+(defn file->bytes [file]
+  (with-open [xin (clojure.java.io/input-stream file)
+              xout (java.io.ByteArrayOutputStream.)]
+    (clojure.java.io/copy xin xout)
+    (.toByteArray xout)))
+
 (def bare-app
   (-> {:swagger
        {:ui "/swagger"
@@ -146,7 +152,10 @@
                       slurp
                       (json/parse-string keyword))
 
-                  decoded-avatar (b64/decode (.getBytes avatar))
+                  decoded-avatar (if avatar
+                                   (b64/decode (.getBytes avatar))
+                                   (file->bytes (clojure.java.io/resource
+                                                  "avatars/happy_emoji.jpg")))
 
                   {:keys [username] :as result}
                   (users/register-user! (:user components) (assoc user

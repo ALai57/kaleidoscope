@@ -76,7 +76,6 @@
 
   )
 
-;; TODO: Make uploadable avatar
 ;; TODO: POST to update user...
 (defn load-image [file-added-event]
   (let [file (first (array-seq (.. file-added-event -target -files)))
@@ -145,8 +144,13 @@
    [:form {:id "registration-form"
            :method :post
            :action "/echo"}
-    [:img {:src "/images/smiley_emoji.png"
+    [:img {:id "avatar-preview"
+           :src "/images/smiley_emoji.png"
            :style {:width "100px"}}]
+    [:input.btn-primary
+     {:type "file"
+      :accept "image/png"
+      :on-change load-image}]
     [:br]
     [:br]
     [:br]

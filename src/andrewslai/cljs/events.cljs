@@ -39,10 +39,10 @@
                    :active-content nil})))
 
 (reg-event-db
- :process-response
- (fn [db [_ response]]
-   (modify-db db {:loading? false
-                  :active-content response})))
+  :process-response
+  (fn [db [_ response]]
+    (modify-db db {:loading? false
+                   :active-content response})))
 
 (reg-event-db
  :bad-response
