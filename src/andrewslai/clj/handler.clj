@@ -2,16 +2,22 @@
   (:gen-class)
   (:require [andrewslai.clj.auth.mock :as auth-mock]
             [andrewslai.clj.env :as env]
+            [andrewslai.clj.routes.ping :refer [ping-routes]]
+            [andrewslai.clj.routes.admin :refer [admin-routes]]
+            [andrewslai.clj.routes.users :refer [users-routes]]
+            [andrewslai.clj.routes.login :refer [login-routes]]
+            [andrewslai.clj.routes.articles :refer [articles-routes]]
+            [andrewslai.clj.routes.projects-portfolio
+             :refer [projects-portfolio-routes]]
             [andrewslai.clj.persistence.core :as db]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.users :as users]
-            [buddy.auth.accessrules :refer [restrict]]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
             [cheshire.core :as json]
             [clojure.data.codec.base64 :as b64]
-            [clojure.java.shell :as shell]
+
             [clojure.java.io :as io]
             [compojure.api.sweet :refer :all]
             [org.httpkit.server :as httpkit]
@@ -23,59 +29,27 @@
             [ring.middleware.session.memory :as mem]
             [ring.util.http-response :refer :all]
             [ring.util.response :refer [redirect] :as response]
-            [taoensso.timbre :as timbre]
-            [taoensso.timbre.appenders.core :as appenders]
-            ))
+            [taoensso.timbre :as log]
+            [taoensso.timbre.appenders.core :as appenders]))
 
 ;; https://adambard.com/blog/buddy-password-auth-example/
 
-
-(timbre/merge-config!
+(log/merge-config!
   {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}})
-
-(defn wrap-logging [handler]
-  (fn [request]
-    (timbre/with-config (get-in request [:components :logging])
-      (timbre/info "Request received for: "
-                   (:request-method request)
-                   (:uri request))
-      (handler request))))
-
-(defn init []
-  (println "Hello! Starting service..."))
-
-(defn get-sha []
-  (->> "HEAD"
-       (shell/sh "git" "rev-parse" "--short")
-       :out
-       clojure.string/trim))
 
 (def backend (session-backend))
 
-(defn is-authenticated? [{:keys [user] :as req}]
-  (timbre/info "Is authenticated?" (not (empty? user)))
-  (not (empty? user)))
-
-(defn access-error [request value]
-  (timbre/info "Not authorized for endpoint")
-  {:status 401
-   :headers {}
-   :body "Not authorized"})
+(defn wrap-logging [handler]
+  (fn [request]
+    (log/with-config (get-in request [:components :logging])
+      (log/info "Request received for: "
+                (:request-method request)
+                (:uri request))
+      (handler request))))
 
 (defn wrap-components [handler components]
   (fn [request]
     (handler (assoc request :components components))))
-
-
-(defroutes admin-routes
-  (GET "/" request (do (timbre/info "User Authorized for /admin/ route")
-                       (ok {:message "Got to the admin-route!"}))))
-
-(defn file->bytes [file]
-  (with-open [xin (clojure.java.io/input-stream file)
-              xout (java.io.ByteArrayOutputStream.)]
-    (clojure.java.io/copy xin xout)
-    (.toByteArray xout)))
 
 (def bare-app
   (-> {:swagger
@@ -85,97 +59,16 @@
                       :description "My personal website"}
                :tags [{:name "api", :description "some apis"}]}}}
       (api
-
         (GET "/" []
           (-> (resource-response "index.html" {:root "public"})
               (content-type "text/html")))
 
-        (GET "/ping" []
-          (ok {:service-status "ok"
-               :sha (get-sha)}))
-
-        (context "/articles" {:keys [components]}
-          (GET "/" []
-            (ok (db/get-all-articles (:db components))))
-
-          (GET "/:article-name" [article-name :as request]
-            (ok (db/get-full-article (get-in request [:components :db]) article-name))))
-
-        (GET "/get-resume-info" {:keys [components]}
-          (ok (db/get-resume-info (:db components))))
-
-        (GET "/login" []
-          (ok {:message "Login get message"}))
-
-        (POST "/login" {:keys [components body session] :as request}
-          (let [credentials (-> request
-                                :body
-                                slurp
-                                (json/parse-string keyword))]
-            (if-let [user-id (users/login (:user components) credentials)]
-              (let [user (users/get-user-by-id (:user components) user-id)]
-                (timbre/info "Authenticated login!")
-                (assoc (ok user)
-                       :session (assoc session :identity user-id)))
-              (do (timbre/info "Invalid username/password")
-                  (ok nil)))))
-
-        (POST "/logout" []
-          (assoc (ok) :session nil))
-
-        (context "/users" {:keys [components]}
-
-          (GET "/:username" [username]
-            (ok (dissoc (users/get-user (:user components) username) :id)))
-
-          (PATCH "/:username" request
-            (let [{:keys [username avatar] :as update-map}
-                  (-> request
-                      :body
-                      slurp
-                      (json/parse-string keyword))
-
-                  update-avatar (fn [m]
-                                  (if avatar
-                                    (assoc m :avatar (b64/decode (.getBytes avatar)))
-                                    m))]
-              (ok (users/update-user (:user components)
-                                     username
-                                     (-> update-map
-                                         (dissoc :username)
-                                         update-avatar)))))
-
-          (POST "/" request
-            (let [{:keys [username avatar] :as user}
-                  (-> request
-                      :body
-                      slurp
-                      (json/parse-string keyword))
-
-                  decoded-avatar (if avatar
-                                   (b64/decode (.getBytes avatar))
-                                   (file->bytes (clojure.java.io/resource
-                                                  "avatars/happy_emoji.jpg")))
-
-                  {:keys [username] :as result}
-                  (users/register-user! (:user components) (assoc user
-                                                                  :avatar
-                                                                  decoded-avatar))]
-              (-> (created)
-                  (assoc :headers {"Location" (str "/users/" username)})
-                  (assoc :body result))))
-
-          (GET "/:username/avatar" [username]
-            (let [{:keys [avatar]}
-                  (users/get-user (:user components) username)]
-              (if avatar
-                (-> (response/response (io/input-stream avatar))
-                    (response/content-type "image/png"))
-                (not-found (format "Cannot find user: %s" username))))))
-
-        (context "/admin" []
-          (restrict admin-routes {:handler is-authenticated?
-                                  :on-error access-error})))))
+        ping-routes
+        article-routes
+        users-routes
+        projects-portfolio-routes
+        login-routes
+        admin-routes)))
 
 (defn wrap-middleware [handler app-components]
   (-> handler
@@ -190,22 +83,22 @@
       wrap-content-type
       ))
 
-(def app (wrap-middleware bare-app
-                          {:db (postgres/->Database postgres/pg-db)
-                           :user (users/->UserDatabase postgres/pg-db)
-                           :logging (merge timbre/*config* {:level :debug})
-                           :session-options
-                           {:cookie-attrs {:max-age 3600
-                                           :secure true}
-                            :store (mem/memory-store (atom {}))}}))
+(def app
+  (wrap-middleware bare-app
+                   {:db (postgres/->Database postgres/pg-db)
+                    :user (users/->UserDatabase postgres/pg-db)
+                    :logging (merge log/*config* {:level :debug})
+                    :session-options {:cookie-attrs {:max-age 3600
+                                                     :secure true}
+                                      :store (mem/memory-store (atom {}))}}))
 
 (defn -main [& _]
-  (init)
+  (println "Hello! Starting service...")
   (httpkit/run-server
     (wrap-middleware bare-app
                      {:db (postgres/->Database postgres/pg-db)
                       :user (users/->UserDatabase postgres/pg-db)
-                      :logging (merge timbre/*config* {:level :info})
+                      :logging (merge log/*config* {:level :info})
                       :session-options
                       {:cookie-attrs {:max-age 3600
                                       :secure true}
