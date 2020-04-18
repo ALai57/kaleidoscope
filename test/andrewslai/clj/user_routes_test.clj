@@ -89,7 +89,7 @@
 
 (def session-atom (atom {}))
 (def components {:user test-user-db
-                 :session-options {:store (mem/memory-store session-atom)}})
+                 :session {:store (mem/memory-store session-atom)}})
 (def test-users-app (h/wrap-middleware h/bare-app components))
 
 
