@@ -10,7 +10,10 @@
        :out
        trim))
 
+(defn ping-handler []
+  (ok {:service-status "ok"
+       :sha (get-sha)}))
+
 (defroutes ping-routes
   (GET "/ping" []
-    (ok {:service-status "ok"
-         :sha (get-sha)})))
+    (ping-handler)))
