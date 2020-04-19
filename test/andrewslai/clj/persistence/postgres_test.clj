@@ -1,5 +1,7 @@
 (ns andrewslai.clj.persistence.postgres-test
-  (:require [andrewslai.clj.persistence.users :as users]))
+  (:require [andrewslai.clj.persistence.users :as users]
+            [andrewslai.clj.persistence.core :refer [ArticlePersistence]]
+            [andrewslai.clj.persistence.postgres :as postgres]))
 
 
 ;; https://github.com/whostolebenfrog/lein-postgres
@@ -42,6 +44,21 @@
         (if (users/get-user a username) 0 1))))
   (login [a credentials]
     (users/-login a credentials)))
+
+(extend-protocol ArticlePersistence
+  clojure.lang.IAtom
+  (get-all-articles [a]
+    (:articles (deref a)))
+  (get-article-metadata [a article-name]
+    (first (filter #(= article-name (:article_url %))
+                   (:metadata (deref a)))))
+  (get-article-content [a article-id]
+    (first (filter #(= article-id (:article_id %))
+                   (:content (deref a)))))
+  (get-full-article [a article-name]
+    (postgres/get-full-article a article-name))
+  (get-resume-info [a]
+    (:resume-info (deref a))))
 
 (comment
   (users/register-user! test-user-db

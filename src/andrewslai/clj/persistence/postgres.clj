@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.postgres
-  (:require [andrewslai.clj.persistence.core :refer [Persistence] :as db]
+  (:require [andrewslai.clj.persistence.core :refer [ArticlePersistence] :as db]
             [andrewslai.clj.env :as env]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
@@ -90,7 +90,7 @@
   nil)
 
 (defrecord Database [conn]
-  Persistence
+  ArticlePersistence
   (save-article! [this]
     (save-article! this))
   (get-article-metadata [this article-name]

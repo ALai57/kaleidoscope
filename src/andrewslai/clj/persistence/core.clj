@@ -1,6 +1,6 @@
 (ns andrewslai.clj.persistence.core)
 
-(defprotocol Persistence
+(defprotocol ArticlePersistence
   (save-article! [_])
   (get-article-metadata [_ article-name])
   (get-article-content [_ article-id])

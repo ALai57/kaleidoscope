@@ -1,25 +1,11 @@
 (ns andrewslai.clj.articles-routes-test
   (:require [andrewslai.clj.handler :as h]
-            [andrewslai.clj.persistence.core :refer [Persistence]]
+            [andrewslai.clj.persistence.postgres-test]
+            [andrewslai.clj.persistence.core :refer [ArticlePersistence]]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.utils :refer [parse-response-body]]
             [clojure.test :refer [deftest is testing]]
             [ring.mock.request :as mock]))
-
-(extend-protocol Persistence
-  clojure.lang.IAtom
-  (get-all-articles [a]
-    (:articles (deref a)))
-  (get-article-metadata [a article-name]
-    (first (filter #(= article-name (:article_url %))
-                   (:metadata (deref a)))))
-  (get-article-content [a article-id]
-    (first (filter #(= article-id (:article_id %))
-                   (:content (deref a)))))
-  (get-full-article [a article-name]
-    (postgres/get-full-article a article-name))
-  (get-resume-info [a]
-    (:resume-info (deref a))))
 
 (def test-db
   (atom {:articles [{:title "Test article",
