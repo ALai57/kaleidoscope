@@ -4,6 +4,7 @@
             [andrewslai.clj.persistence.core :as db]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.users :as users]
+            [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.login :refer [login-routes]]
@@ -79,7 +80,7 @@
 ;; This is for figwheel testing only
 (def app
   (wrap-middleware bare-app
-                   {:db (postgres/->Database postgres/pg-db)
+                   {:db (articles/->ArticleDatabase postgres/pg-db)
                     :user (users/->UserDatabase postgres/pg-db)
                     :logging (merge log/*config* {:level :debug})
                     :session {:cookie-attrs {:max-age 3600, :secure true}
@@ -89,7 +90,7 @@
   (println "Hello! Starting service...")
   (httpkit/run-server
     (wrap-middleware bare-app
-                     {:db (postgres/->Database postgres/pg-db)
+                     {:db (articles/->ArticleDatabase postgres/pg-db)
                       :user (users/->UserDatabase postgres/pg-db)
                       :logging (merge log/*config* {:level :info})
                       :session {:cookie-attrs {:max-age 3600, :secure true}
@@ -99,12 +100,12 @@
 (comment
   (-main)
 
-  (let [resume-info (db/get-resume-info (postgres/->Database postgres/pg-db))]
+  (let [resume-info (db/get-resume-info (articles/->ArticleDatabase postgres/pg-db))]
     (clojure.pprint/pprint (:projects resume-info)))
 
-  (db/get-full-article (postgres/->Database postgres/pg-db) "my-first-article")
+  (db/get-full-article (articles/->ArticleDatabase postgres/pg-db) "my-first-article")
 
   (clojure.pprint/pprint
-    (first (db/get-article(postgres/->Database postgres/pg-db) "my-second-article")))
+    (first (db/get-article(articles/->ArticleDatabase postgres/pg-db) "my-second-article")))
 
   )

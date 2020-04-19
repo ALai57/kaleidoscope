@@ -1,6 +1,7 @@
 (ns andrewslai.clj.persistence.postgres-test
   (:require [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.persistence.core :refer [ArticlePersistence]]
+            [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.persistence.postgres :as postgres]))
 
 
@@ -56,7 +57,7 @@
     (first (filter #(= article-id (:article_id %))
                    (:content (deref a)))))
   (get-full-article [a article-name]
-    (postgres/get-full-article a article-name))
+    (articles/get-full-article a article-name))
   (get-resume-info [a]
     (:resume-info (deref a))))
 
