@@ -23,6 +23,8 @@
   (get-users [_])
   (update-user [_ username update-payload])
   (get-password [_ user-id])
+  (delete-user! [_ credentials])
+  (verify-credentials [_ credentials])
   (login [_ credentials]))
 
 (defn create-user-payload [{:keys [avatar id username email first_name last_name]}]
@@ -39,17 +41,15 @@
     (if (= 1 (first (sql/insert! (:conn db) "users" insert-payload)))
       insert-payload)))
 
-(defn -create-login! [db id password]
+(defn -create-login! [db id encrypted-password]
   (sql/insert! (:conn db) "logins"
-               {:id id
-                :hashed_password
-                (encryption/encrypt (encryption/make-encryption)
-                                    password)}))
+               {:id id, :hashed_password encrypted-password}))
 
 (defn -register-user-impl! [db {:keys [password] :as user}]
   (let [id (java.util.UUID/randomUUID)
         user-result (create-user! db (assoc user :id id))
-        login-result (create-login! db id password)]
+        login-result (create-login! db id (encryption/encrypt (encryption/make-encryption)
+                                                              password))]
     (select-keys user-result [:id :username])))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
@@ -82,14 +82,22 @@
 (defn- -get-password [db user-id]
   (:hashed_password (first (sql/query (:conn db) ["SELECT hashed_password FROM logins WHERE id = ?" user-id]))))
 
-(defn -login [db {:keys [username password]}]
+(defn -verify-credentials [db {:keys [username password]}]
   (let [{:keys [id]} (get-user db username)]
-    (when (and id
-               (get-password db id)
-               (encryption/check (encryption/make-encryption)
-                                 password
-                                 (get-password db id)))
-      id)))
+    (and id
+         (get-password db id)
+         (encryption/check (encryption/make-encryption)
+                           password
+                           (get-password db id)))))
+
+(defn -login [db {:keys [username password] :as credentials}]
+  (when (verify-credentials db credentials)
+    (:id (get-user db username))))
+
+(defn -delete-user! [db {:keys [username] :as credentials}]
+  (when (verify-credentials db credentials)
+    (first (sql/query (:conn db)
+                      ["DELETE FROM users WHERE username = ?" username]))))
 
 (defrecord UserDatabase [conn]
   UserPersistence
@@ -109,6 +117,10 @@
     (-update-user this username update-payload))
   (get-password [this user-id]
     (-get-password this user-id))
+  (delete-user! [this credentials]
+    (-delete-user! this credentials))
+  (verify-credentials [this credentials]
+    (-verify-credentials this credentials))
   (login [this credentials]
     (-login this credentials)))
 

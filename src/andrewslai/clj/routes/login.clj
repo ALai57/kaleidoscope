@@ -25,4 +25,5 @@
             (ok nil)))))
 
   (POST "/logout" []
-    (assoc (ok) :session nil)))
+    (-> (ok)
+        (assoc :session nil))))

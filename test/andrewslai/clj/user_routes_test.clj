@@ -3,7 +3,8 @@
             [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.utils :refer [parse-response-body
-                                          body->map]]
+                                          body->map
+                                          file->bytes]]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
@@ -16,17 +17,21 @@
             [ring.middleware.session.memory :as mem]
             [ring.mock.request :as mock]))
 
+(defn find-user-index [username v]
+  (keep-indexed (fn [idx user] (when (= username (:username user)) idx))
+                v))
+
 (extend-protocol users/UserPersistence
   clojure.lang.IAtom
   (create-user! [a user]
     (swap! a update :users conj (users/create-user-payload user))
     user)
   (create-login! [a id password]
-    (swap! a update :logins conj {:id id, :password password}))
+    (swap! a update :logins conj {:id id, :hashed_password password}))
   (register-user! [a user]
     (users/-register-user-impl! a user))
   (update-user [a username update-map]
-    (let [idx (first (keep-indexed #(when (= username (:username %2)) %1) (:users @a)))]
+    (let [idx (first (find-user-index username (:users @a)))]
       (swap! a update-in [:users idx] merge update-map)
       (get-in @a [:users idx])))
   (get-user-by-id [a user-id]
@@ -38,15 +43,18 @@
   (get-password [a user-id]
     (:hashed_password (first (filter #(= user-id (:id %))
                                      (:logins (deref a))))))
+  (verify-credentials [a credentials]
+    (users/-verify-credentials a credentials))
+  (delete-user! [a {:keys [username password] :as credentials}]
+    (when (users/verify-credentials a credentials)
+      (let [{:keys [id]} (users/get-user a username)
+            updated-users (remove #(= username (:username %)) (:users @a))
+            updated-login (remove #(= id (:id %)) (:logins @a))]
+        (swap! a assoc :users updated-users)
+        (if (users/get-user a username) 0 1))))
   (login [a credentials]
     (users/-login a credentials)))
 
-
-(defn file->bytes [file]
-  (with-open [xin (clojure.java.io/input-stream file)
-              xout (java.io.ByteArrayOutputStream.)]
-    (clojure.java.io/copy xin xout)
-    (.toByteArray xout)))
 
 (def test-user-db
   (atom {:users [{:id 1
