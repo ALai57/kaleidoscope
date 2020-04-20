@@ -107,10 +107,11 @@
             user-url (get headers "Location")]
         (is (= 201 status))
         (is (= "/users/new-user" user-url))
-        (is (= #{:id :username} (-> response
-                                    parse-response-body
-                                    keys
-                                    set)))
+        (is (= #{:id :username :avatar :first_name :last_name :email :role_id}
+               (-> response
+                   parse-response-body
+                   keys
+                   set)))
         (testing "Can retrieve the new user"
           (let [{:keys [status headers] :as response}
                 (test-users-app (mock/request :get user-url))]

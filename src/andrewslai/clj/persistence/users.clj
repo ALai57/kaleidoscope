@@ -1,7 +1,8 @@
 (ns andrewslai.clj.persistence.users
   (:require [andrewslai.clj.auth.crypto :as encryption]
             [andrewslai.clj.persistence.postgres :as postgres]
-            [clojure.java.jdbc :as sql]))
+            [clojure.java.jdbc :as sql]
+            [clojure.spec.alpha :as s]))
 
 ;; RESOURCES FOR AUTHENTICATION RELATED TOPICS
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
@@ -15,11 +16,11 @@
 
 
 (defprotocol UserPersistence
-  (register-user! [_ user])
+  (register-user! [_ user password])
   (create-user! [_ user])
   (create-login! [_ user-id password])
   (get-user [_ username])
-  (get-user-by-id [_ id])
+  (get-user-by-id [_ user-id])
   (get-users [_])
   (update-user [_ username update-payload])
   (get-password [_ user-id])
@@ -27,36 +28,52 @@
   (verify-credentials [_ credentials])
   (login [_ credentials]))
 
-(defn create-user-payload [{:keys [avatar id username email first_name last_name]}]
-  {:id id
-   :first_name first_name
-   :last_name last_name
-   :username username
-   :email email
-   :avatar avatar
-   :role_id 2})
+(def default-role 2)
+(def email-regex #"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$")
+(s/def ::email-type (s/and string? #(re-matches email-regex %)))
+(s/def ::id uuid?)
+(s/def ::first_name string?)
+(s/def ::last_name string?)
+(s/def ::username (s/and string?))
+(s/def ::email ::email-type)
+(s/def ::avatar bytes?)
+(s/def ::role_id (s/and int? pos?))
+(s/def ::user (s/keys :req-un [::avatar
+                               ::first_name
+                               ::last_name
+                               ::username
+                               ::email]
+                      :opt [::role_id
+                            ::id]))
 
 (defn -create-user! [db user]
-  (let [insert-payload (create-user-payload user)]
-    (if (= 1 (first (sql/insert! (:conn db) "users" insert-payload)))
-      insert-payload)))
+  {:pre [(s/valid? ::user user)]}
+  (let [user-id (java.util.UUID/randomUUID)
+        row (assoc user :id user-id)]
+    (if (= 1 (first (sql/insert! (:conn db) "users" row)))
+      row)))
 
 (defn -create-login! [db id encrypted-password]
   (sql/insert! (:conn db) "logins"
                {:id id, :hashed_password encrypted-password}))
 
-(defn -register-user-impl! [db {:keys [password] :as user}]
-  (let [id (java.util.UUID/randomUUID)
-        user-result (create-user! db (assoc user :id id))
-        login-result (create-login! db id (encryption/encrypt (encryption/make-encryption)
-                                                              password))]
-    (select-keys user-result [:id :username])))
+(defn -register-user-impl! [db
+                            {:keys [role_id]
+                             :as user
+                             :or {role_id default-role}}
+                            password]
+  {:pre [(s/valid? ::user user)]}
+  (let [{:keys [id] :as new-user}
+        (create-user! db (assoc user :role_id role_id))]
+    (create-login! db id (encryption/encrypt (encryption/make-encryption)
+                                             password))
+    new-user))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn- -register-user! [db {:keys [password] :as user}]
+(defn- -register-user! [db user password]
   (try
     (sql/with-db-transaction [conn (:conn db)]
-      (-register-user-impl! db user))
+      (-register-user-impl! db user password))
     (catch Exception e
       (str "register-user! caught exception: " (.getMessage e)
            "db config: " (assoc (:conn db) :password "xxxxxx")))))
@@ -101,8 +118,8 @@
 
 (defrecord UserDatabase [conn]
   UserPersistence
-  (register-user! [this user]
-    (-register-user! this user))
+  (register-user! [this user password]
+    (-register-user! this user password))
   (create-user! [this user]
     (-create-user! this user))
   (create-login! [this user-id password]

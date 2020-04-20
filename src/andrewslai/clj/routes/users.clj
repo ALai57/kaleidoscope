@@ -33,7 +33,7 @@
                                    update-avatar)))))
 
     (POST "/" request
-      (let [{:keys [username avatar] :as user}
+      (let [{:keys [username avatar password] :as payload}
             (-> request
                 :body
                 slurp
@@ -45,9 +45,11 @@
                                             "avatars/happy_emoji.jpg")))
 
             {:keys [username] :as result}
-            (users/register-user! (:user components) (assoc user
-                                                            :avatar
-                                                            decoded-avatar))]
+            (users/register-user! (:user components)
+                                  (-> payload
+                                      (assoc :avatar decoded-avatar)
+                                      (dissoc :password))
+                                  password)]
         (-> (created)
             (assoc :headers {"Location" (str "/users/" username)})
             (assoc :body result))))

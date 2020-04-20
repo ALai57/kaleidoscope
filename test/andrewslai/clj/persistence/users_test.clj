@@ -26,14 +26,15 @@
                    :email "me@andrewslai.com"
                    :first_name "Andrew"
                    :last_name "Lai"
-                   :password "password"
                    :username "Andrew"})
 
 (deftest db-test
   (testing "register-user!"
-    (users/register-user! test-db example-user)
-    (is (= (dissoc (users/create-user-payload example-user) :id)
-           (dissoc (users/get-user test-db "Andrew") :id))))
+    (users/register-user! test-db example-user "password")
+    (is (= (assoc example-user :role_id 2)
+           (-> test-db
+               (users/get-user "Andrew")
+               (dissoc :id)))))
   (testing "get-user, get-password"
     (let [{:keys [id]} (users/get-user test-db "Andrew")]
       (is (uuid? id))

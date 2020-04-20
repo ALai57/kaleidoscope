@@ -14,12 +14,14 @@
 (extend-protocol users/UserPersistence
   clojure.lang.IAtom
   (create-user! [a user]
-    (swap! a update :users conj (users/create-user-payload user))
-    user)
+    (let [user-id (java.util.UUID/randomUUID)
+          row (assoc user :id user-id)]
+      (swap! a update :users conj row)
+      row))
   (create-login! [a id password]
     (swap! a update :logins conj {:id id, :hashed_password password}))
-  (register-user! [a user]
-    (users/-register-user-impl! a user))
+  (register-user! [a user password]
+    (users/-register-user-impl! a user password))
   (update-user [a username update-map]
     (let [idx (first (find-user-index username (:users @a)))]
       (swap! a update-in [:users idx] merge update-map)
@@ -66,8 +68,8 @@
                          :last_name "Lai"
                          :email "me@andrewslai.com"
                          :username "Andrew"
-                         :avatar (byte-array (map (comp byte int) "Hello world!"))
-                         :password "password"})
+                         :avatar (byte-array (map (comp byte int) "Hello world!"))}
+                        "password")
 
   @test-user-db
   (users/get-user test-user-db "new-user")
