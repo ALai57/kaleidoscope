@@ -1,6 +1,5 @@
 (ns andrewslai.clj.persistence.postgres
-  (:require [andrewslai.clj.persistence.core :refer [ArticlePersistence] :as db]
-            [andrewslai.clj.env :as env]
+  (:require [andrewslai.clj.env :as env]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]])

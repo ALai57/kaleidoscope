@@ -1,6 +1,5 @@
 (ns andrewslai.clj.persistence.postgres-test
   (:require [andrewslai.clj.persistence.users :as users]
-            [andrewslai.clj.persistence.core :refer [ArticlePersistence]]
             [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.persistence.postgres :as postgres]))
 
@@ -46,7 +45,7 @@
   (login [a credentials]
     (users/-login a credentials)))
 
-(extend-protocol ArticlePersistence
+(extend-protocol articles/ArticlePersistence
   clojure.lang.IAtom
   (get-all-articles [a]
     (:articles (deref a)))
@@ -57,7 +56,7 @@
     (first (filter #(= article-id (:article_id %))
                    (:content (deref a)))))
   (get-full-article [a article-name]
-    (articles/get-full-article a article-name))
+    (articles/-get-full-article a article-name))
   (get-resume-info [a]
     (:resume-info (deref a))))
 

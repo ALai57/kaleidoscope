@@ -1,19 +1,26 @@
 (ns andrewslai.clj.persistence.articles
-  (:require [andrewslai.clj.persistence.core :refer [ArticlePersistence] :as db]
-            [andrewslai.clj.env :as env]
+  (:require [andrewslai.clj.env :as env]
             [andrewslai.clj.persistence.postgres :refer [pg-db]]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]]))
 
-(defn- get-all-articles [db]
+(defprotocol ArticlePersistence
+  (save-article! [_])
+  (get-article-metadata [_ article-name])
+  (get-article-content [_ article-id])
+  (get-full-article [_ article-name])
+  (get-all-articles [_])
+  (get-resume-info [_]))
+
+(defn- -get-all-articles [db]
   (try
     (sql/query (:conn db)
                [(str "SELECT * FROM articles ORDER BY timestamp DESC")])
     (catch Exception e
       (str "get-all-articles caught exception: " (.getMessage e)))))
 
-(defn- get-article-metadata [db article-name]
+(defn- -get-article-metadata [db article-name]
   (try
     (first
       (sql/query (:conn db)
@@ -23,7 +30,7 @@
       (str "get-article caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
-(defn- get-article-content [db article-id]
+(defn- -get-article-content [db article-id]
   (try
     (sql/query (:conn db)
                [(str "SELECT "
@@ -34,14 +41,14 @@
       (str "get-content caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
-(defn get-full-article [db article-name]
-  (let [article (db/get-article-metadata db article-name)
+(defn -get-full-article [db article-name]
+  (let [article (get-article-metadata db article-name)
         article-id (:article_id article)
-        content (db/get-article-content db article-id)]
+        content (get-article-content db article-id)]
     {:article-name article-name
      :article (assoc-in article [:content] content)}))
 
-(defn- get-resume-info [db]
+(defn- -get-resume-info [db]
   (try
     (let [organizations (sql/query (:conn db)
                                    [(str "SELECT *"
@@ -59,23 +66,23 @@
       (str "get-resume-info caught exception: " (.getMessage e)
            "postgres config: " (assoc (:conn db) :password "xxxxxx")))))
 
-(defn save-article! [db]
+(defn -save-article! [db]
   nil)
 
 (defrecord ArticleDatabase [conn]
   ArticlePersistence
   (save-article! [this]
-    (save-article! this))
+    (-save-article! this))
   (get-article-metadata [this article-name]
-    (get-article-metadata this article-name))
+    (-get-article-metadata this article-name))
   (get-article-content [this article-id]
-    (get-article-content this article-id))
+    (-get-article-content this article-id))
   (get-full-article [this article-name]
-    (get-full-article this article-name))
+    (-get-full-article this article-name))
   (get-all-articles [this]
-    (get-all-articles this))
+    (-get-all-articles this))
   (get-resume-info [this]
-    (get-resume-info this)))
+    (-get-resume-info this)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -84,15 +91,15 @@
 
 (comment
   (get-all-articles)
-  (db/get-all-articles (->ArticleDatabase pg-db))
-  (clojure.pprint/pprint (db/get-full-article (->ArticleDatabase pg-db) "test-article"))
-  (clojure.pprint/pprint (db/get-article-content (->ArticleDatabase pg-db) 10))
+  (get-all-articles (->ArticleDatabase pg-db))
+  (clojure.pprint/pprint (get-full-article (->ArticleDatabase pg-db) "test-article"))
+  (clojure.pprint/pprint (get-article-content (->ArticleDatabase pg-db) 10))
 
-  (db/get-all-articles (->ArticleDatabase pg-db))
+  (get-all-articles (->ArticleDatabase pg-db))
 
-  (clojure.pprint/pprint (:projects (db/get-resume-info (->ArticleDatabase pg-db))))
+  (clojure.pprint/pprint (:projects (get-resume-info (->ArticleDatabase pg-db))))
 
-  (clojure.pprint/pprint (first (:organizations (db/get-resume-info (->ArticleDatabase pg-db)))))
+  (clojure.pprint/pprint (first (:organizations (get-resume-info (->ArticleDatabase pg-db)))))
 
   (sql/query pg-db ["SELECT name FROM projects "])
 

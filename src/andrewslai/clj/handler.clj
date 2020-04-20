@@ -1,7 +1,6 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [andrewslai.clj.env :as env]
-            [andrewslai.clj.persistence.core :as db]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.persistence.articles :as articles]
@@ -100,12 +99,12 @@
 (comment
   (-main)
 
-  (let [resume-info (db/get-resume-info (articles/->ArticleDatabase postgres/pg-db))]
+  (let [resume-info (articles/get-resume-info (articles/->ArticleDatabase postgres/pg-db))]
     (clojure.pprint/pprint (:projects resume-info)))
 
-  (db/get-full-article (articles/->ArticleDatabase postgres/pg-db) "my-first-article")
+  (articles/get-full-article (articles/->ArticleDatabase postgres/pg-db) "my-first-article")
 
   (clojure.pprint/pprint
-    (first (db/get-article(articles/->ArticleDatabase postgres/pg-db) "my-second-article")))
+    (first (articles/get-article (articles/->ArticleDatabase postgres/pg-db) "my-second-article")))
 
   )
