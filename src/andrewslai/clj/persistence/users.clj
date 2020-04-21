@@ -97,10 +97,7 @@
     (if (= 1 n-updates)
       update-payload)))
 
-(defn- -get-password [db user-id]
-  (:hashed_password (first (sql/query (:conn db) ["SELECT hashed_password FROM logins WHERE id = ?" user-id]))))
-
-(defn -get-password-2 [db user-id]
+(defn -get-password [db user-id]
   (:hashed_password (first (postgres/select db "logins" {:id user-id}))))
 
 (defn -verify-credentials [db {:keys [username password]}]
@@ -117,8 +114,9 @@
 
 (defn -delete-user! [db {:keys [username] :as credentials}]
   (when (verify-credentials db credentials)
-    (first (sql/query (:conn db)
-                      ["DELETE FROM users WHERE username = ?" username]))))
+    (let [{:keys [id]} (get-user db username)]
+      (postgres/delete! db "logins" {:id id})
+      (first (postgres/delete! db "users" {:username username})))))
 
 (defrecord UserDatabase [conn]
   UserPersistence
@@ -137,7 +135,7 @@
   (update-user [this username update-payload]
     (-update-user! this username update-payload))
   (get-password [this user-id]
-    (-get-password-2 this user-id))
+    (-get-password this user-id))
   (delete-user! [this credentials]
     (-delete-user! this credentials))
   (verify-credentials [this credentials]
@@ -146,6 +144,10 @@
     (-login this credentials))
 
   postgres/RelationalDatabase
+  (postgres/select [this table where]
+    (postgres/-select this table where))
+  (postgres/delete! [this table where]
+    (postgres/-delete! this table where))
   (postgres/update! [this table payload where]
     (postgres/-update! this table payload where))
   (postgres/insert! [this table payload]

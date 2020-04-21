@@ -48,6 +48,13 @@
                  payload
                  [(format "%s = ?" (name k)) (where k)])))
 
+(defn -delete! [this table where]
+  (let [k (first (keys where))
+        v (where k)]
+    (sql/query (:conn this)
+               table
+               [(format "DELETE FROM %s WHERE %s = ?" table k) v])))
+
 (defn ->sql-query
   ([table]
    [(format "SELECT * FROM %s" table)])

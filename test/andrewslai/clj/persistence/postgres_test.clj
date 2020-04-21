@@ -32,20 +32,21 @@
   (get-user [a username]
     (users/-get-user a username))
   (get-password [a user-id]
-    (users/-get-password-2 a user-id))
+    (users/-get-password a user-id))
   (verify-credentials [a credentials]
     (users/-verify-credentials a credentials))
-  (delete-user! [a {:keys [username password] :as credentials}]
-    (when (users/verify-credentials a credentials)
-      (let [{:keys [id]} (users/get-user a username)
-            updated-users (remove #(= username (:username %)) (:users @a))
-            updated-login (remove #(= id (:id %)) (:logins @a))]
-        (swap! a assoc :users updated-users)
-        (if (users/get-user a username) 0 1))))
+  (delete-user! [a credentials]
+    (users/-delete-user! a credentials))
   (login [a credentials]
     (users/-login a credentials))
 
   postgres/RelationalDatabase
+  (delete! [a table where]
+    (let [k (first (keys where))
+          v (where k)
+          updated (remove #(= v (k %)) ((keyword table) @a))]
+      (swap! a assoc (keyword table) updated)
+      [1]))
   (select [a table where]
     (let [k (first (keys where))
           v (where k)]
