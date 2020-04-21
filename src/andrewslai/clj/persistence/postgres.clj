@@ -31,3 +31,23 @@
             :host db-host
             :user db-user
             :password db-password})
+
+(defprotocol RelationalDatabase
+  (insert! [this table payload])
+  (select [this table payload])
+  (update! [this table payload])
+  (delete! [this table payload]))
+
+(defn -insert! [this table payload]
+  (sql/insert! (:conn this) table payload))
+
+(defn ->sql-query
+  ([table]
+   [(format "SELECT * FROM %s" table)])
+  ([table where-clause]
+   (let [k (first (keys where-clause))
+         v (get where-clause k)]
+     [(format "SELECT * FROM %s WHERE %s = ?" table k) v])))
+
+(defn -query [this table payload]
+  (sql/query (:conn this) (->sql-query table payload)))

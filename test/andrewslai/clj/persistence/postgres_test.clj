@@ -11,15 +11,12 @@
   (keep-indexed (fn [idx user] (when (= username (:username user)) idx))
                 v))
 
-(extend-protocol users/UserPersistence
-  clojure.lang.IAtom
+(extend-type clojure.lang.IAtom
+  users/UserPersistence
   (create-user! [a user]
-    (let [user-id (java.util.UUID/randomUUID)
-          row (assoc user :id user-id)]
-      (swap! a update :users conj row)
-      row))
+    (users/-create-user! a user))
   (create-login! [a id password]
-    (swap! a update :logins conj {:id id, :hashed_password password}))
+    (users/-create-login! a id password))
   (register-user! [a user password]
     (users/-register-user-impl! a user password))
   (update-user [a username update-map]
@@ -45,7 +42,11 @@
         (swap! a assoc :users updated-users)
         (if (users/get-user a username) 0 1))))
   (login [a credentials]
-    (users/-login a credentials)))
+    (users/-login a credentials))
+
+  postgres/RelationalDatabase
+  (insert! [a table payload]
+    (swap! a update (keyword table) conj payload)))
 
 (extend-protocol articles/ArticlePersistence
   clojure.lang.IAtom

@@ -30,12 +30,13 @@
 
 (def default-role 2)
 (def email-regex #"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$")
-(s/def ::email-type (s/and string? #(re-matches email-regex %)))
+(defn email? [s] (when (string? s)
+                   (re-matches email-regex s)))
 (s/def ::id uuid?)
 (s/def ::first_name string?)
 (s/def ::last_name string?)
 (s/def ::username (s/and string?))
-(s/def ::email ::email-type)
+(s/def ::email email?)
 (s/def ::avatar bytes?)
 (s/def ::role_id (s/and int? pos?))
 (s/def ::user (s/keys :req-un [::avatar
@@ -50,12 +51,12 @@
   {:pre [(s/valid? ::user user)]}
   (let [user-id (java.util.UUID/randomUUID)
         row (assoc user :id user-id)]
-    (if (= 1 (first (sql/insert! (:conn db) "users" row)))
-      row)))
+    (postgres/insert! db "users" row)
+    row))
 
 (defn -create-login! [db id encrypted-password]
-  (sql/insert! (:conn db) "logins"
-               {:id id, :hashed_password encrypted-password}))
+  (postgres/insert! db "logins"
+                    {:id id, :hashed_password encrypted-password}))
 
 (defn -register-user-impl! [db
                             {:keys [role_id]
@@ -139,7 +140,11 @@
   (verify-credentials [this credentials]
     (-verify-credentials this credentials))
   (login [this credentials]
-    (-login this credentials)))
+    (-login this credentials))
+
+  postgres/RelationalDatabase
+  (postgres/insert! [this table payload]
+    (postgres/-insert! this table payload)))
 
 (defn wrap-user [handler]
   (fn [{user-id :identity components :components :as req}]
