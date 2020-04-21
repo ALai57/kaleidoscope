@@ -34,12 +34,19 @@
 
 (defprotocol RelationalDatabase
   (insert! [this table payload])
-  (select [this table payload])
-  (update! [this table payload])
+  (select [this table where])
+  (update! [this table payload where])
   (delete! [this table payload]))
 
 (defn -insert! [this table payload]
   (sql/insert! (:conn this) table payload))
+
+(defn -update! [this table payload where]
+  (let [k (first (keys where))]
+    (sql/update! (:conn this)
+                 table
+                 payload
+                 [(format "%s = ?" (name k)) (where k)])))
 
 (defn ->sql-query
   ([table]
@@ -49,5 +56,5 @@
          v (get where-clause k)]
      [(format "SELECT * FROM %s WHERE %s = ?" table k) v])))
 
-(defn -query [this table payload]
+(defn -select [this table payload]
   (sql/query (:conn this) (->sql-query table payload)))

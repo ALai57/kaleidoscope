@@ -84,21 +84,24 @@
   (sql/query (:conn db) ["SELECT * FROM users"]))
 
 (defn -get-user [db username]
-  (first (sql/query (:conn db) ["SELECT * FROM users WHERE username = ?" username])))
+  (first (postgres/select db "users" {:username username})))
 
 (defn -get-user-by-id [db user-id]
-  (first (sql/query (:conn db) ["SELECT * FROM users WHERE id = ?" user-id])))
+  (first (postgres/select db "users" {:id user-id})))
 
-(defn -update-user [db username update-payload]
-  (let [n-updates (first (sql/update! (:conn db)
-                                      "users"
-                                      update-payload
-                                      ["username = ?" username]))]
+(defn -update-user! [db username update-payload]
+  (let [n-updates (first (postgres/update! db
+                                           "users"
+                                           update-payload
+                                           {:username username}))]
     (if (= 1 n-updates)
       update-payload)))
 
 (defn- -get-password [db user-id]
   (:hashed_password (first (sql/query (:conn db) ["SELECT hashed_password FROM logins WHERE id = ?" user-id]))))
+
+(defn -get-password-2 [db user-id]
+  (:hashed_password (first (postgres/select db "logins" {:id user-id}))))
 
 (defn -verify-credentials [db {:keys [username password]}]
   (let [{:keys [id]} (get-user db username)]
@@ -132,9 +135,9 @@
   (get-user-by-id [this user-id]
     (-get-user-by-id this user-id))
   (update-user [this username update-payload]
-    (-update-user this username update-payload))
+    (-update-user! this username update-payload))
   (get-password [this user-id]
-    (-get-password this user-id))
+    (-get-password-2 this user-id))
   (delete-user! [this credentials]
     (-delete-user! this credentials))
   (verify-credentials [this credentials]
@@ -143,6 +146,8 @@
     (-login this credentials))
 
   postgres/RelationalDatabase
+  (postgres/update! [this table payload where]
+    (postgres/-update! this table payload where))
   (postgres/insert! [this table payload]
     (postgres/-insert! this table payload)))
 

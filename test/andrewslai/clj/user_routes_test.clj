@@ -149,12 +149,8 @@
                                                  :first_name "new.2"
                                                  :last_name "user.2"})))]
             (is (= 200 status))
-            (is (= {:username "new-user"
-                    :avatar b64-encoded-avatar
-                    :first_name "new.2"
-                    :last_name "user.2"
-                    :email "newuser@andrewslai.com"
-                    :role_id 2}
+            (is (= {:first_name "new.2"
+                    :last_name "user.2"}
                    (-> response
                        parse-response-body
                        (dissoc :id))))))

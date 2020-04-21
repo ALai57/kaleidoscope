@@ -11,6 +11,12 @@
   (keep-indexed (fn [idx user] (when (= username (:username user)) idx))
                 v))
 
+(defn find-index [where-clause db]
+  (let [k (first (keys where-clause))
+        v (where-clause k)]
+    (keep-indexed (fn [idx user] (when (= v (user k)) idx))
+                  db)))
+
 (extend-type clojure.lang.IAtom
   users/UserPersistence
   (create-user! [a user]
@@ -20,18 +26,13 @@
   (register-user! [a user password]
     (users/-register-user-impl! a user password))
   (update-user [a username update-map]
-    (let [idx (first (find-user-index username (:users @a)))]
-      (swap! a update-in [:users idx] merge update-map)
-      (get-in @a [:users idx])))
+    (users/-update-user! a username update-map))
   (get-user-by-id [a user-id]
-    (first (filter #(= user-id (:id %))
-                   (:users (deref a)))))
+    (users/-get-user-by-id a user-id))
   (get-user [a username]
-    (first (filter #(= username (:username %))
-                   (:users (deref a)))))
+    (users/-get-user a username))
   (get-password [a user-id]
-    (:hashed_password (first (filter #(= user-id (:id %))
-                                     (:logins (deref a))))))
+    (users/-get-password-2 a user-id))
   (verify-credentials [a credentials]
     (users/-verify-credentials a credentials))
   (delete-user! [a {:keys [username password] :as credentials}]
@@ -45,6 +46,14 @@
     (users/-login a credentials))
 
   postgres/RelationalDatabase
+  (select [a table where]
+    (let [k (first (keys where))
+          v (where k)]
+      (filter #(= v (k %)) ((keyword table) (deref a)))))
+  (update! [a table payload where]
+    (let [idx (first (find-index where (:users @a)))]
+      (swap! a update-in [:users idx] merge payload)
+      [1]))
   (insert! [a table payload]
     (swap! a update (keyword table) conj payload)))
 
