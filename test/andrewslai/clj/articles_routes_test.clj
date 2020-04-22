@@ -3,7 +3,8 @@
             [andrewslai.clj.persistence.postgres-test]
             [andrewslai.clj.utils :refer [parse-response-body]]
             [clojure.test :refer [deftest is testing]]
-            [ring.mock.request :as mock]))
+            [ring.mock.request :as mock]
+            [andrewslai.clj.persistence.articles :as articles]))
 
 (def test-db
   (atom {:articles [{:title "Test article",
@@ -34,7 +35,8 @@
                                         :image_url "images/nu-helix-logo.svg",
                                         :description "Science Outreach Magazine"}]}}))
 
-(def test-app (h/wrap-middleware h/bare-app {:db test-db}))
+(def test-app (h/wrap-middleware h/bare-app
+                                 {:db (articles/->ArticleDatabase test-db)}))
 
 (deftest get-all-articles-test
   (testing "get-all-articles endpoint returns all articles"

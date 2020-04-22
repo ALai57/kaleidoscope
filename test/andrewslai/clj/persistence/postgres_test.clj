@@ -28,28 +28,15 @@
   (select [a table where]
     (let [k (first (keys where))
           v (where k)]
-      (filter #(= v (k %)) ((keyword table) (deref a)))))
+      (if (empty? where)
+        ((keyword table) (deref a))
+        (filter #(= v (k %)) ((keyword table) (deref a))))))
   (update! [a table payload where]
     (let [idx (first (find-index where (:users @a)))]
       (swap! a update-in [:users idx] merge payload)
       [1]))
   (insert! [a table payload]
     (swap! a update (keyword table) conj payload)))
-
-(extend-protocol articles/ArticlePersistence
-  clojure.lang.IAtom
-  (get-all-articles [a]
-    (:articles (deref a)))
-  (get-article-metadata [a article-name]
-    (first (filter #(= article-name (:article_url %))
-                   (:metadata (deref a)))))
-  (get-article-content [a article-id]
-    (first (filter #(= article-id (:article_id %))
-                   (:content (deref a)))))
-  (get-full-article [a article-name]
-    (articles/-get-full-article a article-name))
-  (get-resume-info [a]
-    (:resume-info (deref a))))
 
 (comment
   (users/register-user! test-user-db

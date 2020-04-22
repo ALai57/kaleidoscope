@@ -3,7 +3,8 @@
             [andrewslai.clj.persistence.postgres :refer [pg-db]]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
-            [clojure.walk :refer [keywordize-keys]]))
+            [clojure.walk :refer [keywordize-keys]]
+            [andrewslai.clj.persistence.postgres :as postgres]))
 
 (defprotocol ArticlePersistence
   (save-article! [_])
@@ -13,63 +14,53 @@
   (get-all-articles [_])
   (get-resume-info [_]))
 
-(defn- -get-all-articles [db]
+(defn- -get-all-articles [this]
   (try
-    (sql/query (:conn db)
-               [(str "SELECT * FROM articles ORDER BY timestamp DESC")])
+    (postgres/select (:database this) "articles" {})
     (catch Exception e
       (str "get-all-articles caught exception: " (.getMessage e)))))
 
-(defn- -get-article-metadata [db article-name]
+(defn- -get-article-metadata [this article-url]
   (try
     (first
-      (sql/query (:conn db)
-                 [(str "SELECT * FROM articles"
-                       " WHERE article_url = ?") article-name]))
+      (postgres/select (:database this) "articles" {:article_url article-url}))
     (catch Exception e
       (str "get-article caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
-(defn- -get-article-content [db article-id]
+(defn- -get-article-content [this article-id]
   (try
-    (sql/query (:conn db)
-               [(str "SELECT "
-                     "article_id, content, dynamicjs "
-                     "FROM content "
-                     "WHERE article_id = ?") article-id])
+    (select-keys (postgres/select (:database this)
+                                  "content"
+                                  {:article_id article-id})
+                 [:article_id :content :dynamicjs])
     (catch Exception e
       (str "get-content caught exception: " (.getMessage e)
            "postgres config: " (assoc pg-db :password "xxxxxx")))))
 
-(defn -get-full-article [db article-name]
-  (let [article (get-article-metadata db article-name)
+(defn -get-full-article [this article-name]
+  (let [article (get-article-metadata this article-name)
         article-id (:article_id article)
-        content (get-article-content db article-id)]
+        content (get-article-content this article-id)]
     {:article-name article-name
      :article (assoc-in article [:content] content)}))
 
-(defn- -get-resume-info [db]
+(defn- -get-resume-info [this]
   (try
-    (let [organizations (sql/query (:conn db)
-                                   [(str "SELECT *"
-                                         "FROM organizations ")])
-          projects (sql/query (:conn db)
-                              [(str "SELECT *"
-                                    "FROM projects ")])
-          skills (sql/query (:conn db)
-                            [(str "SELECT *"
-                                  "FROM skills ")])]
+    (let [organizations (postgres/select (:database this) "organizations" {})
+          projects (postgres/select (:database this) "projects" {})
+          skills (postgres/select (:database this) "skills" {})]
       {:organizations organizations
        :projects projects
        :skills skills})
     (catch Exception e
       (str "get-resume-info caught exception: " (.getMessage e)
-           "postgres config: " (assoc (:conn db) :password "xxxxxx")))))
+           "postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
 (defn -save-article! [db]
   nil)
 
-(defrecord ArticleDatabase [conn]
+(defrecord ArticleDatabase [database]
   ArticlePersistence
   (save-article! [this]
     (-save-article! this))

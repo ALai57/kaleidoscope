@@ -79,8 +79,12 @@
 ;; This is for figwheel testing only
 (def app
   (wrap-middleware bare-app
-                   {:db (articles/->ArticleDatabase postgres/pg-db)
-                    :user (users/->UserDatabase postgres/pg-db)
+                   {:db (-> postgres/pg-db
+                            postgres/->Postgres
+                            articles/->ArticleDatabase)
+                    :user (-> postgres/pg-db
+                              postgres/->Postgres
+                              users/->UserDatabase)
                     :logging (merge log/*config* {:level :debug})
                     :session {:cookie-attrs {:max-age 3600, :secure true}
                               :store (mem/memory-store (atom {}))}}))
@@ -92,7 +96,9 @@
                      {:db (-> postgres/pg-db
                               postgres/->Postgres
                               articles/->ArticleDatabase)
-                      :user (users/->UserDatabase postgres/pg-db)
+                      :user (-> postgres/pg-db
+                                postgres/->Postgres
+                                users/->UserDatabase)
                       :logging (merge log/*config* {:level :info})
                       :session {:cookie-attrs {:max-age 3600, :secure true}
                                 :store (mem/memory-store (atom {}))}})
