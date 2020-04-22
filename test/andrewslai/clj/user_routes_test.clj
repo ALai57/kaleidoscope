@@ -28,7 +28,7 @@
                                                         "Lai")}]}))
 
 (def session-atom (atom {}))
-(def components {:user test-user-db
+(def components {:user (users/->UserDatabase test-user-db)
                  :session {:store (mem/memory-store session-atom)}})
 (def test-users-app (h/wrap-middleware h/bare-app components))
 (def identity-handler

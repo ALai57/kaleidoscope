@@ -47,78 +47,84 @@
                       :opt [::role_id
                             ::id]))
 
-(defn -create-user! [db user]
+
+(defn -create-user! [this user]
   {:pre [(s/valid? ::user user)]}
   (let [user-id (java.util.UUID/randomUUID)
         row (assoc user :id user-id)]
-    (postgres/insert! db "users" row)
+    (postgres/insert! (:database this) "users" row)
     row))
 
-(defn -create-login! [db id encrypted-password]
-  (postgres/insert! db "logins"
+(defn -create-login! [this id encrypted-password]
+  (postgres/insert! (:database this) "logins"
                     {:id id, :hashed_password encrypted-password}))
 
-(defn -register-user-impl! [db
+(defn -register-user-impl! [this
                             {:keys [role_id]
                              :as user
                              :or {role_id default-role}}
                             password]
   {:pre [(s/valid? ::user user)]}
   (let [{:keys [id] :as new-user}
-        (create-user! db (assoc user :role_id role_id))]
-    (create-login! db id (encryption/encrypt (encryption/make-encryption)
-                                             password))
+        (create-user! this (assoc user :role_id role_id))]
+    (create-login! this
+                   id
+                   (encryption/encrypt (encryption/make-encryption) password))
     new-user))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn- -register-user! [db user password]
+(defn- -register-user! [this user password]
   (try
-    (sql/with-db-transaction [conn (:conn db)]
-      (-register-user-impl! db user password))
+    (-register-user-impl! this user password)
     (catch Exception e
       (str "register-user! caught exception: " (.getMessage e)
-           "db config: " (assoc (:conn db) :password "xxxxxx")))))
+           "this config: " (assoc (:conn (:database this)) :password "xxxxxx")))))
 
 
-(defn -get-users [db]
-  (sql/query (:conn db) ["SELECT * FROM users"]))
+(defn -get-users [this]
+  (sql/query (:conn (:database this)) ["SELECT * FROM users"]))
 
-(defn -get-user [db username]
-  (first (postgres/select db "users" {:username username})))
+(defn -get-user [this username]
+  (first (postgres/select (:database this) "users" {:username username})))
 
-(defn -get-user-by-id [db user-id]
-  (first (postgres/select db "users" {:id user-id})))
+(defn -get-user-by-id [this user-id]
+  (first (postgres/select (:database this) "users" {:id user-id})))
 
-(defn -update-user! [db username update-payload]
-  (let [n-updates (first (postgres/update! db
+(defn -update-user! [this username update-payload]
+  (let [n-updates (first (postgres/update! (:database this)
                                            "users"
                                            update-payload
                                            {:username username}))]
     (if (= 1 n-updates)
       update-payload)))
 
-(defn -get-password [db user-id]
-  (:hashed_password (first (postgres/select db "logins" {:id user-id}))))
+(defn -get-password [this user-id]
+  (:hashed_password (first (postgres/select (:database this) "logins" {:id user-id}))))
 
-(defn -verify-credentials [db {:keys [username password]}]
-  (let [{:keys [id]} (get-user db username)]
+(defn -verify-credentials [this {:keys [username password]}]
+  (let [{:keys [id]} (get-user this username)]
     (and id
-         (get-password db id)
+         (get-password this id)
          (encryption/check (encryption/make-encryption)
                            password
-                           (get-password db id)))))
+                           (get-password this id)))))
 
-(defn -login [db {:keys [username password] :as credentials}]
-  (when (verify-credentials db credentials)
-    (:id (get-user db username))))
+(defn -login [this {:keys [username password] :as credentials}]
+  (when (verify-credentials this credentials)
+    (:id (get-user this username))))
 
-(defn -delete-user! [db {:keys [username] :as credentials}]
-  (when (verify-credentials db credentials)
-    (let [{:keys [id]} (get-user db username)]
-      (postgres/delete! db "logins" {:id id})
-      (first (postgres/delete! db "users" {:username username})))))
+(defn -delete-user! [this {:keys [username] :as credentials}]
+  (when (verify-credentials this credentials)
+    (let [{:keys [id]} (get-user this username)]
+      (postgres/delete! (:database this) "logins" {:id id})
+      (first (postgres/delete! (:database this) "users" {:username username})))))
 
-(defrecord UserDatabase [conn]
+;; Can this be refactored so that the record takes an implementation as an arg?
+;; For example, you call ->UserDatabase, and instead of conn, give it another
+;;  object that has implemented protocol RelationalDatabase.
+;; Then, the only difference between Postgres and alternate implmenetaton is how
+;;  to do CRUD on the DB: e.g. how to update an atom vs to update a RDBMS
+(defrecord UserDatabase [database]
   UserPersistence
   (register-user! [this user password]
     (-register-user! this user password))
@@ -141,17 +147,7 @@
   (verify-credentials [this credentials]
     (-verify-credentials this credentials))
   (login [this credentials]
-    (-login this credentials))
-
-  postgres/RelationalDatabase
-  (postgres/select [this table where]
-    (postgres/-select this table where))
-  (postgres/delete! [this table where]
-    (postgres/-delete! this table where))
-  (postgres/update! [this table payload where]
-    (postgres/-update! this table payload where))
-  (postgres/insert! [this table payload]
-    (postgres/-insert! this table payload)))
+    (-login this credentials)))
 
 (defn wrap-user [handler]
   (fn [{user-id :identity components :components :as req}]
@@ -160,6 +156,8 @@
       (handler (assoc req :user nil)))))
 
 (comment
+  (->UserDatabase2 (postgres/->Postgres postgres/pg-db))
+
   (register-user! (->UserDatabase postgres/pg-db)
                   {:username "fantasmita"
                    :email "littleghost@andrewlai.com"
@@ -169,6 +167,8 @@
 
   (get-users (->UserDatabase postgres/pg-db))
   (get-user (->UserDatabase postgres/pg-db) "testuser")
+
+  (get-user (->UserDatabase postgres/pg-db) "andrewslai_admin")
 
   (update-user (->UserDatabase postgres/pg-db)
                "testuser"

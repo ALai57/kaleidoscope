@@ -89,7 +89,9 @@
   (println "Hello! Starting service...")
   (httpkit/run-server
     (wrap-middleware bare-app
-                     {:db (articles/->ArticleDatabase postgres/pg-db)
+                     {:db (-> postgres/pg-db
+                              postgres/->Postgres
+                              articles/->ArticleDatabase)
                       :user (users/->UserDatabase postgres/pg-db)
                       :logging (merge log/*config* {:level :info})
                       :session {:cookie-attrs {:max-age 3600, :secure true}

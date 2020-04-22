@@ -18,28 +18,6 @@
                   db)))
 
 (extend-type clojure.lang.IAtom
-  users/UserPersistence
-  (create-user! [a user]
-    (users/-create-user! a user))
-  (create-login! [a id password]
-    (users/-create-login! a id password))
-  (register-user! [a user password]
-    (users/-register-user-impl! a user password))
-  (update-user [a username update-map]
-    (users/-update-user! a username update-map))
-  (get-user-by-id [a user-id]
-    (users/-get-user-by-id a user-id))
-  (get-user [a username]
-    (users/-get-user a username))
-  (get-password [a user-id]
-    (users/-get-password a user-id))
-  (verify-credentials [a credentials]
-    (users/-verify-credentials a credentials))
-  (delete-user! [a credentials]
-    (users/-delete-user! a credentials))
-  (login [a credentials]
-    (users/-login a credentials))
-
   postgres/RelationalDatabase
   (delete! [a table where]
     (let [k (first (keys where))

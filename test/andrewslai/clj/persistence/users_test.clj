@@ -19,8 +19,8 @@
             [ring.mock.request :as mock]))
 
 (def test-db
-  (atom {:users []
-         :logins []}))
+  (users/->UserDatabase (atom {:users []
+                               :logins []})))
 
 (def example-user {:avatar (byte-array (map (comp byte int) "Hello world!"))
                    :email "me@andrewslai.com"

@@ -65,3 +65,19 @@
 
 (defn -select [this table payload]
   (sql/query (:conn this) (->sql-query table payload)))
+
+(defrecord Postgres [conn]
+  RelationalDatabase
+  (select [this table where]
+    (-select this table where))
+  (delete! [this table where]
+    (-delete! this table where))
+  (update! [this table payload where]
+    (-update! this table payload where))
+  (insert! [this table payload]
+    (-insert! this table payload)))
+
+(comment
+  (-select {:conn pg-db} )
+  (sql/query pg-db ["SELECT * FROM users"])
+  )
