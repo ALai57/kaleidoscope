@@ -1,12 +1,15 @@
 (ns andrewslai.clj.persistence.postgres-test
   (:require [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.persistence.articles :as articles]
-            [andrewslai.clj.persistence.postgres :as postgres]))
+            [andrewslai.clj.persistence.rdbms :as rdbms]
+            [andrewslai.clj.persistence.postgres :as postgres]
+            [migratus.core :as m])
+  (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
 
 
 ;; https://github.com/whostolebenfrog/lein-postgres
 ;; https://eli.naeher.name/embedded-postgres-in-clojure/
-
+;; https://github.com/zonkyio/embedded-postgres 
 (defn find-user-index [username v]
   (keep-indexed (fn [idx user] (when (= username (:username user)) idx))
                 v))
@@ -18,7 +21,7 @@
                   db)))
 
 (extend-type clojure.lang.IAtom
-  postgres/RelationalDatabase
+  rdbms/RelationalDatabase
   (delete! [a table where]
     (let [k (first (keys where))
           v (where k)
@@ -38,6 +41,23 @@
   (insert! [a table payload]
     (swap! a update (keyword table) conj payload)))
 
+
+;; Embedded test database
+(defn pg-db->migratus-config [db-spec]
+  {:migration-dirs "migrations"
+   :store :database
+   :db db-spec})
+
+(def test-pg (-> (EmbeddedPostgres/builder)
+                 .start))
+
+(def db-spec {:classname "org.postgresql.Driver"
+              :subprotocol "postgresql"
+              :subname (str "//localhost:" (.getPort test-pg) "/postgres")
+              :user "postgres"})
+
+(m/migrate (pg-db->migratus-config db-spec))
+
 (comment
   (users/register-user! test-user-db
                         {:first_name "Andrew"
@@ -49,4 +69,49 @@
 
   @test-user-db
   (users/get-user test-user-db "new-user")
+  )
+
+(comment
+  (import (io.zonky.test.db.postgres.util LinuxUtils ArchUtils))
+  (ArchUtils/normalize "i386")
+  #_(.getPgBinary (DefaultPostgresBinaryResolver/INSTANCE)
+                  (LinuxUtils/getDistributionName)
+                  (ArchUtils/normalize "i386"))
+
+  ;;https://github.com/zonkyio/embedded-postgres/blob/master/src/main/java/io/zonky/test/db/postgres/embedded/DefaultPostgresBinaryResolver.java
+  (import (io.zonky.test.db.postgres.embedded EmbeddedPostgres DefaultPostgresBinaryResolver))
+  (require '[clojure.java.jdbc :as jdbc])
+
+  ;; Move this 
+  (def pg (-> (EmbeddedPostgres/builder)
+              .start))
+
+  ;; Move this so it's passed in as the connection
+  (def subname (str "//localhost:" (.getPort pg) "/postgres"))
+  (def db-spec {:classname "org.postgresql.Driver"
+                :subprotocol "postgresql"
+                :subname (str "//localhost:" (.getPort pg) "/postgres")
+                :user "postgres"})
+  (jdbc/with-db-connection [db db-spec]
+    (jdbc/query db "select version()"))
+
+  (def fruit-table-ddl
+    (jdbc/create-table-ddl :fruit
+                           [[:name "varchar(32)"]
+                            [:appearance "varchar(32)"]
+                            [:cost :int]
+                            [:grade :real]]))
+
+  (jdbc/db-do-commands db-spec
+                       [fruit-table-ddl
+                        "CREATE INDEX name_ix ON fruit ( name );"])
+
+  (jdbc/insert! db-spec :fruit {:name "apple"
+                                :appearance "awesome"
+                                :cost 12
+                                :grade 1.2})
+
+  (jdbc/with-db-connection [db db-spec]
+    (jdbc/query db "select * from fruit"))
+
   )

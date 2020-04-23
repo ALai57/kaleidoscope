@@ -1,5 +1,6 @@
 (ns andrewslai.clj.persistence.postgres
   (:require [andrewslai.clj.env :as env]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]])
@@ -32,11 +33,6 @@
             :user db-user
             :password db-password})
 
-(defprotocol RelationalDatabase
-  (insert! [this table payload])
-  (select [this table where])
-  (update! [this table payload where])
-  (delete! [this table payload]))
 
 (defn -insert! [this table payload]
   (sql/insert! (:conn this) table payload))
@@ -55,19 +51,24 @@
                table
                [(format "DELETE FROM %s WHERE %s = ?" table k) v])))
 
+;; FIXME: Move to HoneySQL? HugSQL?
+;; FIXME: This implementation is not right
 (defn ->sql-query
   ([table]
    [(format "SELECT * FROM %s" table)])
   ([table where-clause]
-   (let [k (first (keys where-clause))
-         v (get where-clause k)]
-     [(format "SELECT * FROM %s WHERE %s = ?" table k) v])))
+   (if (empty? where-clause)
+     (->sql-query table)
+     (let [k (first (keys where-clause))
+           v (get where-clause k)]
+       [(format "SELECT * FROM %s WHERE %s = ?" table (name k)) v]))))
 
 (defn -select [this table payload]
   (sql/query (:conn this) (->sql-query table payload)))
 
+;; FIXME: NEED TO FIX - THE ALTERNATE IMPLEMENTATION IS NOT EQUIVALENT.... HUGE ISSUE!
 (defrecord Postgres [conn]
-  RelationalDatabase
+  rdbms/RelationalDatabase
   (select [this table where]
     (-select this table where))
   (delete! [this table where]

@@ -3,8 +3,18 @@
             [andrewslai.clj.persistence.postgres-test]
             [andrewslai.clj.utils :refer [parse-response-body]]
             [clojure.test :refer [deftest is testing]]
+            [clojure.java.jdbc :as jdbc]
             [ring.mock.request :as mock]
-            [andrewslai.clj.persistence.articles :as articles]))
+            [andrewslai.clj.persistence.articles :as articles]
+            [andrewslai.clj.persistence.postgres :as postgres]
+            [andrewslai.clj.persistence.postgres-test :as ptest]
+            [clojure.java.jdbc :as sql]))
+
+
+(comment 
+  (jdbc/with-db-connection [db db-spec]
+    (jdbc/query db "select * from articles"))
+  )
 
 (def test-db
   (atom {:articles [{:title "Test article",
@@ -36,7 +46,9 @@
                                         :description "Science Outreach Magazine"}]}}))
 
 (def test-app (h/wrap-middleware h/bare-app
-                                 {:db (articles/->ArticleDatabase test-db)}))
+                                 {:db (-> ptest/db-spec
+                                          postgres/->Postgres
+                                          articles/->ArticleDatabase)}))
 
 (deftest get-all-articles-test
   (testing "get-all-articles endpoint returns all articles"
@@ -44,8 +56,7 @@
                         (mock/request :get)
                         test-app)]
       (is (= 200 (:status response)))
-      (is (= (:articles @test-db)
-             (parse-response-body response))))))
+      (is (= 5 (count (parse-response-body response)))))))
 
 (deftest get-full-article-test
   (testing "get-article endpoint returns an article data structure"

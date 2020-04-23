@@ -1,6 +1,7 @@
 (ns andrewslai.clj.persistence.users
   (:require [andrewslai.clj.auth.crypto :as encryption]
             [andrewslai.clj.persistence.postgres :as postgres]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [clojure.java.jdbc :as sql]
             [clojure.spec.alpha :as s]))
 
@@ -52,12 +53,12 @@
   {:pre [(s/valid? ::user user)]}
   (let [user-id (java.util.UUID/randomUUID)
         row (assoc user :id user-id)]
-    (postgres/insert! (:database this) "users" row)
+    (rdbms/insert! (:database this) "users" row)
     row))
 
 (defn -create-login! [this id encrypted-password]
-  (postgres/insert! (:database this) "logins"
-                    {:id id, :hashed_password encrypted-password}))
+  (rdbms/insert! (:database this) "logins"
+                 {:id id, :hashed_password encrypted-password}))
 
 (defn -register-user-impl! [this
                             {:keys [role_id]
@@ -85,21 +86,21 @@
   (sql/query (:conn (:database this)) ["SELECT * FROM users"]))
 
 (defn -get-user [this username]
-  (first (postgres/select (:database this) "users" {:username username})))
+  (first (rdbms/select (:database this) "users" {:username username})))
 
 (defn -get-user-by-id [this user-id]
-  (first (postgres/select (:database this) "users" {:id user-id})))
+  (first (rdbms/select (:database this) "users" {:id user-id})))
 
 (defn -update-user! [this username update-payload]
-  (let [n-updates (first (postgres/update! (:database this)
-                                           "users"
-                                           update-payload
-                                           {:username username}))]
+  (let [n-updates (first (rdbms/update! (:database this)
+                                        "users"
+                                        update-payload
+                                        {:username username}))]
     (if (= 1 n-updates)
       update-payload)))
 
 (defn -get-password [this user-id]
-  (:hashed_password (first (postgres/select (:database this) "logins" {:id user-id}))))
+  (:hashed_password (first (rdbms/select (:database this) "logins" {:id user-id}))))
 
 (defn -verify-credentials [this {:keys [username password]}]
   (let [{:keys [id]} (get-user this username)]
@@ -116,8 +117,8 @@
 (defn -delete-user! [this {:keys [username] :as credentials}]
   (when (verify-credentials this credentials)
     (let [{:keys [id]} (get-user this username)]
-      (postgres/delete! (:database this) "logins" {:id id})
-      (first (postgres/delete! (:database this) "users" {:username username})))))
+      (rdbms/delete! (:database this) "logins" {:id id})
+      (first (rdbms/delete! (:database this) "users" {:username username})))))
 
 ;; Can this be refactored so that the record takes an implementation as an arg?
 ;; For example, you call ->UserDatabase, and instead of conn, give it another
@@ -156,7 +157,7 @@
       (handler (assoc req :user nil)))))
 
 (comment
-  (->UserDatabase2 (postgres/->Postgres postgres/pg-db))
+  (->UserDatabase2 (rdbms/->Postgres postgres/pg-db))
 
   (register-user! (->UserDatabase postgres/pg-db)
                   {:username "fantasmita"

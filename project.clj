@@ -14,6 +14,7 @@
                  [cljsjs/react-bootstrap "1.0.0-beta.14-0"] ;; latest release
                  [cljsjs/react-pose "1.6.4-1"]
                  [crypto-password "0.2.1"]
+                 [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
                  [coreagile/defenv "1.0.9"]
                  [day8.re-frame/tracing "0.5.3"]
                  [hiccup "1.0.5"]
@@ -41,7 +42,9 @@
 
   ;; Used to make this compatible with Java 11
   :managed-dependencies [[org.clojure/core.rrb-vector "0.1.1"]
-                         [org.flatland/ordered "1.5.7"]]
+                         [org.flatland/ordered "1.5.7"]
+                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
+                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
 
   :ring {:handler andrewslai.clj.handler/app
          :init andrewslai.clj.handler/init-routes}

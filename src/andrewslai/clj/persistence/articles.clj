@@ -1,10 +1,11 @@
 (ns andrewslai.clj.persistence.articles
   (:require [andrewslai.clj.env :as env]
             [andrewslai.clj.persistence.postgres :refer [pg-db]]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.walk :refer [keywordize-keys]]
-            [andrewslai.clj.persistence.postgres :as postgres]))
+            ))
 
 (defprotocol ArticlePersistence
   (save-article! [_])
@@ -16,27 +17,27 @@
 
 (defn- -get-all-articles [this]
   (try
-    (postgres/select (:database this) "articles" {})
+    (rdbms/select (:database this) "articles" {})
     (catch Exception e
       (str "get-all-articles caught exception: " (.getMessage e)))))
 
 (defn- -get-article-metadata [this article-url]
   (try
     (first
-      (postgres/select (:database this) "articles" {:article_url article-url}))
+      (rdbms/select (:database this) "articles" {:article_url article-url}))
     (catch Exception e
-      (str "get-article caught exception: " (.getMessage e)
-           "postgres config: " (assoc pg-db :password "xxxxxx")))))
+      (str "get-article-metadata caught exception: " (.getMessage e)
+           "postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
 (defn- -get-article-content [this article-id]
   (try
-    (select-keys (postgres/select (:database this)
-                                  "content"
-                                  {:article_id article-id})
+    (select-keys (first (rdbms/select (:database this)
+                                      "content"
+                                      {:article_id article-id}))
                  [:article_id :content :dynamicjs])
     (catch Exception e
       (str "get-content caught exception: " (.getMessage e)
-           "postgres config: " (assoc pg-db :password "xxxxxx")))))
+           "postgres config: " (assoc (:database this):password "xxxxxx")))))
 
 (defn -get-full-article [this article-name]
   (let [article (get-article-metadata this article-name)
@@ -47,9 +48,9 @@
 
 (defn- -get-resume-info [this]
   (try
-    (let [organizations (postgres/select (:database this) "organizations" {})
-          projects (postgres/select (:database this) "projects" {})
-          skills (postgres/select (:database this) "skills" {})]
+    (let [organizations (rdbms/select (:database this) "organizations" {})
+          projects (rdbms/select (:database this) "projects" {})
+          skills (rdbms/select (:database this) "skills" {})]
       {:organizations organizations
        :projects projects
        :skills skills})
