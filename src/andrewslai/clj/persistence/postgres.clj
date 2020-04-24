@@ -73,8 +73,6 @@
   rdbms/RelationalDatabase
   (hselect [this sql-map]
     (hselect this sql-map))
-  (select [this table where]
-    (-select this table where))
   (delete! [this table where]
     (-delete! this table where))
   (update! [this table payload where]

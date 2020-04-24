@@ -92,7 +92,9 @@
                                           :where [:= :users/username username]})))
 
 (defn -get-user-by-id [this user-id]
-  (first (rdbms/select (:database this) "users" {:id user-id})))
+  (first (rdbms/hselect (:database this) {:select [:*]
+                                          :from [:users]
+                                          :where [:= :users/id user-id]})))
 
 (defn -update-user! [this username update-payload]
   (let [n-updates (first (rdbms/update! (:database this)
@@ -103,7 +105,10 @@
       update-payload)))
 
 (defn -get-password [this user-id]
-  (:hashed_password (first (rdbms/select (:database this) "logins" {:id user-id}))))
+  (:hashed_password (first (rdbms/hselect (:database this)
+                                          {:select [:*]
+                                           :from [:logins]
+                                           :where [:= :users/id user-id]}))))
 
 (defn -verify-credentials [this {:keys [username password]}]
   (let [{:keys [id]} (get-user this username)]
