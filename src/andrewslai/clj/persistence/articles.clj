@@ -31,10 +31,10 @@
 
 (defn- -get-article-content [this article-id]
   (try
-    (select-keys (first (rdbms/select (:database this)
-                                      "content"
-                                      {:article_id article-id}))
-                 [:article_id :content :dynamicjs])
+    (map (fn [content]
+           (select-keys content [:article_id :content :dynamicjs]))
+         (rdbms/select (:database this) "content" {:article_id article-id}))
+
     (catch Exception e
       (str "get-content caught exception: " (.getMessage e)
            "postgres config: " (assoc (:database this):password "xxxxxx")))))
