@@ -1,49 +1,18 @@
 (ns andrewslai.clj.articles-routes-test
   (:require [andrewslai.clj.handler :as h]
-            [andrewslai.clj.persistence.postgres-test]
-            [andrewslai.clj.utils :refer [parse-response-body]]
-            [clojure.test :refer [deftest is testing]]
-            [clojure.java.jdbc :as jdbc]
-            [ring.mock.request :as mock]
             [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres-test :as ptest]
-            [clojure.java.jdbc :as sql]))
-
+            [andrewslai.clj.utils :refer [parse-response-body]]
+            [clojure.java.jdbc :as jdbc]
+            [clojure.test :refer [deftest is testing]]
+            [ring.mock.request :as mock]))
 
 (comment 
-  (jdbc/with-db-connection [db db-spec]
+  (jdbc/with-db-connection [db ptest/db-spec]
     (jdbc/query db "select * from articles"))
   )
 
-(def test-db
-  (atom {:articles [{:title "Test article",
-                     :article_tags "thoughts",
-                     :timestamp "2019-11-07T00:48:08.136082000-00:00",
-                     :author "Andrew Lai", :article_url "test-article",
-                     :article_id 10}]
-         :metadata [{:title "Test article",
-                     :article_tags "thoughts",
-                     :timestamp #inst "2019-11-07T00:48:08.136082000-00:00",
-                     :author "Andrew Lai",
-                     :article_url "test-article",
-                     :article_id 10}]
-         :content [{:article_id 10,
-                    :content
-                    "<div>\n  <font color=\"#ce181e\"><font face=\"Ubuntu Mono\"><font size=\"5\"><b>A\n          basic test</b></font></font></font><p />\n  <p style=\"color:red\">Many of the</p>\n  <p>Usually, that database</p>\n</div>",
-                    :dynamicjs []}]
-         :resume-info {:skills [{:id 1,
-                                 :name "Periscope Data",
-                                 :url "",
-                                 :image_url "images/periscope-logo.svg",
-                                 :description "",
-                                 :skill_category "Analytics Tool"}]
-                       :projects []
-                       :organizations [{:id 1,
-                                        :name "HELIX",
-                                        :url "https://helix.northwestern.edu",
-                                        :image_url "images/nu-helix-logo.svg",
-                                        :description "Science Outreach Magazine"}]}}))
 
 (def test-app (h/wrap-middleware h/bare-app
                                  {:db (-> ptest/db-spec

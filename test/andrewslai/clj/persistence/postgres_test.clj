@@ -51,10 +51,10 @@
 (def test-pg (-> (EmbeddedPostgres/builder)
                  .start))
 
-(def db-spec {:classname "org.postgresql.Driver"
-              :subprotocol "postgresql"
-              :subname (str "//localhost:" (.getPort test-pg) "/postgres")
-              :user "postgres"})
+(def ^:dynamic db-spec {:classname "org.postgresql.Driver"
+                        :subprotocol "postgresql"
+                        :subname (str "//localhost:" (.getPort test-pg) "/postgres")
+                        :user "postgres"})
 
 (m/migrate (pg-db->migratus-config db-spec))
 
