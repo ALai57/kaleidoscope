@@ -52,27 +52,13 @@
         v (where k)]
     (sql/delete! (:conn this) table [(format "%s = ?" (name k)) v])))
 
-;; FIXME: Move to HoneySQL? HugSQL?
-(defn ->sql-query
-  ([table]
-   [(format "SELECT * FROM %s" table)])
-  ([table where-clause]
-   (if (empty? where-clause)
-     (->sql-query table)
-     (let [k (first (keys where-clause))
-           v (get where-clause k)]
-       [(format "SELECT * FROM %s WHERE %s = ?" table (name k)) v]))))
-
-(defn -select [this table payload]
-  (sql/query (:conn this) (->sql-query table payload)))
-
-(defn hselect [this sql-map]
+(defn -hselect [this sql-map]
   (sql/query (:conn this) (hsql/format sql-map)))
 
 (defrecord Postgres [conn]
   rdbms/RelationalDatabase
   (hselect [this sql-map]
-    (hselect this sql-map))
+    (-hselect this sql-map))
   (delete! [this table where]
     (-delete! this table where))
   (update! [this table payload where]
