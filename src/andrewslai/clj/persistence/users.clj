@@ -83,10 +83,13 @@
 
 
 (defn -get-users [this]
-  (sql/query (:conn (:database this)) ["SELECT * FROM users"]))
+  (rdbms/hselect (:database this) {:select [:*]
+                                   :from [:users]}))
 
 (defn -get-user [this username]
-  (first (rdbms/select (:database this) "users" {:username username})))
+  (first (rdbms/hselect (:database this) {:select [:*]
+                                          :from [:users]
+                                          :where [:= :users/username username]})))
 
 (defn -get-user-by-id [this user-id]
   (first (rdbms/select (:database this) "users" {:id user-id})))

@@ -27,17 +27,20 @@
 (defn- -get-article-metadata [this article-url]
   (try
     (first
-      (rdbms/select (:database this) "articles" {:article_url article-url}))
+      (rdbms/hselect (:database this)
+                     {:select [:*]
+                      :from [:articles]
+                      :where [:= :articles/article_url article-url]}))
     (catch Exception e
       (str "get-article-metadata caught exception: " (.getMessage e)
            "postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
 (defn- -get-article-content [this article-id]
   (try
-    (map (fn [content]
-           (select-keys content [:article_id :content :dynamicjs]))
-         (rdbms/select (:database this) "content" {:article_id article-id}))
-
+    (rdbms/hselect (:database this)
+                   {:select [:article_id :content :dynamicjs]
+                    :from [:content]
+                    :where [:= :articles/article_id article-id]})
     (catch Exception e
       (str "get-content caught exception: " (.getMessage e)
            "postgres config: " (assoc (:database this):password "xxxxxx")))))
@@ -51,10 +54,13 @@
 
 (defn- -get-resume-info [this]
   (try
-    (let [organizations (rdbms/select (:database this) "organizations" {})
-          projects (rdbms/select (:database this) "projects" {})
-          skills (rdbms/select (:database this) "skills" {})]
-      {:organizations organizations
+    (let [orgs (rdbms/hselect (:database this)
+                              {:select [:*] :from [:organizations]})
+          projects (rdbms/hselect (:database this)
+                                  {:select [:*] :from [:projects]})
+          skills (rdbms/hselect (:database this)
+                                {:select [:*] :from [:skills]})]
+      {:organizations orgs
        :projects projects
        :skills skills})
     (catch Exception e

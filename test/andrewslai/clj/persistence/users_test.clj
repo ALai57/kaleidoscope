@@ -1,8 +1,11 @@
 (ns andrewslai.clj.persistence.users-test
   (:require [andrewslai.clj.auth.crypto :as encryption]
             [andrewslai.clj.handler :as h]
+            [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres-test]
+            [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.users :as users]
+            [andrewslai.clj.test-utils :refer [defdbtest]]
             [andrewslai.clj.utils :refer [parse-response-body
                                           body->map
                                           file->bytes]]
@@ -19,8 +22,9 @@
             [ring.mock.request :as mock]))
 
 (def test-db
-  (users/->UserDatabase (atom {:users []
-                               :logins []})))
+  (-> ptest/db-spec
+      postgres/->Postgres
+      users/->UserDatabase))
 
 (def example-user {:avatar (byte-array (map (comp byte int) "Hello world!"))
                    :email "me@andrewslai.com"
@@ -28,13 +32,16 @@
                    :last_name "Lai"
                    :username "Andrew"})
 
-(deftest db-test
+(defdbtest db-test ptest/db-spec
   (testing "register-user!"
     (users/register-user! test-db example-user "password")
-    (is (= (assoc example-user :role_id 2)
-           (-> test-db
-               (users/get-user "Andrew")
-               (dissoc :id)))))
+    (is (= {:first_name "Andrew"
+            :last_name "Lai"
+            :username "Andrew"}
+           (select-keys (-> test-db
+                            (users/get-user "Andrew")
+                            (dissoc :id))
+                        [:first_name :last_name :username]))))
   (testing "get-user, get-password"
     (let [{:keys [id]} (users/get-user test-db "Andrew")]
       (is (uuid? id))

@@ -50,12 +50,9 @@
 (defn -delete! [this table where]
   (let [k (first (keys where))
         v (where k)]
-    (sql/query (:conn this)
-               table
-               [(format "DELETE FROM %s WHERE %s = ?" table k) v])))
+    (sql/delete! (:conn this) table [(format "%s = ?" (name k)) v])))
 
 ;; FIXME: Move to HoneySQL? HugSQL?
-;; FIXME: This implementation is not right
 (defn ->sql-query
   ([table]
    [(format "SELECT * FROM %s" table)])
@@ -71,10 +68,6 @@
 
 (defn hselect [this sql-map]
   (sql/query (:conn this) (hsql/format sql-map)))
-
-(comment
-  (hsql/format {:select [:*]
-                :from [:articles]}))
 
 (defrecord Postgres [conn]
   rdbms/RelationalDatabase
