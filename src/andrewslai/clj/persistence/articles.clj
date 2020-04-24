@@ -15,9 +15,12 @@
   (get-all-articles [_])
   (get-resume-info [_]))
 
+
+
 (defn- -get-all-articles [this]
   (try
-    (rdbms/select (:database this) "articles" {})
+    (rdbms/hselect (:database this) {:select [:*]
+                                     :from [:articles]})
     (catch Exception e
       (str "get-all-articles caught exception: " (.getMessage e)))))
 

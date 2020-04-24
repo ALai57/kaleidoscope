@@ -62,6 +62,13 @@
 (m/migrate (pg-db->migratus-config db-spec))
 
 (comment
+  (require '[clojure.java.jdbc :as jdbc])
+  (require '[honeysql.core :as hsql])
+  (jdbc/db-do-commands db-spec (hsql/format {:select [:*]
+                                             :from [:articles]}))
+
+  (jdbc/query db-spec ["SELECT * FROM articles"])
+
   (users/register-user! test-user-db
                         {:first_name "Andrew"
                          :last_name "Lai"

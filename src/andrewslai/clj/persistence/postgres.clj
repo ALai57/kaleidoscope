@@ -3,7 +3,8 @@
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
-            [clojure.walk :refer [keywordize-keys]])
+            [clojure.walk :refer [keywordize-keys]]
+            [honeysql.core :as hsql])
   (:import (org.postgresql.util PGobject)))
 
 (extend-protocol sql/IResultSetReadColumn
@@ -68,9 +69,17 @@
 (defn -select [this table payload]
   (sql/query (:conn this) (->sql-query table payload)))
 
-;; FIXME: NEED TO FIX - THE ALTERNATE IMPLEMENTATION IS NOT EQUIVALENT.... HUGE ISSUE!
+(defn hselect [this sql-map]
+  (sql/query (:conn this) (hsql/format sql-map)))
+
+(comment
+  (hsql/format {:select [:*]
+                :from [:articles]}))
+
 (defrecord Postgres [conn]
   rdbms/RelationalDatabase
+  (hselect [this sql-map]
+    (hselect this sql-map))
   (select [this table where]
     (-select this table where))
   (delete! [this table where]

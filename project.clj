@@ -19,6 +19,7 @@
                  [day8.re-frame/tracing "0.5.3"]
                  [hiccup "1.0.5"]
                  [hickory "0.7.1"]
+                 [honeysql "0.9.10"]
                  [http-kit "2.3.0"]
                  [metosin/compojure-api "1.1.12" :upgrade false]
                  [migratus "1.2.8"]

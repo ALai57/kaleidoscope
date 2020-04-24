@@ -36,7 +36,7 @@
           body (parse-body response)]
       (is (= 200 (:status response)))
       (is (= #{:article, :article-name} (set (keys body))))
-      (is (= (coll? (get-in body [:article :content])))))))
+      (is (coll? (get-in body [:article :content]))))))
 
 (defdbtest get-resume-info-test  ptest/db-spec
   (testing "get-resume-info endpoint returns an resume-info data structure"
