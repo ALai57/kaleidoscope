@@ -48,9 +48,12 @@
    :store :database
    :db db-spec})
 
-(def test-pg (-> (EmbeddedPostgres/builder)
-                 .start))
+(def ^:dynamic test-pg (-> (EmbeddedPostgres/builder)
+                           .start))
 
+(comment
+  (.close test-pg)
+  )
 (def ^:dynamic db-spec {:classname "org.postgresql.Driver"
                         :subprotocol "postgresql"
                         :subname (str "//localhost:" (.getPort test-pg) "/postgres")

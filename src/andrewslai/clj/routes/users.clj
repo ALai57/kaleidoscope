@@ -15,8 +15,8 @@
     (GET "/:username" [username]
       (ok (dissoc (users/get-user (:user components) username) :id)))
 
-    (PATCH "/:username" request
-      (let [{:keys [username avatar] :as update-map}
+    (PATCH "/:username" {{:keys [username]} :route-params :as request}
+      (let [{:keys [avatar] :as update-map}
             (-> request
                 :body
                 slurp

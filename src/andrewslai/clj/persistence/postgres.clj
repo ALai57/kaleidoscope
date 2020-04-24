@@ -38,11 +38,13 @@
   (sql/insert! (:conn this) table payload))
 
 (defn -update! [this table payload where]
-  (let [k (first (keys where))]
+  (let [k (first (keys where))
+        v (where k)]
     (sql/update! (:conn this)
                  table
                  payload
-                 [(format "%s = ?" (name k)) (where k)])))
+                 [(format "%s = ?" (name k)) v])
+    '(1)))
 
 (defn -delete! [this table where]
   (let [k (first (keys where))
