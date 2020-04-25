@@ -55,3 +55,16 @@
     (is (= 1 (users/delete-user! test-db {:username "Andrew"
                                           :password "password"})))
     (is (nil? (users/get-user test-db "Andrew")))))
+
+(defdbtest registration-errors-test ptest/db-spec
+  (testing "register duplicate user"
+    (users/register-user! test-db example-user "password")
+    (let [response (users/register-user! test-db example-user "password")]
+      (is (some? (re-matches #".*Key \(username\)=\(.*\) already exists.*"
+                             (clojure.string/replace response "\n" ""))))))
+  (testing "invalid inputs to creating a user"
+    (let [response (users/register-user! test-db (assoc example-user
+                                                        :email 1) "password")]
+      (println response (type response))
+      (is (some? (re-matches #".*failed.*"
+                             (clojure.string/replace response "\n" "")))))))

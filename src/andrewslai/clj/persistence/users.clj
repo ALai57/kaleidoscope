@@ -48,6 +48,11 @@
                       :opt [::role_id
                             ::id]))
 
+(defn validate [type data]
+  (if (s/valid? type data)
+    true
+    (throw (IllegalArgumentException. (s/explain-str type data)))))
+
 
 (defn- -create-user! [this user]
   (rdbms/insert! (:database this) "users" user))
@@ -58,8 +63,8 @@
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
 (defn- -register-user! [this {:keys [role_id] :as user} password]
-  {:pre [(s/valid? ::user user)]}
   (try
+    (validate ::user user)
     (let [user-id (java.util.UUID/randomUUID)
           full-user (-> user
                         (assoc :id user-id)
@@ -68,10 +73,10 @@
       (create-login! this user-id (encrypt (make-encryption) password))
       full-user)
 
-    (catch Exception e
-      (str "register-user! caught exception: " (.getMessage e)
-           #_#_"db-config: " (assoc (get-in this [:database :conn])
-                                    :password "xxxxxx")))))
+    (catch org.postgresql.util.PSQLException e
+      (.getMessage e))
+    (catch IllegalArgumentException e
+      (.getMessage e))))
 
 
 (defn -get-users [this]
