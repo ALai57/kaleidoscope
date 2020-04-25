@@ -46,11 +46,10 @@
 
 (def new-user {:username "new-user"
                :avatar b64-encoded-avatar
-               :password "new-password"
+               :password "CactusGnarlObsidianTheft"
                :first_name "new"
                :last_name "user"
                :email "newuser@andrewslai.com"})
-
 
 (defdbtest user-registration-test ptest/db-spec
   (testing "Registration hapy path"

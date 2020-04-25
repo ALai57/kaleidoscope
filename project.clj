@@ -14,6 +14,7 @@
                  [cljsjs/react-bootstrap "1.0.0-beta.14-0"] ;; latest release
                  [cljsjs/react-pose "1.6.4-1"]
                  [crypto-password "0.2.1"]
+                 [com.nulab-inc/zxcvbn "1.3.0"]
                  [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
                  [coreagile/defenv "1.0.9"]
                  [day8.re-frame/tracing "0.5.3"]
@@ -30,12 +31,14 @@
                  [org.clojure/data.csv "1.0.0"]
                  [org.clojure/data.codec "0.1.1"]
                  [org.clojure/java.jdbc "0.7.8"]
+                 [org.clojure/java.data "1.0.64"]
                  [org.postgresql/postgresql "42.2.11"]
                  [re-frame "0.12.0"]
                  [reagent "0.10.0"]
                  [ring "1.8.0"]
                  [ring/ring-mock "0.4.0"]
                  [sablono "0.8.6"]
+                 [slingshot "0.12.2"]
                  [com.taoensso/timbre "4.10.0"]]
 
   :plugins [[lein-figwheel "0.5.19"]

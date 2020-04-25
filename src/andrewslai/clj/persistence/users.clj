@@ -2,8 +2,11 @@
   (:require [andrewslai.clj.auth.crypto :refer [encrypt check make-encryption]]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.rdbms :as rdbms]
+            [clojure.java.data :as j]
             [clojure.java.jdbc :as sql]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [slingshot.slingshot :refer [throw+ try+]])
+  (:import (com.nulabinc.zxcvbn Zxcvbn)))
 
 ;; RESOURCES FOR AUTHENTICATION RELATED TOPICS
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
@@ -48,11 +51,33 @@
                       :opt [::role_id
                             ::id]))
 
+
+(defn password-strength [password]
+  (-> Zxcvbn
+      new
+      (.measure password)
+      j/from-java
+      (select-keys [:score :feedback])))
+
+(defn sufficient-strength? [{:keys [score]}]
+  (<= 4 score))
+
+(s/def ::password-strength sufficient-strength?)
+
+(comment
+  (-> Zxcvbn
+      new
+      (.measure "password")
+      j/from-java
+      (select-keys [:score :feedback]))
+  )
+
 (defn validate [type data]
   (if (s/valid? type data)
     true
-    (throw (IllegalArgumentException. (s/explain-str type data)))))
-
+    (throw+ {:type IllegalArgumentException
+             :data data
+             :reason (s/explain-str type data)})))
 
 (defn- -create-user! [this user]
   (rdbms/insert! (:database this) "users" user))
@@ -63,8 +88,9 @@
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
 (defn- -register-user! [this {:keys [role_id] :as user} password]
-  (try
+  (try+
     (validate ::user user)
+    (validate ::password-strength (password-strength password))
     (let [user-id (java.util.UUID/randomUUID)
           full-user (-> user
                         (assoc :id user-id)
@@ -75,8 +101,8 @@
 
     (catch org.postgresql.util.PSQLException e
       (.getMessage e))
-    (catch IllegalArgumentException e
-      (.getMessage e))))
+    (catch [:type IllegalArgumentException] e
+      (select-keys e [:data :reason]))))
 
 
 (defn -get-users [this]

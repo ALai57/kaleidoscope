@@ -32,9 +32,11 @@
                    :last_name "Lai"
                    :username "Andrew"})
 
+(def password "CactusGnarlObsidianTheft")
+
 (defdbtest db-test ptest/db-spec
   (testing "register-user!"
-    (users/register-user! test-db example-user "password")
+    (users/register-user! test-db example-user password)
     (is (= {:first_name "Andrew"
             :last_name "Lai"
             :username "Andrew"}
@@ -50,21 +52,25 @@
     (is (not (users/verify-credentials test-db {:username "Andrew"
                                                 :password "Wrong"})))
     (is (users/verify-credentials test-db {:username "Andrew"
-                                           :password "password"})))
+                                           :password password})))
   (testing "delete-user!"
     (is (= 1 (users/delete-user! test-db {:username "Andrew"
-                                          :password "password"})))
+                                          :password password})))
     (is (nil? (users/get-user test-db "Andrew")))))
 
 (defdbtest registration-errors-test ptest/db-spec
-  (testing "register duplicate user"
-    (users/register-user! test-db example-user "password")
-    (let [response (users/register-user! test-db example-user "password")]
+  (testing "Duplicate user"
+    (users/register-user! test-db example-user password)
+    (let [response (users/register-user! test-db example-user password)]
       (is (some? (re-matches #".*Key \(username\)=\(.*\) already exists.*"
                              (clojure.string/replace response "\n" ""))))))
-  (testing "invalid inputs to creating a user"
-    (let [response (users/register-user! test-db (assoc example-user
-                                                        :email 1) "password")]
-      (println response (type response))
-      (is (some? (re-matches #".*failed.*"
+  (testing "Weak password"
+    (let [response (users/register-user! test-db example-user "password")]
+      (is (some? (re-matches #".*failed: sufficient-strength?.*"
+                             (clojure.string/replace response "\n" ""))))))
+  (testing "Invalid email"
+    (let [response (users/register-user! test-db
+                                         (assoc example-user :email 1)
+                                         password)]
+      (is (some? (re-matches #".*failed: email?.*"
                              (clojure.string/replace response "\n" "")))))))
