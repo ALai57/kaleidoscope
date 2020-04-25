@@ -52,7 +52,8 @@
                                   password)]
         (-> (created)
             (assoc :headers {"Location" (str "/users/" username)})
-            (assoc :body result))))
+            (assoc :body result)
+            (assoc-in [:body :avatar_url] (format "users/%s/avatar" username)))))
 
     (GET "/:username/avatar" [username]
       (let [{:keys [avatar]}

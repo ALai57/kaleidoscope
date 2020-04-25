@@ -1,5 +1,6 @@
 (ns andrewslai.cljs.navbar
-  (:require [re-frame.core :refer [dispatch subscribe]]))
+  (:require [andrewslai.cljs.modal :as modal]
+            [re-frame.core :refer [dispatch subscribe]]))
 
 (def nav-images-path "images/nav-bar/")
 
@@ -20,6 +21,7 @@
 (defn primary-nav []
   (let [user (subscribe [:user])]
     [:div#primary-nav
+     [modal/modal]
      [:a.zoom-icon {:href "#/home"
                     :style {:float "left"}}
       [:img.navbutton {:src "images/nav-bar/favicon-white.svg"

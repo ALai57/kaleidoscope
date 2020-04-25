@@ -128,27 +128,25 @@
       :style {:float "right"}
       :onClick (fn [& args] (dispatch [:logout]))}]]])
 
-(defn my-awesome-modal-fn []
-  [:input.btn-primary
-   {:type "button"
-    :title "Click to show modal!"
-    :value "Show me the modal!"
-    :on-click #(dispatch [:modal {:show? true
-                                  :child [modal/hello-bootstrap]
-                                  :size :small}])}])
+#_(defn my-awesome-modal-fn []
+    [:input.btn-primary
+     {:type "button"
+      :title "Click to show modal!"
+      :value "Show me the modal!"
+      :on-click #(dispatch [:modal {:show? true
+                                    :child [modal/hello-bootstrap]
+                                    :size :small}])}])
 
 ;; TODO: Make user login timeout, so after 30 mins or so you can't see
 ;;       the profile information
 (defn login-ui []
   (let [user (subscribe [:user])]
     [:div
-     [modal/modal]
      [nav/primary-nav]
      [:br]
      (if @user
        [:div [user-profile @user]]
-       [login-form])
-     [my-awesome-modal-fn]]))
+       [login-form])]))
 
 (defn register-user []
   [:div {:style {:margin "20px"}}

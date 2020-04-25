@@ -33,7 +33,7 @@
                       :where [:= :articles/article_url article-url]}))
     (catch Exception e
       (str "get-article-metadata caught exception: " (.getMessage e)
-           "postgres config: " (assoc (:database this) :password "xxxxxx")))))
+           #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
 (defn- -get-article-content [this article-id]
   (try
@@ -43,7 +43,7 @@
                     :where [:= :articles/article_id article-id]})
     (catch Exception e
       (str "get-content caught exception: " (.getMessage e)
-           "postgres config: " (assoc (:database this):password "xxxxxx")))))
+           #_#_"postgres config: " (assoc (:database this):password "xxxxxx")))))
 
 (defn -get-full-article [this article-name]
   (let [article (get-article-metadata this article-name)
@@ -65,7 +65,7 @@
        :skills skills})
     (catch Exception e
       (str "get-resume-info caught exception: " (.getMessage e)
-           "postgres config: " (assoc (:database this) :password "xxxxxx")))))
+           #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
 (defn -save-article! [db]
   nil)

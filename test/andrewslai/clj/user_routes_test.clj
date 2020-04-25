@@ -60,7 +60,7 @@
           user-url (get headers "Location")]
       (is (= 201 status))
       (is (= "/users/new-user" user-url))
-      (is (= #{:id :username :avatar :first_name :last_name :email :role_id}
+      (is (= #{:id :username :avatar :avatar_url :first_name :last_name :email :role_id}
              (-> response
                  parse-response-body
                  keys

@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.users
-  (:require [andrewslai.clj.auth.crypto :as encryption]
+  (:require [andrewslai.clj.auth.crypto :refer [encrypt check make-encryption]]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [clojure.java.jdbc :as sql]
@@ -49,37 +49,29 @@
                             ::id]))
 
 
-(defn -create-user! [this user]
-  {:pre [(s/valid? ::user user)]}
-  (let [user-id (java.util.UUID/randomUUID)
-        row (assoc user :id user-id)]
-    (rdbms/insert! (:database this) "users" row)
-    row))
+(defn- -create-user! [this user]
+  (rdbms/insert! (:database this) "users" user))
 
-(defn -create-login! [this id encrypted-password]
+(defn- -create-login! [this id encrypted-password]
   (rdbms/insert! (:database this) "logins"
                  {:id id, :hashed_password encrypted-password}))
 
-(defn -register-user-impl! [this
-                            {:keys [role_id]
-                             :as user
-                             :or {role_id default-role}}
-                            password]
-  {:pre [(s/valid? ::user user)]}
-  (let [{:keys [id] :as new-user}
-        (create-user! this (assoc user :role_id role_id))]
-    (create-login! this
-                   id
-                   (encryption/encrypt (encryption/make-encryption) password))
-    new-user))
-
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn- -register-user! [this user password]
+(defn- -register-user! [this {:keys [role_id] :as user} password]
+  {:pre [(s/valid? ::user user)]}
   (try
-    (-register-user-impl! this user password)
+    (let [user-id (java.util.UUID/randomUUID)
+          full-user (-> user
+                        (assoc :id user-id)
+                        (assoc :role_id (or role_id default-role)))]
+      (create-user! this full-user)
+      (create-login! this user-id (encrypt (make-encryption) password))
+      full-user)
+
     (catch Exception e
       (str "register-user! caught exception: " (.getMessage e)
-           "this config: " (assoc (:conn (:database this)) :password "xxxxxx")))))
+           #_#_"db-config: " (assoc (get-in this [:database :conn])
+                                    :password "xxxxxx")))))
 
 
 (defn -get-users [this]
@@ -114,9 +106,9 @@
   (let [{:keys [id]} (get-user this username)]
     (and id
          (get-password this id)
-         (encryption/check (encryption/make-encryption)
-                           password
-                           (get-password this id)))))
+         (check (make-encryption)
+                password
+                (get-password this id)))))
 
 (defn -login [this {:keys [username password] :as credentials}]
   (when (verify-credentials this credentials)

@@ -1,6 +1,9 @@
 (ns andrewslai.cljs.modal
   (:require [re-frame.core :refer [dispatch subscribe]]))
 
+;;https://github.com/cljsjs/packages/tree/master/bootstrap-notify
+;;https://github.com/Frozenlock/siren
+
 
 (defn modal-panel
   [{:keys [child size show?]}]
