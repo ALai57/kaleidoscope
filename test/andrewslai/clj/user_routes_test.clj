@@ -22,49 +22,7 @@
             [andrewslai.clj.persistence.postgres :as postgres]))
 
 
-
-;; Modify all DB tests to use this macro!
-;;  because tests are failing due to DB conflicts
-(comment
-  (defdbtest my-test ptest/db-spec
-    (jdbc/insert! ptest/db-spec
-                  "users"
-                  {:username "new-user"
-                   :first_name "new"
-                   :last_name "user"
-                   :id #uuid "160bf449-535e-4902-9138-6c7c104cca0d"
-                   :email "newuser@andrewslai.com"
-                   :role_id 2})
-    (println "Inserted!")
-    (println "Results!"
-             (jdbc/query ptest/db-spec "select * from users")))
-
-  (my-test)
-  )
-
-(comment 
-  (jdbc/with-db-connection [db ptest/db-spec]
-    (jdbc/query db "select * from users"))
-
-  (def ^:dynamic the-db ptest/db-spec)
-
-  (jdbc/with-db-transaction [the-db the-db]
-    (jdbc/db-set-rollback-only! the-db)
-    (println the-db)
-    (binding [the-db the-db] ;; rebind dynamic var db, used in tests
-      (jdbc/insert! the-db "users" {:username "new-user"
-                                    :first_name "new"
-                                    :last_name "user"
-                                    :id #uuid "160bf449-535e-4902-9138-6c7c104cca0d"
-                                    :email "newuser@andrewslai.com"
-                                    :role_id 2})
-      (jdbc/query the-db "select * from users")))
-  
-  )
-
-
 (def session-atom (atom {}))
-
 
 (defn components []
   {:user (-> ptest/db-spec
@@ -132,9 +90,10 @@
       (let [{:keys [user-authentication]}
             ((identity-handler) (assoc-in (mock/request :get "/echo")
                                           [:headers "cookie"] cookie))]
-        (is (= new-user (-> {}
-                            (into user-authentication)
-                            (dissoc :id :role_id))))))
+        (is (= (dissoc new-user :avatar :password)
+               (-> {}
+                   (into user-authentication)
+                   (dissoc :id :role_id :avatar))))))
     (testing "Can hit admin route with valid session token"
       (let [{:keys [status body]}
             ((test-users-app) (assoc-in (mock/request :get "/admin/")

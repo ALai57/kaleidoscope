@@ -15,9 +15,12 @@
     (ok {:message "Login get message"}))
 
   (POST "/login" {:keys [components body session] :as request}
-    (let [credentials (parse-body request)]
+    (let [{:keys [username] :as credentials} (parse-body request)]
       (if-let [user-id (users/login (:user components) credentials)]
-        (let [user (users/get-user-by-id (:user components) user-id)]
+        (let [user (-> components
+                       :user
+                       (users/get-user-by-id user-id)
+                       (assoc :avatar_url (format "users/%s/avatar" username)))]
           (log/info "Authenticated login!")
           (assoc (ok user)
                  :session (assoc session :identity user-id)))
