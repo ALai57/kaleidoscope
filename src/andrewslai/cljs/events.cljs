@@ -286,3 +286,9 @@
          :error-handler #(dispatch [:bad-recent-response %])})
 
     db))
+
+;; Modals
+(reg-event-db
+  :modal
+  (fn [db [_ data]]
+    (assoc-in db [:modal] data)))

@@ -1,5 +1,6 @@
 (ns andrewslai.cljs.pages.admin
   (:require [andrewslai.cljs.navbar :as nav]
+            [andrewslai.cljs.modal :as modal]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]))
 
@@ -87,12 +88,12 @@
     (.readAsDataURL file-reader file)))
 
 
-(defn user-profile [{:keys [avatar username first_name last_name email] :as user}]
+(defn user-profile [{:keys [avatar_url username first_name last_name email] :as user}]
   [:div {:style {:margin "20px"}}
    [:form {:id "profile-update-form"
            :method :post
            :action "/echo"}
-    [:img {:src avatar
+    [:img {:src avatar_url
            :style {:width "100px"}}]
     [:img {:id "avatar-preview"
            :name "avatar"
@@ -127,16 +128,27 @@
       :style {:float "right"}
       :onClick (fn [& args] (dispatch [:logout]))}]]])
 
+(defn my-awesome-modal-fn []
+  [:input.btn-primary
+   {:type "button"
+    :title "Click to show modal!"
+    :value "Show me the modal!"
+    :on-click #(dispatch [:modal {:show? true
+                                  :child [modal/hello-bootstrap]
+                                  :size :small}])}])
+
 ;; TODO: Make user login timeout, so after 30 mins or so you can't see
 ;;       the profile information
 (defn login-ui []
   (let [user (subscribe [:user])]
     [:div
+     [modal/modal]
      [nav/primary-nav]
      [:br]
      (if @user
        [:div [user-profile @user]]
-       [login-form])]))
+       [login-form])
+     [my-awesome-modal-fn]]))
 
 (defn register-user []
   [:div {:style {:margin "20px"}}
