@@ -19,9 +19,10 @@
             [ring.middleware.cookies :refer [wrap-cookies]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
-            [ring.mock.request :as mock]))
+            [ring.mock.request :as mock]
+            [slingshot.slingshot :refer [try+]]))
 
-(def test-db
+(defn test-db []
   (-> ptest/db-spec
       postgres/->Postgres
       users/->UserDatabase))
@@ -36,41 +37,47 @@
 
 (defdbtest db-test ptest/db-spec
   (testing "register-user!"
-    (users/register-user! test-db example-user password)
+    (users/register-user! (test-db) example-user password)
     (is (= {:first_name "Andrew"
             :last_name "Lai"
             :username "Andrew"}
-           (select-keys (-> test-db
+           (select-keys (-> (test-db)
                             (users/get-user "Andrew")
                             (dissoc :id))
                         [:first_name :last_name :username]))))
   (testing "get-user, get-password"
-    (let [{:keys [id]} (users/get-user test-db "Andrew")]
+    (let [{:keys [id]} (users/get-user (test-db) "Andrew")]
       (is (uuid? id))
-      (is (some? (users/get-password test-db id)))))
+      (is (some? (users/get-password (test-db) id)))))
   (testing "verify-credentials"
-    (is (not (users/verify-credentials test-db {:username "Andrew"
-                                                :password "Wrong"})))
-    (is (users/verify-credentials test-db {:username "Andrew"
-                                           :password password})))
+    (is (not (users/verify-credentials (test-db) {:username "Andrew"
+                                                  :password "Wrong"})))
+    (is (users/verify-credentials (test-db) {:username "Andrew"
+                                             :password password})))
   (testing "delete-user!"
-    (is (= 1 (users/delete-user! test-db {:username "Andrew"
-                                          :password password})))
-    (is (nil? (users/get-user test-db "Andrew")))))
+    (is (= 1 (users/delete-user! (test-db) {:username "Andrew"
+                                            :password password})))
+    (is (nil? (users/get-user (test-db) "Andrew")))))
+
+(defmacro exception-thrown? [ex & body]
+  `(try+
+     ~@body
+     false
+     (catch ~ex e#
+       e#)
+     (catch Object obj#
+       false)))
 
 (defdbtest registration-errors-test ptest/db-spec
   (testing "Duplicate user"
-    (users/register-user! test-db example-user password)
-    (let [response (users/register-user! test-db example-user password)]
-      (is (some? (re-matches #".*Key \(username\)=\(.*\) already exists.*"
-                             (clojure.string/replace response "\n" ""))))))
+    (is (exception-thrown? org.postgresql.util.PSQLException
+            (users/register-user! (test-db) example-user password)
+          (users/register-user! (test-db) example-user password))))
   (testing "Weak password"
-    (let [response (users/register-user! test-db example-user "password")]
-      (is (some? (re-matches #".*failed: sufficient-strength?.*"
-                             (clojure.string/replace response "\n" ""))))))
+    (is (exception-thrown? [:type IllegalArgumentException]
+            (users/register-user! (test-db) example-user "password"))))
   (testing "Invalid email"
-    (let [response (users/register-user! test-db
-                                         (assoc example-user :email 1)
-                                         password)]
-      (is (some? (re-matches #".*failed: email?.*"
-                             (clojure.string/replace response "\n" "")))))))
+    (is (exception-thrown? [:type IllegalArgumentException]
+            (users/register-user! (test-db)
+                                  (assoc example-user :email 1)
+                                  password)))))

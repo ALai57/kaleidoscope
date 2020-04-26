@@ -88,22 +88,15 @@
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
 (defn- -register-user! [this {:keys [role_id] :as user} password]
-  (try+
-    (validate ::user user)
-    (validate ::password-strength (password-strength password))
-    (let [user-id (java.util.UUID/randomUUID)
-          full-user (-> user
-                        (assoc :id user-id)
-                        (assoc :role_id (or role_id default-role)))]
-      (create-user! this full-user)
-      (create-login! this user-id (encrypt (make-encryption) password))
-      full-user)
-
-    (catch org.postgresql.util.PSQLException e
-      (.getMessage e))
-    (catch [:type IllegalArgumentException] e
-      (select-keys e [:data :reason]))))
-
+  (validate ::user user)
+  (validate ::password-strength (password-strength password))
+  (let [user-id (java.util.UUID/randomUUID)
+        full-user (-> user
+                      (assoc :id user-id)
+                      (assoc :role_id (or role_id default-role)))]
+    (create-user! this full-user)
+    (create-login! this user-id (encrypt (make-encryption) password))
+    full-user))
 
 (defn -get-users [this]
   (rdbms/hselect (:database this) {:select [:*]
