@@ -70,7 +70,7 @@
 
 (defdbtest registration-errors-test ptest/db-spec
   (testing "Duplicate user"
-    (is (exception-thrown? org.postgresql.util.PSQLException
+    (is (exception-thrown? [:type org.postgresql.util.PSQLException]
             (users/register-user! (test-db) example-user password)
           (users/register-user! (test-db) example-user password))))
   (testing "Weak password"

@@ -63,7 +63,7 @@
               (assoc-in [:body :avatar_url] (format "users/%s/avatar" username))))
         (catch [:type org.postgresql.util.PSQLException] e
           (-> (bad-request)
-              (assoc :body (.getMessage e))))
+              (assoc :body (:message e))))
         (catch [:type IllegalArgumentException] e
           (-> (bad-request)
               (select-keys e [:data :reason])))))
