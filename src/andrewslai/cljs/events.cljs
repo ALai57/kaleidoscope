@@ -288,7 +288,7 @@
                     :on-click #(close-modal)}
      [:span {:aria-hidden true} "x"]]]
    [:div {:class "modal-body"}
-    [:div [:p [:b "Attempted registration unsuccessful."]]
+    [:div [:p [:b "Registration unsuccessful."]]
      [:p error]]]
    [:div {:class "modal-footer"}
     [:button {:type "button" :title "Ok"
@@ -309,7 +309,8 @@
                     :on-click #(close-modal)}
      [:span {:aria-hidden true} "x"]]]
    [:div {:class "modal-body"}
-    [:img {:src avatar_url}]
+    [:img {:src avatar_url
+           :style {:width "100px"}}]
     [:div [:b (str "Username: " username)]]]
    [:div {:class "modal-footer"}
     [:button {:type "button" :title "Ok"
@@ -325,6 +326,14 @@
     db))
 
 (reg-event-db
+  :unsuccessful-registration
+  (fn [db [_ user]]
+    (dispatch [:modal {:show? true
+                       :child [user-registration-response (get-in user [:response :message :reason])]
+                       :size :small}])
+    db))
+
+(reg-event-db
   :register-user
   (fn [db [_ user]]
 
@@ -332,7 +341,7 @@
         {:params user
          :format :json
          :handler #(dispatch [:process-registration-response %])
-         :error-handler #(dispatch [:bad-recent-response %])})
+         :error-handler #(dispatch [:unsuccessful-registration %])})
 
     db))
 
