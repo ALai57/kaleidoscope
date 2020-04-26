@@ -70,14 +70,14 @@
 
 (defdbtest registration-errors-test ptest/db-spec
   (testing "Duplicate user"
-    (is (exception-thrown? [:type org.postgresql.util.PSQLException]
+    (is (exception-thrown? [:type ::users/PSQLException]
             (users/register-user! (test-db) example-user password)
           (users/register-user! (test-db) example-user password))))
   (testing "Weak password"
-    (is (exception-thrown? [:type IllegalArgumentException]
+    (is (exception-thrown? [:type ::users/IllegalArgumentException]
             (users/register-user! (test-db) example-user "password"))))
   (testing "Invalid email"
-    (is (exception-thrown? [:type IllegalArgumentException]
+    (is (exception-thrown? [:type ::users/IllegalArgumentException]
             (users/register-user! (test-db)
                                   (assoc example-user :email 1)
                                   password)))))

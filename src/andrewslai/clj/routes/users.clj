@@ -61,12 +61,12 @@
               (assoc :headers {"Location" (str "/users/" username)})
               (assoc :body result)
               (assoc-in [:body :avatar_url] (format "users/%s/avatar" username))))
-        (catch [:type org.postgresql.util.PSQLException] e
+        (catch [:type ::users/PSQLException] e
           (-> (bad-request)
-              (assoc :body (:message e))))
-        (catch [:type IllegalArgumentException] e
+              (assoc :body e)))
+        (catch [:type ::users/IllegalArgumentException] e
           (-> (bad-request)
-              (select-keys e [:data :reason])))))
+              (assoc :body e)))))
 
     (GET "/:username/avatar" [username]
       (let [{:keys [avatar]}

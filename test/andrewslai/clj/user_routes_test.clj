@@ -4,7 +4,7 @@
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.test-utils :refer [defdbtest]]
-            [andrewslai.clj.utils :refer [parse-response-body
+            [andrewslai.clj.utils :refer [parse-body
                                           body->map
                                           file->bytes]]
             [buddy.auth.backends.session :refer [session-backend]]
@@ -52,7 +52,7 @@
                :email "newuser@andrewslai.com"})
 
 (defdbtest user-registration-test ptest/db-spec
-  (testing "Registration hapy path"
+  (testing "Registration happy path"
     (let [{:keys [status headers] :as response}
           ((test-users-app) (mock/request :post "/users"
                                           (json/generate-string new-user)))
@@ -61,7 +61,7 @@
       (is (= "/users/new-user" user-url))
       (is (= #{:id :username :avatar :avatar_url :first_name :last_name :email :role_id}
              (-> response
-                 parse-response-body
+                 parse-body
                  keys
                  set)))
       (testing "Can retrieve the new user"
@@ -71,7 +71,30 @@
           (is (= (-> new-user
                      (dissoc :password)
                      (assoc :role_id 2))
-                 (parse-response-body response))))))))
+                 (parse-body response)))))))
+  (testing "Registration sad path"
+    (testing "Duplicate user"
+      (let [{:keys [status] :as response}
+            ((test-users-app) (mock/request :post "/users"
+                                            (json/generate-string new-user)))
+            {:keys [type message]} (parse-body response)]
+        (is (= 400 status))
+        (is (= "andrewslai.clj.persistence.users/PSQLException" type))
+        (is (clojure.string/includes? message "ERROR: duplicate key value violates unique constraint"))))))
+
+(defdbtest registration-invalid-arguments ptest/db-spec
+  (testing "Illegal Arguments"
+    (let [{:keys [status] :as response}
+          ((test-users-app)
+           (mock/request :post "/users"
+                         (json/generate-string (assoc new-user
+                                                      :password
+                                                      "password"))))
+          {:keys [type subtype message]} (parse-body response)]
+      (is (= 400 status))
+      (is (= "andrewslai.clj.persistence.users/IllegalArgumentException" type))
+      (is (= "andrewslai.clj.persistence.users/password-strength" subtype))
+      (is (clojure.string/includes? message "failed: sufficient-strength?")))))
 
 (defdbtest login-test ptest/db-spec
   ((test-users-app) (mock/request :post "/users" (json/generate-string new-user)))
@@ -144,7 +167,7 @@
                                             (json/generate-string user-update)))]
         (is (= 200 status))
         (is (= user-update (-> response
-                               parse-response-body
+                               parse-body
                                (dissoc :id))))))
     (testing "Can retrieve the new user"
       (let [{:keys [status headers] :as response}
@@ -156,4 +179,4 @@
                 :last_name "user.2"
                 :email "newuser@andrewslai.com"
                 :role_id 2}
-               (parse-response-body response)))))))
+               (parse-body response)))))))

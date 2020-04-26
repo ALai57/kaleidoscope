@@ -75,7 +75,8 @@
 (defn validate [type data]
   (if (s/valid? type data)
     true
-    (throw+ {:type IllegalArgumentException
+    (throw+ {:type ::IllegalArgumentException
+             :subtype type
              :message {:data data
                        :reason (s/explain-str type data)}})))
 
@@ -99,7 +100,7 @@
       (create-login! this user-id (encrypt (make-encryption) password))
       full-user)
     (catch org.postgresql.util.PSQLException e
-      (throw+ {:type org.postgresql.util.PSQLException
+      (throw+ {:type ::PSQLException
                :message (.getMessage e)}))))
 
 (defn -get-users [this]
