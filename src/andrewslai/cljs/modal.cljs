@@ -33,26 +33,22 @@
          [modal-panel @modal])])))
 
 
-(defn- close-modal []
+(defn close-modal []
   (dispatch [:modal {:show? false :child nil}]))
 
-(defn hello-bootstrap []
+(defn modal-template [{:keys [title body footer close-fn]}]
   [:div {:class "modal-content panel-danger"}
    [:div {:class "modal-header panel-heading"
-          :style {:background-color "#50B8A0"}}
-    [:h4 {:class "modal-title"} "Hello Bootstrap modal!"]
+          :style {:background-color "#B85068"}}
+    [:h4 {:class "modal-title"} title]
     [:button.close {:type "button"
                     :style {:padding "0px"
                             :margin "0px"}
                     :title "Cancel"
                     :aria-label "Close"
-                    :on-click #(close-modal)}
-     [:span {:aria-hidden true} "x"]
-     #_[:i {:class "material-icons"} "close"]]]
+                    :on-click (close-fn)}
+     [:span {:aria-hidden true} "x"]]]
    [:div {:class "modal-body"}
-    [:div [:b (str "You can close me by clicking the Ok button, the X in the"
-                   " top right corner, or by clicking on the backdrop.")]]]
+    body]
    [:div {:class "modal-footer"}
-    [:button {:type "button" :title "Ok"
-              :class "btn btn-default"
-              :on-click #(close-modal)} "Ok"]]])
+    footer]])

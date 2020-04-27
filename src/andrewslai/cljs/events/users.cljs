@@ -38,65 +38,46 @@
 
     db))
 
-(defn- close-modal []
-  (dispatch [:modal {:show? false :child nil}]))
+(def IllegalArgumentEx :andrewslai.clj.persistence.users/IllegalArgumentException)
+(def PSQLEx :andrewslai.clj.persistence.users/PSQLException)
 
-(defmulti user-registration-response type)
+(defn registration-failure [{:keys [message type]}]
+  (let [suggestions (get message :feedback)
+        reasons (get message :data)]
+    {:title "User registration failed!"
+     :body [:div [:p [:b "Registration unsuccessful."]]
+            [:p type]
+            [:br]
+            [:p suggestions]
+            [:br]
+            [:p reasons]]
+     :footer [:button {:type "button" :title "Ok"
+                       :class "btn btn-default"
+                       :on-click #(close-modal)} "Ok"]
+     :close-fn close-modal}))
 
-(defmethod user-registration-response js/String
-  [error]
-  [:div {:class "modal-content panel-danger"}
-   [:div {:class "modal-header panel-heading"
-          :style {:background-color "#B85068"}}
-    [:h4 {:class "modal-title"} "Unsuccessful user registration!"]
-    [:button.close {:type "button"
-                    :style {:padding "0px"
-                            :margin "0px"}
-                    :title "Cancel"
-                    :aria-label "Close"
-                    :on-click #(close-modal)}
-     [:span {:aria-hidden true} "x"]]]
-   [:div {:class "modal-body"}
-    [:div [:p [:b "Registration unsuccessful."]]
-     [:p error]]]
-   [:div {:class "modal-footer"}
-    [:button {:type "button" :title "Ok"
-              :class "btn btn-default"
-              :on-click #(close-modal)} "Ok"]]])
 
-(defmethod user-registration-response cljs.core/PersistentArrayMap
-  [{:keys [avatar_url username] :as user}]
-  [:div {:class "modal-content panel-danger"}
-   [:div {:class "modal-header panel-heading"
-          :style {:background-color "#50B8A0"}}
-    [:h4 {:class "modal-title"} "Successful user registration!"]
-    [:button.close {:type "button"
-                    :style {:padding "0px"
-                            :margin "0px"}
-                    :title "Cancel"
-                    :aria-label "Close"
-                    :on-click #(close-modal)}
-     [:span {:aria-hidden true} "x"]]]
-   [:div {:class "modal-body"}
-    [:img {:src avatar_url
-           :style {:width "100px"}}]
-    [:div [:b (str "Username: " username)]]]
-   [:div {:class "modal-footer"}
-    [:button {:type "button" :title "Ok"
-              :class "btn btn-default"
-              :on-click #(close-modal)} "Ok"]]])
-
+(defn registration-success [{:keys [avatar_url username]}]
+  {:title "Successful user registration!"
+   :body [:div
+          [:img {:src avatar_url :style {:width "100px"}}]
+          [:br]
+          [:div [:p [:b "Username: "] username]]]
+   :footer [:button {:type "button" :title "Ok"
+                     :class "btn btn-default"
+                     :on-click #(close-modal)} "Ok"]
+   :close-fn close-modal})
 
 (defn process-register-user [db user]
   (dispatch [:modal {:show? true
-                     :child [user-registration-response user]
+                     :child (modal-template (registration-success user))
                      :size :small}])
   (dispatch [:set-active-panel :admin])
   db)
 
-(defn process-unsuccessful-registration [db user]
+(defn process-unsuccessful-registration [db {:keys [response]}]
   (dispatch [:modal {:show? true
-                     :child [user-registration-response (get-in user [:response :message :reason])]
+                     :child (modal-template (registration-failure response))
                      :size :small}])
   db)
 
