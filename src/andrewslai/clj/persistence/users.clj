@@ -37,9 +37,9 @@
 (defn email? [s] (when (string? s)
                    (re-matches email-regex s)))
 (s/def ::id uuid?)
-(s/def ::first_name string?)
-(s/def ::last_name string?)
-(s/def ::username (s/and string?))
+(s/def ::first_name (s/and string? #(< 0 (count %))))
+(s/def ::last_name (s/and string? #(< 0 (count %))))
+(s/def ::username (s/and string? #(< 0 (count %))))
 (s/def ::email email?)
 (s/def ::avatar bytes?)
 (s/def ::role_id (s/and int? pos?))
@@ -75,10 +75,14 @@
 (defn validate [type data]
   (if (s/valid? type data)
     true
-    (throw+ {:type ::IllegalArgumentException
-             :subtype type
-             :message {:data data
-                       :reason (s/explain-str type data)}})))
+    (throw+
+      (let [reason (s/explain-str type data)]
+        {:type ::IllegalArgumentException
+         :subtype type
+         :message {:data data
+                   :reason reason
+                   :feedback (or (:feedback data)
+                                 reason)}}))))
 
 (defn- -create-user! [this user]
   (rdbms/insert! (:database this) "users" user))
@@ -101,7 +105,9 @@
       full-user)
     (catch org.postgresql.util.PSQLException e
       (throw+ {:type ::PSQLException
-               :message (.getMessage e)}))))
+               :message {:data (select-keys user [:username :email])
+                         :reason (.getMessage e)
+                         :feedback "Try a different username and/or email"}}))))
 
 (defn -get-users [this]
   (rdbms/hselect (:database this) {:select [:*]

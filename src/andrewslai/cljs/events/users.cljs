@@ -2,6 +2,7 @@
   (:require [ajax.core :refer [PATCH POST]]
             [andrewslai.cljs.events.core :refer [modify-db]]
             [andrewslai.cljs.utils :refer [image->blob]]
+            [andrewslai.cljs.modal :refer [modal-template close-modal]]
             [re-frame.core :refer [dispatch reg-event-db]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -80,4 +80,10 @@
     (is (exception-thrown? [:type ::users/IllegalArgumentException]
             (users/register-user! (test-db)
                                   (assoc example-user :email 1)
-                                  password)))))
+                                  password))))
+  (doseq [field [:first_name :last_name :username :email]]
+    (testing (str field " cannot be empty string")
+      (is (exception-thrown? [:type ::users/IllegalArgumentException]
+              (users/register-user! (test-db)
+                                    (assoc example-user field "")
+                                    password))))))
