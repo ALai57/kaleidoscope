@@ -4,7 +4,11 @@
             [reagent.dom :refer [render]]
             [re-frame.core :refer [dispatch dispatch-sync]]
             [secretary.core :as secretary]
-            [andrewslai.cljs.events] ;; required to make the compiler
+            [andrewslai.cljs.events.core] ;; required to make the compiler
+            [andrewslai.cljs.events.articles]
+            [andrewslai.cljs.events.login]
+            [andrewslai.cljs.events.users]
+            [andrewslai.cljs.events.projects-portfolio]
             [andrewslai.cljs.subs]   ;; load them (see docs/App-Structure.md)
             [andrewslai.cljs.views]
             ;;[devtools.core :as devtools]
