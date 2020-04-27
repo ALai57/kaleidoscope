@@ -36,10 +36,14 @@
 (def email-regex #"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$")
 (defn email? [s] (when (string? s)
                    (re-matches email-regex s)))
+
+(defn alphanumeric? [s]
+  (some? (re-matches #"^[a-zA-Z0-9-_]+$" s)))
+
 (s/def ::id uuid?)
 (s/def ::first_name (s/and string? #(< 0 (count %))))
 (s/def ::last_name (s/and string? #(< 0 (count %))))
-(s/def ::username (s/and string? #(< 0 (count %))))
+(s/def ::username (s/and string? #(< 0 (count %)) alphanumeric?))
 (s/def ::email email?)
 (s/def ::avatar bytes?)
 (s/def ::role_id (s/and int? pos?))

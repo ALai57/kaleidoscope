@@ -73,6 +73,11 @@
     (is (exception-thrown? [:type ::users/PSQLException]
             (users/register-user! (test-db) example-user password)
           (users/register-user! (test-db) example-user password))))
+  (testing "Username includes escape chars"
+    (is (exception-thrown? [:type ::users/IllegalArgumentException]
+            (users/register-user! (test-db)
+                                  (assoc example-user :username "Andrew;")
+                                  password))))
   (testing "Weak password"
     (is (exception-thrown? [:type ::users/IllegalArgumentException]
             (users/register-user! (test-db) example-user "password"))))
