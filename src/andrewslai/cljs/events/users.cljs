@@ -41,14 +41,15 @@
 (def IllegalArgumentEx :andrewslai.clj.persistence.users/IllegalArgumentException)
 (def PSQLEx :andrewslai.clj.persistence.users/PSQLException)
 
-(defn registration-failure [{:keys [message type]}]
-  (let [suggestions (get message :feedback)
+(defn registration-failure [{:keys [message type] :as payload}]
+  (let [feedback (get message :feedback)
         reasons (get message :data)]
     {:title "User registration failed!"
-     :body [:div [:p [:b "Registration unsuccessful."]]
+     :body [:div {:style {:overflow-wrap "break-word"}}
+            [:p [:b "Registration unsuccessful."]]
             [:p type]
             [:br]
-            [:p suggestions]
+            [:p (str feedback)]
             [:br]
             [:p reasons]]
      :footer [:button {:type "button" :title "Ok"

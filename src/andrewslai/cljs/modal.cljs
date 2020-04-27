@@ -17,12 +17,13 @@
                         (.preventDefault event)
                         (.stopPropagation event)))}]
    [:div {:class "modal-child"
-          :style {:width (case size
-                           :extra-small "15%"
-                           :small "30%"
-                           :large "70%"
-                           :extra-large "85%"
-                           "50%")}} child]])
+          :style {:max-width "500px"
+                  #_#_:width (case size
+                               :extra-small "15%"
+                               :small "30%"
+                               :large "70%"
+                               :extra-large "85%"
+                               "50%")}} child]])
 
 (defn modal []
   (let [modal (subscribe [:modal])]
