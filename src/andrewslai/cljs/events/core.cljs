@@ -18,3 +18,8 @@
   :modal
   (fn [db [_ data]]
     (assoc-in db [:modal] data)))
+
+(reg-event-db
+  :process-http-response
+  (fn [db [_ response processing-fn]]
+    (processing-fn db response)))

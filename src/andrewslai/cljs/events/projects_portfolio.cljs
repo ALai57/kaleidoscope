@@ -6,28 +6,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for resume-info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn process-resume-info [db response]
+  (merge db {:loading-resume? false
+             :resume-info response
+             :selected-resume-info response}))
+
+(defn bad-resume-info [db response]
+  (merge db {:loading-resume? false
+             :resume-info "Unable to load content"}))
+
 (reg-event-db
   :retrieve-resume-info
   (fn [db [_]]
 
     (GET "/get-resume-info"
-        {:handler #(dispatch [:process-resume-info %1])
-         :error-handler #(dispatch [:bad-resume-info %1])})
+        {:handler #(dispatch [:process-http-response %1 process-resume-info])
+         :error-handler #(dispatch [:process-http-response %1 bad-resume-info])})
 
     (modify-db db {:loading-resume? true
                    :resume-info nil})))
-
-(reg-event-db
-  :process-resume-info
-  (fn [db [_ response]]
-    (modify-db db {:loading-resume? false
-                   :resume-info response
-                   :selected-resume-info response})))
-
-(reg-event-db
-  :bad-resume-info  
-  (fn [db [_ response]]
-    (modify-db db {:resume-info "Unable to load content"})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for clicking on resume info

@@ -15,16 +15,15 @@
 
 ;; TODO: Support avatar uploads in this function too. Right now it will be
 ;;       unhappy/unable to support conversion of an avatar image into a blob
-(reg-event-db
-  :process-update-profile
-  (fn [db [_ {:keys [avatar] :as user}]]
-    (if (empty? user)
-      (assoc db :user nil)
-      (assoc db :user (merge (:user db) (if avatar
-                                          (assoc user
-                                                 :avatar
-                                                 (image->blob avatar))
-                                          user))))))
+
+(defn process-profile-update [db {:keys [avatar] :as user}]
+  (if (empty? user)
+    (assoc db :user nil)
+    (assoc db :user (merge (:user db) (if avatar
+                                        (assoc user
+                                               :avatar
+                                               (image->blob avatar))
+                                        user)))))
 
 (reg-event-db
   :update-profile
@@ -33,8 +32,8 @@
     (PATCH (str "/users/" username)
         {:params request
          :format :json
-         :handler #(dispatch [:process-update-profile %])
-         :error-handler #(dispatch [:bad-recent-response %])})
+         :handler #(dispatch [:process-http-response % process-profile-update])
+         :error-handler #(dispatch [:process-http-response % identity])})
 
     db))
 
@@ -86,22 +85,19 @@
               :class "btn btn-default"
               :on-click #(close-modal)} "Ok"]]])
 
-(reg-event-db
-  :process-registration-response
-  (fn [db [_ user]]
-    (dispatch [:modal {:show? true
-                       :child [user-registration-response user]
-                       :size :small}])
-    (dispatch [:set-active-panel :admin])
-    db))
 
-(reg-event-db
-  :unsuccessful-registration
-  (fn [db [_ user]]
-    (dispatch [:modal {:show? true
-                       :child [user-registration-response (get-in user [:response :message :reason])]
-                       :size :small}])
-    db))
+(defn process-register-user [db user]
+  (dispatch [:modal {:show? true
+                     :child [user-registration-response user]
+                     :size :small}])
+  (dispatch [:set-active-panel :admin])
+  db)
+
+(defn process-unsuccessful-registration [db user]
+  (dispatch [:modal {:show? true
+                     :child [user-registration-response (get-in user [:response :message :reason])]
+                     :size :small}])
+  db)
 
 (reg-event-db
   :register-user
@@ -110,7 +106,7 @@
     (POST "/users/"
         {:params user
          :format :json
-         :handler #(dispatch [:process-registration-response %])
-         :error-handler #(dispatch [:unsuccessful-registration %])})
+         :handler #(dispatch [:process-http-response % process-register-user])
+         :error-handler #(dispatch [:process-http-response % process-unsuccessful-registration])})
 
     db))
