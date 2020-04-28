@@ -82,6 +82,25 @@
         (is (= "andrewslai.clj.persistence.users/PSQLException" type))
         (is (clojure.string/includes? message "ERROR: duplicate key value violates unique constraint"))))))
 
+(defdbtest deleting-user ptest/db-spec
+  (let [user-path (str "/users/" (:username new-user))]
+    (testing "Delete user"
+      ((test-users-app) (mock/request :post "/users"
+                                      (json/generate-string new-user)))
+      (let [{:keys [status] :as response}
+            ((test-users-app)
+             (assoc (mock/request :delete user-path)
+                    :body (-> new-user
+                              (select-keys [:username :password])
+                              json/generate-string
+                              .getBytes
+                              java.io.ByteArrayInputStream.
+                              clojure.java.io/input-stream)))]
+        (is (= 204 status)))
+      (let [{:keys [status headers] :as response}
+            ((test-users-app) (mock/request :get user-path))]
+        (is (= 404 status))))))
+
 (defdbtest registration-invalid-arguments ptest/db-spec
   (testing "Illegal Arguments"
     (let [{:keys [status] :as response}

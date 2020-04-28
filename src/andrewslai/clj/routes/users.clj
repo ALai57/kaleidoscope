@@ -1,14 +1,15 @@
 (ns andrewslai.clj.routes.users
   (:require [andrewslai.clj.persistence.users :as users]
-            [andrewslai.clj.utils :refer [file->bytes parse-body]]            
+            [andrewslai.clj.routes.admin :refer [access-error]]
+            [andrewslai.clj.utils :refer [file->bytes parse-body]]
+            [buddy.auth.accessrules :refer [restrict]]
             [cheshire.core :as json]
             [clojure.data.codec.base64 :as b64]
-            [compojure.api.sweet :refer [context defroutes GET PATCH POST]]
             [clojure.java.io :as io]
-            [ring.util.http-response :refer [ok not-found created bad-request]]
+            [compojure.api.sweet :refer [context defroutes DELETE GET PATCH POST]]
+            [ring.util.http-response :refer [bad-request created not-found ok no-content]]
             [ring.util.response :as response]
-            [slingshot.slingshot :refer [throw+ try+]]
-            [taoensso.timbre :as log]))
+            [slingshot.slingshot :refer [try+]]))
 
 ;; Extract to encoding ns
 (defn decode-avatar [avatar]
@@ -24,7 +25,18 @@
   (context "/users" {:keys [components]}
 
     (GET "/:username" [username]
-      (ok (dissoc (users/get-user (:user components) username) :id)))
+      (let [result (dissoc (users/get-user (:user components) username) :id)]
+        (if result
+          (ok result)
+          (not-found))))
+
+    (DELETE "/:username" request
+      (let [credentials (parse-body request)
+            verified? (users/verify-credentials (:user components) credentials)]
+        (if verified?
+          (do (when (= 1 (users/delete-user! (:user components) credentials))
+                (no-content)))
+          access-error)))
 
     (PATCH "/:username" {{:keys [username]} :route-params :as request}
       (let [{:keys [avatar] :as update-map}
