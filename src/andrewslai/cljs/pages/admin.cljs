@@ -1,6 +1,6 @@
 (ns andrewslai.cljs.pages.admin
   (:require [andrewslai.cljs.navbar :as nav]
-            [andrewslai.cljs.modal :as modal]
+            [andrewslai.cljs.modal :refer [close-modal modal-template] :as modal]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]))
 
@@ -88,11 +88,50 @@
     (.readAsDataURL file-reader file)))
 
 
+(defn delete-data->map [form-id]
+  (let [m (atom {})]
+    (-> js/FormData
+        (new (.getElementById js/document form-id))
+        (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
+    @m))
+
+(defn confirm-delete-user [username]
+  {:title (str "Really delete user: " username "?")
+   :body [:div
+          [:p "If you really want to delete user, enter credentials below to confirm"]
+          [:div {:style {:text-align "center"}}
+           [:form {:id "delete-user-input"}
+            [:input {:type "text"
+                     :placeholder "Username"
+                     :name "username"}]
+            [:br]
+            [:input {:type "password"
+                     :placeholder "Password"
+                     :name "password"}]
+            [:br]
+            [:input {:type "button"
+                     :value "Delete user"
+                     :onClick (fn [event]
+                                (dispatch [:delete-user (delete-data->map "delete-user-input")]))}]]]]
+   :footer [:button {:type "button" :title "Cancel"
+                     :class "btn btn-default"
+                     :on-click #(close-modal)} "Close"]
+   :close-fn close-modal})
+
+
 (defn user-profile [{:keys [avatar_url username first_name last_name email] :as user}]
   [:div {:style {:margin "20px"}}
    [:form {:id "profile-update-form"
            :method :post
            :action "/echo"}
+    [:input.btn-danger
+     {:type "button"
+      :value "Delete user"
+      :style {:float "right"}
+      :onClick (fn [& args]
+                 (dispatch [:modal {:show? true?
+                                    :child (modal-template (confirm-delete-user username))
+                                    :size :small}]))}]
     [:img {:src avatar_url
            :style {:width "100px"}}]
     [:img {:id "avatar-preview"

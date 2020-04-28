@@ -1,5 +1,5 @@
 (ns andrewslai.cljs.events.users
-  (:require [ajax.core :refer [PATCH POST]]
+  (:require [ajax.core :refer [PATCH POST DELETE]]
             [andrewslai.cljs.events.core :refer [modify-db]]
             [andrewslai.cljs.utils :refer [image->blob]]
             [andrewslai.cljs.modal :refer [modal-template close-modal]]
@@ -91,5 +91,54 @@
          :format :json
          :handler #(dispatch [:process-http-response % process-register-user])
          :error-handler #(dispatch [:process-http-response % process-unsuccessful-registration])})
+
+    db))
+
+
+
+(defn delete-failure [username]
+  {:title "Unable to delete user"
+   :body [:div {:style {:overflow-wrap "break-word"}}
+          [:p [:b "Delete operation unsuccessful."]]
+          [:br]
+          [:p "User:" username]]
+   :footer [:button {:type "button" :title "Ok"
+                     :class "btn btn-default"
+                     :on-click #(close-modal)} "Ok"]
+   :close-fn close-modal})
+
+
+(defn delete-success [username]
+  {:title "User successfully deleted!"
+   :body [:div
+          [:br]
+          [:div [:p [:b "Username: "] username]]]
+   :footer [:button {:type "button" :title "Ok"
+                     :class "btn btn-default"
+                     :on-click #(close-modal)} "Ok"]
+   :close-fn close-modal})
+
+
+(defn process-successful-delete [db username]
+  (dispatch [:modal {:show? true
+                     :child (modal-template (delete-success username))
+                     :size :small}])
+  (dispatch [:set-active-panel :admin])
+  db)
+
+(defn process-unsuccessful-delete [db username]
+  (dispatch [:modal {:show? true
+                     :child (modal-template (delete-failure username))
+                     :size :small}])
+  db)
+
+(reg-event-db
+  :delete-user
+  (fn [db [_ {:keys [username] :as user}]]
+    (DELETE "/users/"
+        {:params user
+         :format :json
+         :handler #(dispatch [:process-http-response username process-successful-delete])
+         :error-handler #(dispatch [:process-http-response username process-unsuccessful-delete])})
 
     db))
