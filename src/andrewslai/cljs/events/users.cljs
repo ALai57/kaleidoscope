@@ -123,8 +123,7 @@
   (dispatch [:modal {:show? true
                      :child (modal-template (delete-success username))
                      :size :small}])
-  (dispatch [:set-active-panel :admin])
-  db)
+  (assoc db :user nil))
 
 (defn process-unsuccessful-delete [db username]
   (dispatch [:modal {:show? true
@@ -135,7 +134,7 @@
 (reg-event-db
   :delete-user
   (fn [db [_ {:keys [username] :as user}]]
-    (DELETE "/users/"
+    (DELETE (str "/users/" username)
         {:params user
          :format :json
          :handler #(dispatch [:process-http-response username process-successful-delete])
