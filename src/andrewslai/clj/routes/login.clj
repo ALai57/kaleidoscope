@@ -4,7 +4,7 @@
             [cheshire.core :as json]
             [compojure.api.sweet :refer [defroutes GET POST]]
             [clojure.java.io :as io]
-            [ring.util.http-response :refer [ok not-found created]]
+            [ring.util.http-response :refer [unauthorized ok not-found created]]
             [ring.util.response :as response]
             [taoensso.timbre :as log]
             [compojure.api.sweet :refer [context defroutes GET]]
@@ -25,7 +25,7 @@
           (assoc (ok user)
                  :session (assoc session :identity user-id)))
         (do (log/info "Invalid username/password")
-            (ok nil)))))
+            (unauthorized)))))
 
   (POST "/logout" []
     (-> (ok)

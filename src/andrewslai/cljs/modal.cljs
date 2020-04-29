@@ -40,7 +40,7 @@
 (defn modal-template [{:keys [title body footer close-fn]}]
   [:div {:class "modal-content panel-danger"}
    [:div {:class "modal-header panel-heading"
-          :style {:background-color "#B85068"}}
+          :style {:background-color "#CA7B5E"}}
     [:h4 {:class "modal-title"} title]
     [:button.close {:type "button"
                     :style {:padding "0px"
