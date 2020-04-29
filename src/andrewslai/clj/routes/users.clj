@@ -39,25 +39,26 @@
           access-error)))
 
     (PATCH "/:username" {{:keys [username]} :route-params :as request}
-      (let [{:keys [avatar] :as update-map}
-            (-> request
-                :body
-                slurp
-                (json/parse-string keyword))
+      (try+
+        (let [{:keys [avatar] :as update-map}
+              (-> request
+                  :body
+                  slurp
+                  (json/parse-string keyword))
 
-            updated-avatar (fn [m]
-                             (if avatar
-                               (assoc m :avatar (b64/decode (.getBytes avatar)))
-                               m))
+              updated-avatar (fn [m]
+                               (if avatar
+                                 (assoc m :avatar (b64/decode (.getBytes avatar)))
+                                 m))]
 
-            result (users/update-user (:user components)
-                                      username
-                                      (-> update-map
-                                          (dissoc :username)
-                                          updated-avatar))]
-        (if result
-          (ok result)
-          (bad-request))))
+          (ok (users/update-user (:user components)
+                                 username
+                                 (-> update-map
+                                     (dissoc :username)
+                                     updated-avatar))))
+        (catch [:type ::users/IllegalArgumentException] e
+          (-> (bad-request)
+              (assoc :body e)))))
 
     (POST "/" request
       (try+ 

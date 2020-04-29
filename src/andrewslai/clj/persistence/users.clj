@@ -52,9 +52,10 @@
                                ::last_name
                                ::username
                                ::email]
-                      :opt [::role_id
-                            ::id]))
+                      :opt-un [::role_id
+                               ::id]))
 
+(s/def ::user-update (s/keys :opt-un [::first_name ::last_name ::avatar]))
 
 (defn password-strength [password]
   (-> Zxcvbn
@@ -128,6 +129,7 @@
                                           :where [:= :users/id user-id]})))
 
 (defn -update-user! [this username update-payload]
+  (validate ::user-update update-payload)
   (let [n-updates (first (rdbms/update! (:database this)
                                         "users"
                                         update-payload

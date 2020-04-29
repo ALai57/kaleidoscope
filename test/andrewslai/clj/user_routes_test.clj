@@ -171,7 +171,6 @@
       (is (= 200 status))
       (is (= java.io.BufferedInputStream (type body))))))
 
-
 (defdbtest update-user-test ptest/db-spec
   (let [{:keys [headers] :as response}
         ((test-users-app) (mock/request :post "/users"
@@ -198,4 +197,16 @@
                 :last_name "user.2"
                 :email "newuser@andrewslai.com"
                 :role_id 2}
-               (parse-body response)))))))
+               (parse-body response)))))
+    (testing "Error when user update is invalid"
+      (let [user-update {:first_name ""}
+
+            {:keys [status headers] :as response}
+            ((test-users-app) (mock/request :patch user-url
+                                            (json/generate-string user-update)))]
+        (is (= 400 status))
+        (is (= {:type "andrewslai.clj.persistence.users/IllegalArgumentException"
+                :subtype "andrewslai.clj.persistence.users/user-update"}
+               (select-keys (-> response
+                                parse-body)
+                            [:type :subtype])))))))

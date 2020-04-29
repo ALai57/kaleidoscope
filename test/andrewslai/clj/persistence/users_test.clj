@@ -76,11 +76,13 @@
      (catch Object obj#
        false)))
 
-;; TODO: Add testing and spec-ing for update-user
-#_(defdbtest update-user-errors-test ptest/db-spec
-    (testing "Duplicate user"
-      (is (exception-thrown? [:type ::users/PSQLException]
-              (users/register-user! (test-db) example-user password)
+(defdbtest update-user-errors-test ptest/db-spec
+  (users/register-user! (test-db) example-user password)
+  (testing "Illegal last name"
+    (is (exception-thrown? [:type ::users/IllegalArgumentException]
+            (users/update-user (test-db) (:username example-user) {:last_name ""}))))
+  (testing "Illegal first name"
+    (is (exception-thrown? [:type ::users/IllegalArgumentException]
             (users/update-user (test-db) (:username example-user) {:first_name ""})))))
 
 (defdbtest registration-errors-test ptest/db-spec
