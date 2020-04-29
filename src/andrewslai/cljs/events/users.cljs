@@ -17,6 +17,23 @@
 ;; TODO: Support avatar uploads in this function too. Right now it will be
 ;;       unhappy/unable to support conversion of an avatar image into a blob
 
+(defn profile-update-failure [response]
+  {:title "User update failed!"
+   :body [:div {:style {:overflow-wrap "break-word"}}
+          [:p [:b "Update unsuccessful."]]
+          [:br]
+          [:p (str response)]]
+   :footer [:button {:type "button" :title "Ok"
+                     :class "btn btn-default"
+                     :on-click #(close-modal)} "Ok"]
+   :close-fn close-modal})
+
+(defn process-profile-update-failure [db response]
+  (dispatch [:modal {:show? true
+                     :child (modal-template (profile-update-failure response))
+                     :size :small}])
+  db)
+
 (defn process-profile-update [db {:keys [avatar] :as user}]
   (if (empty? user)
     (assoc db :user nil)
@@ -34,7 +51,7 @@
         {:params request
          :format :json
          :handler #(dispatch [:process-http-response % process-profile-update])
-         :error-handler #(dispatch [:process-http-response % identity])})
+         :error-handler #(dispatch [:process-http-response % process-profile-update-failure])})
 
     db))
 

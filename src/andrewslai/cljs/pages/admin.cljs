@@ -171,7 +171,13 @@
      [:note "Cannot be modified"]]
     [editable-text-input "first_name" "First Name" first_name]
     [editable-text-input "last_name" "Last Name" last_name]
-    [editable-text-input "email" "Email" email]
+    [:dl.form-group
+     [:dt [:label {:for "email"} "Email"]]
+     [:dd [:input.form-control {:type "text"
+                                :name "email"
+                                :readOnly true
+                                :value email}]]
+     [:note "Cannot be modified"]]
     [:br]
     [:input.btn-primary
      {:type "button"

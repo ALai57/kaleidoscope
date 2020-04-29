@@ -45,15 +45,19 @@
                 slurp
                 (json/parse-string keyword))
 
-            update-avatar (fn [m]
-                            (if avatar
-                              (assoc m :avatar (b64/decode (.getBytes avatar)))
-                              m))]
-        (ok (users/update-user (:user components)
-                               username
-                               (-> update-map
-                                   (dissoc :username)
-                                   update-avatar)))))
+            updated-avatar (fn [m]
+                             (if avatar
+                               (assoc m :avatar (b64/decode (.getBytes avatar)))
+                               m))
+
+            result (users/update-user (:user components)
+                                      username
+                                      (-> update-map
+                                          (dissoc :username)
+                                          updated-avatar))]
+        (if result
+          (ok result)
+          (bad-request))))
 
     (POST "/" request
       (try+ 

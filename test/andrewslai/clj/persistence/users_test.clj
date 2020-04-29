@@ -35,7 +35,7 @@
 
 (def password "CactusGnarlObsidianTheft")
 
-(defdbtest db-test ptest/db-spec
+(defdbtest basic-db-test ptest/db-spec
   (testing "register-user!"
     (users/register-user! (test-db) example-user password)
     (is (= {:first_name "Andrew"
@@ -54,6 +54,14 @@
                                                   :password "Wrong"})))
     (is (users/verify-credentials (test-db) {:username "Andrew"
                                              :password password})))
+  (testing "update-user"
+    (is (= {:first_name "Werdna"}
+           (users/update-user (test-db) "Andrew" {:first_name "Werdna"})))
+    (is (= (-> example-user
+               (assoc :first_name "Werdna")
+               (dissoc :avatar))
+           (select-keys (users/get-user (test-db) "Andrew")
+                        [:email :first_name :last_name :username]))))
   (testing "delete-user!"
     (is (= 1 (users/delete-user! (test-db) {:username "Andrew"
                                             :password password})))
@@ -67,6 +75,13 @@
        e#)
      (catch Object obj#
        false)))
+
+;; TODO: Add testing and spec-ing for update-user
+#_(defdbtest update-user-errors-test ptest/db-spec
+    (testing "Duplicate user"
+      (is (exception-thrown? [:type ::users/PSQLException]
+              (users/register-user! (test-db) example-user password)
+            (users/update-user (test-db) (:username example-user) {:first_name ""})))))
 
 (defdbtest registration-errors-test ptest/db-spec
   (testing "Duplicate user"

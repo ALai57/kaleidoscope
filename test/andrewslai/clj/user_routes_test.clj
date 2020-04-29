@@ -158,7 +158,7 @@
     (let [credentials (json/generate-string {:username "Andrew", :password "L"})
           {:keys [status headers]}
           ((test-users-app) (mock/request :post "/login" credentials))]
-      (is (= 200 status))
+      (is (= 401 status))
       (is (not (contains? headers "Set-Cookie"))))))
 
 (defdbtest user-avatar-test ptest/db-spec
