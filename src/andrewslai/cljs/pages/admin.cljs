@@ -58,15 +58,18 @@
      [:note (first description)])])
 
 (defn form-data->map [form-id]
-  (let [m (atom {})]
+  (let [m (atom {})
+        avatar (-> js/document
+                   (.getElementById "avatar-preview")
+                   (aget "src")
+                   (clojure.string/split ",")
+                   second)]
     (-> js/FormData
         (new (.getElementById js/document form-id))
         (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
-    (swap! m assoc :avatar (-> js/document
-                               (.getElementById "avatar-preview")
-                               (aget "src")
-                               (clojure.string/split ",")
-                               second))
+    (if avatar
+      (swap! m assoc :avatar avatar)
+      (swap! m dissoc :avatar))
     @m))
 
 (comment
@@ -173,7 +176,6 @@
     [:dl.form-group
      [:dt [:label {:for "email"} "Email"]]
      [:dd [:input.form-control {:type "text"
-                                :name "email"
                                 :readOnly true
                                 :value email}]]
      [:note "Cannot be modified"]]

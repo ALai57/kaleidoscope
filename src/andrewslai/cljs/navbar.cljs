@@ -12,10 +12,10 @@
      :on-click #(dispatch [:set-active-panel (keyword route)])}]])
 
 (defn- login-icon
-  [avatar]
+  [avatar-url]
   [:a.zoom-icon {:href (str "#/admin")}
    [:img.navbutton
-    {:src (or avatar "/images/nav-bar/unknown-user.svg")
+    {:src (or avatar-url "/images/nav-bar/unknown-user.svg")
      :on-click #(dispatch [:set-active-panel :admin])}]])
 
 (defn primary-nav []
@@ -27,7 +27,7 @@
       [:img.navbutton {:src "images/nav-bar/favicon-white.svg"
                        :on-click #(dispatch [:set-active-panel :home])}]]
      [:div#secondary-nav
-      [login-icon (:avatar @user)]
+      [login-icon (:avatar_url @user)]
       [nav-icon "thoughts" "andrew-head-icon.svg"]
       [nav-icon "archive" "archive-icon.svg"]
       [nav-icon "about" "andrew-silhouette-icon.svg"]

@@ -40,22 +40,21 @@
 
     (PATCH "/:username" {{:keys [username]} :route-params :as request}
       (try+
-        (let [{:keys [avatar] :as update-map}
-              (-> request
-                  :body
-                  slurp
-                  (json/parse-string keyword))
+        (let [update-map (parse-body request)
 
-              updated-avatar (fn [m]
-                               (if avatar
-                                 (assoc m :avatar (b64/decode (.getBytes avatar)))
-                                 m))]
+              decode-avatar (fn [{:keys [avatar] :as m}]
+                              (if avatar
+                                (assoc m :avatar (b64/decode (.getBytes avatar)))
+                                m))
 
-          (ok (users/update-user (:user components)
-                                 username
-                                 (-> update-map
-                                     (dissoc :username)
-                                     updated-avatar))))
+              response (-> components
+                           :user
+                           (users/update-user username (decode-avatar update-map))
+                           ok)]
+
+          (assoc-in response
+                    [:body :avatar_url]
+                    (format "users/%s/avatar" username)))
         (catch [:type ::users/IllegalArgumentException] e
           (-> (bad-request)
               (assoc :body e)))))
@@ -90,5 +89,6 @@
             (users/get-user (:user components) username)]
         (if avatar
           (-> (response/response (io/input-stream avatar))
-              (response/content-type "image/png"))
+              (response/content-type "image/png")
+              (response/header "Cache-control" "max-age=0, must-revalidate"))
           (not-found (format "Cannot find user: %s" username)))))))

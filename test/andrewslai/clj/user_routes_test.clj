@@ -182,11 +182,12 @@
 
             {:keys [status headers] :as response}
             ((test-users-app) (mock/request :patch user-url
-                                            (json/generate-string user-update)))]
+                                            (json/generate-string user-update)))
+            response-body (parse-body response)]
         (is (= 200 status))
-        (is (= user-update (-> response
-                               parse-body
-                               (dissoc :id))))))
+        (is (= user-update (dissoc response-body :avatar_url)))
+        (is (= (format "users/%s/avatar" (:username new-user))
+               (:avatar_url response-body)))))
     (testing "Can retrieve the new user"
       (let [{:keys [status headers] :as response}
             ((test-users-app) (mock/request :get user-url))]

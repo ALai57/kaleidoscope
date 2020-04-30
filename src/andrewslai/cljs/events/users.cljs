@@ -17,31 +17,43 @@
 ;; TODO: Support avatar uploads in this function too. Right now it will be
 ;;       unhappy/unable to support conversion of an avatar image into a blob
 
-(defn profile-update-failure [response]
-  {:title "User update failed!"
-   :body [:div {:style {:overflow-wrap "break-word"}}
-          [:p [:b "Update unsuccessful."]]
-          [:br]
-          [:p (str response)]]
-   :footer [:button {:type "button" :title "Ok"
-                     :class "btn btn-default"
-                     :on-click #(close-modal)} "Ok"]
-   :close-fn close-modal})
+(defn profile-update-failure [{:keys [message type] :as payload}]
+  (let [feedback (get message :feedback)
+        reasons (get message :data)]
+    {:title "User update failed!"
+     :body [:div {:style {:overflow-wrap "break-word"}}
+            [:p [:b "Update unsuccessful."]]
+            [:p type]
+            [:br]
+            [:p (str feedback)]
+            [:br]
+            [:p reasons]]
+     :footer [:button {:type "button" :title "Ok"
+                       :class "btn btn-default"
+                       :on-click #(close-modal)} "Ok"]
+     :close-fn close-modal}))
 
-(defn process-profile-update-failure [db response]
+(defn process-profile-update-failure [db {:keys [response]}]
   (dispatch [:modal {:show? true
                      :child (modal-template (profile-update-failure response))
                      :size :small}])
   db)
 
-(defn process-profile-update [db {:keys [avatar] :as user}]
-  (if (empty? user)
-    (assoc db :user nil)
-    (assoc db :user (merge (:user db) (if avatar
-                                        (assoc user
-                                               :avatar
-                                               (image->blob avatar))
-                                        user)))))
+(defn profile-update-success []
+  {:title "User successfully updated!"
+   :body [:div ]
+   :footer [:button {:type "button" :title "Ok"
+                     :class "btn btn-default"
+                     :on-click #(close-modal)} "Ok"]
+   :close-fn close-modal})
+
+(defn process-profile-update [db {:keys [avatar_url] :as user}]
+  (dispatch [:modal {:show? true
+                     :child (modal-template (profile-update-success))
+                     :size :small}])
+  (let [now (.getTime (js/Date.))
+        avatar_url {:avatar_url (str avatar_url "?" now)}]
+    (assoc db :user (merge (:user db) user avatar_url))))
 
 (reg-event-db
   :update-profile
