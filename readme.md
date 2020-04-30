@@ -12,15 +12,6 @@ Front end: Clojurescript (React/Re-frame)
 - Re-frame SPA
 
 
-### Installation
-NPM: Must have NPM installed to manage JS dependencies.
-  
-On Ubuntu::
-```
-sudo apt-get update
-sudo apt-get install npm
-```
-
 # Deployment
 
 CREATE ELASTIC BEANSTALK ENVIRONMENT
