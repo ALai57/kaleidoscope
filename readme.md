@@ -1,48 +1,27 @@
+# My personal website!  
+### Also a blogging platform (in the works). 
 
-This is my personal website - Clojure backend Clojurescript front end (React)
-The app runs on Java 11, inside a Docker container
+  Backend: Dockerized Clojure, Java 11.  
+Front end: Clojurescript (React/Re-frame)
+  
+  
+### Architecture: 
+- Not quite RESTful service (breaks some RESTful principles)
+- Ring server, Compojure routing. 
+- Postgres DB (AWS RDS). 
+- Re-frame SPA
 
 
-The website includes:
-- Server with handler
-- Postgres backend (AWS RDS)
-- Single page React app with navigation between screens
-
-
-*** PREREQUISITES
-INSTALL NPM: Must have NPM installed to manage JS dependencies.
-
+### Installation
+NPM: Must have NPM installed to manage JS dependencies.
+  
 On Ubuntu::
 ```
 sudo apt-get update
 sudo apt-get install npm
 ```
 
-
-*** Development environment
-
-CIDER - Editor configuration
-```
-(defun cider-jack-in-with-profile ()
-  (interactive)
-  (letrec ((profile (read-string "Enter profile name: "))
-           (lein-params (concat "with-profile +" profile " repl :headless")))
-    (message "lein-params set to: %s" lein-params)
-    (set-variable 'cider-lein-parameters lein-params)
-    ;; just a empty parameter
-    (cider-jack-in '())))
-```
-
-EMACS AND REPL/FIGWHEEL
-```
-(use 'figwheel-sidecar.repl-api)
-(start-figwheel! "dev")
-(cljs-repl "dev")
-```
-
-
-
-*** Deployment
+# Deployment
 
 CREATE ELASTIC BEANSTALK ENVIRONMENT
 ```
@@ -64,7 +43,26 @@ TERRAFORM
 `terraform plan -var-file=andrewslai_secrets.tfvars`
 
 
-*** HELPFUL COMMANDS
+# HELPFUL COMMANDS
+
+CIDER JACK IN WITH PROFILE
+```
+(defun cider-jack-in-with-profile ()
+  (interactive)
+  (letrec ((profile (read-string "Enter profile name: "))
+           (lein-params (concat "with-profile +" profile " repl :headless")))
+    (message "lein-params set to: %s" lein-params)
+    (set-variable 'cider-lein-parameters lein-params)
+    ;; just a empty parameter
+    (cider-jack-in '())))
+```
+
+EMACS AND REPL/FIGWHEEL
+```
+(use 'figwheel-sidecar.repl-api)
+(start-figwheel! "dev")
+(cljs-repl "dev")
+```
 
 DOCKER
 ```
@@ -81,19 +79,6 @@ eb platform show
 eb ssh staging
 ```
 
-POSTGRES
-
-*Modify default postgres user password*
-- edit pg_hba.conf and modify to "trust"
-- stop service `service postgres stop`
-- `service postgres start`
-- login to psql: `sudo su - postgres`
-```
-psql
-ALTER USER posautocompletetgres WITH PASSWORD xxxxxxxx;
-```
-
-
 PSQL:
 
 ```
@@ -104,12 +89,15 @@ PSQL:
    select schema_name from information_schema.schemata;
 ```
 
+POSTGRES - MODIFYING DEFAULT POSTGRES USER PASSWORD
 
-###### TO DO
-## Modify default data in database so that HTML is directly saved in DB
-## Modify the cljs code to recognize new data format
-## Get JS working on load (component did mount)
-## Figure out why localhost has different landing page from website
-## Modify AWS DB and deploy new code to website;;
+- edit pg_hba.conf and modify to "trust". 
+- stop service `service postgres stop`. 
+- `service postgres start`. 
+- login to psql: `sudo su - postgres`. 
+```
+psql
+ALTER USER posautocompletetgres WITH PASSWORD xxxxxxxx;
+```
 
-## Start writing articles about building an OS
+
