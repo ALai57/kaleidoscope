@@ -43,7 +43,7 @@ TERRAFORM
 `terraform plan -var-file=andrewslai_secrets.tfvars`
 
 
-# HELPFUL COMMANDS
+# Helpful commands
 
 CIDER JACK IN WITH PROFILE
 ```
