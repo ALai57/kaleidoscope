@@ -3,6 +3,7 @@
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.navbar :as nav]
             [andrewslai.cljs.pages.home :refer [home]]
+            [andrewslai.cljs.pages.editor :refer [editor-ui]]
             [andrewslai.cljs.pages.admin :refer [login-ui
                                                  registration-ui]]
             [andrewslai.cljs.resume-cards :as resume-cards]
@@ -92,6 +93,7 @@
              :data-analysis [data-analysis]
              :admin [login-ui]
              :registration [registration-ui]
+             :editor [editor-ui]
              })
 
 (defn app []

@@ -13,6 +13,8 @@
                  [cljsjs/react-dom "16.13.0-0"]
                  [cljsjs/react-bootstrap "1.0.0-beta.14-0"] ;; latest release
                  [cljsjs/react-pose "1.6.4-1"]
+                 [cljsjs/slate "0.33.6-0"]
+                 [cljsjs/slate-react "0.12.6-0"]
                  [cljsjs/zxcvbn "4.4.0-1"]
                  [crypto-password "0.2.1"]
                  [com.nulab-inc/zxcvbn "1.3.0"]
