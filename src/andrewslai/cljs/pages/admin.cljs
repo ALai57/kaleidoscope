@@ -2,7 +2,8 @@
   (:require [andrewslai.cljs.navbar :as nav]
             [andrewslai.cljs.modal :refer [close-modal modal-template] :as modal]
             [goog.object :as gobj]
-            [re-frame.core :refer [dispatch subscribe]]))
+            [re-frame.core :refer [dispatch subscribe]]
+            [cljsjs.zxcvbn :as zxcvbn]))
 
 (defn login-data->map [form-id]
   (let [m (atom {})]
@@ -11,7 +12,13 @@
         (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
     @m))
 
-;; TODO: Once authenticated, add image to database and use it
+(comment
+  (-> "_**asdfjekdCkzixcovh;e33h4383k3llsh"
+      js/zxcvbn
+      (js->clj :keywordize-keys true)
+      (select-keys [:score :feedback]))
+  )
+
 ;; TODO: Make sure refreshing the page doesn't clobber the authentication
 (defn login-form []
   [:div {:style {:text-align "center"
@@ -72,32 +79,7 @@
       (swap! m dissoc :avatar))
     @m))
 
-(comment
-  (let [m (atom {})]
-    (-> js/FormData
-        (new (.getElementById js/document "profile-update-form"))
-        (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
-    (swap! m assoc :avatar (-> js/document
-                               (.getElementById "avatar-preview")
-                               (aget "src")
-                               (clojure.string/split ",")
-                               second))
-    @m)
 
-  (let [n (atom {})]
-    (-> js/FormData
-        (new (.getElementById js/document "profile-update-form"))
-        (.forEach (fn [v k obj] (swap! n conj {(keyword k) v}))))
-    @n)
-
-  (.log js/console (second
-                     (clojure.string/split
-                       (aget (.getElementById js/document "avatar-preview") "src")
-                       ",")))
-
-  )
-
-;; TODO: POST to update user...
 (defn load-image [file-added-event]
   (let [file (first (array-seq (.. file-added-event -target -files)))
         file-reader (js/FileReader.)]
@@ -172,13 +154,14 @@
                                 :readOnly true
                                 :value username}]]
      [:note "Cannot be modified"]]
-    [:br]
     [:dl.form-group
      [:dt [:label {:for "email"} "Email"]]
      [:dd [:input.form-control {:type "text"
                                 :readOnly true
                                 :value email}]]
      [:note "Cannot be modified"]]
+    [:br]
+    [:br]
     [editable-text-input "first_name" "First Name" first_name]
     [editable-text-input "last_name" "Last Name" last_name]
     [:br]
@@ -233,7 +216,6 @@
     [:input {:type "password"
              :placeholder "Password"
              :name "password"}]
-    #_[editable-text-input "password" "Password" ""]
     [:br]
     [:input.btn-primary
      {:type "button"
