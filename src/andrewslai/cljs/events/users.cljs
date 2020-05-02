@@ -170,8 +170,3 @@
          :error-handler #(dispatch [:process-http-response username process-unsuccessful-delete])})
 
     db))
-
-(reg-event-db
-  :editor-value-changed
-  (fn [db [_ new-value]]
-    (assoc db :editor-data new-value)))
