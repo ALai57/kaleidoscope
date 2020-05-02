@@ -1,21 +1,14 @@
 (ns andrewslai.cljs.pages.editor
   (:require [andrewslai.cljs.navbar :as nav]
+            [andrewslai.cljs.events.editor :as ed]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]
             [reagent.core :as reagent]
             [cljsjs.slate-react]
             [cljsjs.slate]))
 
-(comment
-  (.log js/console js/Slate)
-  [:> js/SlateReact.Editor]
-  (.log js/console (js/SlateReact.Editor.))
 
-  ;; https://reactrocket.com/post/slatejs-basics/
-
-  )
-
-
+;; https://reactrocket.com/post/slatejs-basics/
 (defn render-mark
   "Renders a slatejs mark to HTML."
   [props editor next]
@@ -32,9 +25,12 @@
 ;; (def is-hotkey-mod-b (npm.slatejs/isHotkey "mod+b"))
 ;; (def is-hotkey-mod-i (npm.slatejs/isHotkey "mod+i"))
 
-(defn on-key-down
+(defn key-down-handler
   "Event callback for keyDown event."
   [event editor next]
+  (.log js/console event)
+  (.log js/console editor)
+  (.log js/console next)
   (cond
     ;; (is-hotkey-mod-b event) (toggle-mark event "bold" editor)
     ;; (is-hotkey-mod-i event) (toggle-mark event "italic" editor)
@@ -51,6 +47,8 @@
                                      :leaves [{:text "Hello world!"}]}]}]}}
        clj->js
        (.fromJSON js/Slate.Value)))
+
+
 ;; https://github.com/jhund/re-frame-and-reagent-and-slatejs/blob/master/src/cljs/rrs/ui/slatejs/views.cljs
   Uses a form3 reagent component to manage React lifecycle methods."
 (defn editor []
@@ -59,7 +57,7 @@
         editor-atom (atom nil)
         editor-text (atom nil)
 
-        on-change-fn
+        change-handler
         (fn [change-or-editor]
           (let [new-value (.-value change-or-editor)]
             (reset! editor-text new-value)
@@ -75,16 +73,29 @@
                           {:auto-focus true
                            :class-name "slatejs-editor"
                            :id "slatejs-editor-instance-1"
-                           :on-change on-change-fn
+                           :on-change change-handler
+                           ;;:on-key-down key-down-handler
                            :render-mark render-mark
                            :value (or @editor-text
                                       @section-data
                                       (blank-value))}])})))
+
+(defn serialized-data []
+  (let [section-data (subscribe [:editor-data])]
+    (when @section-data
+      [:p (str (ed/editor-model->clj @section-data))])))
+
 
 (defn editor-ui []
   [:div
    [nav/primary-nav]
    [:br]
    [:h1 "Editor"]
-   [:div
-    [editor]]])
+   [:br]
+   [:h5 "How text looks in an article"]
+   [:div {:style {:border-style "double"}}
+    [editor]]
+   [:br] [:br]
+   [:h5 "How text looks in the database"]
+   [:div {:style {:border-style "ridge"}}
+    [serialized-data]]])
