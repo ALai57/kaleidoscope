@@ -8,20 +8,18 @@
 
 (comment
   (.log js/console js/Slate)
-  (js/SlateReact.Editor. "Default value" )
+  [:> js/SlateReact.Editor]
   (.log js/console (js/SlateReact.Editor.))
-  
+
+  ;;https://reactrocket.com/post/slatejs-basics/ 
   
   )
 
 ;; https://github.com/jhund/re-frame-and-reagent-and-slatejs/blob/master/src/cljs/rrs/ui/slatejs/views.cljs
-(defn editor
-  "Renders an editor instance.
   Uses a form3 reagent component to manage React lifecycle methods."
-  [section-key]
-  (let [section-data @(subscribe [:rrs.section/sub-data section-key])
-        ;; `this-atom` stores a reference to the editor component. We need it to
-        ;; force an update in the on-change-fn via `reagent/force-update`.
+(defn editor []
+  (let [section-data (subscribe [:editor-data])
+        html (:html @section-data)
         this-atom (atom nil)
         ;; `cached-editor-values-atom` is a map with a key for every edited
         ;; section. The value under the section's key is the cached editor
@@ -65,14 +63,25 @@
                          (re-frame/dispatch [:rrs.ui.slatejs/evt-editor-value-changed section-key new-value])))
         update-editor-ref-fn (fn [component]
                                (when component (reset! editor-ref-atom component)))]
+        cached-editor-value (atom nil)
+
+        on-change-fn
+        (fn [change-or-editor]
+          (let [new-value (.-value change-or-editor)]
+            (reset! cached-editor-value new-value)
+            (some-> @this-atom reagent/force-update)            
+            (dispatch [:editor-value-changed new-value])))]
+
     (reagent/create-class
       {:display-name "slatejs-editor-inner"
+      {:display-name "slatejs-editor"
        :component-did-mount (fn [this] (reset! this-atom this))
        :component-will-unmount (fn [] (reset! this-atom nil))
        ;; The render function. Normally we would repeat the arguments to the
        ;; outer function, however they are not used here since we don't rely on
        ;; reagent to re-render the editor, but on `reagent/force-update`
        ;; instead.
+       :component-will-unmount (fn [this] (reset! this-atom nil))
        :reagent-render (fn [_]
                          [:> npm.slatejs/Editor
                           {:auto-focus   true
@@ -85,6 +94,15 @@
                            ;; When the editor is force-updated it will get its new value
                            ;; from the deref'd `cached-editor-values-atom`.
                            :value        (get @cached-editor-values-atom section-key)}])})))
+                         [:> js/SlateReact.Editor
+                          {:auto-focus true
+                           :class-name "slatejs-editor"
+                           :id "slatejs-editor-instance-1"
+                           :on-change on-change-fn
+                           :render-mark render-mark
+                           :value (or @cached-editor-value
+                                      @section-data
+                                      (blank-value))}])})))
 
 (defn editor-ui []
   [:div
@@ -92,4 +110,4 @@
    [:br]
    [:h1 "Editor"]
    [:div
-    ]])
+    [editor]]])

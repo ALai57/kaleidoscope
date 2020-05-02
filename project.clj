@@ -15,6 +15,7 @@
                  [cljsjs/react-pose "1.6.4-1"]
                  [cljsjs/slate "0.33.6-0"]
                  [cljsjs/slate-react "0.12.6-0"]
+                 [cljsjs/slate-html-serializer "0.6.3-0"]
                  [cljsjs/zxcvbn "4.4.0-1"]
                  [crypto-password "0.2.1"]
                  [com.nulab-inc/zxcvbn "1.3.0"]
