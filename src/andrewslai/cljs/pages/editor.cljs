@@ -17,7 +17,9 @@
         mark (.-mark props)
         mark-type (.-type mark)]
     (case mark-type
-      "bold"   (reagent/as-element [:strong (js->clj attributes) children])
+      "bold"   (reagent/as-element [:strong (merge {:style {:font-weight "bold"}}
+                                                   (js->clj attributes))
+                                    children])
       "italic" (reagent/as-element [:em (js->clj attributes) children])
       ;; Else: call next to continue with slatejs' plugin stack.
       (next))))
@@ -44,7 +46,11 @@
   (->> {:document {:nodes [{:object "block"
                             :type "paragraph"
                             :nodes [{:object "text"
-                                     :leaves [{:text "Hello world!"}]}]}]}}
+                                     :leaves [{:text "Hello world! "}
+                                              {:text "Bold "
+                                               :marks [{:type "bold"}]}
+                                              {:text "Italics "
+                                               :marks [{:type "italic"}]}]}]}]}}
        clj->js
        (.fromJSON js/Slate.Value)))
 
@@ -56,6 +62,10 @@
         html (:html @section-data)
         editor-atom (atom nil)
         editor-text (atom nil)
+
+        update-editor-ref
+        (fn [component]
+          (when component (reset! editor-ref-atom component)))
 
         change-handler
         (fn [change-or-editor]
@@ -76,6 +86,7 @@
                            :on-change change-handler
                            ;;:on-key-down key-down-handler
                            :render-mark render-mark
+                           :ref update-editor-ref
                            :value (or @editor-text
                                       @section-data
                                       (blank-value))}])})))
