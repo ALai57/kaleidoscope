@@ -160,8 +160,20 @@
 (defn serialized-data []
   (let [section-data (subscribe [:editor-data])]
     (when @section-data
-      [:p (str (ed/editor-model->clj @section-data))])))
 
+      [:div {:type "content"
+             :id "editor-article-content"}
+       (str (:html (ed/editor-model->clj @section-data)))])))
+
+(defn form-data->map [form-id]
+  (let [m (atom {})]
+    (-> js/FormData
+        (new (.getElementById js/document form-id))
+        (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
+    (swap! m assoc
+           :content (->> "editor-article-content"
+                         (.getElementById js/document)
+                         (.-innerText)))))
 
 (defn editor-ui []
   [:div
@@ -169,10 +181,32 @@
    [:br]
    [:h1 "Editor"]
    [:br]
-   [:h5 "How text looks in an article"]
-   [:div {:style {:border-style "double"}}
-    [editor]]
-   [:br] [:br]
-   [:h5 "How text looks in the database"]
-   [:div {:style {:border-style "ridge"}}
-    [serialized-data]]])
+   [:form {:id "editor-article-form"}
+    [:input {:type "text"
+             :placeholder "Article title"
+             :name "title"}]
+    [:br]
+    [:input {:type "Article tags"
+             :placeholder "Article tags (e.g. thoughts)"
+             :name "article_tags"}]
+    [:br]
+    [:input {:type "Author"
+             :placeholder "Author"
+             :name "author"}]
+    [:br]
+    [:input {:type "URL"
+             :placeholder "your-article-name-here"
+             :name "article_url"}]
+    [:br]
+    [:br][:br]
+    [:h5 "How text looks in an article"]
+    [:div {:style {:border-style "double"}}
+     [editor]]
+    [:br] [:br]
+    [:h5 "How text looks in the database"]
+    [:div {:style {:border-style "ridge"}}
+     [serialized-data]]]
+   [:input {:type "button"
+            :on-click (fn [x]
+                        (println (form-data->map "editor-article-form")))
+            :value "Save article!"}]])
