@@ -8,10 +8,12 @@
             [cljsjs.slate]))
 
 
+;; https://github.com/jhund/re-frame-and-reagent-and-slatejs/blob/master/src/cljs/rrs/ui/slatejs/views.cljs
 ;; https://reactrocket.com/post/slatejs-basics/
 (defn render-mark
   "Renders a slatejs mark to HTML."
   [props editor next]
+
   (let [attributes (.-attributes props)
         children (.-children props)
         mark (.-mark props)
@@ -24,21 +26,32 @@
       ;; Else: call next to continue with slatejs' plugin stack.
       (next))))
 
-;; (def is-hotkey-mod-b (npm.slatejs/isHotkey "mod+b"))
-;; (def is-hotkey-mod-i (npm.slatejs/isHotkey "mod+i"))
+(defn toggle-mark
+  "Toggles `mark-type` in editor's current selection."
+  [event mark-type change editor]
+  (let [props (.-props editor)
+        on-change (.-onChange props)
+        updated-editor (.toggleMark change mark-type)]
+    (.preventDefault event)
+    (on-change updated-editor)))
 
+(defn ctrl-b? [event]
+  (and event.ctrlKey (= event.keyCode 66)))
+
+(defn ctrl-i? [event]
+  (and event.ctrlKey (= event.keyCode 73)))
+
+;; https://www.strilliant.com/2018/07/15/let%E2%80%99s-build-a-fast-slick-and-customizable-rich-text-editor-with-slate-js-and-react/ 
+;; https://stackoverflow.com/questions/56081674/enter-and-backspace-not-working-with-slate-js-editor-in-react 
 (defn key-down-handler
   "Event callback for keyDown event."
-  [event editor next]
-  (.log js/console event)
-  (.log js/console editor)
-  (.log js/console next)
+  [event change editor]
+  ;; (.log js/console "Event " event.ctrlKey event.keyCode)
+  ;; (.log js/console "Change " change)
+  ;; (.log js/console "Editor" editor)
   (cond
-    ;; (is-hotkey-mod-b event) (toggle-mark event "bold" editor)
-    ;; (is-hotkey-mod-i event) (toggle-mark event "italic" editor)
-
-    ;; Else: call next to continue with slatejs' plugin stack.
-    :else (next)))
+    (ctrl-b? event) (toggle-mark event "bold" change editor)
+    (ctrl-i? event) (toggle-mark event "italic" change editor)))
 
 (defn blank-value
   "Returns a blank editor value."
@@ -55,12 +68,12 @@
        (.fromJSON js/Slate.Value)))
 
 
-;; https://github.com/jhund/re-frame-and-reagent-and-slatejs/blob/master/src/cljs/rrs/ui/slatejs/views.cljs
-  Uses a form3 reagent component to manage React lifecycle methods."
+(defonce editor-ref-atom (atom nil))
 (defn editor []
   (let [section-data (subscribe [:editor-data])
         html (:html @section-data)
-        editor-atom (atom nil)
+
+        this-editor (atom nil)
         editor-text (atom nil)
 
         update-editor-ref
@@ -71,20 +84,20 @@
         (fn [change-or-editor]
           (let [new-value (.-value change-or-editor)]
             (reset! editor-text new-value)
-            (some-> @editor-atom reagent/force-update)
+            (some-> @this-editor reagent/force-update)
             (dispatch [:editor-text-changed new-value])))]
 
     (reagent/create-class
       {:display-name "slatejs-editor"
-       :component-did-mount (fn [this] (reset! editor-atom this))
-       :component-will-unmount (fn [this] (reset! editor-atom nil))
+       :component-did-mount (fn [this] (reset! this-editor this))
+       :component-will-unmount (fn [this] (reset! this-editor nil))
        :reagent-render (fn [_]
                          [:> js/SlateReact.Editor
                           {:auto-focus true
                            :class-name "slatejs-editor"
                            :id "slatejs-editor-instance-1"
                            :on-change change-handler
-                           ;;:on-key-down key-down-handler
+                           :on-key-down key-down-handler
                            :render-mark render-mark
                            :ref update-editor-ref
                            :value (or @editor-text
