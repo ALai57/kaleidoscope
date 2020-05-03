@@ -51,11 +51,11 @@
     (.preventDefault event)
     (on-change updated-editor)))
 
-(defn insert-new-line
-  [event change editor]
+(defn insert-string
+  [s event change editor]
   (let [props (.-props editor)
         on-change (.-onChange props)
-        updated-editor (.insertText change "\n")]
+        updated-editor (.insertText change s)]
     (.preventDefault event)
     (on-change updated-editor)))
 
@@ -68,6 +68,9 @@
 (defn ctrl-enter? [event]
   (and event.ctrlKey (= event.keyCode 13)))
 
+(defn tab? [event]
+  (= event.keyCode 9))
+
 ;; https://www.strilliant.com/2018/07/15/let%E2%80%99s-build-a-fast-slick-and-customizable-rich-text-editor-with-slate-js-and-react/ 
 ;; https://stackoverflow.com/questions/56081674/enter-and-backspace-not-working-with-slate-js-editor-in-react 
 (defn key-down-handler
@@ -79,7 +82,8 @@
   (cond
     (ctrl-b? event) (toggle-mark event "bold" change editor)
     (ctrl-i? event) (toggle-mark event "italic" change editor)
-    (ctrl-enter? event) (insert-new-line event change editor)))
+    (ctrl-enter? event) (insert-string "\n" event change editor)
+    (tab? event) (insert-string "\t" event change editor)))
 
 (defn blank-value
   "Returns a blank editor value."
