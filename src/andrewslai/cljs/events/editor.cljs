@@ -28,6 +28,11 @@
                     :type "bold"
                     :nodes deserialized-child-nodes})
 
+          "code"
+          (clj->js {:object "block"
+                    :type "code"
+                    :nodes deserialized-child-nodes})
+
           js/undefined)))
 
     :serialize
@@ -41,6 +46,11 @@
           ["block"  "paragraph"] (reagent/as-element [:p {} children])
           ["mark" "italic"] (reagent/as-element [:em {} children])
           ["mark" "bold"] (reagent/as-element [:strong {} children])
+          ["block" "code"] (reagent/as-element [:pre {} [:code children]])
+          ["block" "code-inline"] (reagent/as-element [:pre {} [:code children]])
+          ["block" "code-block"] (reagent/as-element [:pre {:style {:white-space "pre-wrap"
+                                                                    :background "hsl(30,80%,90%)"}}
+                                                      [:code children]])
           js/undefined)))}])
 
 (def html-serializer
