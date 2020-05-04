@@ -62,7 +62,7 @@
 
 (defdbtest create-article-test ptest/db-spec
   (let [request
-        (mock/request :post "/articles/test-article"
+        (mock/request :post "/articles/my-test-article"
                       (json/generate-string (merge a/example-article
                                                    a/example-content)))]
     (testing "Can't create an article without an authenticated session"
@@ -85,7 +85,7 @@
           (is (= 200 status))
           (is (some? (parse-body response))))
         (let [{:keys [status] :as response}
-              (->> "/articles/test-article"
+              (->> "/articles/my-test-article"
                    (mock/request :get)
                    ((test-app)))]
           (is (= 200 status))
