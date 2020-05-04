@@ -1,25 +1,9 @@
 (ns andrewslai.clj.persistence.users-test
-  (:require [andrewslai.clj.auth.crypto :as encryption]
-            [andrewslai.clj.handler :as h]
-            [andrewslai.clj.persistence.postgres :as postgres]
-            [andrewslai.clj.persistence.postgres-test]
+  (:require [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.test-utils :refer [defdbtest]]
-            [andrewslai.clj.utils :refer [parse-response-body
-                                          body->map
-                                          file->bytes]]
-            [buddy.auth.backends.session :refer [session-backend]]
-            [buddy.auth.middleware :refer [wrap-authentication
-                                           wrap-authorization]]
-            [cheshire.core :as json]
-            [clojure.data.codec.base64 :as b64]
-            [clojure.test :refer [deftest is testing]]
-            [compojure.api.sweet :refer [api GET POST]]
-            [ring.middleware.cookies :refer [wrap-cookies]]
-            [ring.middleware.session :refer [wrap-session]]
-            [ring.middleware.session.memory :as mem]
-            [ring.mock.request :as mock]
+            [clojure.test :refer [is testing]]
             [slingshot.slingshot :refer [try+]]))
 
 (defn test-db []

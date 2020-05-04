@@ -4,11 +4,11 @@
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
-            [clojure.walk :refer [keywordize-keys]]
-            ))
+            [clojure.walk :refer [keywordize-keys]])
+  (:import java.time.LocalDateTime))
 
 (defprotocol ArticlePersistence
-  (save-article! [_])
+  (create-full-article! [_ article-payload])
   (get-article-metadata [_ article-name])
   (get-article-content [_ article-id])
   (get-full-article [_ article-name])
@@ -67,13 +67,27 @@
       (str "get-resume-info caught exception: " (.getMessage e)
            #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
-(defn -save-article! [db]
-  nil)
+
+
+
+(defn -create-full-article! [this {:keys [content] :as article-payload}]
+  (try
+    (let [article (-> article-payload
+                      (dissoc :content)
+                      (assoc :timestamp (java.time.LocalDateTime/now)))
+
+          {:keys [article_id] :as article-result}
+          (first (rdbms/insert! (:database this) "articles" article))
+
+          content-result
+          (rdbms/insert! (:database this) "content" {:article_id article_id
+                                                     :content content})]
+      [article-result content-result])))
 
 (defrecord ArticleDatabase [database]
   ArticlePersistence
-  (save-article! [this]
-    (-save-article! this))
+  (create-full-article! [this article-payload]
+    (-create-full-article! this article-payload))
   (get-article-metadata [this article-name]
     (-get-article-metadata this article-name))
   (get-article-content [this article-id]
