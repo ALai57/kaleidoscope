@@ -146,7 +146,7 @@
        :reagent-render (fn [_]
                          [:> js/SlateReact.Editor
                           {:auto-focus true
-                           :class-name "slatejs-editor"
+                           :class-name "slatejs-text-editor"
                            :id "slatejs-editor-instance-1"
                            :on-change change-handler
                            :on-key-down key-down-handler
@@ -181,7 +181,8 @@
    [:br]
    [:h1 "Editor"]
    [:br]
-   [:form {:id "editor-article-form"}
+   [:form {:id "editor-article-form"
+           :class "slatejs-article-editor"}
     [:input {:type "text"
              :placeholder "Article title"
              :name "title"}]
@@ -201,11 +202,13 @@
     [:br][:br]
     [:h5 "How text looks in an article"]
     [:div {:style {:border-style "double"}}
-     [editor]]
-    [:br] [:br]
+     [editor]]]
+   [:br] [:br]
+   [:div {:id "editor-article-form"
+          :class "slatejs-article-editor"
+          :style {:border-style "ridge"}}
     [:h5 "How text looks in the database"]
-    [:div {:style {:border-style "ridge"}}
-     [serialized-data]]]
+    [serialized-data]]
    [:input {:type "button"
             :on-click (fn [x]
                         (println (form-data->map "editor-article-form")))
