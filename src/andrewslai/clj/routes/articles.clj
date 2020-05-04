@@ -1,6 +1,7 @@
 (ns andrewslai.clj.routes.articles
   (:require [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.routes.admin :as admin]
+            [andrewslai.clj.utils :refer [parse-body]]
             [buddy.auth.accessrules :refer [restrict]]
             [compojure.api.sweet :refer [context defroutes GET POST]]
             [ring.util.http-response :refer [ok]]))
@@ -17,8 +18,8 @@
 
     (restrict
       (POST "/:article-name" [article-name :as request]
-        (ok #_(-> request
-                  (get-in [:components :db])
-                  (articles/create-full-article! article-payload))))
+        (ok (-> request
+                (get-in [:components :db])
+                (articles/create-full-article! (parse-body request)))))
       {:handler admin/is-authenticated?
        :on-error admin/access-error})))
