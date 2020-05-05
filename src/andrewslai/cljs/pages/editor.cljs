@@ -179,47 +179,79 @@
                          (.-innerText)))))
 
 (defn editor-ui []
-  [:div
-   [nav/primary-nav]
-   [:br]
-   [:h1 "Editor"]
-   [:br]
-   [:form {:id "editor-article-form"
-           :class "slatejs-article-editor"}
-    [:input {:type "text"
-             :placeholder "Article title"
-             :name "title"}]
-    [:br]
-    [:input {:type "Article tags"
-             :placeholder "Article tags (e.g. thoughts)"
-             :name "article_tags"}]
-    [:br]
-    [:input {:type "Author"
-             :placeholder "Author"
-             :name "author"}]
-    [:br]
-    [:input {:type "URL"
-             :placeholder "your-article-name-here"
-             :name "article_url"}]
-    [:br]
-    [:br][:br]
-    [:h5 "How text looks in an article"]
-    [:div {:style {:border-style "double"}}
-     [editor]]]
-   [:br] [:br]
-   [:div {:id "editor-article-form"
-          :class "slatejs-article-editor"
-          :style {:border-style "ridge"}}
-    [:h5 "How text looks in the database"]
-    [serialized-data]]
-   [:input {:type "button"
-            :on-click
-            (fn [x]
-              (println (form-data->map "editor-article-form"))
+  (let [{:keys [username first_name last_name] :as user} @(subscribe [:user])
+        {:keys [article_tags article_url]} @(subscribe [:editor-metadata])]
+    [:div
+     [nav/primary-nav]
+     [:br]
+     [:h1 "Editor"]
+     [:br]
+     [:form {:id "editor-article-form"
+             :class "slatejs-article-editor"}
+      [:input {:type "text"
+               :placeholder "Article title"
+               :name "title"
+               :style {:border "none"
+                       :font-size "24pt"
+                       :font-weight "bold"
+                       :margin "5px"}}]
+      [:br]
+      [:input {:type "Author"
+               :placeholder "Author"
+               :style {:border "none"
+                       :font-size "16pt"
+                       :margin "3px"
+                       :color "darkgray"
+                       :font-weight "bold"}
+               :name "author"
+               :readOnly true
+               :value (when user (str first_name " " last_name))}]
+      [:br]
+      [:select {:id "article-tags-input"
+                :type "Article tags"
+                :name "article_tags"
+                :style {:display "none"}
+                :on-change
+                (fn [x]
+                  (dispatch [:editor-metadata-changed
+                             (form-data->map "editor-article-form")]))}
+       [:option {:value "thoughts"} "Thoughts"]
+       [:option {:value "research"} "Research"]
+       [:option {:value "data-analysis"} "Data Analysis"]]
+      [:br]
+      [:br]
+      [:label {:id "article-url-label" :for "article-url-input"
+               :style {:font-style "italic"
+                       :font-size "14pt"
+                       :margin "3px"}}
+       (str "https://andrewslai.com/#/"
+            (or article_tags "thoughts")
+            "/content/ ")]
+      [:input {:id "article-url-input"
+               :type "URL"
+               :style {:border "none"
+                       :font-size "14pt"}
+               :placeholder "your-article-url"
+               :name "article_url"}]
+      [:br]
+      [:br][:br]
+      [:h5 "How text looks in an article"]
+      [:div {:style {:border-style "double"}}
+       [editor]]]
+     [:br] [:br]
+     [:div {:id "editor-article-form"
+            :class "slatejs-article-editor"
+            :style {:border-style "ridge"}}
+      [:h5 "How text looks in the database"]
+      [serialized-data]]
+     [:input {:type "button"
+              :on-click
+              (fn [x]
+                (println (form-data->map "editor-article-form"))
 
-              (POST "/articles/"
-                  {:params (form-data->map "editor-article-form")
-                   :format :json
-                   :handler #(dispatch [:process-http-response % process-create-article])
-                   :error-handler #(dispatch [:process-http-response % process-unsuccessful-article])}))
-            :value "Save article!"}]])
+                (POST "/articles/"
+                    {:params (form-data->map "editor-article-form")
+                     :format :json
+                     :handler #(dispatch [:process-http-response % process-create-article])
+                     :error-handler #(dispatch [:process-http-response % process-unsuccessful-article])}))
+              :value "Save article!"}]]))

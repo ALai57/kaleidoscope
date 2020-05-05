@@ -90,6 +90,10 @@
       #_(println serialized-text)
       (assoc db :editor-data new-value))))
 
+(reg-event-db
+  :editor-metadata-changed
+  (fn [db [_ new-value]]
+    (assoc db :editor-metadata new-value)))
 
 (defn article-failure [payload]
   {:title "Article creation failed!"
