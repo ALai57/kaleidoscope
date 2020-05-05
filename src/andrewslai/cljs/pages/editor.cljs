@@ -180,7 +180,7 @@
 
 (defn editor-ui []
   (let [{:keys [username first_name last_name] :as user} @(subscribe [:user])
-        {:keys [article_tags article_url]} @(subscribe [:editor-metadata])]
+        {:keys [article_tags article_url title]} @(subscribe [:editor-metadata])]
     [:div
      [nav/primary-nav]
      [:br]
@@ -191,6 +191,9 @@
       [:input {:type "text"
                :placeholder "Article title"
                :name "title"
+               :on-change (fn [x]
+                            (dispatch [:editor-metadata-changed
+                                       (form-data->map "editor-article-form")]))
                :style {:border "none"
                        :font-size "24pt"
                        :font-weight "bold"
@@ -232,7 +235,13 @@
                :style {:border "none"
                        :font-size "14pt"}
                :placeholder "your-article-url"
-               :name "article_url"}]
+               :name "article_url"
+               :read-only true
+               :value (-> title
+                          str
+                          clojure.string/lower-case
+                          (clojure.string/replace  #"[!|.|(|)|]" "")
+                          (clojure.string/replace  " " "-"))}]
       [:br]
       [:br][:br]
       [:h5 "How text looks in an article"]
