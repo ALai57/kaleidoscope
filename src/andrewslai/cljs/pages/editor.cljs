@@ -1,6 +1,9 @@
 (ns andrewslai.cljs.pages.editor
-  (:require [andrewslai.cljs.navbar :as nav]
-            [andrewslai.cljs.events.editor :as ed]
+  (:require [ajax.core :refer [POST]]
+            [andrewslai.cljs.navbar :as nav]
+            [andrewslai.cljs.events.editor :as ed
+             :refer [process-create-article
+                     process-unsuccessful-article]]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]
             [reagent.core :as reagent]
@@ -163,7 +166,7 @@
 
       [:div {:type "content"
              :id "editor-article-content"}
-       (str (:html (ed/editor-model->clj @section-data)))])))
+       (str "<div>" (:html (ed/editor-model->clj @section-data)) "</div>")])))
 
 (defn form-data->map [form-id]
   (let [m (atom {})]
@@ -210,6 +213,13 @@
     [:h5 "How text looks in the database"]
     [serialized-data]]
    [:input {:type "button"
-            :on-click (fn [x]
-                        (println (form-data->map "editor-article-form")))
+            :on-click
+            (fn [x]
+              (println (form-data->map "editor-article-form"))
+
+              (POST "/articles/"
+                  {:params (form-data->map "editor-article-form")
+                   :format :json
+                   :handler #(dispatch [:process-http-response % process-create-article])
+                   :error-handler #(dispatch [:process-http-response % process-unsuccessful-article])}))
             :value "Save article!"}]])

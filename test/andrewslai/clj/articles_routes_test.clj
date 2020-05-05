@@ -61,23 +61,27 @@
              (set (keys (parse-body response))))))))
 
 (defdbtest create-article-test ptest/db-spec
-  (let [request
-        (mock/request :post "/articles/my-test-article"
-                      (json/generate-string (merge a/example-article
-                                                   a/example-content)))]
+  (let [article (json/generate-string (merge a/example-article
+                                             a/example-content))
+
+        request (mock/request :post "/articles/" article)]
+
     (testing "Can't create an article without an authenticated session"
-      (let [{:keys [status]} ((test-app) request)]
-        (is (= 401 status))))
+      (is (= 401 (-> request
+                     ((test-app))
+                     :status))))
 
     ;; Create a user and login
     ((test-app) (mock/request :post "/users" (json/generate-string u/new-user)))
-    (let [credentials
+    (let [creds
           (json/generate-string (select-keys u/new-user [:username :password]))
 
           {:keys [headers]}
-          ((test-app) (mock/request :post "/login" credentials))
+          ((test-app) (mock/request :post "/login" creds))
 
-          cookie (first (get headers "Set-Cookie"))]
+          cookie (-> headers
+                     (get "Set-Cookie")
+                     first)]
 
       (testing "Can create an article with authenticated user"
         (let [{:keys [status] :as response}

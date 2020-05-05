@@ -1,6 +1,7 @@
 (ns andrewslai.cljs.events.editor
   (:require [cljsjs.slate-html-serializer :as shs]
             [re-frame.core :refer [dispatch reg-event-db]]
+            [andrewslai.cljs.modal :refer [modal-template close-modal]]
             [reagent.core :as reagent]))
 
 ;; HTML Serializer
@@ -88,3 +89,39 @@
     (let [serialized-text (editor-model->clj new-value)]
       #_(println serialized-text)
       (assoc db :editor-data new-value))))
+
+
+(defn article-failure [payload]
+  {:title "Article creation failed!"
+   :body [:div {:style {:overflow-wrap "break-word"}}
+          [:p [:b "Creation unsuccessful."]]
+          [:br]
+          [:p (str payload)]
+          [:br]]
+   :footer [:button {:type "button" :title "Ok"
+                     :class "btn btn-default"
+                     :on-click #(close-modal)} "Ok"]
+   :close-fn close-modal})
+
+
+(defn article-create-success [{:keys [article_name]}]
+  {:title "Successful article creation!"
+   :body [:div
+          [:br]
+          [:div [:p [:b "Article name"] article_name]]]
+   :footer [:button {:type "button" :title "Ok"
+                     :class "btn btn-default"
+                     :on-click #(close-modal)} "Ok"]
+   :close-fn close-modal})
+
+(defn process-create-article [db article]
+  (dispatch [:modal {:show? true
+                     :child (modal-template (article-create-success article))
+                     :size :small}])
+  db)
+
+(defn process-unsuccessful-article [db {:keys [response]}]
+  (dispatch [:modal {:show? true
+                     :child (modal-template (article-failure response))
+                     :size :small}])
+  db)

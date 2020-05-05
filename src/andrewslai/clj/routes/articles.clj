@@ -17,7 +17,7 @@
               (articles/get-full-article article-name))))
 
     (restrict
-      (POST "/:article-name" [article-name :as request]
+      (POST "/" request
         (ok (-> request
                 (get-in [:components :db])
                 (articles/create-full-article! (parse-body request)))))
