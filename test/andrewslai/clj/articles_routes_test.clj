@@ -89,5 +89,5 @@
                    (mock/request :get)
                    ((test-app)))]
           (is (= 200 status))
-          (is (= nil (parse-body response)))))))
-  )
+          (is (= "my-test-article"
+                 (:article-name (parse-body response)))))))))

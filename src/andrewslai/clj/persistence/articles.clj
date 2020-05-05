@@ -4,6 +4,7 @@
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
+            [clojure.spec.alpha :as s]
             [clojure.walk :refer [keywordize-keys]])
   (:import java.time.LocalDateTime))
 
@@ -45,12 +46,33 @@
       (str "get-content caught exception: " (.getMessage e)
            #_#_"postgres config: " (assoc (:database this):password "xxxxxx")))))
 
+(s/def ::article_name string?)
+(s/def ::title string?)
+(s/def ::article_tags string?)
+(s/def ::timestamp inst?)
+(s/def ::author string?)
+(s/def ::article_url string?)
+(s/def ::article_id integer?)
+(s/def ::content coll?)
+
+(s/def ::article (s/keys :req-un [::title
+                                  ::article_tags
+                                  ::author
+                                  ::timestamp
+                                  ::article_url
+                                  ::article_id
+                                  ::content]))
+
+(s/def ::full-article (s/keys :req-un [::article-name
+                                       ::article]))
+
 (defn -get-full-article [this article-name]
+  {:post [(s/valid? ::full-article %)]}
   (let [article (get-article-metadata this article-name)
         article-id (:article_id article)
         content (get-article-content this article-id)]
     {:article-name article-name
-     :article (assoc-in article [:content] content)}))
+     :article (assoc article :content content)}))
 
 (defn- -get-resume-info [this]
   (try
