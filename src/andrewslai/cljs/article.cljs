@@ -9,6 +9,13 @@
 (defn get-title [active-content]
   (get-in active-content [:article :title]))
 
+(defn get-timestamp [active-content]
+  (when-let [ts (get-in active-content [:article :timestamp])]
+    (.toLocaleDateString ts)))
+
+(defn get-author [active-content]
+  (get-in active-content [:article :author]))
+
 (defn get-content [active-content]
   (first (get-in active-content [:article :content])))
 
@@ -80,11 +87,17 @@
 (defn primary-content
   []
   (let [active-content (subscribe [:active-content])]
-    [:div#goodies
-     (format-title (get-title @active-content))
-     (format-content (get-content @active-content))
-     (insert-dynamic-js! (get-content @active-content))
-     ]))
+    (if @active-content
+      [:div#goodies
+       (format-title (get-title @active-content))
+       [:div.article-subheading (str "Author: "(get-author @active-content))]
+       [:div.article-subheading (get-timestamp @active-content)]
+       [:div.line]
+       [:br][:br]
+       (format-content (get-content @active-content))
+       (insert-dynamic-js! (get-content @active-content))
+       ]
+      [:div])))
 
 (comment
   (require '[re-frame.db :refer [app-db]])
