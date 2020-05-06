@@ -39,4 +39,6 @@
               :r 30
               :color "blue"}]
    :active-user nil
-   :avatar nil})
+   :avatar nil
+   :editor-data nil
+   :editor-metadata {}})

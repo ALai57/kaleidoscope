@@ -86,7 +86,7 @@
                               postgres/->Postgres
                               users/->UserDatabase)
                     :logging (merge log/*config* {:level :debug})
-                    :session {:cookie-attrs {:max-age 3600, :secure true}
+                    :session {:cookie-attrs {:max-age 3600}
                               :store (mem/memory-store (atom {}))}}))
 
 (defn -main [& _]

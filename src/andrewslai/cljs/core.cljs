@@ -8,6 +8,7 @@
             [andrewslai.cljs.events.articles]
             [andrewslai.cljs.events.login]
             [andrewslai.cljs.events.users]
+            [andrewslai.cljs.events.editor]
             [andrewslai.cljs.events.projects-portfolio]
             [andrewslai.cljs.subs]   ;; load them (see docs/App-Structure.md)
             [andrewslai.cljs.views]
