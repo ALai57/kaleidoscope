@@ -20,6 +20,7 @@
       (POST "/" request
         (ok (-> request
                 (get-in [:components :db])
-                (articles/create-full-article! (parse-body request)))))
+                (articles/create-full-article! (parse-body request))
+                first)))
       {:handler admin/is-authenticated?
        :on-error admin/access-error})))

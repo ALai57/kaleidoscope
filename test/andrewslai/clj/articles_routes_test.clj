@@ -12,7 +12,8 @@
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer [deftest is testing]]
             [ring.middleware.session.memory :as mem]
-            [ring.mock.request :as mock]))
+            [ring.mock.request :as mock]
+            [clojure.spec.alpha :as s]))
 
 (comment
   (jdbc/with-db-connection [db ptest/db-spec]
@@ -87,7 +88,8 @@
         (let [{:keys [status] :as response}
               ((test-app) (assoc-in request [:headers "cookie"] cookie))]
           (is (= 200 status))
-          (is (some? (parse-body response))))
+          (is (s/valid? :andrewslai.clj.persistence.articles/article
+                        (parse-body response))))
         (let [{:keys [status] :as response}
               (->> "/articles/my-test-article"
                    (mock/request :get)

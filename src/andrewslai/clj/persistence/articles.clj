@@ -49,7 +49,7 @@
 (s/def ::article_name string?)
 (s/def ::title string?)
 (s/def ::article_tags string?)
-(s/def ::timestamp inst?)
+(s/def ::timestamp (s/or :date inst? :string string?))
 (s/def ::author string?)
 (s/def ::article_url string?)
 (s/def ::article_id integer?)
@@ -60,8 +60,8 @@
                                   ::author
                                   ::timestamp
                                   ::article_url
-                                  ::article_id
-                                  ::content]))
+                                  ::article_id]
+                         :opt-un [::content]))
 
 (s/def ::full-article (s/keys :req-un [::article-name
                                        ::article]))
