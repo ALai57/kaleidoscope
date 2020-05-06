@@ -64,7 +64,10 @@
   :clean-targets ^{:protect false} [:target-path "resources/public/js/compiled"]
 
   :cljsbuild
-  {:builds
+  {:test-commands {"unit-tests" ["phantomjs"
+                                 "resources/test/phantom/runner.js"
+                                 "resources/test/test.html"]}
+   :builds
    {:dev {:source-paths ["src/andrewslai/cljs"]
           :figwheel {:open-urls ["http://localhost:3449/"]
                      :on-jsload "andrewslai.cljs.core/main"}
@@ -75,6 +78,13 @@
                      :output-dir "resources/public/js/compiled/out_andrewslai"
                      :source-map true
                      :source-map-timestamp true}}
+
+    :dev-test {:source-paths ["src/andrewslai/cljs" "test/andrewslai/cljs"]
+               :compiler {:asset-path "resources/public/js/test/out_andrewslai_test"
+                          :main andrewslai.cljs.core-test
+                          :optimizations :whitespace
+                          :output-to "resources/public/js/test/andrewslai_test.js"
+                          :output-dir "resources/public/js/test/out_andrewslai_test"}}
     :prod {:source-paths ["src/andrewslai/cljs"]
            :compiler {:main andrewslai.cljs.core
                       :asset-path "js/compiled/out_andrewslai"
@@ -98,10 +108,9 @@
                    [lein-kibit "0.1.8"]
                    [lein-ring "0.12.5"]]}
 
-   :prod {:source-paths ["src/andrewslai/cljs"]
-          :plugins [[lein-ancient "0.6.15"]
-                    [lein-bikeshed "0.5.2"]
-                    [lein-ring "0.12.5"]]}
+   :prod {:source-paths ["src/andrewslai/cljs"]}
+
+   :dev-test {:source-paths ["src/andrewslai/cljs" "test/andrewslai/cljs"]}
 
    :upload {:dependencies [[clj-postgresql "0.7.0"]
                            [prismatic/plumbing "0.5.5"]]

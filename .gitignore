@@ -12,6 +12,7 @@ node_modules
 package-lock.json
 package.json
 resources/public/js/compiled/
+resources/public/js/test/out_andrewslai_test/
 *eb-default-vpc.json
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
