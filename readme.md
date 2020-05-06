@@ -1,27 +1,42 @@
+# My personal website!  
+### Also a blogging platform (in the works). 
 
-This is my personal website - Clojure backend Clojurescript front end (React)
-The app runs on Java 11, inside a Docker container
+  Backend: Dockerized Clojure, Java 11.  
+Front end: Clojurescript (React/Re-frame)
+  
+  
+### Architecture: 
+- Not quite RESTful service (breaks some RESTful principles)
+- Ring server, Compojure routing. 
+- Postgres DB (AWS RDS). 
+- Re-frame SPA
 
 
-The website includes:
-- Server with handler
-- Postgres backend (AWS RDS)
-- Single page React app with navigation between screens
+# Deployment
 
-
-*** PREREQUISITES
-INSTALL NPM: Must have NPM installed to manage JS dependencies.
-
-On Ubuntu::
+CREATE ELASTIC BEANSTALK ENVIRONMENT
 ```
-sudo apt-get update
-sudo apt-get install npm
+aws elasticbeanstalk create-environment \
+    --application-name andrewslai \
+    --environment-name staging \
+    --solution-stack-name "64bit Amazon Linux 2018.03 v2.12.14 running Docker 18.06.1-ce" \
+    --region us-east-1
+    --option-settings file://eb-default-vpc.json
 ```
 
+MODIFY RESUME CARDS HORRIBLE HACK:
+`cider-jack-in-with-profile upload`
+in the articles.clj namespace, look at comment at bottom of file
+use this to update the database - but be careful! It overwrites
+existing DB and repopulates from scratch.
 
-*** Development environment
+TERRAFORM
+`terraform plan -var-file=andrewslai_secrets.tfvars`
 
-CIDER - Editor configuration
+
+# Helpful commands
+
+CIDER JACK IN WITH PROFILE
 ```
 (defun cider-jack-in-with-profile ()
   (interactive)
@@ -40,32 +55,6 @@ EMACS AND REPL/FIGWHEEL
 (cljs-repl "dev")
 ```
 
-
-
-*** Deployment
-
-CREATE ELASTIC BEANSTALK ENVIRONMENT
-```
-aws elasticbeanstalk create-environment \
-    --application-name andrewslai \
-    --environment-name staging \
-    --solution-stack-name "64bit Amazon Linux 2018.03 v2.12.14 running Docker 18.06.1-ce" \
-    --region us-east-1
-    --option-settings file://eb-default-vpc.json
-```
-
-MODIFY RESUME CARDS:
-`cider-jack-in-with-profile upload`
-in the db.clj namespace, look at comment at bottom of file
-use this to update the database - but be careful! It overwrites
-existing DB and repopulates from scratch.
-
-TERRAFORM
-`terraform plan -var-file=andrewslai_secrets.tfvars`
-
-
-*** HELPFUL COMMANDS
-
 DOCKER
 ```
 docker build -t andrewslai .
@@ -81,19 +70,6 @@ eb platform show
 eb ssh staging
 ```
 
-POSTGRES
-
-*Modify default postgres user password*
-- edit pg_hba.conf and modify to "trust"
-- stop service `service postgres stop`
-- `service postgres start`
-- login to psql: `sudo su - postgres`
-```
-psql
-ALTER USER posautocompletetgres WITH PASSWORD xxxxxxxx;
-```
-
-
 PSQL:
 
 ```
@@ -104,12 +80,15 @@ PSQL:
    select schema_name from information_schema.schemata;
 ```
 
+POSTGRES - MODIFYING DEFAULT POSTGRES USER PASSWORD
 
-###### TO DO
-## Modify default data in database so that HTML is directly saved in DB
-## Modify the cljs code to recognize new data format
-## Get JS working on load (component did mount)
-## Figure out why localhost has different landing page from website
-## Modify AWS DB and deploy new code to website;;
+- edit pg_hba.conf and modify to "trust". 
+- stop service `service postgres stop`. 
+- `service postgres start`. 
+- login to psql: `sudo su - postgres`. 
+```
+psql
+ALTER USER posautocompletetgres WITH PASSWORD xxxxxxxx;
+```
 
-## Start writing articles about building an OS
+
