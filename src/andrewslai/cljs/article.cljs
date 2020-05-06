@@ -6,19 +6,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helper functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn get-title [active-content]
-  (get-in active-content [:article :title]))
 
-(defn get-timestamp [active-content]
+(defn format-timestamp [active-content]
   (when-let [ts (get-in active-content [:article :timestamp])]
     (.toLocaleDateString ts)))
-
-(defn get-author [active-content]
-  (get-in active-content [:article :author]))
-
-(defn get-content [active-content]
-  (first (get-in active-content [:article :content])))
-
 
 (defn string->tokens
   "Takes a string with syles and parses it into properties and value tokens"
@@ -86,17 +77,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn primary-content
   []
-  (let [active-content (subscribe [:active-content])]
-    (if @active-content
+  (let [{{:keys [article timestamp author title content]} :article
+         :as active-content} @(subscribe [:active-content])]
+    (if active-content
       [:div#goodies
-       (format-title (get-title @active-content))
-       [:div.article-subheading (str "Author: "(get-author @active-content))]
-       [:div.article-subheading (get-timestamp @active-content)]
+       [:h2.article-title title]
+       [:div.article-subheading (str "Author: " author)]
+       [:div.article-subheading (format-timestamp active-content)]
        [:div.line]
        [:br][:br]
-       (format-content (get-content @active-content))
-       (insert-dynamic-js! (get-content @active-content))
-       ]
+       (format-content (first content))
+       (insert-dynamic-js! (first content))]
       [:div])))
 
 (comment
