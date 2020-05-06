@@ -64,6 +64,11 @@
   :editor-data
   (fn [db]
     (:editor-data db)))
+
+(reg-sub
+  :editor-metadata
+  (fn [db]
+    (:editor-metadata db)))
 ;; -------------------------------------------------------------------------------------
 ;; Layer 3:: Subscription handler
 ;;

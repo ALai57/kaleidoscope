@@ -40,4 +40,5 @@
               :color "blue"}]
    :active-user nil
    :avatar nil
-   :editor-data nil})
+   :editor-data nil
+   :editor-metadata {}})
