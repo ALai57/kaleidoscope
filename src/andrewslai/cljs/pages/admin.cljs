@@ -1,6 +1,7 @@
 (ns andrewslai.cljs.pages.admin
   (:require [ajax.core :refer [POST]]
             [andrewslai.cljs.navbar :as nav]
+            [andrewslai.cljs.server-comms.login :as login-comms]
             [andrewslai.cljs.modal :refer [close-modal modal-template] :as modal]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]
@@ -13,19 +14,11 @@
         (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
     @m))
 
-(comment
-  (-> "_**asdfjekdCkzixcovh;e33h4383k3llsh"
-      js/zxcvbn
-      (js->clj :keywordize-keys true)
-      (select-keys [:score :feedback]))
-  )
-
 ;; TODO: Make sure refreshing the page doesn't clobber the authentication
 (defn login-form []
   [:div.login-wrapper
    [:div.login-frame
-    [:div.login-header
-     [:h1 "Welcome!"]]
+    [:div.login-header [:h1 "Welcome!"]]
     [:form {:id "login-form"}
      [:input {:type "text"
               :placeholder "Username"
@@ -39,16 +32,7 @@
      [:input.btn-primary
       {:type "button"
        :value "Login"
-       :on-click
-       (fn [event]
-         (let [{:keys [username password] :as creds}
-               (form-data->map "login-form")]
-           (POST "/login"
-               {:params creds
-                :format :json
-                :handler (fn [response] (dispatch [:login response]))
-                :error-handler
-                (fn [] (dispatch [:invalid-login username]))})))}]
+       :on-click (fn [& args] (login-comms/login (form-data->map "login-form")))}]
      [:br]
      [:br]
      [:input.btn-secondary
@@ -58,7 +42,7 @@
      [:br]
      [:br]]]])
 
-(defn editable-text-input [field-name title initial-value & description]
+(defn text-input [field-name title initial-value & description]
   [:dl.form-group
    [:dt [:label {:for field-name} title]]
    [:dd [:input.form-control {:type "text"
@@ -94,8 +78,6 @@
     (.readAsDataURL file-reader file)))
 
 
-
-
 (defn confirm-delete-user [username]
   {:title (str "Really delete user: " username "?")
    :body [:div
@@ -121,7 +103,7 @@
 
 
 (defn user-profile [{:keys [avatar_url username first_name last_name email] :as user}]
-  [:div {:style {:margin "20px"}}
+  [:div.user-profile-wrapper
    [:form {:id "profile-update-form"
            :method :post
            :action "/echo"}
@@ -160,8 +142,8 @@
      [:note "Cannot be modified"]]
     [:br]
     [:br]
-    [editable-text-input "first_name" "First Name" first_name]
-    [editable-text-input "last_name" "Last Name" last_name]
+    [text-input "first_name" "First Name" first_name]
+    [text-input "last_name" "Last Name" last_name]
     [:br]
     [:br]
     [:input.btn-primary
@@ -193,13 +175,12 @@
        [login-form])]))
 
 (defn register-user []
-  [:div {:style {:margin "20px"}}
+  [:div.user-profile-wrapper
    [:form {:id "registration-form"
            :method :post
            :action "/echo"}
-    [:img {:id "avatar-preview"
-           :src "/images/smiley_emoji.png"
-           :style {:width "100px"}}]
+    [:img.avatar-thumbnail {:id "avatar-preview"
+                            :src "/images/smiley_emoji.png"}]
     [:input.btn-primary
      {:type "file"
       :accept "image/png"
@@ -212,9 +193,9 @@
      [:dd [:input.form-control {:type "text"
                                 :name "username"
                                 :defaultValue ""}]]]
-    [editable-text-input "first_name" "First Name" ""]
-    [editable-text-input "last_name" "Last Name" ""]
-    [editable-text-input "email" "Email" ""]
+    [text-input "first_name" "First Name" ""]
+    [text-input "last_name" "Last Name" ""]
+    [text-input "email" "Email" ""]
     [:input {:type "password"
              :placeholder "Password"
              :name "password"}]
@@ -232,3 +213,11 @@
    [:br]
    [:div
     [register-user]]])
+
+;; For checking passwords client side
+(comment
+  (-> "_**asdfjekdCkzixcovh;e33h4383k3llsh"
+      js/zxcvbn
+      (js->clj :keywordize-keys true)
+      (select-keys [:score :feedback]))
+  )

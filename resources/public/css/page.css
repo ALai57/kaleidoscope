@@ -276,3 +276,11 @@ pre {
 .login-header {
     background-color: #5EADCA;
 }
+
+.user-profile-wrapper {
+    margin: 20px;
+}
+
+.avatar-thumbnail {
+    width: 100px;
+}
