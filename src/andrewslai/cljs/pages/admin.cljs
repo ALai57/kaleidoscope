@@ -6,7 +6,7 @@
             [re-frame.core :refer [dispatch subscribe]]
             [cljsjs.zxcvbn :as zxcvbn]))
 
-(defn login-data->map [form-id]
+(defn form-data->map [form-id]
   (let [m (atom {})]
     (-> js/FormData
         (new (.getElementById js/document form-id))
@@ -48,7 +48,7 @@
        :on-click
        (fn [event]
          (let [{:keys [username password] :as creds}
-               (login-data->map "login-form")]
+               (form-data->map "login-form")]
            (POST "/login"
                {:params creds
                 :format :json
@@ -73,16 +73,15 @@
    (when description
      [:note (first description)])])
 
-(defn form-data->map [form-id]
-  (let [m (atom {})
+(defn registration-data->map [form-id]
+  (let [m (atom (form-data->map form-id))
+
         avatar (-> js/document
                    (.getElementById "avatar-preview")
                    (aget "src")
                    (clojure.string/split ",")
                    second)]
-    (-> js/FormData
-        (new (.getElementById js/document form-id))
-        (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
+
     (if avatar
       (swap! m assoc :avatar avatar)
       (swap! m dissoc :avatar))
@@ -90,6 +89,7 @@
 
 
 (defn load-image [file-added-event]
+
   (let [file (first (array-seq (.. file-added-event -target -files)))
         file-reader (js/FileReader.)]
     (set! (.-onload file-reader)
@@ -100,12 +100,7 @@
     (.readAsDataURL file-reader file)))
 
 
-(defn delete-data->map [form-id]
-  (let [m (atom {})]
-    (-> js/FormData
-        (new (.getElementById js/document form-id))
-        (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
-    @m))
+
 
 (defn confirm-delete-user [username]
   {:title (str "Really delete user: " username "?")
@@ -124,7 +119,7 @@
             [:input {:type "button"
                      :value "Delete user"
                      :onClick (fn [event]
-                                (dispatch [:delete-user (delete-data->map "delete-user-input")]))}]]]]
+                                (dispatch [:delete-user (form-data->map "delete-user-input")]))}]]]]
    :footer [:button {:type "button" :title "Cancel"
                      :class "btn btn-default"
                      :on-click #(close-modal)} "Close"]
@@ -180,7 +175,7 @@
       :value "Update profile"
       :onClick
       (fn [& args]
-        (dispatch [:update-profile (form-data->map "profile-update-form")]))}]
+        (dispatch [:update-profile (registration-data->map "profile-update-form")]))}]
     [:input.btn-secondary
      {:type "button"
       :value "Logout"
@@ -235,7 +230,7 @@
       :value "Create user!"
       :on-click
       (fn [& args]
-        (dispatch [:register-user (form-data->map "registration-form")]))}]]])
+        (dispatch [:register-user (registration-data->map "registration-form")]))}]]])
 
 (defn registration-ui []
   [:div
