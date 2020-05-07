@@ -83,12 +83,13 @@
   (let [html (.serialize html-serializer model)]
     {:html html}))
 
+(defn editor-text-changed [db [_ new-value]]
+  (let [serialized-text (editor-model->clj new-value)]
+    (assoc db :editor-data new-value)))
+
 (reg-event-db
   :editor-text-changed
-  (fn [db [_ new-value]]
-    (let [serialized-text (editor-model->clj new-value)]
-      #_(println serialized-text)
-      (assoc db :editor-data new-value))))
+  editor-text-changed)
 
 (reg-event-db
   :editor-metadata-changed

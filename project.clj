@@ -46,7 +46,8 @@
                  [com.taoensso/timbre "4.10.0"]]
 
   :plugins [[lein-figwheel "0.5.19"]
-            [lein-cljsbuild "1.1.7"]]
+            [lein-cljsbuild "1.1.7"]
+            [lein-doo "0.1.10"]]
 
   ;; Used to make this compatible with Java 11
   :managed-dependencies [[org.clojure/core.rrb-vector "0.1.1"]
@@ -62,6 +63,8 @@
   :figwheel {:ring-handler andrewslai.clj.handler/app
              :css-dirs ["resources/public/css"]}
   :clean-targets ^{:protect false} [:target-path "resources/public/js/compiled"]
+
+  :doo {:paths {:karma "node_modules/karma/bin/karma"}}
 
   :cljsbuild
   {:test-commands {"unit-tests" ["phantomjs"
@@ -81,7 +84,7 @@
 
     :dev-test {:source-paths ["src/andrewslai/cljs" "test/andrewslai/cljs"]
                :compiler {:asset-path "resources/public/js/test/out_andrewslai_test"
-                          :main andrewslai.cljs.core-test
+                          :main andrewslai.cljs.test-runner
                           :optimizations :whitespace
                           :output-to "resources/public/js/test/andrewslai_test.js"
                           :output-dir "resources/public/js/test/out_andrewslai_test"}}

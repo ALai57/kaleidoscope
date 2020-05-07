@@ -1,5 +1,6 @@
 (ns andrewslai.cljs.pages.admin
-  (:require [andrewslai.cljs.navbar :as nav]
+  (:require [ajax.core :refer [POST]]
+            [andrewslai.cljs.navbar :as nav]
             [andrewslai.cljs.modal :refer [close-modal modal-template] :as modal]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]
@@ -44,8 +45,17 @@
      [:input.btn-primary
       {:type "button"
        :value "Login"
-       :onClick (fn [event]
-                  (dispatch [:login-click (login-data->map "login-form")]))}]
+       :on-click
+       (fn [event]
+         (let [{:keys [username password] :as creds}
+               (login-data->map "login-form")]
+
+           (POST "/login"
+               {:params creds
+                :format :json
+                :handler (fn [] (dispatch [:login]))
+                :error-handler
+                (fn [] (dispatch [:invalid-login username]))})))}]
      [:br]
      [:br]
      [:input.btn-secondary
@@ -176,7 +186,11 @@
      {:type "button"
       :value "Logout"
       :style {:float "right"}
-      :onClick (fn [& args] (dispatch [:logout]))}]]])
+      :on-click
+      (fn [& args]
+        (POST "/logout"
+            {:handler (fn [] (dispatch [:logout]))
+             :error-handler (fn [] (dispatch [:logout]))}))}]]])
 
 
 ;; TODO: Make user login timeout, so after 30 mins or so you can't see
@@ -220,7 +234,7 @@
     [:input.btn-primary
      {:type "button"
       :value "Create user!"
-      :onClick
+      :on-click
       (fn [& args]
         (dispatch [:register-user (form-data->map "registration-form")]))}]]])
 
