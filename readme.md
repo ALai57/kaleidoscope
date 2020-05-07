@@ -12,6 +12,13 @@ Front end: Clojurescript (React/Re-frame)
 - Re-frame SPA
 
 
+# Tests
+
+CLOJURESCRIPT
+```
+lein doo chrome-headless dev-test
+```
+
 # Deployment
 
 CREATE ELASTIC BEANSTALK ENVIRONMENT

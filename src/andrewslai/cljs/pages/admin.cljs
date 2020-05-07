@@ -49,11 +49,10 @@
        (fn [event]
          (let [{:keys [username password] :as creds}
                (login-data->map "login-form")]
-
            (POST "/login"
                {:params creds
                 :format :json
-                :handler (fn [] (dispatch [:login]))
+                :handler (fn [response] (dispatch [:login response]))
                 :error-handler
                 (fn [] (dispatch [:invalid-login username]))})))}]
      [:br]

@@ -64,37 +64,39 @@
              :css-dirs ["resources/public/css"]}
   :clean-targets ^{:protect false} [:target-path "resources/public/js/compiled"]
 
-  :doo {:paths {:karma "node_modules/karma/bin/karma"}}
+  ;; See lein-doo documentation for installing Karma test runner
+  :doo {:paths {:karma "test_runner/node_modules/karma/bin/karma"}}
 
   :cljsbuild
-  {:test-commands {"unit-tests" ["phantomjs"
-                                 "resources/test/phantom/runner.js"
-                                 "resources/test/test.html"]}
-   :builds
-   {:dev {:source-paths ["src/andrewslai/cljs"]
-          :figwheel {:open-urls ["http://localhost:3449/"]
-                     :on-jsload "andrewslai.cljs.core/main"}
-          :compiler {:main andrewslai.cljs.core
-                     :asset-path "js/compiled/out_andrewslai"
-                     :optimizations :none
-                     :output-to "resources/public/js/compiled/andrewslai.js"
-                     :output-dir "resources/public/js/compiled/out_andrewslai"
-                     :source-map true
-                     :source-map-timestamp true}}
+  {:builds
+   {:dev
+    {:source-paths ["src/andrewslai/cljs"]
+     :figwheel {:open-urls ["http://localhost:3449/"]
+                :on-jsload "andrewslai.cljs.core/main"}
+     :compiler {:main andrewslai.cljs.core
+                :asset-path "js/compiled/out_andrewslai"
+                :optimizations :none
+                :output-to "resources/public/js/compiled/andrewslai.js"
+                :output-dir "resources/public/js/compiled/out_andrewslai"
+                :source-map true
+                :source-map-timestamp true}}
 
-    :dev-test {:source-paths ["src/andrewslai/cljs" "test/andrewslai/cljs"]
-               :compiler {:asset-path "resources/public/js/test/out_andrewslai_test"
-                          :main andrewslai.cljs.test-runner
-                          :optimizations :whitespace
-                          :output-to "resources/public/js/test/andrewslai_test.js"
-                          :output-dir "resources/public/js/test/out_andrewslai_test"}}
-    :prod {:source-paths ["src/andrewslai/cljs"]
-           :compiler {:main andrewslai.cljs.core
-                      :asset-path "js/compiled/out_andrewslai"
-                      :optimizations :advanced
-                      :output-to "resources/public/js/compiled/andrewslai.js"
-                      :output-dir "resources/public/js/compiled/out_prod"
-                      :source-map-timestamp true}}}
+    :dev-test
+    {:source-paths ["src/andrewslai/cljs" "test/andrewslai/cljs"]
+     :compiler {:asset-path "resources/public/js/test/out_andrewslai_test"
+                :main andrewslai.cljs.test-runner
+                :optimizations :whitespace
+                :output-to "resources/public/js/test/andrewslai_test.js"
+                :output-dir "resources/public/js/test/out_andrewslai_test"}}
+
+    :prod
+    {:source-paths ["src/andrewslai/cljs"]
+     :compiler {:main andrewslai.cljs.core
+                :asset-path "js/compiled/out_andrewslai"
+                :optimizations :advanced
+                :output-to "resources/public/js/compiled/andrewslai.js"
+                :output-dir "resources/public/js/compiled/out_prod"
+                :source-map-timestamp true}}}
 
    }
 
