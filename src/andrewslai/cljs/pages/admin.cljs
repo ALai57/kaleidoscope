@@ -22,15 +22,9 @@
 
 ;; TODO: Make sure refreshing the page doesn't clobber the authentication
 (defn login-form []
-  [:div {:style {:text-align "center"
-                 :margin "20px"}}
-   [:div {:style {:display "inline-block"
-                  :min-width "500px"
-                  :border-color "black"
-                  :border-style "ridge"
-                  :border-width "thin"}}
-    [:div {:class "panel-heading"
-           :style {:background-color "#5EADCA"}}
+  [:div.login-wrapper
+   [:div.login-frame
+    [:div.login-header
      [:h1 "Welcome!"]]
     [:form {:id "login-form"}
      [:input {:type "text"

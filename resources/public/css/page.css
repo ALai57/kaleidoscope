@@ -258,3 +258,21 @@ pre {
 .slatejs-text-editor {
     box-shadow: inset 1px 1px 5px 0px;
 }
+
+
+.login-wrapper {
+    text-align: center;
+    margin: 20px;
+}
+
+.login-frame {
+    display: inline-block;
+    min-width: 500px;
+    border-color: black;
+    border-style: ridge;
+    border-width: thin;
+}
+
+.login-header {
+    background-color: #5EADCA;
+}
