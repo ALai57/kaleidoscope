@@ -14,14 +14,6 @@
 ;; TODO: Support avatar uploads in this function too. Right now it will be
 ;;       unhappy/unable to support conversion of an avatar image into a blob
 
-#_(defn process-profile-update [db {:keys [avatar_url] :as user}]
-    (dispatch [:modal {:show? true
-                       :child (modal-template (profile-update-success))
-                       :size :small}])
-    (let [now (.getTime (js/Date.))
-          avatar_url {:avatar_url (str avatar_url "?" now)}]
-      (assoc db :user (merge (:user db) user avatar_url))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for logging in

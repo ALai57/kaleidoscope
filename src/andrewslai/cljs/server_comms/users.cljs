@@ -10,6 +10,12 @@
             [re-frame.core :refer [dispatch]]
             [clojure.string :as str]))
 
+(defprotocol UserOperations
+  (login-u [_ creds])
+  (logout-u [_])
+  (register [_ user])
+  (delete [_ creds])
+  (update-u [_ changes]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Login/logout
@@ -23,9 +29,7 @@
          (dispatch [:load-user-profile response]))
        :error-handler
        (fn [response]
-         (dispatch [:modal {:show? true
-                            :child (login-failure-modal username)
-                            :size :small}]))}))
+         (dispatch [:show-modal (login-failure-modal username)]))}))
 
 (defn logout []
   (POST "/logout"
@@ -42,15 +46,11 @@
        :format :json
        :handler
        (fn []
-         (dispatch [:modal {:show? true
-                            :child (registration-success-modal user)
-                            :size :small}])
+         (dispatch [:show-modal (registration-success-modal user)])
          (dispatch [:set-active-panel :admin]))
        :error-handler
        (fn [response]
-         (dispatch [:modal {:show? true
-                            :child (registration-failure-modal response)
-                            :size :small}]))}))
+         (dispatch [:show-modal (registration-failure-modal response)]))}))
 
 (defn delete-user [{:keys [username] :as user}]
   (DELETE (str "/users/" username)
@@ -58,15 +58,11 @@
        :format :json
        :handler
        (fn []
-         (dispatch [:modal {:show? true
-                            :child (delete-success-modal user)
-                            :size :small}])
+         (dispatch [:show-modal (delete-success-modal user)])
          (dispatch [:logout]))
        :error-handler
        (fn []
-         (dispatch [:modal {:show? true
-                            :child (delete-failure-modal user)
-                            :size :small}]))}) )
+         (dispatch [:show-modal (delete-failure-modal user)]))}) )
 
 (defn get-user [username & [callback]]
   (GET (str "/users/" username)
@@ -83,14 +79,23 @@
        :format :json
        :handler
        (fn [user]
-         (dispatch [:modal {:show? true
-                            :child (update-success-modal)
-                            :size :small}])
+         (dispatch [:show-modal (update-success-modal)])
          ;; TODO: DO SOMETHING WITH BROWSER CACHING
          (get-user username (fn [user] (dispatch [:load-user-profile user]))))
 
        :error-handler
        (fn [response]
-         (dispatch [:modal {:show? true
-                            :child (update-failure-modal response)
-                            :size :small}]))}))
+         (dispatch [:show-modal (update-failure-modal response)]))}))
+
+(defn user-ops []
+  (reify UserOperations
+    #_(login [_ creds]
+        (-login))
+    #_(logout [_]
+        (-logout))
+    (register [_ user]
+      (register-user user))
+    (delete [_ creds]
+      (delete-user creds))
+    (update-u [_ changes]
+      (update-user changes))))

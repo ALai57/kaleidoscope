@@ -67,7 +67,6 @@
 
 
 (defn load-image [file-added-event]
-
   (let [file (first (array-seq (.. file-added-event -target -files)))
         file-reader (js/FileReader.)]
     (set! (.-onload file-reader)
@@ -79,24 +78,25 @@
 
 (defn confirm-delete-user [username]
   {:title (str "Really delete user: " username "?")
-   :body [:div
-          [:p "If you really want to delete user, enter credentials below to confirm"]
-          [:div {:style {:text-align "center"}}
-           [:form {:id "delete-user-input"}
-            [:input {:type "text"
-                     :placeholder "Username"
-                     :name "username"}]
-            [:br]
-            [:input {:type "password"
-                     :placeholder "Password"
-                     :name "password"}]
-            [:br]
-            [:input
-             {:type "button"
-              :value "Delete user"
-              :on-click
-              (fn [event]
-                (user-comms/delete-user (form-data->map "delete-user-input")))}]]]]
+   :body
+   [:div
+    [:p "If you really want to delete user, enter credentials below to confirm"]
+    [:div {:style {:text-align "center"}}
+     [:form {:id "delete-user-input"}
+      [:input {:type "text"
+               :placeholder "Username"
+               :name "username"}]
+      [:br]
+      [:input {:type "password"
+               :placeholder "Password"
+               :name "password"}]
+      [:br]
+      [:input
+       {:type "button"
+        :value "Delete user"
+        :on-click
+        (fn [event]
+          (user-comms/delete-user (form-data->map "delete-user-input")))}]]]]
    :footer [:button {:type "button" :title "Cancel"
                      :class "btn btn-default"
                      :on-click #(close-modal)} "Close"]
@@ -112,10 +112,9 @@
      {:type "button"
       :value "Delete user"
       :style {:float "right"}
-      :onClick (fn [& args]
-                 (dispatch [:modal {:show? true?
-                                    :child (modal-template (confirm-delete-user username))
-                                    :size :small}]))}]
+      :on-click
+      (fn [& args]
+        (dispatch [:show-modal (modal-template (confirm-delete-user username))]))}]
     [:img {:src avatar_url
            :style {:width "100px"}}]
     [:img {:id "avatar-preview"

@@ -20,6 +20,12 @@
     (assoc-in db [:modal] data)))
 
 (reg-event-db
+  :show-modal
+  (fn [db [_ data]]
+    (assoc-in db [:modal] {:show? true
+                           :child data})))
+
+(reg-event-db
   :process-http-response
   (fn [db [_ response processing-fn]]
     (processing-fn db response)))
