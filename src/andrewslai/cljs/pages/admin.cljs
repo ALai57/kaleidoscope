@@ -32,7 +32,7 @@
      [:input.btn-primary
       {:type "button"
        :value "Login"
-       :on-click (fn [& args] (login-comms/login (form-data->map "login-form")))}]
+       :on-click (fn [& xs] (login-comms/login (form-data->map "login-form")))}]
      [:br]
      [:br]
      [:input.btn-secondary
@@ -73,8 +73,7 @@
     (set! (.-onload file-reader)
           (fn [file-load-event]
             (let [preview (.getElementById js/document "avatar-preview")]
-              (aset preview "src" (-> file-load-event .-target .-result)))
-            #_(reset! preview-src (-> file-load-event .-target .-result))))
+              (aset preview "src" (-> file-load-event .-target .-result)))))
     (.readAsDataURL file-reader file)))
 
 
@@ -92,10 +91,18 @@
                      :placeholder "Password"
                      :name "password"}]
             [:br]
-            [:input {:type "button"
-                     :value "Delete user"
-                     :onClick (fn [event]
-                                (dispatch [:delete-user (form-data->map "delete-user-input")]))}]]]]
+            [:input
+             {:type "button"
+              :value "Delete user"
+              :on-click
+              (fn [event]
+                (let [{:keys [username] :as user}
+                      (form-data->map "delete-user-input")]
+                  (DELETE (str "/users/" username)
+                      {:params  user
+                       :format :json
+                       :handler #(dispatch [:user-deleted username])
+                       :error-handler #(dispatch [:user-delete-failed username])})))}]]]]
    :footer [:button {:type "button" :title "Cancel"
                      :class "btn btn-default"
                      :on-click #(close-modal)} "Close"]
@@ -205,7 +212,7 @@
       :value "Create user!"
       :on-click
       (fn [& args]
-        (dispatch [:register-user (registration-data->map "registration-form")]))}]]])
+        (user-comms/register (registration-data->map "registration-form")))}]]])
 
 (defn registration-ui []
   [:div

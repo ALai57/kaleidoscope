@@ -70,60 +70,23 @@
 (def IllegalArgumentEx :andrewslai.clj.persistence.users/IllegalArgumentException)
 (def PSQLEx :andrewslai.clj.persistence.users/PSQLException)
 
-(defn registration-failure [{:keys [message type] :as payload}]
-  (let [feedback (get message :feedback)
-        reasons (get message :data)]
-    {:title "User registration failed!"
-     :body [:div {:style {:overflow-wrap "break-word"}}
-            [:p [:b "Registration unsuccessful."]]
-            [:p type]
-            [:br]
-            [:p (str feedback)]
-            [:br]
-            [:p reasons]]
-     :footer [:button {:type "button" :title "Ok"
-                       :class "btn btn-default"
-                       :on-click #(close-modal)} "Ok"]
-     :close-fn close-modal}))
-
-
-(defn registration-success [{:keys [avatar_url username]}]
-  {:title "Successful user registration!"
+(defn delete-success [username]
+  {:title "User successfully deleted!"
    :body [:div
-          [:img {:src avatar_url :style {:width "100px"}}]
           [:br]
           [:div [:p [:b "Username: "] username]]]
    :footer [:button {:type "button" :title "Ok"
                      :class "btn btn-default"
                      :on-click #(close-modal)} "Ok"]
    :close-fn close-modal})
-
-(defn process-register-user [db user]
+(defn user-deleted [db [_ username]]
   (dispatch [:modal {:show? true
-                     :child (modal-template (registration-success user))
+                     :child (modal-template (delete-success username))
                      :size :small}])
-  (dispatch [:set-active-panel :admin])
-  db)
-
-(defn process-unsuccessful-registration [db {:keys [response]}]
-  (dispatch [:modal {:show? true
-                     :child (modal-template (registration-failure response))
-                     :size :small}])
-  db)
-
+  (assoc db :user nil))
 (reg-event-db
-  :register-user
-  (fn [db [_ user]]
-
-    (POST "/users/"
-        {:params user
-         :format :json
-         :handler #(dispatch [:process-http-response % process-register-user])
-         :error-handler #(dispatch [:process-http-response % process-unsuccessful-registration])})
-
-    db))
-
-
+  :user-deleted
+  user-deleted)
 
 (defn delete-failure [username]
   {:title "Unable to delete user"
@@ -135,38 +98,11 @@
                      :class "btn btn-default"
                      :on-click #(close-modal)} "Ok"]
    :close-fn close-modal})
-
-
-(defn delete-success [username]
-  {:title "User successfully deleted!"
-   :body [:div
-          [:br]
-          [:div [:p [:b "Username: "] username]]]
-   :footer [:button {:type "button" :title "Ok"
-                     :class "btn btn-default"
-                     :on-click #(close-modal)} "Ok"]
-   :close-fn close-modal})
-
-
-(defn process-successful-delete [db username]
-  (dispatch [:modal {:show? true
-                     :child (modal-template (delete-success username))
-                     :size :small}])
-  (assoc db :user nil))
-
-(defn process-unsuccessful-delete [db username]
+(defn user-delete-failed [db username]
   (dispatch [:modal {:show? true
                      :child (modal-template (delete-failure username))
                      :size :small}])
   db)
-
 (reg-event-db
-  :delete-user
-  (fn [db [_ {:keys [username] :as user}]]
-    (DELETE (str "/users/" username)
-        {:params user
-         :format :json
-         :handler #(dispatch [:process-http-response username process-successful-delete])
-         :error-handler #(dispatch [:process-http-response username process-unsuccessful-delete])})
-
-    db))
+  :user-delete-failed
+  user-delete-failed)
