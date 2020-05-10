@@ -1,7 +1,7 @@
 (ns andrewslai.cljs.pages.admin
   (:require [ajax.core :refer [POST]]
             [andrewslai.cljs.navbar :as nav]
-            [andrewslai.cljs.server-comms.login :as login-comms]
+            [andrewslai.cljs.server-comms.users :as user-comms]
             [andrewslai.cljs.modal :refer [close-modal modal-template] :as modal]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]
@@ -32,7 +32,7 @@
      [:input.btn-primary
       {:type "button"
        :value "Login"
-       :on-click (fn [& xs] (login-comms/login (form-data->map "login-form")))}]
+       :on-click (fn [& xs] (user-comms/login (form-data->map "login-form")))}]
      [:br]
      [:br]
      [:input.btn-secondary
@@ -96,13 +96,7 @@
               :value "Delete user"
               :on-click
               (fn [event]
-                (let [{:keys [username] :as user}
-                      (form-data->map "delete-user-input")]
-                  (DELETE (str "/users/" username)
-                      {:params  user
-                       :format :json
-                       :handler #(dispatch [:user-deleted username])
-                       :error-handler #(dispatch [:user-delete-failed username])})))}]]]]
+                (user-comms/delete-user (form-data->map "delete-user-input")))}]]]]
    :footer [:button {:type "button" :title "Cancel"
                      :class "btn btn-default"
                      :on-click #(close-modal)} "Close"]
@@ -158,16 +152,14 @@
       :value "Update profile"
       :onClick
       (fn [& args]
-        (dispatch [:update-profile (registration-data->map "profile-update-form")]))}]
+        (user-comms/update-user (registration-data->map "profile-update-form")))}]
     [:input.btn-secondary
      {:type "button"
       :value "Logout"
       :style {:float "right"}
       :on-click
       (fn [& args]
-        (POST "/logout"
-            {:handler (fn [] (dispatch [:logout]))
-             :error-handler (fn [] (dispatch [:logout]))}))}]]])
+        (user-comms/logout))}]]])
 
 
 ;; TODO: Make user login timeout, so after 30 mins or so you can't see
@@ -212,7 +204,7 @@
       :value "Create user!"
       :on-click
       (fn [& args]
-        (user-comms/register (registration-data->map "registration-form")))}]]])
+        (user-comms/register-user (registration-data->map "registration-form")))}]]])
 
 (defn registration-ui []
   [:div
