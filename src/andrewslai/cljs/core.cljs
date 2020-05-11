@@ -4,6 +4,7 @@
             [reagent.dom :refer [render]]
             [re-frame.core :refer [dispatch dispatch-sync]]
             [secretary.core :as secretary]
+            [andrewslai.cljs.server-comms.articles :as article-comms]
             [andrewslai.cljs.events.core] ;; required to make the compiler
             [andrewslai.cljs.events.articles]
             [andrewslai.cljs.events.users]
@@ -19,6 +20,7 @@
 
 (dispatch-sync [:initialize-db])
 (dispatch-sync [:retrieve-resume-info])
+(article-comms/get-articles 5)
 
 ;; -- Debugging aids ----------------------------------------------------------
 ;;(devtools/install!)       ;; https://github.com/binaryage/cljs-devtools
@@ -31,7 +33,8 @@
 (defroute "/:path" [path]
   (dispatch [:set-active-panel (keyword path)]))
 (defroute "/:path/content/:content-name" [path content-name]
-  (dispatch [:retrieve-content (keyword path) (keyword content-name)]))
+  (dispatch [:set-active-panel (keyword path)])
+  (article-comms/get-article content-name))
 
 
 (def history
