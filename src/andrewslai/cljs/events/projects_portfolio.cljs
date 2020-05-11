@@ -3,28 +3,14 @@
             [andrewslai.cljs.events.core :refer [modify-db]]
             [re-frame.core :refer [dispatch reg-event-db]]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; db events for resume-info
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn process-resume-info [db response]
+
+(defn load-portfolio-cards [db [_ response]]
   (merge db {:loading-resume? false
              :resume-info response
              :selected-resume-info response}))
-
-(defn bad-resume-info [db response]
-  (merge db {:loading-resume? false
-             :resume-info "Unable to load content"}))
-
 (reg-event-db
-  :retrieve-resume-info
-  (fn [db [_]]
-
-    (GET "/get-resume-info"
-        {:handler #(dispatch [:process-http-response %1 process-resume-info])
-         :error-handler #(dispatch [:process-http-response %1 bad-resume-info])})
-
-    (modify-db db {:loading-resume? true
-                   :resume-info nil})))
+  :load-portfolio-cards
+  load-portfolio-cards)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for clicking on resume info
@@ -54,7 +40,7 @@
     project))
 
 (reg-event-db
-  :click-resume-info-card
+  :select-portfolio-card
   (fn [db [_ click-type clicked-item-name]]
     (let [{all-projects :projects
            all-orgs :organizations
@@ -95,12 +81,36 @@
                      :selected-resume-card clicked-item-name}))))
 
 (reg-event-db
-  :reset-resume-info
+  :reset-portfolio-cards
   (fn [db [_ _]]
     (assoc db :selected-resume-info (:resume-info db))))
-
 
 (reg-event-db
   :test-transitions
   (fn [db [_ value]]
     (assoc db :test-transitions value)))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; db events for resume-info
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#_(defn process-resume-info [db response]
+    (merge db {:loading-resume? false
+               :resume-info response
+               :selected-resume-info response}))
+
+#_(defn bad-resume-info [db response]
+    (merge db {:loading-resume? false
+               :resume-info "Unable to load content"}))
+
+#_(reg-event-db
+    :retrieve-resume-info
+    (fn [db [_]]
+
+      (GET "/get-resume-info"
+          {:handler #(dispatch [:process-http-response %1 process-resume-info])
+           :error-handler #(dispatch [:process-http-response %1 bad-resume-info])})
+
+      (modify-db db {:loading-resume? true
+                     :resume-info nil})))

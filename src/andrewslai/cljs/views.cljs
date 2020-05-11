@@ -43,7 +43,7 @@
    [:div#rcb
     ]])
 
-(defn reset-resume-info [x]
+(defn reset-portfolio-cards [x]
   (let [clicked-element (.-target x)
         clicked-class (.-className clicked-element)]
     (when-not (or (includes? clicked-class "resume-info-image")
@@ -51,10 +51,10 @@
                   (includes? clicked-class "card-description")
                   (includes? clicked-class "card-title")
                   (includes? clicked-class "card-text"))
-      (dispatch [:reset-resume-info]))))
+      (dispatch [:reset-portfolio-cards]))))
 
 (defn about []
-  [:div {:onClick reset-resume-info
+  [:div {:onClick reset-portfolio-cards
          :style {:height "100%"
                  :width "100%"
                  :position "absolute"}}

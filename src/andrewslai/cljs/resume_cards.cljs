@@ -47,7 +47,7 @@
           :style {:width "100%" :height "50px"}
           :onClick
           (fn [x]
-            (dispatch [:click-resume-info-card event-type name]))}]]]]
+            (dispatch [:select-portfolio-card event-type name]))}]]]]
      [:div.col-sm-9.bg-light.text-dark.card-description
       [:h5.card-title>a {:href url}
        (:name info)]

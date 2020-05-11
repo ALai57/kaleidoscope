@@ -5,6 +5,7 @@
             [re-frame.core :refer [dispatch dispatch-sync]]
             [secretary.core :as secretary]
             [andrewslai.cljs.server-comms.articles :as article-comms]
+            [andrewslai.cljs.server-comms.projects-portfolio :as portfolio-comms]
             [andrewslai.cljs.events.core] ;; required to make the compiler
             [andrewslai.cljs.events.articles]
             [andrewslai.cljs.events.users]
@@ -19,7 +20,7 @@
 
 
 (dispatch-sync [:initialize-db])
-(dispatch-sync [:retrieve-resume-info])
+(portfolio-comms/get-portfolio-cards)
 (article-comms/get-articles 5)
 
 ;; -- Debugging aids ----------------------------------------------------------
