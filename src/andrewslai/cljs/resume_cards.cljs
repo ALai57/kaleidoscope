@@ -32,12 +32,7 @@
   [Card {:class "text-white bg-light mb-3 article-card resume-info-card"
          :style {:border-radius "10px"}}
    [:div.container-fluid
-    [:div.row.flex-items-xs-middle {:style (if (= name selected-card)
-                                             nil #_{:border-style "solid"
-                                                    :border-width "5px"
-                                                    :border-color "black"
-                                                    :border-radius "10px"}
-                                             nil)}
+    [:div.row.flex-items-xs-middle
      [:div.col-sm-3.bg-primary.text-xs-center.card-icon.resume-info-icon
       {:style {:border-radius "10px"}}
       [:div.p-y-3

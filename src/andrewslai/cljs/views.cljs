@@ -11,15 +11,11 @@
             [re-frame.core :refer [subscribe
                                    dispatch]]))
 
-;; Add a login panel
 ;; Redirect with a "Welcome User" message upon login
-;; Add a user Icon/avatar so we know when you're logged in
-
 
 ;; Write tests with cookies....
 ;; https://github.com/reagent-project/reagent-utils/blob/master/test/reagent/cookies_test.cljs
 ;; https://github.com/SMX-LTD/re-frame-cookie-fx
-;; TODO: Send token in all client transactions
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Landing pages
