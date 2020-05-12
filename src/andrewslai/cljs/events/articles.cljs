@@ -17,11 +17,3 @@
   :load-recent-articles
   load-recent-articles)
 
-(defn set-active-panel [db [_ value]]
-  (merge db {:loading? true
-             :active-panel value
-             :active-content nil
-             #_#_:recent-content nil}))
-(reg-event-db
-  :set-active-panel
-  set-active-panel)

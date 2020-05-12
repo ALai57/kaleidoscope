@@ -89,28 +89,3 @@
   :test-transitions
   (fn [db [_ value]]
     (assoc db :test-transitions value)))
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; db events for resume-info
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#_(defn process-resume-info [db response]
-    (merge db {:loading-resume? false
-               :resume-info response
-               :selected-resume-info response}))
-
-#_(defn bad-resume-info [db response]
-    (merge db {:loading-resume? false
-               :resume-info "Unable to load content"}))
-
-#_(reg-event-db
-    :retrieve-resume-info
-    (fn [db [_]]
-
-      (GET "/get-resume-info"
-          {:handler #(dispatch [:process-http-response %1 process-resume-info])
-           :error-handler #(dispatch [:process-http-response %1 bad-resume-info])})
-
-      (modify-db db {:loading-resume? true
-                     :resume-info nil})))

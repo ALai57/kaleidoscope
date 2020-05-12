@@ -8,10 +8,5 @@
            (a/load-article {} [nil {:article-name "Something"}]))))
   (testing "Load recent articles"
     (is (= {:loading? false, :recent-content [{:article-name "Something"}]}
-           (a/load-recent-articles {} [nil [{:article-name "Something"}]]))))
-  (testing "Set active panel"
-    (is (= {:loading? true
-            :active-panel :home
-            :active-content nil}
-           (a/set-active-panel {} [nil :home])))))
+           (a/load-recent-articles {} [nil [{:article-name "Something"}]])))))
 

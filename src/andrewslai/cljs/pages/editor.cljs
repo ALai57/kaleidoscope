@@ -1,9 +1,8 @@
 (ns andrewslai.cljs.pages.editor
   (:require [ajax.core :refer [POST]]
             [andrewslai.cljs.navbar :as nav]
-            [andrewslai.cljs.events.editor :as ed
-             :refer [process-create-article
-                     process-unsuccessful-article]]
+            [andrewslai.cljs.server-comms.editor :as editor-comms]
+            [andrewslai.cljs.events.editor :as ed]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]
             [reagent.core :as reagent]
@@ -113,12 +112,7 @@
                             :type "code-block"
                             :nodes [{:object "text"
                                      :leaves [{:object "leaf"
-                                               :text "Code block\n Hello"}]}]}
-                           {:object "block"
-                            :type "code"
-                            :nodes [{:object "text"
-                                     :leaves [{:object "leaf"
-                                               :text "Code block"}]}]}]}}
+                                               :text "Code block\n Hello"}]}]}]}}
        clj->js
        (.fromJSON js/Slate.Value)))
 
@@ -253,14 +247,10 @@
             :style {:border-style "ridge"}}
       [:h5 "How text looks in the database"]
       [serialized-data]]
-     [:input {:type "button"
-              :on-click
-              (fn [x]
-                (println (form-data->map "editor-article-form"))
-
-                (POST "/articles/"
-                    {:params (form-data->map "editor-article-form")
-                     :format :json
-                     :handler #(dispatch [:process-http-response % process-create-article])
-                     :error-handler #(dispatch [:process-http-response % process-unsuccessful-article])}))
-              :value "Save article!"}]]))
+     [:input
+      {:type "button"
+       :on-click
+       (fn [x]
+         (println (form-data->map "editor-article-form"))
+         (editor-comms/create-article (form-data->map "editor-article-form")))
+       :value "Save article!"}]]))
