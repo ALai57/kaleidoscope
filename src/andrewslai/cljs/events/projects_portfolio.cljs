@@ -2,34 +2,43 @@
   (:require [ajax.core :refer [GET]]
             [re-frame.core :refer [dispatch reg-event-db]]))
 
+(defn json-string->clj [s]
+  (-> js/JSON
+      (.parse s)
+      js->clj))
 
-(defn load-portfolio-cards [db [_ response]]
-  (merge db {:loading-resume? false
-             :resume-info response
-             :selected-resume-info response}))
+(defn parse-project-skills [p]
+  (let [skills (:skills_names p)
+        parsed-skills (map json-string->clj skills)]
+    (assoc p :skills_names parsed-skills)))
+
+(defn load-portfolio-cards [db [_ {:keys [projects] :as response}]]
+  (let [parsed-projects (map parse-project-skills projects)
+        updated-resume-info (assoc response :projects parsed-projects)]
+    (merge db {:loading-resume? false
+               :resume-info updated-resume-info
+               :selected-resume-info updated-resume-info})))
 (reg-event-db
-  :load-portfolio-cards
-  load-portfolio-cards)
+ :load-portfolio-cards
+ load-portfolio-cards)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for clicking on resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-skill-name [y]
-  (-> (.parse js/JSON y)
-      js->clj
-      keys
-      first))
-
 (defn find-associated-projects [clicked-item-name click-type all-projects]
   (let [contains-clicked-item? (fn [v] (= clicked-item-name v))
 
-        skill-filter (fn [p]
-                       (some contains-clicked-item?
-                             (map get-skill-name (:skills_names p))))
-        orgs-filter (fn [p] (some contains-clicked-item?
-                                  (:organization_names p)))
-        project-filter (fn [p] (some contains-clicked-item? [(:name p)]))
+        skill-filter
+        (fn [p]
+          (some contains-clicked-item? (map (comp first keys)
+                                            (:skills_names p))))
+
+        orgs-filter
+        (fn [p] (some contains-clicked-item? (:organization_names p)))
+
+        project-filter
+        (fn [p] (some contains-clicked-item? [(:name p)]))
 
         project (case click-type
                   :project (filter project-filter all-projects)
@@ -38,53 +47,86 @@
                   nil)]
     project))
 
+(defn select-portfolio-card
+  [{:keys [resume-info] :as db} [_ click-type clicked-item]]
+  (let [{:keys [projects organizations skills]} resume-info
+
+        associated-projects
+        (find-associated-projects clicked-item click-type projects)
+
+        associated-org-names
+        (flatten (map :organization_names associated-projects))
+
+        orgs-filter (fn [o]
+                      (some (fn [org-name] (= org-name (:name o)))
+                            associated-org-names))
+
+        associated-orgs (filter orgs-filter organizations)
+
+
+        associated-skills-names
+        (map (comp first keys)
+             (flatten (map :skills_names associated-projects)))
+
+        skills-filter (fn [s]
+                        (some (fn [skill-name] (= skill-name (:name s)))
+                              associated-skills-names))
+
+        associated-skills (filter skills-filter skills)]
+
+    (merge db {:selected-resume-info {:organizations associated-orgs
+                                      :projects associated-projects
+                                      :skills associated-skills}
+               :selected-resume-category click-type
+               :selected-resume-card clicked-item})))
+
 (reg-event-db
  :select-portfolio-card
- (fn [db [_ click-type clicked-item-name]]
-   (let [{all-projects :projects
-          all-orgs :organizations
-          all-skills :skills} (:resume-info db)
-
-         associated-projects (find-associated-projects clicked-item-name
-                                                       click-type
-                                                       all-projects)
-
-         associated-org-names (flatten (map :organization_names
-                                            associated-projects))
-
-         orgs-filter (fn [o]
-                       (some (fn [org-name] (= org-name (:name o)))
-                             associated-org-names))
-
-         associated-orgs (filter orgs-filter all-orgs)
-
-
-         associated-skills-names
-         (map get-skill-name
-              (flatten (map :skills_names associated-projects)))
-
-         skills-filter (fn [s]
-                         (some (fn [skill-name] (= skill-name (:name s)))
-                               associated-skills-names))
-
-         associated-skills (filter skills-filter all-skills)]
-
-     #_(println "associated-projects: " associated-projects)
-     #_(println "associated-orgs: " associated-orgs)
-     #_(println "associated-skills: " associated-skills)
-
-     (merge db {:selected-resume-info {:organizations associated-orgs
-                                       :projects associated-projects
-                                       :skills associated-skills}
-                :selected-resume-category click-type
-                :selected-resume-card clicked-item-name}))))
+ select-portfolio-card)
 
 (reg-event-db
-  :reset-portfolio-cards
-  (fn [db [_ _]]
-    (assoc db :selected-resume-info (:resume-info db))))
+ :reset-portfolio-cards
+ (fn [db [_ _]]
+   (assoc db :selected-resume-info (:resume-info db))))
 
 (reg-event-db
-  :test-transitions
-  (fn [db [_ value]]
-    (assoc db :test-transitions value)))
+ :test-transitions
+ (fn [db [_ value]]
+   (assoc db :test-transitions value)))
+
+(comment
+  #_(fn [{:keys [resume-info] :as db} [_ click-type clicked-item]]
+      (let [{:keys [projects organizations skills]} resume-info
+
+            associated-projects
+            (find-associated-projects clicked-item click-type projects)
+
+            associated-org-names
+            (flatten (map :organization_names associated-projects))
+
+            orgs-filter (fn [o]
+                          (some (fn [org-name] (= org-name (:name o)))
+                                associated-org-names))
+
+            associated-orgs (filter orgs-filter organizations)
+
+
+            associated-skills-names
+            (map get-skill-name
+                 (flatten (map :skills_names associated-projects)))
+
+            skills-filter (fn [s]
+                            (some (fn [skill-name] (= skill-name (:name s)))
+                                  associated-skills-names))
+
+            associated-skills (filter skills-filter skills)]
+
+        #_(println "associated-projects: " associated-projects)
+        #_(println "associated-orgs: " associated-orgs)
+        #_(println "associated-skills: " associated-skills)
+
+        (merge db {:selected-resume-info {:organizations associated-orgs
+                                          :projects associated-projects
+                                          :skills associated-skills}
+                   :selected-resume-category click-type
+                   :selected-resume-card clicked-item}))))
