@@ -1,6 +1,5 @@
 (ns andrewslai.cljs.events.users
-  (:require [andrewslai.cljs.events.core :refer [modify-db]]
-            [re-frame.core :refer [dispatch reg-event-db]]))
+  (:require [re-frame.core :refer [dispatch reg-event-db]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; db events for updating profile

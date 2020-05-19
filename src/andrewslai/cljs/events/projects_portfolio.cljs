@@ -1,6 +1,5 @@
 (ns andrewslai.cljs.events.projects-portfolio
   (:require [ajax.core :refer [GET]]
-            [andrewslai.cljs.events.core :refer [modify-db]]
             [re-frame.core :refer [dispatch reg-event-db]]))
 
 
@@ -40,45 +39,45 @@
     project))
 
 (reg-event-db
-  :select-portfolio-card
-  (fn [db [_ click-type clicked-item-name]]
-    (let [{all-projects :projects
-           all-orgs :organizations
-           all-skills :skills} (:resume-info db)
+ :select-portfolio-card
+ (fn [db [_ click-type clicked-item-name]]
+   (let [{all-projects :projects
+          all-orgs :organizations
+          all-skills :skills} (:resume-info db)
 
-          associated-projects (find-associated-projects clicked-item-name
-                                                        click-type
-                                                        all-projects)
+         associated-projects (find-associated-projects clicked-item-name
+                                                       click-type
+                                                       all-projects)
 
-          associated-org-names (flatten (map :organization_names
-                                             associated-projects))
+         associated-org-names (flatten (map :organization_names
+                                            associated-projects))
 
-          orgs-filter (fn [o]
-                        (some (fn [org-name] (= org-name (:name o)))
-                              associated-org-names))
+         orgs-filter (fn [o]
+                       (some (fn [org-name] (= org-name (:name o)))
+                             associated-org-names))
 
-          associated-orgs (filter orgs-filter all-orgs)
+         associated-orgs (filter orgs-filter all-orgs)
 
 
-          associated-skills-names
-          (map get-skill-name
-               (flatten (map :skills_names associated-projects)))
+         associated-skills-names
+         (map get-skill-name
+              (flatten (map :skills_names associated-projects)))
 
-          skills-filter (fn [s]
-                          (some (fn [skill-name] (= skill-name (:name s)))
-                                associated-skills-names))
+         skills-filter (fn [s]
+                         (some (fn [skill-name] (= skill-name (:name s)))
+                               associated-skills-names))
 
-          associated-skills (filter skills-filter all-skills)]
+         associated-skills (filter skills-filter all-skills)]
 
-      #_(println "associated-projects: " associated-projects)
-      #_(println "associated-orgs: " associated-orgs)
-      #_(println "associated-skills: " associated-skills)
+     #_(println "associated-projects: " associated-projects)
+     #_(println "associated-orgs: " associated-orgs)
+     #_(println "associated-skills: " associated-skills)
 
-      (modify-db db {:selected-resume-info {:organizations associated-orgs
-                                            :projects associated-projects
-                                            :skills associated-skills}
-                     :selected-resume-category click-type
-                     :selected-resume-card clicked-item-name}))))
+     (merge db {:selected-resume-info {:organizations associated-orgs
+                                       :projects associated-projects
+                                       :skills associated-skills}
+                :selected-resume-category click-type
+                :selected-resume-card clicked-item-name}))))
 
 (reg-event-db
   :reset-portfolio-cards

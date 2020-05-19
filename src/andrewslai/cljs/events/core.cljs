@@ -6,13 +6,10 @@
 ;; Helper functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn modify-db [db mods]
-  (reduce-kv #(assoc %1 %2 %3) db mods))
-
 (reg-event-db
-  :initialize-db
-  (fn [_ _]
-    default-db))
+ :initialize-db
+ (fn [_ _]
+   default-db))
 
 (reg-event-db
   :modal
