@@ -26,6 +26,10 @@
 ;; db events for clicking on resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Because the point of this NS is to deal with projects, it's important to find
+;; out which projects a given "click" was associated with. For example, if a
+;; user clicks on the skill "Python", we first want to find out which projects
+;; used that skill
 (defmulti select-projects-associated-with-card
   (fn [{:keys [category name]} _] category))
 
@@ -52,6 +56,22 @@
                     skills)))
           projects))
 
+;; Select organizations associated with project
+;; TODO: Testing around this!
+(defn select-organizations-associated-with-project [projects organizations]
+  (println projects)
+  (let [associated-organizations (->> projects
+                                      (map :organization_names)
+                                      flatten
+                                      set)]
+    (filter (fn [{organization-name :name}]
+              (associated-organizations organization-name))
+            organizations)))
+
+;; Select skills associated with project
+
+;; Once we've identified the project, we need to find all things associated with
+;; that project
 (defn select-portfolio-card
   [{:keys [resume-info] :as db} [_ {:keys [category name] :as card}]]
   (let [{:keys [projects organizations skills]} resume-info
@@ -59,14 +79,10 @@
         associated-projects
         (select-projects-associated-with-card card projects)
 
-        associated-org-names
-        (flatten (map :organization_names associated-projects))
-
-        orgs-filter (fn [o]
-                      (some (fn [org-name] (= org-name (:name o)))
-                            associated-org-names))
-
-        associated-orgs (filter orgs-filter organizations)
+        associated-orgs
+        (select-organizations-associated-with-project associated-projects
+                                                      organizations)
+        ;;(filter orgs-filter organizations)
 
 
         associated-skills-names
