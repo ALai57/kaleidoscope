@@ -48,7 +48,7 @@
     project))
 
 (defn select-portfolio-card
-  [{:keys [resume-info] :as db} [_ category card-name]]
+  [{:keys [resume-info] :as db} [_ {:keys [category card-name]}]]
   (let [{:keys [projects organizations skills]} resume-info
 
         associated-projects
