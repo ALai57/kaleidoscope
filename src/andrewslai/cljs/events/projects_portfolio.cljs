@@ -26,8 +26,8 @@
 ;; db events for clicking on resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn find-associated-projects [clicked-item-name click-type all-projects]
-  (let [contains-clicked-item? (fn [v] (= clicked-item-name v))
+(defn find-associated-projects [card-name category all-projects]
+  (let [contains-clicked-item? (fn [v] (= card-name v))
 
         skill-filter
         (fn [p]
@@ -40,7 +40,7 @@
         project-filter
         (fn [p] (some contains-clicked-item? [(:name p)]))
 
-        project (case click-type
+        project (case category
                   :project (filter project-filter all-projects)
                   :organization (filter orgs-filter all-projects)
                   :skill (filter skill-filter all-projects)
@@ -48,11 +48,11 @@
     project))
 
 (defn select-portfolio-card
-  [{:keys [resume-info] :as db} [_ click-type clicked-item]]
+  [{:keys [resume-info] :as db} [_ category card-name]]
   (let [{:keys [projects organizations skills]} resume-info
 
         associated-projects
-        (find-associated-projects clicked-item click-type projects)
+        (find-associated-projects card-name category projects)
 
         associated-org-names
         (flatten (map :organization_names associated-projects))
@@ -77,8 +77,8 @@
     (merge db {:selected-resume-info {:organizations associated-orgs
                                       :projects associated-projects
                                       :skills associated-skills}
-               :selected-resume-category click-type
-               :selected-resume-card clicked-item})))
+               :selected-resume-category category
+               :selected-resume-card card-name})))
 
 (reg-event-db
  :select-portfolio-card
@@ -95,11 +95,11 @@
    (assoc db :test-transitions value)))
 
 (comment
-  #_(fn [{:keys [resume-info] :as db} [_ click-type clicked-item]]
+  #_(fn [{:keys [resume-info] :as db} [_ category clicked-item]]
       (let [{:keys [projects organizations skills]} resume-info
 
             associated-projects
-            (find-associated-projects clicked-item click-type projects)
+            (find-associated-projects clicked-item category projects)
 
             associated-org-names
             (flatten (map :organization_names associated-projects))
@@ -128,5 +128,5 @@
         (merge db {:selected-resume-info {:organizations associated-orgs
                                           :projects associated-projects
                                           :skills associated-skills}
-                   :selected-resume-category click-type
+                   :selected-resume-category category
                    :selected-resume-card clicked-item}))))
