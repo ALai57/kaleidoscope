@@ -26,8 +26,12 @@
 ;; db events for clicking on resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn find-associated-projects [card-name category all-projects]
-  (let [contains-clicked-item? (fn [v] (= card-name v))
+(defmulti find-projects-associated-with-card
+  (fn [{:keys [category name]} _] category))
+
+
+(defn find-associated-projects [{:keys [name category]} all-projects]
+  (let [contains-clicked-item? (fn [v] (= name v))
 
         skill-filter
         (fn [p]
@@ -48,11 +52,11 @@
     project))
 
 (defn select-portfolio-card
-  [{:keys [resume-info] :as db} [_ {:keys [category card-name]}]]
+  [{:keys [resume-info] :as db} [_ {:keys [category name] :as card}]]
   (let [{:keys [projects organizations skills]} resume-info
 
         associated-projects
-        (find-associated-projects card-name category projects)
+        (find-associated-projects card projects)
 
         associated-org-names
         (flatten (map :organization_names associated-projects))
@@ -78,7 +82,7 @@
                                       :projects associated-projects
                                       :skills associated-skills}
                :selected-resume-category category
-               :selected-resume-card card-name})))
+               :selected-resume-card name})))
 
 (reg-event-db
  :select-portfolio-card

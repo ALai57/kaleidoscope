@@ -43,7 +43,7 @@
           :on-click
           (fn [x]
             (dispatch [:select-portfolio-card {:category event-type
-                                               :card-name name}]))}]]]]
+                                               :name name}]))}]]]]
      [:div.col-sm-9.bg-light.text-dark.card-description
       [:h5.card-title>a {:href url}
        (:name info)]
