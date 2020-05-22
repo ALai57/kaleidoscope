@@ -36,33 +36,28 @@
               (= card-name project-name)))
           projects))
 
-(defn find-associated-projects [{:keys [name category] :as card} all-projects]
-  (let [contains-clicked-item? (fn [v] (= name v))
+(defmethod select-projects-associated-with-card :organization
+  [{card-name :name} projects]
+  (filter (fn [project]
+            (let [organizations (:organization_names project)]
+              (some (fn [organization] (= card-name organization))
+                    organizations)))
+          projects))
 
-        skill-filter
-        (fn [p]
-          (some contains-clicked-item? (map (comp first keys)
-                                            (:skills_names p))))
-
-        orgs-filter
-        (fn [p] (some contains-clicked-item? (:organization_names p)))
-
-        project-filter
-        (fn [p] (some contains-clicked-item? [(:name p)]))
-
-        project (case category
-                  :project (select-projects-associated-with-card card all-projects)
-                  :organization (filter orgs-filter all-projects)
-                  :skill (filter skill-filter all-projects)
-                  nil)]
-    project))
+(defmethod select-projects-associated-with-card :skill
+  [{card-name :name} projects]
+  (filter (fn [project]
+            (let [skills (map (comp first keys) (:skills_names project))]
+              (some (fn [skill] (= card-name skill))
+                    skills)))
+          projects))
 
 (defn select-portfolio-card
   [{:keys [resume-info] :as db} [_ {:keys [category name] :as card}]]
   (let [{:keys [projects organizations skills]} resume-info
 
         associated-projects
-        (find-associated-projects card projects)
+        (select-projects-associated-with-card card projects)
 
         associated-org-names
         (flatten (map :organization_names associated-projects))
