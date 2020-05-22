@@ -26,11 +26,17 @@
 ;; db events for clicking on resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmulti find-projects-associated-with-card
+(defmulti select-projects-associated-with-card
   (fn [{:keys [category name]} _] category))
 
+(defmethod select-projects-associated-with-card :project
+  [{card-name :name} projects]
+  (filter (fn [project]
+            (let [project-name (:name project)]
+              (= card-name project-name)))
+          projects))
 
-(defn find-associated-projects [{:keys [name category]} all-projects]
+(defn find-associated-projects [{:keys [name category] :as card} all-projects]
   (let [contains-clicked-item? (fn [v] (= name v))
 
         skill-filter
@@ -45,7 +51,7 @@
         (fn [p] (some contains-clicked-item? [(:name p)]))
 
         project (case category
-                  :project (filter project-filter all-projects)
+                  :project (select-projects-associated-with-card card all-projects)
                   :organization (filter orgs-filter all-projects)
                   :skill (filter skill-filter all-projects)
                   nil)]
