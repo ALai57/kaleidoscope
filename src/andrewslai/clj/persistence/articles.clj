@@ -1,5 +1,6 @@
 (ns andrewslai.clj.persistence.articles
   (:require [andrewslai.clj.env :as env]
+            [andrewslai.clj.utils :refer [validate]]
             [andrewslai.clj.persistence.postgres :refer [pg-db]]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [cheshire.core :as json]
@@ -16,18 +17,6 @@
   (get-full-article [_ article-name])
   (get-all-articles [_])
   (get-resume-info [_]))
-
-(defn validate [type data]
-  (if (s/valid? type data)
-    true
-    (throw+
-     (let [reason (s/explain-str type data)]
-       {:type :IllegalArgumentException
-        :subtype type
-        :message {:data data
-                  :reason reason
-                  :feedback (or (:feedback data)
-                                reason)}}))))
 
 (defn- -get-all-articles [this]
   (try
@@ -82,7 +71,7 @@
                                        ::article]))
 
 (defn -get-full-article [this article-name]
-  (validate ::article_name article-name)
+  (validate ::article_name article-name :IllegalArgumentException)
   (let [article (get-article-metadata this article-name)
         article-id (:article_id article)
         content (get-article-content this article-id)]
