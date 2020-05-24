@@ -18,42 +18,13 @@
   (get-all-articles [_])
   (get-resume-info [_]))
 
-(defn- -get-all-articles [this]
-  (try
-    (rdbms/hselect (:database this) {:select [:*]
-                                     :from [:articles]})
-    (catch Exception e
-      (str "get-all-articles caught exception: " (.getMessage e)))))
-
-(defn- -get-article-metadata [this article-url]
-  (try
-    (first
-      (rdbms/hselect (:database this)
-                     {:select [:*]
-                      :from [:articles]
-                      :where [:= :articles/article_url article-url]}))
-    (catch Exception e
-      (str "get-article-metadata caught exception: " (.getMessage e)
-           #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
-
 (s/def ::article_id integer?)
-
-(defn- -get-article-content [this article-id]
-  (try
-    (rdbms/hselect (:database this)
-                   {:select [:article_id :content :dynamicjs]
-                    :from [:content]
-                    :where [:= :articles/article_id article-id]})
-    (catch Exception e
-      (str "get-article-content caught exception: " (.getMessage e)
-           #_#_"postgres config: " (assoc (:database this):password "xxxxxx")))))
-
 (s/def ::article_name string?)
 (s/def ::title string?)
 (s/def ::article_tags string?)
 (s/def ::timestamp (s/or :date inst? :string string?))
-(s/def ::author string?)
 (s/def ::article_url string?)
+(s/def ::author string?)
 (s/def ::content coll?)
 
 (s/def ::article (s/keys :req-un [::title
@@ -65,18 +36,56 @@
                          :opt-un [::content]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Get all articles
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- -get-all-articles [this]
+  (try
+    (rdbms/hselect (:database this) {:select [:*]
+                                     :from [:articles]})
+    (catch Exception e
+      (str "get-all-articles caught exception: " (.getMessage e)))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Article Metadata
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- -get-article-metadata [this article-url]
+  (try
+    (first
+     (rdbms/hselect (:database this)
+                    {:select [:*]
+                     :from [:articles]
+                     :where [:= :articles/article_url article-url]}))
+    (catch Exception e
+      (str "get-article-metadata caught exception: " (.getMessage e)
+           #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Article Content
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- -get-article-content [this article-id]
+  (try
+    (rdbms/hselect (:database this)
+                   {:select [:article_id :content :dynamicjs]
+                    :from [:content]
+                    :where [:= :articles/article_id article-id]})
+    (catch Exception e
+      (str "get-article-content caught exception: " (.getMessage e)
+           #_#_"postgres config: " (assoc (:database this):password "xxxxxx")))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Full article
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(s/def ::full-article (s/keys :req-un [::article-name
-                                       ::article]))
-
 (defn -get-full-article [this article-name]
   (validate ::article_name article-name :IllegalArgumentException)
-  (let [article (get-article-metadata this article-name)
-        article-id (:article_id article)
-        content (get-article-content this article-id)]
-    {:article-name article-name
-     :article (assoc article :content content)}))
+  (let [{:keys [article_id] :as article}
+        (get-article-metadata this article-name)
+
+        content (get-article-content this article_id)]
+    (assoc article :content content)))
+
 
 (defn -create-full-article! [this {:keys [content] :as article-payload}]
   (let [article (-> article-payload

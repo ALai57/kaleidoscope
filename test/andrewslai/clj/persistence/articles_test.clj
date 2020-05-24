@@ -27,8 +27,7 @@
     (testing "Create article!"
       (is (= example-article (dissoc article-result :timestamp :article_id))))
     (testing "Retrieve article"
-      (is (= {:article-name "my-test-article"
-              :article (merge article-result {:content content-result})}
+      (is (= (merge article-result {:content content-result})
              (articles/get-full-article (test-db) "my-test-article"))))))
 
 (defdbtest exceptions-test ptest/db-spec

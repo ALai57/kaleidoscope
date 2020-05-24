@@ -49,8 +49,8 @@
                         ((test-app)))
           body (parse-body response)]
       (is (= 200 (:status response)))
-      (is (= #{:article, :article-name} (set (keys body))))
-      (is (coll? (get-in body [:article :content]))))))
+      (is (s/valid? ::articles/article body))
+      (is (coll? (get body :content))))))
 
 (defdbtest get-resume-info-test  ptest/db-spec
   (testing "get-resume-info endpoint returns an resume-info data structure"
@@ -96,4 +96,4 @@
                    ((test-app)))]
           (is (= 200 status))
           (is (= "my-test-article"
-                 (:article-name (parse-body response)))))))))
+                 (:article_url (parse-body response)))))))))
