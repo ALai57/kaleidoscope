@@ -49,8 +49,7 @@
                         ((test-app)))
           body (parse-body response)]
       (is (= 200 (:status response)))
-      (is (s/valid? ::articles/article body))
-      (is (coll? (get body :content))))))
+      (is (s/valid? ::articles/article body)))))
 
 (defdbtest get-resume-info-test  ptest/db-spec
   (testing "get-resume-info endpoint returns an resume-info data structure"
@@ -62,9 +61,7 @@
              (set (keys (parse-body response))))))))
 
 (defdbtest create-article-test ptest/db-spec
-  (let [article (json/generate-string (merge a/example-article
-                                             a/example-content))
-
+  (let [article (json/generate-string a/example-article)
         request (mock/request :post "/articles/" article)]
 
     (testing "Can't create an article without an authenticated session"
@@ -86,10 +83,10 @@
 
       (testing "Can create an article with authenticated user"
         (let [{:keys [status] :as response}
-              ((test-app) (assoc-in request [:headers "cookie"] cookie))]
+              ((test-app) (assoc-in request [:headers "cookie"] cookie))
+              body (parse-body response)]
           (is (= 200 status))
-          (is (s/valid? :andrewslai.clj.persistence.articles/article
-                        (parse-body response))))
+          (is (s/valid? ::articles/article body)))
         (let [{:keys [status] :as response}
               (->> "/articles/my-test-article"
                    (mock/request :get)

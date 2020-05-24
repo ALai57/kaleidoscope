@@ -14,13 +14,12 @@
     (GET "/:article-name" [article-name :as request]
       (ok (-> request
               (get-in [:components :db])
-              (articles/get-full-article article-name))))
+              (articles/get-article article-name))))
 
     (restrict
-      (POST "/" request
-        (ok (-> request
-                (get-in [:components :db])
-                (articles/create-full-article! (parse-body request))
-                first)))
-      {:handler admin/is-authenticated?
-       :on-error admin/access-error})))
+     (POST "/" request
+       (ok (-> request
+               (get-in [:components :db])
+               (articles/create-article! (parse-body request)))))
+     {:handler admin/is-authenticated?
+      :on-error admin/access-error})))

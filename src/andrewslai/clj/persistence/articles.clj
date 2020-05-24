@@ -7,14 +7,12 @@
             [clojure.java.jdbc :as sql]
             [clojure.spec.alpha :as s]
             [clojure.walk :refer [keywordize-keys]]
-            [slingshot.slingshot :refer [throw+]])
+            [slingshot.slingshot :refer [throw+ try+]])
   (:import java.time.LocalDateTime))
 
 (defprotocol ArticlePersistence
-  (create-full-article! [_ article-payload])
-  (get-article-metadata [_ article-name])
-  (get-article-content [_ article-id])
-  (get-full-article [_ article-name])
+  (create-article! [_ article-payload])
+  (get-article [_ article-name])
   (get-all-articles [_])
   (get-resume-info [_]))
 
@@ -25,7 +23,7 @@
 (s/def ::timestamp (s/or :date inst? :string string?))
 (s/def ::article_url string?)
 (s/def ::author string?)
-(s/def ::content coll?)
+(s/def ::content string?)
 
 (s/def ::article (s/keys :req-un [::title
                                   ::article_tags
@@ -60,45 +58,26 @@
       (str "get-article-metadata caught exception: " (.getMessage e)
            #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Article Content
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- -get-article-content [this article-id]
-  (try
-    (rdbms/hselect (:database this)
-                   {:select [:article_id :content :dynamicjs]
-                    :from [:content]
-                    :where [:= :articles/article_id article-id]})
-    (catch Exception e
-      (str "get-article-content caught exception: " (.getMessage e)
-           #_#_"postgres config: " (assoc (:database this):password "xxxxxx")))))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Full article
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn -get-full-article [this article-name]
-  (validate ::article_name article-name :IllegalArgumentException)
-  (let [{:keys [article_id] :as article}
-        (get-article-metadata this article-name)
+(defn -get-article [this article_url]
+  (validate ::article_url article_url :IllegalArgumentException)
+  (try+
+   (first
+    (rdbms/hselect (:database this)
+                   {:select [:*]
+                    :from [:articles]
+                    :where [:= :articles/article_url article_url]}))
+   (catch Exception e
+     (str "get-article-metadata caught exception: " (.getMessage e)
+          #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
-        content (get-article-content this article_id)]
-    (assoc article :content content)))
 
-
-(defn -create-full-article! [this {:keys [content] :as article-payload}]
+(defn -create-article! [this article-payload]
   (let [article (-> article-payload
-                    (dissoc :content)
-                    (assoc :timestamp (java.time.LocalDateTime/now)))
-
-        {:keys [article_id] :as article-result}
-        (first (rdbms/insert! (:database this) "articles" article))
-
-        content-result
-        (rdbms/insert! (:database this) "content" {:article_id article_id
-                                                   :content content})]
-    [article-result content-result]))
+                    (assoc :timestamp (java.time.LocalDateTime/now)))]
+    (first (rdbms/insert! (:database this) "articles" article))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Resume info
@@ -122,14 +101,10 @@
 
 (defrecord ArticleDatabase [database]
   ArticlePersistence
-  (create-full-article! [this article-payload]
-    (-create-full-article! this article-payload))
-  (get-article-metadata [this article-name]
-    (-get-article-metadata this article-name))
-  (get-article-content [this article-id]
-    (-get-article-content this article-id))
-  (get-full-article [this article-name]
-    (-get-full-article this article-name))
+  (create-article! [this article-payload]
+    (-create-article! this article-payload))
+  (get-article [this article-name]
+    (-get-article this article-name))
   (get-all-articles [this]
     (-get-all-articles this))
   (get-resume-info [this]
