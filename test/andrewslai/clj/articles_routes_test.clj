@@ -60,6 +60,9 @@
       (is (= #{:organizations, :projects, :skills}
              (set (keys (parse-body response))))))))
 
+(defn create-user [user]
+  ((test-app) (mock/request :post "/users" (json/generate-string user))))
+
 (defdbtest create-article-test ptest/db-spec
   (let [article (json/generate-string a/example-article)
         request (mock/request :post "/articles/" article)]
@@ -69,8 +72,7 @@
                      ((test-app))
                      :status))))
 
-    ;; Create a user and login
-    ((test-app) (mock/request :post "/users" (json/generate-string u/new-user)))
+    (create-user u/new-user)
     (let [creds
           (json/generate-string (select-keys u/new-user [:username :password]))
 
