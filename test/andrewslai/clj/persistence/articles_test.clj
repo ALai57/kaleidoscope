@@ -4,6 +4,7 @@
             [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.test-utils :refer [defdbtest]]
             [clojure.test :refer [is testing]]
+            [slingshot.test]
             [slingshot.slingshot :refer [try+]]))
 
 (defn test-db []
@@ -30,3 +31,7 @@
               :article (merge article-result {:content content-result})}
              (articles/get-full-article (test-db) "my-test-article"))))))
 
+(defdbtest exceptions-test ptest/db-spec
+  (testing "Invalid article name"
+    (is (thrown+? [:type :IllegalArgumentException]
+                  (articles/get-full-article (test-db) 1)))))

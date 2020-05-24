@@ -5,7 +5,8 @@
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.spec.alpha :as s]
-            [clojure.walk :refer [keywordize-keys]])
+            [clojure.walk :refer [keywordize-keys]]
+            [slingshot.slingshot :refer [throw+]])
   (:import java.time.LocalDateTime))
 
 (defprotocol ArticlePersistence
@@ -16,7 +17,17 @@
   (get-all-articles [_])
   (get-resume-info [_]))
 
-
+(defn validate [type data]
+  (if (s/valid? type data)
+    true
+    (throw+
+     (let [reason (s/explain-str type data)]
+       {:type :IllegalArgumentException
+        :subtype type
+        :message {:data data
+                  :reason reason
+                  :feedback (or (:feedback data)
+                                reason)}}))))
 
 (defn- -get-all-articles [this]
   (try
@@ -36,6 +47,8 @@
       (str "get-article-metadata caught exception: " (.getMessage e)
            #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
+(s/def ::article_id integer?)
+
 (defn- -get-article-content [this article-id]
   (try
     (rdbms/hselect (:database this)
@@ -43,7 +56,7 @@
                     :from [:content]
                     :where [:= :articles/article_id article-id]})
     (catch Exception e
-      (str "get-content caught exception: " (.getMessage e)
+      (str "get-article-content caught exception: " (.getMessage e)
            #_#_"postgres config: " (assoc (:database this):password "xxxxxx")))))
 
 (s/def ::article_name string?)
@@ -52,7 +65,6 @@
 (s/def ::timestamp (s/or :date inst? :string string?))
 (s/def ::author string?)
 (s/def ::article_url string?)
-(s/def ::article_id integer?)
 (s/def ::content coll?)
 
 (s/def ::article (s/keys :req-un [::title
@@ -63,17 +75,36 @@
                                   ::article_id]
                          :opt-un [::content]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Full article
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (s/def ::full-article (s/keys :req-un [::article-name
                                        ::article]))
 
 (defn -get-full-article [this article-name]
-  {:post [(s/valid? ::full-article %)]}
+  (validate ::article_name article-name)
   (let [article (get-article-metadata this article-name)
         article-id (:article_id article)
         content (get-article-content this article-id)]
     {:article-name article-name
      :article (assoc article :content content)}))
 
+(defn -create-full-article! [this {:keys [content] :as article-payload}]
+  (let [article (-> article-payload
+                    (dissoc :content)
+                    (assoc :timestamp (java.time.LocalDateTime/now)))
+
+        {:keys [article_id] :as article-result}
+        (first (rdbms/insert! (:database this) "articles" article))
+
+        content-result
+        (rdbms/insert! (:database this) "content" {:article_id article_id
+                                                   :content content})]
+    [article-result content-result]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Resume info
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- -get-resume-info [this]
   (try
     (let [orgs (rdbms/hselect (:database this)
@@ -90,21 +121,6 @@
            #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
 
-
-
-(defn -create-full-article! [this {:keys [content] :as article-payload}]
-  (try
-    (let [article (-> article-payload
-                      (dissoc :content)
-                      (assoc :timestamp (java.time.LocalDateTime/now)))
-
-          {:keys [article_id] :as article-result}
-          (first (rdbms/insert! (:database this) "articles" article))
-
-          content-result
-          (rdbms/insert! (:database this) "content" {:article_id article_id
-                                                     :content content})]
-      [article-result content-result])))
 
 (defrecord ArticleDatabase [database]
   ArticlePersistence
