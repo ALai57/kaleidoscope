@@ -40,49 +40,49 @@
 
     (PATCH "/:username" {{:keys [username]} :route-params :as request}
       (try+
-        (let [update-map (parse-body request)
+       (let [update-map (parse-body request)
 
-              decode-avatar (fn [{:keys [avatar] :as m}]
-                              (if avatar
-                                (assoc m :avatar (b64/decode (.getBytes avatar)))
-                                m))
+             decode-avatar (fn [{:keys [avatar] :as m}]
+                             (if avatar
+                               (assoc m :avatar (b64/decode (.getBytes avatar)))
+                               m))
 
-              response (-> components
-                           :user
-                           (users/update-user username (decode-avatar update-map))
-                           ok)]
+             response (-> components
+                          :user
+                          (users/update-user username (decode-avatar update-map))
+                          ok)]
 
-          (assoc-in response
-                    [:body :avatar_url]
-                    (format "users/%s/avatar" username)))
-        (catch [:type ::users/IllegalArgumentException] e
-          (-> (bad-request)
-              (assoc :body e)))))
+         (assoc-in response
+                   [:body :avatar_url]
+                   (format "users/%s/avatar" username)))
+       (catch [:type :IllegalArgumentException] e
+         (-> (bad-request)
+             (assoc :body e)))))
 
     (POST "/" request
       (try+ 
-        (let [{:keys [username avatar password] :as payload} (parse-body request)
+       (let [{:keys [username avatar password] :as payload} (parse-body request)
 
-              decoded-avatar (or (some-> avatar
-                                         .getBytes
-                                         b64/decode)
-                                 default-avatar)
+             decoded-avatar (or (some-> avatar
+                                        .getBytes
+                                        b64/decode)
+                                default-avatar)
 
-              result (users/register-user! (:user components)
-                                           (-> payload
-                                               (assoc :avatar decoded-avatar)
-                                               (dissoc :password))
-                                           password)]
-          (-> (created)
-              (assoc :headers {"Location" (str "/users/" username)})
-              (assoc :body result)
-              (assoc-in [:body :avatar_url] (format "users/%s/avatar" username))))
-        (catch [:type ::users/PSQLException] e
-          (-> (bad-request)
-              (assoc :body e)))
-        (catch [:type ::users/IllegalArgumentException] e
-          (-> (bad-request)
-              (assoc :body e)))))
+             result (users/register-user! (:user components)
+                                          (-> payload
+                                              (assoc :avatar decoded-avatar)
+                                              (dissoc :password))
+                                          password)]
+         (-> (created)
+             (assoc :headers {"Location" (str "/users/" username)})
+             (assoc :body result)
+             (assoc-in [:body :avatar_url] (format "users/%s/avatar" username))))
+       (catch [:type :PSQLException] e
+         (-> (bad-request)
+             (assoc :body e)))
+       (catch [:type :IllegalArgumentException] e
+         (-> (bad-request)
+             (assoc :body e)))))
 
     (GET "/:username/avatar" [username]
       (let [{:keys [avatar]}

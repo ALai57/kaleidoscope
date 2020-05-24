@@ -2,6 +2,7 @@
   (:require [andrewslai.clj.auth.crypto :refer [encrypt check make-encryption]]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.rdbms :as rdbms]
+            [andrewslai.clj.utils :refer [validate]]
             [clojure.java.data :as j]
             [clojure.java.jdbc :as sql]
             [clojure.spec.alpha :as s]
@@ -77,18 +78,6 @@
       (select-keys [:score :feedback]))
   )
 
-(defn validate [type data]
-  (if (s/valid? type data)
-    true
-    (throw+
-      (let [reason (s/explain-str type data)]
-        {:type ::IllegalArgumentException
-         :subtype type
-         :message {:data data
-                   :reason reason
-                   :feedback (or (:feedback data)
-                                 reason)}}))))
-
 (defn- -create-user! [this user]
   (rdbms/insert! (:database this) "users" user))
 
@@ -98,21 +87,24 @@
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
 (defn- -register-user! [this {:keys [role_id] :as user} password]
+  (validate ::user user :IllegalArgumentException)
+  (validate ::password-strength
+            (password-strength password)
+            :IllegalArgumentException)
   (try+
-    (validate ::user user)
-    (validate ::password-strength (password-strength password))
-    (let [user-id (java.util.UUID/randomUUID)
-          full-user (-> user
-                        (assoc :id user-id)
-                        (assoc :role_id (or role_id default-role)))]
-      (create-user! this full-user)
-      (create-login! this user-id (encrypt (make-encryption) password))
-      full-user)
-    (catch org.postgresql.util.PSQLException e
-      (throw+ {:type ::PSQLException
-               :message {:data (select-keys user [:username :email])
-                         :reason (.getMessage e)
-                         :feedback "Try a different username and/or email"}}))))
+   (let [user-id (java.util.UUID/randomUUID)
+         full-user (-> user
+                       (assoc :id user-id)
+                       (assoc :role_id (or role_id default-role)))]
+     (create-user! this full-user)
+     (create-login! this user-id (encrypt (make-encryption) password))
+     full-user)
+   (catch org.postgresql.util.PSQLException e
+     (throw+ {:type :PSQLException
+              :subtype ::UnableToCreateUser
+              :message {:data (select-keys user [:username :email])
+                        :reason (.getMessage e)
+                        :feedback "Try a different username and/or email"}}))))
 
 (defn -get-users [this]
   (rdbms/hselect (:database this) {:select [:*]
@@ -129,7 +121,7 @@
                                           :where [:= :users/id user-id]})))
 
 (defn -update-user! [this username update-payload]
-  (validate ::user-update update-payload)
+  (validate ::user-update update-payload :IllegalArgumentException)
   (let [n-updates (first (rdbms/update! (:database this)
                                         "users"
                                         update-payload

@@ -4,6 +4,7 @@
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.test-utils :refer [defdbtest]]
             [clojure.test :refer [is testing]]
+            [slingshot.test]
             [slingshot.slingshot :refer [try+]]))
 
 (defn test-db []
@@ -51,45 +52,36 @@
                                             :password password})))
     (is (nil? (users/get-user (test-db) "Andrew")))))
 
-(defmacro exception-thrown? [ex & body]
-  `(try+
-     ~@body
-     false
-     (catch ~ex e#
-       e#)
-     (catch Object obj#
-       false)))
-
 (defdbtest update-user-errors-test ptest/db-spec
   (users/register-user! (test-db) example-user password)
   (testing "Illegal last name"
-    (is (exception-thrown? [:type ::users/IllegalArgumentException]
-            (users/update-user (test-db) (:username example-user) {:last_name ""}))))
+    (is (thrown+? [:type :IllegalArgumentException]
+                  (users/update-user (test-db) (:username example-user) {:last_name ""}))))
   (testing "Illegal first name"
-    (is (exception-thrown? [:type ::users/IllegalArgumentException]
-            (users/update-user (test-db) (:username example-user) {:first_name ""})))))
+    (is (thrown+? [:type :IllegalArgumentException]
+                  (users/update-user (test-db) (:username example-user) {:first_name ""})))))
 
 (defdbtest registration-errors-test ptest/db-spec
   (testing "Duplicate user"
-    (is (exception-thrown? [:type ::users/PSQLException]
-            (users/register-user! (test-db) example-user password)
-          (users/register-user! (test-db) example-user password))))
+    (is (thrown+? [:type :PSQLException]
+                  (users/register-user! (test-db) example-user password)
+                  (users/register-user! (test-db) example-user password))))
   (testing "Username includes escape chars"
-    (is (exception-thrown? [:type ::users/IllegalArgumentException]
-            (users/register-user! (test-db)
-                                  (assoc example-user :username "Andrew;")
-                                  password))))
+    (is (thrown+? [:type :IllegalArgumentException]
+                  (users/register-user! (test-db)
+                                        (assoc example-user :username "Andrew;")
+                                        password))))
   (testing "Weak password"
-    (is (exception-thrown? [:type ::users/IllegalArgumentException]
-            (users/register-user! (test-db) example-user "password"))))
+    (is (thrown+? [:type :IllegalArgumentException]
+                  (users/register-user! (test-db) example-user "password"))))
   (testing "Invalid email"
-    (is (exception-thrown? [:type ::users/IllegalArgumentException]
-            (users/register-user! (test-db)
-                                  (assoc example-user :email 1)
-                                  password))))
+    (is (thrown+? [:type :IllegalArgumentException]
+                  (users/register-user! (test-db)
+                                        (assoc example-user :email 1)
+                                        password))))
   (doseq [field [:first_name :last_name :username :email]]
     (testing (str field " cannot be empty string")
-      (is (exception-thrown? [:type ::users/IllegalArgumentException]
-              (users/register-user! (test-db)
-                                    (assoc example-user field "")
-                                    password))))))
+      (is (thrown+? [:type :IllegalArgumentException]
+                    (users/register-user! (test-db)
+                                          (assoc example-user field "")
+                                          password))))))

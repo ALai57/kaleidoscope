@@ -35,8 +35,8 @@
 
 (defn identity-handler []
   (h/wrap-middleware (api
-                       (GET "/echo" request
-                         {:user-authentication (:user request)})) (components)))
+                      (GET "/echo" request
+                        {:user-authentication (:user request)})) (components)))
 
 (def b64-encoded-avatar (->> "Hello world!"
                              (map (comp byte int))
@@ -79,7 +79,7 @@
                                             (json/generate-string new-user)))
             {:keys [type message]} (parse-body response)]
         (is (= 400 status))
-        (is (= "andrewslai.clj.persistence.users/PSQLException" type))
+        (is (= "PSQLException" type))
         (is (clojure.string/includes? message "ERROR: duplicate key value violates unique constraint"))))))
 
 (defdbtest deleting-user ptest/db-spec
@@ -111,7 +111,7 @@
                                                       "password"))))
           {:keys [type subtype message]} (parse-body response)]
       (is (= 400 status))
-      (is (= "andrewslai.clj.persistence.users/IllegalArgumentException" type))
+      (is (= "IllegalArgumentException" type))
       (is (= "andrewslai.clj.persistence.users/password-strength" subtype))
       (is (clojure.string/includes? message "failed: sufficient-strength?")))))
 
@@ -206,7 +206,7 @@
             ((test-users-app) (mock/request :patch user-url
                                             (json/generate-string user-update)))]
         (is (= 400 status))
-        (is (= {:type "andrewslai.clj.persistence.users/IllegalArgumentException"
+        (is (= {:type "IllegalArgumentException"
                 :subtype "andrewslai.clj.persistence.users/user-update"}
                (select-keys (-> response
                                 parse-body)
