@@ -4,6 +4,7 @@ CREATE TABLE users (
        first_name varchar(32),
        last_name varchar(32),
        username varchar(32) not null unique,
+       avatar bytea,
        email varchar not null unique
 );
 
@@ -113,13 +114,6 @@ CREATE TABLE articles(
        timestamp TIMESTAMP,
        author VARCHAR (50),
        article_url VARCHAR (100),
-       article_id SERIAL PRIMARY KEY
-);
-
---;;
-
-CREATE TABLE content(
-       article_id integer,
        content text,
-       dynamicjs text[]
+       article_id SERIAL PRIMARY KEY
 );
