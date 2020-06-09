@@ -7,11 +7,10 @@
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.user-routes-test :as u]
             [andrewslai.clj.utils :refer [parse-body]]
-            [andrewslai.clj.test-utils :refer [defdbtest]]
+            [andrewslai.clj.test-utils :refer [defdbtest] :as tu]
             [cheshire.core :as json]
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer [deftest is testing]]
-            [ring.middleware.session.memory :as mem]
             [ring.mock.request :as mock]
             [clojure.spec.alpha :as s]))
 
@@ -20,56 +19,42 @@
     (jdbc/query db "select * from articles"))
   )
 
-(def session-atom (atom {}))
-
-(defn components []
-  {:user (-> ptest/db-spec
-             postgres/->Postgres
-             users/->UserDatabase)
-   :session {:store (mem/memory-store session-atom)}
-   :db (-> ptest/db-spec
-           postgres/->Postgres
-           articles/->ArticleDatabase)})
-
-(defn test-app []
-  (h/wrap-middleware h/bare-app (components)))
-
-(defn- get-request [route]
-  (->> route
-       (mock/request :get)
-       ((test-app))))
 
 (defdbtest get-all-articles-test ptest/db-spec
   (testing "get-all-articles endpoint returns a collection of articles"
-    (let [response (get-request "/articles")]
+    (let [response (tu/get-request "/articles")]
       (is (= 200 (:status response)))
       (is (s/valid? ::articles/articles (parse-body response))))))
 
 (defdbtest get-full-article-test ptest/db-spec
   (testing "get-article endpoint returns an article"
-    (let [response (get-request "/articles/my-first-article")
-          body (parse-body response)]
+    (let [response (tu/get-request "/articles/my-first-article")]
       (is (= 200 (:status response)))
-      (is (s/valid? ::articles/article body)))))
+      (is (s/valid? ::articles/article (parse-body response))))))
 
-(defn create-user [user]
-  ((test-app) (mock/request :post "/users" (json/generate-string user))))
+(defn assemble-post-request [endpoint payload]
+  (->> payload
+       json/generate-string
+       (mock/request :post endpoint)))
 
 (defdbtest create-article-test ptest/db-spec
-  (let [article (json/generate-string a/example-article)
-        request (mock/request :post "/articles/" article)]
+  (let [app (tu/test-app (atom {}))
+        create-user (fn [user] (->> user
+                                    (assemble-post-request "/users")
+                                    app))
+        unauthorized-request (assemble-post-request "/articles/"
+                                                    a/example-article)]
 
     (testing "Can't create an article without an authenticated session"
-      (is (= 401 (-> request
-                     ((test-app))
+      (is (= 401 (-> unauthorized-request
+                     app
                      :status))))
 
     (create-user u/new-user)
-    (let [creds
-          (json/generate-string (select-keys u/new-user [:username :password]))
-
-          {:keys [headers]}
-          ((test-app) (mock/request :post "/login" creds))
+    (let [{:keys [headers]} (->> [:username :password]
+                                 (select-keys u/new-user)
+                                 (assemble-post-request "/login")
+                                 app)
 
           cookie (-> headers
                      (get "Set-Cookie")
@@ -77,12 +62,12 @@
 
       (testing "Can create an article with authenticated user"
         (let [{:keys [status] :as response}
-              ((test-app) (assoc-in request [:headers "cookie"] cookie))
-              body (parse-body response)]
+              (app (assoc-in unauthorized-request
+                             [:headers "cookie"] cookie))]
           (is (= 200 status))
-          (is (s/valid? ::articles/article body)))
+          (is (s/valid? ::articles/article (parse-body response))))
         (let [{:keys [status] :as response}
-              (get-request "/articles/my-test-article")]
+              (tu/get-request "/articles/my-test-article")]
           (is (= 200 status))
           (is (= "my-test-article"
                  (:article_url (parse-body response)))))))))
