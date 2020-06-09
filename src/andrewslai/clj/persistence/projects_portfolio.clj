@@ -11,7 +11,7 @@
   (:import java.time.LocalDateTime))
 
 (defprotocol ProjectPortfolioPersistence
-  (get-resume-info [_]))
+  (get-project-portfolio [_]))
 
 (s/def ::id int?)
 (s/def ::name string?)
@@ -52,7 +52,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- -get-resume-info [this]
+(defn- -get-project-portfolio [this]
   (try
     (let [orgs (rdbms/hselect (:database this)
                               {:select [:*] :from [:organizations]})
@@ -64,13 +64,13 @@
        :projects projects
        :skills skills})
     (catch Exception e
-      (str "get-resume-info caught exception: " (.getMessage e)
+      (str "get-project-portfolio caught exception: " (.getMessage e)
            #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
 (defrecord ProjectPortfolioDatabase [database]
   ProjectPortfolioPersistence
-  (get-resume-info [this]
-    (-get-resume-info this)))
+  (get-project-portfolio [this]
+    (-get-project-portfolio this)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection
@@ -79,13 +79,13 @@
 (comment
   (-> pg-db
       ->ProjectPortfolioDatabase
-      get-resume-info
+      get-project-portfolio
       :projects
       clojure.pprint/pprint)
 
   (-> pg-db
       ->ProjectPortfolioDatabase
-      get-resume-info
+      get-project-portfolio
       :organizations
       first
       clojure.pprint/pprint)

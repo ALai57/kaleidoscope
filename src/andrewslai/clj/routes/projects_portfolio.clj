@@ -5,4 +5,4 @@
 
 (defroutes projects-portfolio-routes
   (GET "/get-resume-info" {:keys [components]}
-    (ok (portfolio/get-resume-info (:portfolio components)))))
+    (ok (portfolio/get-project-portfolio (:portfolio components)))))

@@ -1,11 +1,8 @@
 (ns andrewslai.clj.projects-portfolio-routes-test
   (:require [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.projects-portfolio :as portfolio]
-            [andrewslai.clj.persistence.postgres :as postgres]
-            [andrewslai.clj.test-utils :refer [defdbtest] :as tu]
+            [andrewslai.clj.test-utils :as tu :refer [defdbtest]]
             [andrewslai.clj.utils :refer [parse-body]]
-            [andrewslai.clj.handler :as h]
-            [ring.mock.request :as mock]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [is testing]]))
 
