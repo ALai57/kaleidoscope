@@ -3,12 +3,6 @@
             [clojure.spec.alpha :as s]
             [slingshot.slingshot :refer [throw+]]))
 
-(defn parse-response-body [response]
-  (-> response
-      :body
-      slurp
-      (json/parse-string keyword)))
-
 (defn parse-body [ring-map]
   (-> ring-map
       :body
