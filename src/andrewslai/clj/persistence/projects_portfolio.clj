@@ -24,7 +24,31 @@
                                        ::url
                                        ::image_url
                                        ::description]))
+(s/def ::organizations (s/coll-of ::organization))
 
+(s/def ::organization_names (s/coll-of ::name))
+(s/def ::skills-names (s/coll-of ::name))
+(s/def ::project (s/keys :req-un [::id
+                                  ::name
+                                  ::url
+                                  ::image_url
+                                  ::description
+                                  ::organization_names
+                                  ::skills_names]))
+(s/def ::projects (s/coll-of ::project))
+
+(s/def ::skill_category string?)
+(s/def ::skill (s/keys :req-un [::id
+                                ::name
+                                ::url
+                                ::image_url
+                                ::description
+                                ::skill_category]))
+(s/def ::skills (s/coll-of ::skill))
+
+(s/def ::project-portfolio (s/keys :req-un [::organizations
+                                            ::projects
+                                            ::skills]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
