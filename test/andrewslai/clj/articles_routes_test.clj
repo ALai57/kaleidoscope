@@ -37,37 +37,42 @@
        json/generate-string
        (mock/request :post endpoint)))
 
+(defn get-cookie [response]
+  (-> response
+      :headers
+      (get "Set-Cookie")
+      first))
+
 (defdbtest create-article-test ptest/db-spec
-  (let [app (tu/test-app (atom {}))
+  (let [handler (tu/test-app (atom {}))
         create-user (fn [user] (->> user
                                     (assemble-post-request "/users")
-                                    app))
-        unauthorized-request (assemble-post-request "/articles/"
-                                                    a/example-article)]
+                                    handler))
+        login-user (fn [user] (->> [:username :password]
+                                   (select-keys user)
+                                   (assemble-post-request "/login")
+                                   handler))
+        article-url (str "/articles/" (:article_url a/example-article))
+        unauthorized-request
+        (assemble-post-request "/articles/" a/example-article)]
 
-    (testing "Can't create an article without an authenticated session"
+    (testing "Can't create article when session is not authenticated"
       (is (= 401 (-> unauthorized-request
-                     app
+                     handler
                      :status))))
 
-    (create-user u/new-user)
-    (let [{:keys [headers]} (->> [:username :password]
-                                 (select-keys u/new-user)
-                                 (assemble-post-request "/login")
-                                 app)
-
-          cookie (-> headers
-                     (get "Set-Cookie")
-                     first)]
-
-      (testing "Can create an article with authenticated user"
-        (let [{:keys [status] :as response}
-              (app (assoc-in unauthorized-request
-                             [:headers "cookie"] cookie))]
-          (is (= 200 status))
-          (is (s/valid? ::articles/article (parse-body response))))
-        (let [{:keys [status] :as response}
-              (tu/get-request "/articles/my-test-article")]
-          (is (= 200 status))
-          (is (= "my-test-article"
-                 (:article_url (parse-body response)))))))))
+    (testing "Can create an article with authenticated user"
+      (let [_ (create-user u/new-user)
+            response (login-user u/new-user)
+            cookie (get-cookie response)]
+        (testing "Article creation"
+          (let [{:keys [status] :as response}
+                (handler (assoc-in unauthorized-request
+                                   [:headers "cookie"] cookie))]
+            (is (= 200 status))
+            (is (s/valid? ::articles/article (parse-body response)))))
+        (testing "Article retrieval"
+          (let [{:keys [status] :as response} (tu/get-request article-url)]
+            (is (= 200 status))
+            (is (= "my-test-article"
+                   (:article_url (parse-body response))))))))))
