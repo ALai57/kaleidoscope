@@ -44,35 +44,36 @@
       first))
 
 (defdbtest create-article-test ptest/db-spec
-  (let [handler (tu/test-app (atom {}))
-        create-user (fn [user] (->> user
-                                    (assemble-post-request "/users")
-                                    handler))
-        login-user (fn [user] (->> [:username :password]
-                                   (select-keys user)
-                                   (assemble-post-request "/login")
-                                   handler))
-        article-url (str "/articles/" (:article_url a/example-article))
-        unauthorized-request
-        (assemble-post-request "/articles/" a/example-article)]
+  (let [handler              (tu/test-app (atom {}))
+        create-user          (fn [user] (->> user
+                                             (assemble-post-request "/users")
+                                             handler))
+        login-user           (fn [user] (->> [:username :password]
+                                             (select-keys user)
+                                             (assemble-post-request "/login")
+                                             handler))
+        article-url          (str "/articles/" (:article_url a/example-article))
+        unauthorized-request (assemble-post-request "/articles/"
+                                                    a/example-article)]
 
-    (testing "Can't create article when session is not authenticated"
-      (is (= 401 (-> unauthorized-request
-                     handler
-                     :status))))
+    (testing "Unauthorized user"
+      (testing "Article creation fails"
+        (is (= 401 (-> unauthorized-request handler :status))))
+      (testing "Article retrieval fails"
+        (is (= 404 (-> article-url tu/get-request :status)))))
 
-    (testing "Can create an article with authenticated user"
-      (let [_ (create-user u/new-user)
+    (testing "Authorized user"
+      (let [_        (create-user u/new-user)
             response (login-user u/new-user)
-            cookie (get-cookie response)]
-        (testing "Article creation"
-          (let [{:keys [status] :as response}
-                (handler (assoc-in unauthorized-request
-                                   [:headers "cookie"] cookie))]
-            (is (= 200 status))
+            authorized-request
+            (->> response
+                 get-cookie
+                 (assoc-in unauthorized-request [:headers "cookie"]))]
+        (testing "Article creation succeeds"
+          (let [response (handler authorized-request)]
+            (is (= 200 (:status response)))
             (is (s/valid? ::articles/article (parse-body response)))))
-        (testing "Article retrieval"
-          (let [{:keys [status] :as response} (tu/get-request article-url)]
-            (is (= 200 status))
-            (is (= "my-test-article"
-                   (:article_url (parse-body response))))))))))
+        (testing "Article retrieval succeeds"
+          (let [response (tu/get-request article-url)]
+            (is (= 200 (:status response)))
+            (is (s/valid? ::articles/article (parse-body response)))))))))

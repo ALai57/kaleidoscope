@@ -4,7 +4,7 @@
             [andrewslai.clj.utils :refer [parse-body]]
             [buddy.auth.accessrules :refer [restrict]]
             [compojure.api.sweet :refer [context defroutes GET POST]]
-            [ring.util.http-response :refer [ok]]))
+            [ring.util.http-response :refer [ok not-found]]))
 
 (defroutes articles-routes
   (context "/articles" {:keys [components]}
@@ -12,9 +12,12 @@
       (ok (articles/get-all-articles (:db components))))
 
     (GET "/:article-name" [article-name :as request]
-      (ok (-> request
-              (get-in [:components :db])
-              (articles/get-article article-name))))
+      (let [article (-> request
+                        (get-in [:components :db])
+                        (articles/get-article article-name))]
+        (if article
+          (ok article)
+          (not-found))))
 
     (restrict
      (POST "/" request
