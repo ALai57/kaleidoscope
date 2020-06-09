@@ -34,28 +34,27 @@
 (defn test-app []
   (h/wrap-middleware h/bare-app (components)))
 
+(defn- get-request [route]
+  (->> route
+       (mock/request :get)
+       ((test-app))))
+
 (defdbtest get-all-articles-test ptest/db-spec
-  (testing "get-all-articles endpoint returns all articles"
-    (let [response (->> "/articles"
-                        (mock/request :get)
-                        ((test-app)))]
+  (testing "get-all-articles endpoint returns articles"
+    (let [response (get-request "/articles")]
       (is (= 200 (:status response)))
-      (is (= 5 (count (parse-body response)))))))
+      (is (s/valid? ::articles/articles (parse-body response))))))
 
 (defdbtest get-full-article-test ptest/db-spec
   (testing "get-article endpoint returns an article data structure"
-    (let [response (->> "/articles/my-first-article"
-                        (mock/request :get)
-                        ((test-app)))
+    (let [response (get-request "/articles/my-first-article")
           body (parse-body response)]
       (is (= 200 (:status response)))
       (is (s/valid? ::articles/article body)))))
 
 (defdbtest get-resume-info-test  ptest/db-spec
   (testing "get-resume-info endpoint returns an resume-info data structure"
-    (let [response (->> "/get-resume-info"
-                        (mock/request :get)
-                        ((test-app)))]
+    (let [response (get-request "/get-resume-info")]
       (is (= 200 (:status response)))
       (is (= #{:organizations, :projects, :skills}
              (set (keys (parse-body response))))))))
@@ -90,9 +89,7 @@
           (is (= 200 status))
           (is (s/valid? ::articles/article body)))
         (let [{:keys [status] :as response}
-              (->> "/articles/my-test-article"
-                   (mock/request :get)
-                   ((test-app)))]
+              (get-request "/articles/my-test-article")]
           (is (= 200 status))
           (is (= "my-test-article"
                  (:article_url (parse-body response)))))))))

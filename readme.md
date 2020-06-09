@@ -95,7 +95,7 @@ POSTGRES - MODIFYING DEFAULT POSTGRES USER PASSWORD
 - login to psql: `sudo su - postgres`. 
 ```
 psql
-ALTER USER posautocompletetgres WITH PASSWORD xxxxxxxx;
+ALTER USER postgres WITH PASSWORD xxxxxxxx;
 ```
 
 

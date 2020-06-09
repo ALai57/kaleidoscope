@@ -42,13 +42,3 @@
                               {:logging (captured-logging logging-atom)})
            (mock/request :get "/ping"))]
       (is (= 1 (count @logging-atom))))))
-
-#_(logging-test)
-
-#_(let [logging-atom (atom [])]
-    (timbre/with-config (captured-logging logging-atom)
-      (timbre/info "Yo"))
-    @logging-atom)
-
-#_(println (:appenders timbre/*config*))
-
