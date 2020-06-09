@@ -1,25 +1,23 @@
 (ns andrewslai.clj.handler-test
   (:require [andrewslai.clj.handler :as h]
-            [andrewslai.clj.utils :refer [body->map]]
+            [andrewslai.clj.utils :refer [parse-body]]
+            [andrewslai.clj.test-utils :refer [get-request]]
             [clojure.test :refer [deftest is testing]]
             [ring.mock.request :as mock]
             [taoensso.timbre :as timbre]))
 
 (deftest ping-test
   (testing "Ping works properly"
-    (let [{:keys [status body]}
-          ((h/wrap-middleware h/bare-app {})
-           (mock/request :get "/ping"))]
-      (is (= 200 status))
-      (is (= #{:sha :service-status} (-> body
-                                         body->map
+    (let [response (get-request "/ping")]
+      (is (= 200 (:status response)))
+      (is (= #{:sha :service-status} (-> response
+                                         parse-body
                                          keys
                                          set))))))
 
 (deftest home-test
   (testing "Index page works properly"
-    (let [{:keys [status]}
-          ((h/wrap-middleware h/bare-app {}) (mock/request :get "/"))]
+    (let [{:keys [status]} (get-request "/")]
       (is (= 200 status)))))
 
 ;; TODO: Add tests that logging works properly
@@ -28,8 +26,7 @@
   {:level :debug
    :appenders {:println {:enabled? true,
                          :level :debug
-                         :output-fn
-                         (fn [data] (force (:msg_ data)))
+                         :output-fn (fn [data] (force (:msg_ data)))
                          :fn (fn [data]
                                (let [{:keys [output_]} data]
                                  (swap! logging-atom conj (force output_))))}}})
@@ -37,8 +34,7 @@
 (deftest logging-test
   (testing "Logging works properly"
     (let [logging-atom (atom [])
-          {:keys [status body]}
-          ((h/wrap-middleware h/bare-app
-                              {:logging (captured-logging logging-atom)})
-           (mock/request :get "/ping"))]
+          app (h/wrap-middleware h/bare-app
+                                 {:logging (captured-logging logging-atom)})]
+      (get-request "/ping" app)
       (is (= 1 (count @logging-atom))))))
