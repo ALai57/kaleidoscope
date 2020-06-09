@@ -15,11 +15,6 @@
       slurp
       (json/parse-string keyword)))
 
-(defn body->map [body]
-  (-> body
-      slurp
-      (json/parse-string keyword)))
-
 (defn file->bytes [file]
   (with-open [xin (clojure.java.io/input-stream file)
               xout (java.io.ByteArrayOutputStream.)]

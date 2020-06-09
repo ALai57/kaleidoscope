@@ -5,7 +5,6 @@
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.test-utils :refer [defdbtest]]
             [andrewslai.clj.utils :refer [parse-body
-                                          body->map
                                           file->bytes]]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
@@ -136,11 +135,11 @@
                    (into user-authentication)
                    (dissoc :id :role_id :avatar))))))
     (testing "Can hit admin route with valid session token"
-      (let [{:keys [status body]}
+      (let [response
             ((test-users-app) (assoc-in (mock/request :get "/admin/")
                                         [:headers "cookie"] cookie))]
-        (is (= 200 status))
-        (is (= {:message "Got to the admin-route!"} (body->map body)))))
+        (is (= 200 (:status response)))
+        (is (= {:message "Got to the admin-route!"} (parse-body response)))))
     (testing "Rejected from admin route when valid session token not present"
       (let [{:keys [status body]}
             ((test-users-app) (mock/request :get "/admin/"))]
