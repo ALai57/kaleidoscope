@@ -40,24 +40,17 @@
        ((test-app))))
 
 (defdbtest get-all-articles-test ptest/db-spec
-  (testing "get-all-articles endpoint returns articles"
+  (testing "get-all-articles endpoint returns a collection of articles"
     (let [response (get-request "/articles")]
       (is (= 200 (:status response)))
       (is (s/valid? ::articles/articles (parse-body response))))))
 
 (defdbtest get-full-article-test ptest/db-spec
-  (testing "get-article endpoint returns an article data structure"
+  (testing "get-article endpoint returns an article"
     (let [response (get-request "/articles/my-first-article")
           body (parse-body response)]
       (is (= 200 (:status response)))
       (is (s/valid? ::articles/article body)))))
-
-(defdbtest get-resume-info-test  ptest/db-spec
-  (testing "get-resume-info endpoint returns an resume-info data structure"
-    (let [response (get-request "/get-resume-info")]
-      (is (= 200 (:status response)))
-      (is (= #{:organizations, :projects, :skills}
-             (set (keys (parse-body response))))))))
 
 (defn create-user [user]
   ((test-app) (mock/request :post "/users" (json/generate-string user))))

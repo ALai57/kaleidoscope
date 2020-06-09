@@ -4,6 +4,7 @@
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.persistence.articles :as articles]
+            [andrewslai.clj.persistence.projects-portfolio :as portfolio]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.login :refer [login-routes]]
@@ -85,6 +86,9 @@
                     :user (-> postgres/pg-db
                               postgres/->Postgres
                               users/->UserDatabase)
+                    :portfolio (-> postgres/pg-db
+                                   postgres/->Postgres
+                                   portfolio/->ProjectPortfolioDatabase)
                     :logging (merge log/*config* {:level :debug})
                     :session {:cookie-attrs {:max-age 3600}
                               :store (mem/memory-store (atom {}))}}))
@@ -92,17 +96,20 @@
 (defn -main [& _]
   (println "Hello! Starting service...")
   (httpkit/run-server
-    (wrap-middleware bare-app
-                     {:db (-> postgres/pg-db
-                              postgres/->Postgres
-                              articles/->ArticleDatabase)
-                      :user (-> postgres/pg-db
-                                postgres/->Postgres
-                                users/->UserDatabase)
-                      :logging (merge log/*config* {:level :info})
-                      :session {:cookie-attrs {:max-age 3600, :secure true}
-                                :store (mem/memory-store (atom {}))}})
-    {:port (@env/env :port)}))
+   (wrap-middleware bare-app
+                    {:db (-> postgres/pg-db
+                             postgres/->Postgres
+                             articles/->ArticleDatabase)
+                     :user (-> postgres/pg-db
+                               postgres/->Postgres
+                               users/->UserDatabase)
+                     :portfolio (-> postgres/pg-db
+                                    postgres/->Postgres
+                                    portfolio/->ProjectPortfolioDatabase)
+                     :logging (merge log/*config* {:level :info})
+                     :session {:cookie-attrs {:max-age 3600, :secure true}
+                               :store (mem/memory-store (atom {}))}})
+   {:port (@env/env :port)}))
 
 (comment
   (-main)
