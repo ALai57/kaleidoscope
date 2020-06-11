@@ -8,12 +8,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - with:
+      
+    - name: Cache maven artifacts
+      uses: actions/cache@v2
+      with:
         path: /root/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('project.clj') }}
         restore-keys: |
             ${{ runner.os }}-maven-
+            
     - name: Install dependencies
       run: lein deps
+      
     - name: Run tests
       run: lein test
