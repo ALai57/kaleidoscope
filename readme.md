@@ -65,9 +65,9 @@ EMACS AND REPL/FIGWHEEL
 DOCKER
 ```
 docker build -t andrewslai .
-sudo docker run --network="host" -p 5000:5000 andrewslai
-sudo docker ps
-sudo docker stop 02d64e84e7c3
+docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai
+docker ps
+docker stop 02d64e84e7c3
 ```
 
 ELASTIC BEANSTALK

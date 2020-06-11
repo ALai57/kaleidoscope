@@ -4,7 +4,7 @@ out
 .rebel_readline_history
 figwheel_server.log
 *db_init_log.txt
-*.env
+*.env*
 *.lein-repl-history
 .lein-failures
 use_db

@@ -9,8 +9,12 @@ Step 1: build and test locally
 Step 2: Dockerized testing with live DB
 ```
 docker build -t andrewslai .
-use_db aws
-sudo docker run --env-file=.env -p 5000:5000 andrewslai
+
+docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai
+
+OR 
+
+docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai
 ```
 
 Step 3: Upload artifact
