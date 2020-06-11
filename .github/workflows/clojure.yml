@@ -1,10 +1,5 @@
 name: Clojure CI
-
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push]
 
 jobs:
   build:
@@ -13,6 +8,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - with:
+        path: /root/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('project.clj') }}
+        restore-keys: |
+            ${{ runner.os }}-maven-
     - name: Install dependencies
       run: lein deps
     - name: Run tests
