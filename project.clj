@@ -65,7 +65,9 @@
   :clean-targets ^{:protect false} [:target-path "resources/public/js/compiled"]
 
   ;; See lein-doo documentation for installing Karma test runner
-  :doo {:paths {:karma "test_runner/node_modules/karma/bin/karma"}}
+  :doo {:paths {:karma "test_runner/node_modules/karma/bin/karma"}
+        :alias {:default [:chrome-headless]}
+        :build "dev-test"}
 
   :cljsbuild
   {:builds

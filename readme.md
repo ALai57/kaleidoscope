@@ -12,12 +12,30 @@ Front end: Clojurescript (React/Re-frame)
 - Re-frame SPA
 
 
-# Tests
+# Installation
+## Clojure
+The server is a standard Clojure Ring web server.
+To get up and running, clone the repo and run tests with `lein test`
 
-CLOJURESCRIPT
+## Clojurescript
+The Clojurescript client uses `Karma` via `lein doo` for testing, and requires
+some NPM dependencies. `Karma` launches a web server which manages connected
+instances of different browsers used for testing (e.g. firefox, chrome, ie6..).
+The server connects to the different browsers using a websocket connection and
+instructs the different browsers -- over websockets -- to run tests in an IFrame
+
+First install NPM, e.g. `sudo apt install npm`
+
+Install Karma test runner and chrome launcher
 ```
-lein doo chrome-headless dev-test
+mkdir test_runner
+cd test_runner
+npm install karma karma-cljs-test --save-dev
+npm install karma-chrome-launcher --save-dev
 ```
+
+Run tests
+`lein doo chrome-headless dev-test`
 
 # Deployment
 
