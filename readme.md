@@ -37,6 +37,22 @@ npm install karma-chrome-launcher --save-dev
 Run tests
 `lein doo chrome-headless dev-test`
 
+# Testing with Docker
+First, clean the project and build an uberjar `lein do clean, uberjar`
+
+Next, build the docker container `docker build -t andrewslai .`
+
+If you'd like to run the server in a Docker container connected to an instance
+of Postgres running on localhost, you'll need to specify that you want it to run
+on the localhost network, and provide the correct environment variables for the
+database.
+`docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai`
+
+If you'd like to run the server in a Docker container connected to an instance
+of Postgres running on an AWS database, you'll need to provide the correct
+environment variables for the database.
+`docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai`
+
 # Deployment
 
 CREATE ELASTIC BEANSTALK ENVIRONMENT
