@@ -21,29 +21,24 @@
        (binding [~db-spec db-spec#] 
          ~@body))))
 
-(defn get-db-spec [db]
-  {:classname "org.postgresql.Driver"
-   :subprotocol "postgresql"
-   :subname (str "//localhost:" (.getPort db) "/postgres")
-   :user "postgres"})
+#_(defn get-db-spec [db]
+    {:classname "org.postgresql.Driver"
+     :subprotocol "postgresql"
+     :subname (str "//localhost:" (.getPort db) "/postgres")
+     :user "postgres"})
 
-(defn app
-  ([]
-   (h/wrap-middleware h/app-routes
-                      (h/configure-components {:db-spec ptest/db-spec
-                                               :log-level :error
-                                               :secure-session? false
-                                               :session-atom (atom {})})))
-  ([session-atom]
-   (h/wrap-middleware h/app-routes
-                      (h/configure-components {:db-spec ptest/db-spec
-                                               :log-level :error
-                                               :secure-session? false
-                                               :session-atom session-atom}))))
+(defn test-app-component-config [db-spec]
+  {:db-spec db-spec
+   :log-level :error
+   :secure-session? false
+   :session-atom (atom {})})
 
 (defn get-request
   ([route]
-   (get-request route (app)))
+   (->> ptest/db-spec
+        test-app-component-config
+        (h/configure-app h/app-routes)
+        (get-request route)))
   ([route app]
    (->> route
         (mock/request :get)

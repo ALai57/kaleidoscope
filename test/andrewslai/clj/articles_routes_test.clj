@@ -44,7 +44,8 @@
       first))
 
 (defdbtest create-article-test ptest/db-spec
-  (let [handler              (tu/app (atom {}))
+  (let [handler              (h/configure-app h/app-routes
+                                              (tu/test-app-component-config ptest/db-spec))
         create-user          (fn [user] (->> user
                                              (assemble-post-request "/users")
                                              handler))

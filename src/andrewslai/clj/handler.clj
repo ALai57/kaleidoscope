@@ -97,7 +97,10 @@
 (defn configure-components
   "Configures components that will be used in the application,
   e.g. Database connection, logging details, and session mgmt"
-  [{:keys [db-spec session-atom secure-session? log-level]}]
+  [{:keys [db-spec session-atom secure-session? log-level]
+    :or {session-atom (atom {})
+         secure-session? true
+         log-level :info}}]
   {:db (-> db-spec
            postgres/->Postgres
            articles/->ArticleDatabase)
