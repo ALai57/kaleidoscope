@@ -34,7 +34,7 @@
 (deftest logging-test
   (testing "Logging works properly"
     (let [logging-atom (atom [])
-          app (h/wrap-middleware h/bare-app
+          app (h/wrap-middleware h/app-routes
                                  {:logging (captured-logging logging-atom)})]
       (get-request "/ping" app)
       (is (= 1 (count @logging-atom))))))

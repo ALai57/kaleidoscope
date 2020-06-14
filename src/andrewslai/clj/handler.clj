@@ -34,7 +34,7 @@
 
 (def backend (session-backend))
 
-(def bare-app
+(def app-routes
   (-> {:swagger
        {:ui "/swagger"
         :spec "/swagger.json"
@@ -42,16 +42,16 @@
                       :description "My personal website"}
                :tags [{:name "api", :description "some apis"}]}}}
       (api
-        (GET "/" []
-          (-> (resource-response "index.html" {:root "public"})
-              (content-type "text/html")))
+       (GET "/" []
+         (-> (resource-response "index.html" {:root "public"})
+             (content-type "text/html")))
 
-        ping-routes
-        articles-routes
-        users-routes
-        projects-portfolio-routes
-        login-routes
-        admin-routes)))
+       ping-routes
+       articles-routes
+       users-routes
+       projects-portfolio-routes
+       login-routes
+       admin-routes)))
 
 (defn wrap-logging [handler]
   (fn [request]
@@ -79,7 +79,7 @@
 
 ;; This is for figwheel testing only
 (def app
-  (wrap-middleware bare-app
+  (wrap-middleware app-routes
                    {:db (-> postgres/pg-db
                             postgres/->Postgres
                             articles/->ArticleDatabase)
@@ -96,7 +96,7 @@
 (defn -main [& _]
   (println "Hello! Starting service...")
   (httpkit/run-server
-   (wrap-middleware bare-app
+   (wrap-middleware app-routes
                     {:db (-> postgres/pg-db
                              postgres/->Postgres
                              articles/->ArticleDatabase)

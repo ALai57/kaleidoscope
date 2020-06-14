@@ -30,7 +30,7 @@
    :session {:store (mem/memory-store session-atom)}})
 
 (defn test-users-app []
-  (h/wrap-middleware h/bare-app (components)))
+  (h/wrap-middleware h/app-routes (components)))
 
 (defn identity-handler []
   (h/wrap-middleware (api
