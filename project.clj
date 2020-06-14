@@ -55,11 +55,11 @@
                          [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
                          [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
 
-  :ring {:handler andrewslai.clj.handler/figwheel-app}
+  :ring {:handler andrewslai.clj.figwheel-backend/figwheel-app}
   :aot :all
   :uberjar-name "andrewslai.jar"
   :main andrewslai.clj.handler
-  :figwheel {:ring-handler andrewslai.clj.handler/figwheel-app
+  :figwheel {:ring-handler andrewslai.clj.figwheel-backend/figwheel-app
              :css-dirs ["resources/public/css"]}
   :clean-targets ^{:protect false} [:target-path "resources/public/js/compiled"]
 
