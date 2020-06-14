@@ -27,23 +27,19 @@
    :subname (str "//localhost:" (.getPort db) "/postgres")
    :user "postgres"})
 
-(defn components [session-atom]
-  {:user (-> ptest/db-spec
-             postgres/->Postgres
-             users/->UserDatabase)
-   :session {:store (mem/memory-store session-atom)}
-   :portfolio (-> ptest/db-spec
-                  postgres/->Postgres
-                  portfolio/->ProjectPortfolioDatabase)
-   :db (-> ptest/db-spec
-           postgres/->Postgres
-           articles/->ArticleDatabase)})
-
 (defn app
   ([]
-   (h/wrap-middleware h/app-routes (components (atom {}))))
+   (h/wrap-middleware h/app-routes
+                      (h/configure-components {:db-spec ptest/db-spec
+                                               :log-level :error
+                                               :secure-session? false
+                                               :session-atom (atom {})})))
   ([session-atom]
-   (h/wrap-middleware h/app-routes (components session-atom))))
+   (h/wrap-middleware h/app-routes
+                      (h/configure-components {:db-spec ptest/db-spec
+                                               :log-level :error
+                                               :secure-session? false
+                                               :session-atom session-atom}))))
 
 (defn get-request
   ([route]
