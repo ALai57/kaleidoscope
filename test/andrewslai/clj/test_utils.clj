@@ -27,17 +27,6 @@
    :subname (str "//localhost:" (.getPort db) "/postgres")
    :user "postgres"})
 
-(defmacro defdbtest-with
-  "Defines a test that will cleanup and rollback all database transactions
-  db-spec defines the database connection. "
-  [test-name db & body]
-  `(deftest ~test-name
-     (let [db-spec-2# (get-db-spec db)]
-       (jdbc/with-db-transaction [db-spec# db-spec-2#]
-         (jdbc/db-set-rollback-only! db-spec#)
-         (binding [db-spec-2# db-spec#]
-           ~@body)))))
-
 (defn components [session-atom]
   {:user (-> ptest/db-spec
              postgres/->Postgres
@@ -50,7 +39,7 @@
            postgres/->Postgres
            articles/->ArticleDatabase)})
 
-(defn test-app
+(defn app
   ([]
    (h/wrap-middleware h/app-routes (components (atom {}))))
   ([session-atom]
@@ -58,7 +47,7 @@
 
 (defn get-request
   ([route]
-   (get-request route (test-app)))
+   (get-request route (app)))
   ([route app]
    (->> route
         (mock/request :get)
