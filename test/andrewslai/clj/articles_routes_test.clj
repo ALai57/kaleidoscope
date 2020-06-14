@@ -10,7 +10,7 @@
             [andrewslai.clj.test-utils :refer [defdbtest] :as tu]
             [cheshire.core :as json]
             [clojure.java.jdbc :as jdbc]
-            [clojure.test :refer [deftest is testing]]
+            [clojure.test :refer [deftest is testing are]]
             [ring.mock.request :as mock]
             [clojure.spec.alpha :as s]))
 
@@ -19,18 +19,20 @@
     (jdbc/query db "select * from articles"))
   )
 
+(defdbtest article-retrieval-test ptest/db-spec
+  (are [endpoint status spec]
+    (testing (format "%s returns %s, matching schema %s" endpoint status spec)
+      (let [response (tu/get-request endpoint)]
+        (is (= status (:status response)))
+        (is (s/valid? spec (parse-body response)))))
 
-(defdbtest get-all-articles-test ptest/db-spec
-  (testing "get-all-articles endpoint returns a collection of articles"
-    (let [response (tu/get-request "/articles")]
-      (is (= 200 (:status response)))
-      (is (s/valid? ::articles/articles (parse-body response))))))
+    "/articles"                  200 ::articles/articles
+    "/articles/my-first-article" 200 ::articles/article)
 
-(defdbtest get-full-article-test ptest/db-spec
-  (testing "get-article endpoint returns an article"
-    (let [response (tu/get-request "/articles/my-first-article")]
-      (is (= 200 (:status response)))
-      (is (s/valid? ::articles/article (parse-body response))))))
+  (testing "Non-existent article"
+    (let [response (tu/get-request "/articles/does-not-exist")]
+      (is (= 404 (:status response)))
+      #_(is (s/valid? ::articles/article (parse-body response))))))
 
 (defn assemble-post-request [endpoint payload]
   (->> payload
