@@ -120,7 +120,7 @@
        (wrap-middleware routes)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Main fn - running the server
+;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn -main
   "Invoked to start a server and run the application"
@@ -132,16 +132,3 @@
                           :secure-session? true}]
     (httpkit/run-server (configure-app app-routes component-config)
                         {:port (@env/env :port)})))
-
-(comment
-  (-main)
-
-  (let [resume-info (articles/get-resume-info (articles/->ArticleDatabase postgres/pg-db))]
-    (clojure.pprint/pprint (:projects resume-info)))
-
-  (articles/get-full-article (articles/->ArticleDatabase postgres/pg-db) "my-first-article")
-
-  (clojure.pprint/pprint
-   (first (articles/get-article (articles/->ArticleDatabase postgres/pg-db) "my-second-article")))
-
-  )
