@@ -77,39 +77,44 @@
       (wrap-components app-components)
       wrap-content-type))
 
+(defn configure-components
+  [{:keys [db-spec session-atom secure-session? log-level]}]
+  {:db (-> db-spec
+           postgres/->Postgres
+           articles/->ArticleDatabase)
+   :user (-> db-spec
+             postgres/->Postgres
+             users/->UserDatabase)
+   :portfolio (-> db-spec
+                  postgres/->Postgres
+                  portfolio/->ProjectPortfolioDatabase)
+   :logging (merge log/*config* {:level log-level})
+   :session {:cookie-attrs {:max-age 3600 :secure secure-session?}
+             :store (mem/memory-store session-atom)}})
+
 ;; This is for figwheel testing only
-(def app
-  (wrap-middleware app-routes
-                   {:db (-> postgres/pg-db
-                            postgres/->Postgres
-                            articles/->ArticleDatabase)
-                    :user (-> postgres/pg-db
-                              postgres/->Postgres
-                              users/->UserDatabase)
-                    :portfolio (-> postgres/pg-db
-                                   postgres/->Postgres
-                                   portfolio/->ProjectPortfolioDatabase)
-                    :logging (merge log/*config* {:level :debug})
-                    :session {:cookie-attrs {:max-age 3600}
-                              :store (mem/memory-store (atom {}))}}))
+(def figwheel-app
+  (let [component-config {:db-spec postgres/pg-db
+                          :log-level :debug
+                          :session-atom (atom {})
+                          :secure-session? false}]
+    (->> component-config
+         configure-components
+         (wrap-middleware app-routes))))
+
+(defn configure-app [routes component-config]
+  (->> component-config
+       configure-components
+       (wrap-middleware routes)))
 
 (defn -main [& _]
   (println "Hello! Starting service...")
-  (httpkit/run-server
-   (wrap-middleware app-routes
-                    {:db (-> postgres/pg-db
-                             postgres/->Postgres
-                             articles/->ArticleDatabase)
-                     :user (-> postgres/pg-db
-                               postgres/->Postgres
-                               users/->UserDatabase)
-                     :portfolio (-> postgres/pg-db
-                                    postgres/->Postgres
-                                    portfolio/->ProjectPortfolioDatabase)
-                     :logging (merge log/*config* {:level :info})
-                     :session {:cookie-attrs {:max-age 3600, :secure true}
-                               :store (mem/memory-store (atom {}))}})
-   {:port (@env/env :port)}))
+  (let [component-config {:db-spec postgres/pg-db
+                          :log-level :info
+                          :session-atom (atom {})
+                          :secure-session? true}]
+    (httpkit/run-server (configure-app app-routes component-config)
+                        {:port (@env/env :port)})))
 
 (comment
   (-main)
@@ -120,6 +125,6 @@
   (articles/get-full-article (articles/->ArticleDatabase postgres/pg-db) "my-first-article")
 
   (clojure.pprint/pprint
-    (first (articles/get-article (articles/->ArticleDatabase postgres/pg-db) "my-second-article")))
+   (first (articles/get-article (articles/->ArticleDatabase postgres/pg-db) "my-second-article")))
 
   )

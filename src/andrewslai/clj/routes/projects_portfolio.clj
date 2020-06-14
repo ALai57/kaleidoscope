@@ -4,5 +4,6 @@
             [ring.util.http-response :refer [ok]]))
 
 (defroutes projects-portfolio-routes
+  ;; TODO: Update this route
   (GET "/get-resume-info" {:keys [components]}
     (ok (portfolio/get-project-portfolio (:portfolio components)))))
