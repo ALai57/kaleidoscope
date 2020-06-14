@@ -29,11 +29,17 @@
 
 ;; https://adambard.com/blog/buddy-password-auth-example/
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Global settings (Yuck!)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (log/merge-config!
-  {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}})
+ {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}})
 
 (def backend (session-backend))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Compojure Routes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def app-routes
   (-> {:swagger
        {:ui "/swagger"
@@ -53,6 +59,9 @@
        login-routes
        admin-routes)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Middleware
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn wrap-logging [handler]
   (fn [request]
     (log/with-config (get-in request [:components :logging])
@@ -61,12 +70,17 @@
                 (:uri request))
       (handler request))))
 
-(defn wrap-components [handler components]
+(defn wrap-components
+  "Middlware that adds components to the Ring request"
+  [handler components]
   (fn [request]
     (handler (assoc request :components components))))
 
-(defn wrap-middleware [handler app-components]
-  (-> handler
+(defn wrap-middleware
+  "Wraps a set of Compojure routes with middleware and adds
+  components via the wrap-components middleware"
+  [routes app-components]
+  (-> routes
       wrap-logging
       users/wrap-user
       (wrap-authentication backend)
@@ -77,7 +91,12 @@
       (wrap-components app-components)
       wrap-content-type))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; App configuration helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn configure-components
+  "Configures components that will be used in the application,
+  e.g. Database connection, logging details, and session mgmt"
   [{:keys [db-spec session-atom secure-session? log-level]}]
   {:db (-> db-spec
            postgres/->Postgres
@@ -92,22 +111,20 @@
    :session {:cookie-attrs {:max-age 3600 :secure secure-session?}
              :store (mem/memory-store session-atom)}})
 
-;; This is for figwheel testing only
-(def figwheel-app
-  (let [component-config {:db-spec postgres/pg-db
-                          :log-level :debug
-                          :session-atom (atom {})
-                          :secure-session? false}]
-    (->> component-config
-         configure-components
-         (wrap-middleware app-routes))))
-
-(defn configure-app [routes component-config]
+(defn configure-app
+  "Configures the application by wrapping key middleware and adding
+  all relevant components to the app"
+  [routes component-config]
   (->> component-config
        configure-components
        (wrap-middleware routes)))
 
-(defn -main [& _]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Main fn - running the server
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn -main
+  "Invoked to start a server and run the application"
+  [& _]
   (println "Hello! Starting service...")
   (let [component-config {:db-spec postgres/pg-db
                           :log-level :info
