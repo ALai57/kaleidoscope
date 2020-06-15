@@ -12,7 +12,7 @@
       postgres/->Postgres
       users/->UserDatabase))
 
-(def example-user {:avatar (byte-array (map (comp byte int) "Hello world!"))
+(def example-user {:avatar "Hello world!"
                    :email "me@andrewslai.com"
                    :first_name "Andrew"
                    :last_name "Lai"

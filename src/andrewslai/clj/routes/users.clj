@@ -12,15 +12,14 @@
             [ring.util.response :as response]
             [slingshot.slingshot :refer [try+]]))
 
+;; TODO: Add spec based schema validation.
+;; https://www.metosin.fi/blog/clojure-spec-with-ring-and-swagger/
+
 ;; Extract to encoding ns
 (defn decode-avatar [avatar]
   (if avatar
     (b64/decode (.getBytes avatar))
     (file->bytes (clojure.java.io/resource "avatars/happy_emoji.jpg"))))
-
-(def default-avatar (-> "avatars/happy_emoji.jpg"
-                        clojure.java.io/resource
-                        file->bytes))
 
 (s/def ::avatar string?)
 (s/def ::user (s/keys :req-un [::avatar
@@ -70,17 +69,9 @@
 
     (POST "/" request
       (try+ 
-       (let [{:keys [username avatar password] :as payload} (parse-body request)
-
-             decoded-avatar (or (some-> avatar
-                                        .getBytes
-                                        b64/decode)
-                                default-avatar)
-
+       (let [{:keys [username password] :as payload} (parse-body request)
              result (users/register-user! (:user components)
-                                          (-> payload
-                                              (assoc :avatar decoded-avatar)
-                                              (dissoc :password))
+                                          (dissoc payload :password)
                                           password)]
          (-> (created)
              (assoc :headers {"Location" (str "/users/" username)})

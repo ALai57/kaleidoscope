@@ -2,8 +2,10 @@
   (:require [andrewslai.clj.auth.crypto :refer [encrypt check make-encryption]]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.clj.utils :refer [validate]]
+            [andrewslai.clj.utils :refer [file->bytes validate]]
+            [clojure.data.codec.base64 :as b64]
             [clojure.java.data :as j]
+            [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
             [clojure.spec.alpha :as s]
             [slingshot.slingshot :refer [throw+ try+]])
@@ -33,6 +35,9 @@
   (verify-credentials [_ credentials])
   (login [_ credentials]))
 
+(def default-avatar (-> "avatars/happy_emoji.jpg"
+                        clojure.java.io/resource
+                        file->bytes))
 (def default-role 2)
 (def email-regex #"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$")
 (defn email? [s] (when (string? s)
@@ -99,9 +104,15 @@
   (try+
    (let [user-id (java.util.UUID/randomUUID)
          role-id (or (:role_id user) default-role)
+         decoded-avatar (or (some-> user
+                                    :avatar
+                                    .getBytes
+                                    b64/decode)
+                            default-avatar)
          full-user (-> user
                        (assoc :id user-id)
-                       (assoc :role_id role-id))]
+                       (assoc :role_id role-id)
+                       (assoc :avatar decoded-avatar))]
      (create-user! this full-user)
      (create-login! this user-id password)
      full-user)
