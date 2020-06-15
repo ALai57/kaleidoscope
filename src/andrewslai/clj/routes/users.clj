@@ -6,6 +6,7 @@
             [cheshire.core :as json]
             [clojure.data.codec.base64 :as b64]
             [clojure.java.io :as io]
+            [clojure.spec.alpha :as s]
             [compojure.api.sweet :refer [context defroutes DELETE GET PATCH POST]]
             [ring.util.http-response :refer [bad-request created not-found ok no-content]]
             [ring.util.response :as response]
@@ -20,6 +21,14 @@
 (def default-avatar (-> "avatars/happy_emoji.jpg"
                         clojure.java.io/resource
                         file->bytes))
+
+(s/def ::avatar string?)
+(s/def ::user (s/keys :req-un [::avatar
+                               ::users/first_name
+                               ::users/last_name
+                               ::users/username
+                               ::users/email
+                               ::users/role_id]))
 
 (defroutes users-routes
   (context "/users" {:keys [components]}

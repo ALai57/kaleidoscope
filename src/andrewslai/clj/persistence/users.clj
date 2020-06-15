@@ -52,8 +52,8 @@
                                ::first_name
                                ::last_name
                                ::username
-                               ::email]
-                      :opt-un [::role_id
+                               ::email
+                               ::role_id
                                ::id]))
 
 (s/def ::user-update (s/keys :opt-un [::first_name ::last_name ::avatar]))
@@ -65,8 +65,9 @@
       j/from-java
       (select-keys [:score :feedback])))
 
-(defn sufficient-strength? [{:keys [score]}]
-  (<= 4 score))
+(defn sufficient-strength? [password]
+  (let [{:keys [score]} (password-strength password)]
+    (<= 4 score)))
 
 (s/def ::password-strength sufficient-strength?)
 
@@ -78,26 +79,31 @@
       (select-keys [:score :feedback]))
   )
 
-(defn- -create-user! [this user]
+(defn- -create-user!
+  "Checks that the user meets the ::user spec and creates a user"
+  [this user]
+  (validate ::user user :IllegalArgumentException)
   (rdbms/insert! (:database this) "users" user))
 
-(defn- -create-login! [this id encrypted-password]
-  (rdbms/insert! (:database this) "logins"
-                 {:id id, :hashed_password encrypted-password}))
+(defn- -create-login!
+  "Checks that the login meets the ::password-strength spec, then encrypts and
+  persists the login information"
+  [this id password]
+  (validate ::password-strength password :IllegalArgumentException)
+  (let [encrypted-password (encrypt (make-encryption) password)]
+    (rdbms/insert! (:database this) "logins"
+                   {:id id, :hashed_password encrypted-password})))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn- -register-user! [this {:keys [role_id] :as user} password]
-  (validate ::user user :IllegalArgumentException)
-  (validate ::password-strength
-            (password-strength password)
-            :IllegalArgumentException)
+(defn- -register-user! [this user password]
   (try+
    (let [user-id (java.util.UUID/randomUUID)
+         role-id (or (:role_id user) default-role)
          full-user (-> user
                        (assoc :id user-id)
-                       (assoc :role_id (or role_id default-role)))]
+                       (assoc :role_id role-id))]
      (create-user! this full-user)
-     (create-login! this user-id (encrypt (make-encryption) password))
+     (create-login! this user-id password)
      full-user)
    (catch org.postgresql.util.PSQLException e
      (throw+ {:type :PSQLException
@@ -106,31 +112,31 @@
                         :reason (.getMessage e)
                         :feedback "Try a different username and/or email"}}))))
 
-(defn -get-users [this]
-  (rdbms/hselect (:database this) {:select [:*]
-                                   :from [:users]}))
+(defn -get-users [{:keys [database]}]
+  (rdbms/hselect database {:select [:*]
+                           :from [:users]}))
 
-(defn -get-user [this username]
-  (first (rdbms/hselect (:database this) {:select [:*]
-                                          :from [:users]
-                                          :where [:= :users/username username]})))
+(defn -get-user [{:keys [database]} username]
+  (first (rdbms/hselect database {:select [:*]
+                                  :from [:users]
+                                  :where [:= :users/username username]})))
 
-(defn -get-user-by-id [this user-id]
-  (first (rdbms/hselect (:database this) {:select [:*]
-                                          :from [:users]
-                                          :where [:= :users/id user-id]})))
+(defn -get-user-by-id [{:keys [database]} user-id]
+  (first (rdbms/hselect database {:select [:*]
+                                  :from [:users]
+                                  :where [:= :users/id user-id]})))
 
-(defn -update-user! [this username update-payload]
+(defn -update-user! [{:keys [database]} username update-payload]
   (validate ::user-update update-payload :IllegalArgumentException)
-  (let [n-updates (first (rdbms/update! (:database this)
+  (let [n-updates (first (rdbms/update! database
                                         "users"
                                         update-payload
                                         {:username username}))]
     (if (= 1 n-updates)
       update-payload)))
 
-(defn -get-password [this user-id]
-  (:hashed_password (first (rdbms/hselect (:database this)
+(defn -get-password [{:keys [database]} user-id]
+  (:hashed_password (first (rdbms/hselect database
                                           {:select [:*]
                                            :from [:logins]
                                            :where [:= :users/id user-id]}))))
@@ -147,11 +153,12 @@
   (when (verify-credentials this credentials)
     (:id (get-user this username))))
 
-(defn -delete-user! [this {:keys [username] :as credentials}]
+(defn -delete-user! [{:keys [database] :as this}
+                     {:keys [username] :as credentials}]
   (when (verify-credentials this credentials)
     (let [{:keys [id]} (get-user this username)]
-      (rdbms/delete! (:database this) "logins" {:id id})
-      (first (rdbms/delete! (:database this) "users" {:username username})))))
+      (rdbms/delete! database "logins" {:id id})
+      (first (rdbms/delete! database "users" {:username username})))))
 
 ;; Can this be refactored so that the record takes an implementation as an arg?
 ;; For example, you call ->UserDatabase, and instead of conn, give it another

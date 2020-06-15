@@ -3,6 +3,7 @@
             [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.users :as users]
+            [andrewslai.clj.routes.users :as user-routes]
             [andrewslai.clj.test-utils :refer [defdbtest]]
             [andrewslai.clj.utils :refer [parse-body
                                           file->bytes]]
@@ -12,6 +13,7 @@
             [cheshire.core :as json]
             [clojure.data.codec.base64 :as b64]
             [clojure.java.jdbc :as jdbc]
+            [clojure.spec.alpha :as s]
             [clojure.test :refer [deftest is testing]]
             [compojure.api.sweet :refer [api GET POST]]
             [ring.middleware.cookies :refer [wrap-cookies]]
@@ -57,12 +59,8 @@
                                           (json/generate-string new-user)))
           user-url (get headers "Location")]
       (is (= 201 status))
+      (is (s/valid? ::user-routes/user (parse-body response)))
       (is (= "/users/new-user" user-url))
-      (is (= #{:id :username :avatar :avatar_url :first_name :last_name :email :role_id}
-             (-> response
-                 parse-body
-                 keys
-                 set)))
       (testing "Can retrieve the new user"
         (let [{:keys [status headers] :as response}
               ((test-users-app) (mock/request :get user-url))]

@@ -62,10 +62,6 @@
                   (users/update-user (test-db) (:username example-user) {:first_name ""})))))
 
 (defdbtest registration-errors-test ptest/db-spec
-  (testing "Duplicate user"
-    (is (thrown+? [:type :PSQLException]
-                  (users/register-user! (test-db) example-user password)
-                  (users/register-user! (test-db) example-user password))))
   (testing "Username includes escape chars"
     (is (thrown+? [:type :IllegalArgumentException]
                   (users/register-user! (test-db)
@@ -84,4 +80,8 @@
       (is (thrown+? [:type :IllegalArgumentException]
                     (users/register-user! (test-db)
                                           (assoc example-user field "")
-                                          password))))))
+                                          password)))))
+  (testing "Duplicate user"
+    (is (thrown+? [:type :PSQLException]
+                  (users/register-user! (test-db) example-user password)
+                  (users/register-user! (test-db) example-user password)))))
