@@ -102,6 +102,8 @@
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
 (defn- -register-user! [this user password]
   (try+
+   ;; The user id role id stuff should be part of inbound adapter, not in
+   ;; business layer
    (let [user-id (java.util.UUID/randomUUID)
          role-id (or (:role_id user) default-role)
          decoded-avatar (or (some-> user

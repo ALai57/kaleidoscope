@@ -14,6 +14,7 @@
 
 ;; TODO: Add spec based schema validation.
 ;; https://www.metosin.fi/blog/clojure-spec-with-ring-and-swagger/
+;; TODO: Make inbound adapter for data
 
 ;; Extract to encoding ns
 (defn decode-avatar [avatar]
@@ -68,6 +69,8 @@
              (assoc :body e)))))
 
     (POST "/" request
+      ;; Call inbound adapter -> register-user -> dispatch to create-user/login
+      ;; -> database
       (try+ 
        (let [{:keys [username password] :as payload} (parse-body request)
              result (users/register-user! (:user components)

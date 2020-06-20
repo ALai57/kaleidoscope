@@ -22,9 +22,10 @@
 (defdbtest article-retrieval-test ptest/db-spec
   (are [endpoint status spec]
     (testing (format "%s returns %s, matching schema %s" endpoint status spec)
-      (let [response (tu/get-request endpoint)]
+      (let [response (tu/get-request endpoint)
+            body (parse-body response)]
         (is (= status (:status response)))
-        (is (s/valid? spec (parse-body response)))))
+        (is (s/valid? spec body))))
 
     "/articles"                  200 ::articles/articles
     "/articles/my-first-article" 200 ::articles/article)
