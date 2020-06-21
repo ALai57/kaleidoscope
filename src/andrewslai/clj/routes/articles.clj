@@ -3,29 +3,11 @@
             [andrewslai.clj.routes.admin :as admin]
             [andrewslai.clj.utils :refer [parse-body]]
             [buddy.auth.accessrules :refer [restrict]]
-            [compojure.api.sweet :refer [context defroutes GET POST]]
+            [compojure.api.sweet :refer [context GET POST]]
             [ring.util.http-response :refer [ok not-found]]
             [clojure.spec.alpha :as s]
-            [spec-tools.spec :as spec]))
+            [spec-tools.swagger.core :as swagger]))
 
-(s/def ::article_id spec/integer?)
-(s/def ::article_name spec/string?)
-(s/def ::title spec/string?)
-(s/def ::article_tags spec/string?)
-(s/def ::timestamp (s/or :date spec/inst? :string spec/string?))
-(s/def ::article_url spec/string?)
-(s/def ::author spec/string?)
-(s/def ::content spec/string?)
-
-(s/def ::article (s/keys :req-un [::title
-                                  ::article_tags
-                                  ::author
-                                  ::timestamp
-                                  ::article_url
-                                  ::article_id]
-                         :opt-un [::content]))
-
-(s/def ::articles (s/coll-of ::article))
 
 (defprotocol ArticlesAdapter
   "A protocol that adapts some kind of incoming request input and translates the
@@ -45,27 +27,43 @@
                       (articles/get-article article-name))]
       (if article
         (ok article)
-        (not-found))))
+        (not-found {:reason "Missing"}))))
   (create-article! [_ request]
     (ok (-> request
             (get-in [:components :db])
             (articles/create-article! (parse-body request))))))
 
-(defroutes articles-routes
-  (context "/articles" request
-    :tags [:spec]
+(def articles-routes
+  ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
+  ;; with let-bindings out of order: +compojure-api-request+ is referred to
+  ;; before it is bound. This means that, to fix the bug, you'd need to either
+  ;; reverse the order of the emitted bindings, or do what I did, and just
+  ;; change the symbol =)
+  (context "/articles" +compojure-api-request+
     :coercion :spec
+    :tags ["articles"]
 
     (GET "/" []
-      :responses {200 {:schema ::articles}}
-      (get-all-articles (->CompojureArticlesAdapter) request))
+      :swagger {:summary "Retrieve all articles"
+                :description (str "This endpoint retrieves all articles. "
+                                  "The endpoint is currently not paginated")
+                :produces #{"application/json"}
+                :responses {200 {:description "A collection of all articles"
+                                 :schema ::articles/articles}}}
+      (get-all-articles (->CompojureArticlesAdapter) +compojure-api-request+))
 
     (GET "/:article-name" [article-name]
-      :responses {200 {:schema ::article}}
-      (get-article (->CompojureArticlesAdapter) request article-name))
+      :swagger {:summary "Retrieve a single article"
+                :produces #{"application/json"}
+                :parameters {:path {:article-name ::articles/article_name}}
+                :responses {200 {:description "A single article"
+                                 :schema ::articles/article}}}
+      (get-article (->CompojureArticlesAdapter)
+                   +compojure-api-request+
+                   article-name))
 
     (restrict
      (POST "/" []
-       (create-article! (->CompojureArticlesAdapter) request))
+       (create-article! (->CompojureArticlesAdapter) +compojure-api-request+))
      {:handler admin/is-authenticated?
       :on-error admin/access-error})))

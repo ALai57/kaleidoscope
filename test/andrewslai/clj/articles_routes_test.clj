@@ -54,7 +54,7 @@
                                              handler))
         login-user           (fn [user] (->> [:username :password]
                                              (select-keys user)
-                                             (assemble-post-request "/login")
+                                             (assemble-post-request "/sessions/login")
                                              handler))
         article-url          (str "/articles/" (:article_url a/example-article))
         unauthorized-request (assemble-post-request "/articles/"

@@ -26,7 +26,7 @@
                  [hickory "0.7.1"]
                  [honeysql "0.9.10"]
                  [http-kit "2.3.0"]
-                 [metosin/compojure-api "1.1.12" :upgrade false]
+                 [metosin/compojure-api "2.0.0-alpha31"]
                  [metosin/spec-tools "0.10.3"]
                  [migratus "1.2.8"]
                  [org.clojure/clojure "1.10.1"]

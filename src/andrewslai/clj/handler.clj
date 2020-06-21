@@ -41,8 +41,11 @@
 ;; Compojure Routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def app-routes
-  (-> {:swagger
-       {:ui "/swagger"
+  (-> {;; :exceptions nil
+       :swagger
+       {:swagger "2.0"
+        :ui "/swagger"
+        :coercion :spec
         :spec "/swagger.json"
         :data {:info {:title "andrewslai"
                       :description "My personal website"}

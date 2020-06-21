@@ -6,6 +6,7 @@
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [clojure.spec.alpha :as s]
+            [spec-tools.spec :as spec]
             [clojure.walk :refer [keywordize-keys]]
             [slingshot.slingshot :refer [throw+ try+]])
   (:import java.time.LocalDateTime))
@@ -15,14 +16,14 @@
   (get-article [_ article-name])
   (get-all-articles [_]))
 
-(s/def ::article_id integer?)
-(s/def ::article_name string?)
-(s/def ::title string?)
-(s/def ::article_tags string?)
-(s/def ::timestamp (s/or :date inst? :string string?))
-(s/def ::article_url string?)
-(s/def ::author string?)
-(s/def ::content string?)
+(s/def ::article_id spec/integer?)
+(s/def ::article_name spec/string?)
+(s/def ::title spec/string?)
+(s/def ::article_tags spec/string?)
+(s/def ::timestamp (s/or :date spec/inst? :string spec/string?))
+(s/def ::article_url spec/string?)
+(s/def ::author spec/string?)
+(s/def ::content spec/string?)
 
 (s/def ::article (s/keys :req-un [::title
                                   ::article_tags

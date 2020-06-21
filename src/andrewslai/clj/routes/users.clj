@@ -32,6 +32,7 @@
 
 (defroutes users-routes
   (context "/users" {:keys [components]}
+    :tags ["users"]
 
     (GET "/:username" [username]
       (let [result (dissoc (users/get-user (:user components) username) :id)]

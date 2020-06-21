@@ -118,7 +118,7 @@
         (json/generate-string (select-keys new-user [:username :password]))
 
         {:keys [status headers] :as initial-response}
-        ((test-users-app) (mock/request :post "/login" credentials))
+        ((test-users-app) (mock/request :post "/sessions/login" credentials))
 
         cookie (first (get headers "Set-Cookie"))]
     (testing "login happy path"
@@ -144,7 +144,7 @@
         (is (= 401 status))
         (is (= "Not authorized" body))))
     (testing "After logout, cannot hit admin routes"
-      ((test-users-app) (assoc-in (mock/request :post "/logout")
+      ((test-users-app) (assoc-in (mock/request :post "/sessions/logout")
                                   [:headers "cookie"] cookie))
       (let [{:keys [status body]}
             ((test-users-app) (assoc-in (mock/request :get "/admin/")
@@ -154,7 +154,7 @@
   (testing "Login with incorrect password"
     (let [credentials (json/generate-string {:username "Andrew", :password "L"})
           {:keys [status headers]}
-          ((test-users-app) (mock/request :post "/login" credentials))]
+          ((test-users-app) (mock/request :post "/sessions/login" credentials))]
       (is (= 401 status))
       (is (not (contains? headers "Set-Cookie"))))))
 

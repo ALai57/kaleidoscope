@@ -11,22 +11,22 @@
             [ring.util.http-response :refer [ok]]))
 
 (defroutes login-routes
-  (GET "/login" []
-    (ok {:message "Login get message"}))
+  (context "/sessions" {:keys [components]}
+    :tags ["sessions"]
 
-  (POST "/login" {:keys [components body session] :as request}
-    (let [{:keys [username] :as credentials} (parse-body request)]
-      (if-let [user-id (users/login (:user components) credentials)]
-        (let [user (-> components
-                       :user
-                       (users/get-user-by-id user-id)
-                       (assoc :avatar_url (format "users/%s/avatar" username)))]
-          (log/info "Authenticated login!")
-          (assoc (ok user)
-                 :session (assoc session :identity user-id)))
-        (do (log/info "Invalid username/password")
-            (unauthorized)))))
+    (POST "/login" {:keys [body session] :as request}
+      (let [{:keys [username] :as credentials} (parse-body request)]
+        (if-let [user-id (users/login (:user components) credentials)]
+          (let [user (-> components
+                         :user
+                         (users/get-user-by-id user-id)
+                         (assoc :avatar_url (format "users/%s/avatar" username)))]
+            (log/info "Authenticated login!")
+            (assoc (ok user)
+                   :session (assoc session :identity user-id)))
+          (do (log/info "Invalid username/password")
+              (unauthorized)))))
 
-  (POST "/logout" []
-    (-> (ok)
-        (assoc :session nil))))
+    (POST "/logout" []
+      (-> (ok)
+          (assoc :session nil)))))

@@ -20,5 +20,6 @@
 
 (defroutes admin-routes
   (context "/admin" []
+    :tags ["admin"]
     (restrict admin-get {:handler is-authenticated?
                          :on-error access-error})))

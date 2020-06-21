@@ -6,8 +6,8 @@
             [clojure.spec.alpha :as s]
             [clojure.test :refer [is testing]]))
 
-(defdbtest resume-info-test  ptest/db-spec
+(defdbtest resume-info-test ptest/db-spec
   (testing "GET endpoint returns project-portfolio"
-    (let [response (tu/get-request "/get-resume-info")]
+    (let [response (tu/get-request "/projects-portfolio")]
       (is (= 200 (:status response)))
       (is (s/valid? ::portfolio/project-portfolio (parse-body response))))))
