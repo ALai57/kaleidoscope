@@ -108,6 +108,12 @@
              (assoc :body e)))))
 
     (GET "/:username/avatar" [username]
+      :swagger {:summary "Get a user's avatar"
+                :produces #{"image/png"}
+                :responses {200 {:description "User's avatar"
+                                 :schema bytes?}
+                            404 {:description "Not found"
+                                 :schema string?}}}
       (let [{:keys [avatar]}
             (users/get-user (:user components) username)]
         (if avatar
