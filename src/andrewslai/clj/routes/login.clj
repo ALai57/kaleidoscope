@@ -8,13 +8,25 @@
             [ring.util.response :as response]
             [taoensso.timbre :as log]
             [compojure.api.sweet :refer [context defroutes GET]]
+            [clojure.spec.alpha :as s]
             [ring.util.http-response :refer [ok]]))
+
+(s/def ::username string?)
+(s/def ::password string?)
+(s/def ::credentials (s/keys :req-un [::username
+                                      ::password]))
 
 (defroutes login-routes
   (context "/sessions" {:keys [components]}
     :tags ["sessions"]
+    :coercion :spec
 
     (POST "/login" {:keys [body session] :as request}
+      :swagger {:summary "Login"
+                :produces #{"application/json"}
+                :parameters {:body ::credentials}
+                #_#_:responses {200 {:description "The user that just authenticated"}}}
+
       (let [{:keys [username] :as credentials} (parse-body request)]
         (if-let [user-id (users/login (:user components) credentials)]
           (let [user (-> components

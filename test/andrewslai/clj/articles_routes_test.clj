@@ -49,9 +49,10 @@
 (defdbtest create-article-test ptest/db-spec
   (let [handler              (h/configure-app h/app-routes
                                               (tu/test-app-component-config ptest/db-spec))
-        create-user          (fn [user] (->> user
-                                             (assemble-post-request "/users")
-                                             handler))
+        create-user          (fn [user] (-> "/users"
+                                            (assemble-post-request user)
+                                            (assoc :content-type "application/json")
+                                            handler))
         login-user           (fn [user] (->> [:username :password]
                                              (select-keys user)
                                              (assemble-post-request "/sessions/login")

@@ -33,6 +33,13 @@
             (get-in [:components :db])
             (articles/create-article! (parse-body request))))))
 
+(defn create-article-handler [request]
+  (create-article! (->CompojureArticlesAdapter) request))
+
+(s/def ::cookie string?)
+(s/def ::message string?)
+(s/def ::error-message (s/keys :req-un [::message]))
+
 (def articles-routes
   ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
   ;; with let-bindings out of order: +compojure-api-request+ is referred to
@@ -62,8 +69,16 @@
                    +compojure-api-request+
                    article-name))
 
-    (restrict
-     (POST "/" []
-       (create-article! (->CompojureArticlesAdapter) +compojure-api-request+))
-     {:handler admin/is-authenticated?
-      :on-error admin/access-error})))
+    (POST "/" []
+      :swagger {:summary "Create an article"
+                :consumes #{"application/json"}
+                :produces #{"application/json"}
+                ::swagger/parameters {:body ::articles/article
+                                      :header-params {:cookie ::cookie}}
+                :responses {200 {:description "The article that was created"
+                                 :schema ::articles/article}
+                            401 {:description "Unauthorized"
+                                 :schema ::error-message}}}
+      (restrict create-article-handler
+                {:handler admin/is-authenticated?
+                 :on-error admin/access-error}))))

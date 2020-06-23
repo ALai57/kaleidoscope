@@ -55,11 +55,12 @@
 (defdbtest user-registration-test ptest/db-spec
   (testing "Registration happy path"
     (let [{:keys [status headers] :as response}
-          ((test-users-app) (mock/request :post "/users"
-                                          (json/generate-string new-user)))
+          ((test-users-app) (assoc (mock/request :post "/users"
+                                                 (json/generate-string new-user))
+                                   :content-type "application/json"))
           user-url (get headers "Location")]
       (is (= 201 status))
-      (is (s/valid? ::user-routes/user (parse-body response)))
+      (is (s/valid? ::user-routes/created_user (parse-body response)))
       (is (= "/users/new-user" user-url))
       (testing "Can retrieve the new user"
         (let [{:keys [status headers] :as response}
@@ -72,8 +73,9 @@
   (testing "Registration sad path"
     (testing "Duplicate user"
       (let [{:keys [status] :as response}
-            ((test-users-app) (mock/request :post "/users"
-                                            (json/generate-string new-user)))
+            ((test-users-app) (assoc (mock/request :post "/users"
+                                                   (json/generate-string new-user))
+                                     :content-type "application/json"))
             {:keys [type message]} (parse-body response)]
         (is (= 400 status))
         (is (= "PSQLException" type))
@@ -82,8 +84,9 @@
 (defdbtest deleting-user ptest/db-spec
   (let [user-path (str "/users/" (:username new-user))]
     (testing "Delete user"
-      ((test-users-app) (mock/request :post "/users"
-                                      (json/generate-string new-user)))
+      ((test-users-app) (assoc (mock/request :post "/users"
+                                             (json/generate-string new-user))
+                               :content-type "application/json"))
       (let [{:keys [status] :as response}
             ((test-users-app)
              (assoc (mock/request :delete user-path)
@@ -102,18 +105,20 @@
   (testing "Illegal Arguments"
     (let [{:keys [status] :as response}
           ((test-users-app)
-           (mock/request :post "/users"
-                         (json/generate-string (assoc new-user
-                                                      :password
-                                                      "password"))))
+           (assoc (mock/request :post "/users"
+                                (json/generate-string (assoc new-user
+                                                             :password
+                                                             "password")))
+                  :content-type "application/json"))
           {:keys [type subtype message]} (parse-body response)]
       (is (= 400 status))
       (is (= "IllegalArgumentException" type))
-      (is (= "andrewslai.clj.persistence.users/password-strength" subtype))
+      (is (= "andrewslai.clj.persistence.users/password" subtype))
       (is (clojure.string/includes? message "failed: sufficient-strength?")))))
 
 (defdbtest login-test ptest/db-spec
-  ((test-users-app) (mock/request :post "/users" (json/generate-string new-user)))
+  ((test-users-app) (assoc (mock/request :post "/users" (json/generate-string new-user))
+                           :content-type "application/json"))
   (let [credentials
         (json/generate-string (select-keys new-user [:username :password]))
 
@@ -159,7 +164,8 @@
       (is (not (contains? headers "Set-Cookie"))))))
 
 (defdbtest user-avatar-test ptest/db-spec
-  ((test-users-app) (mock/request :post "/users" (json/generate-string new-user)))
+  ((test-users-app) (assoc (mock/request :post "/users" (json/generate-string new-user))
+                           :content-type "application/json"))
   (testing "Get user avatar"
     (let [{:keys [status body headers]}
           ((test-users-app) (mock/request :get
@@ -170,8 +176,9 @@
 
 (defdbtest update-user-test ptest/db-spec
   (let [{:keys [headers] :as response}
-        ((test-users-app) (mock/request :post "/users"
-                                        (json/generate-string new-user)))
+        ((test-users-app) (assoc (mock/request :post "/users"
+                                               (json/generate-string new-user))
+                                 :content-type "application/json"))
         user-url (get headers "Location")]
     (testing "Can update the new user"
       (let [user-update {:first_name "new.2"

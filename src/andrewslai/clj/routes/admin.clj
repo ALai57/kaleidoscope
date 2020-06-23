@@ -15,8 +15,12 @@
    :body "Not authorized"})
 
 (defroutes admin-get
-  (GET "/" request (do (log/info "User Authorized for /admin/ route")
-                       (ok {:message "Got to the admin-route!"}))))
+  (GET "/" []
+    :swagger {:summary "An Echo route to see if a user is authenticated"
+              :produces #{"application/json"}
+              :responses {200 {:description "A collection of all articles"}}}
+    (do (log/info "User Authorized for /admin/ route")
+        (ok {:message "Got to the admin-route!"}))))
 
 (defroutes admin-routes
   (context "/admin" []

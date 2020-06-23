@@ -10,11 +10,28 @@
             [compojure.api.sweet :refer [context defroutes DELETE GET PATCH POST]]
             [ring.util.http-response :refer [bad-request created not-found ok no-content]]
             [ring.util.response :as response]
-            [slingshot.slingshot :refer [try+]]))
+            [slingshot.slingshot :refer [try+]]
+            [taoensso.timbre :as log]))
 
 ;; TODO: Add spec based schema validation.
 ;; https://www.metosin.fi/blog/clojure-spec-with-ring-and-swagger/
 ;; TODO: Make inbound adapter for data
+
+(s/def ::user (s/keys :req-un [::users/avatar
+                               ::users/first_name
+                               ::users/last_name
+                               ::users/username
+                               ::users/email
+                               ::users/password]))
+
+(s/def ::avatar string?)
+(s/def ::avatar_url string?)
+(s/def ::created_user (s/keys :req-un [::avatar
+                                       ::users/first_name
+                                       ::users/last_name
+                                       ::users/username
+                                       ::users/email
+                                       ::avatar_url]))
 
 ;; Extract to encoding ns
 (defn decode-avatar [avatar]
@@ -22,17 +39,10 @@
     (b64/decode (.getBytes avatar))
     (file->bytes (clojure.java.io/resource "avatars/happy_emoji.jpg"))))
 
-(s/def ::avatar string?)
-(s/def ::user (s/keys :req-un [::avatar
-                               ::users/first_name
-                               ::users/last_name
-                               ::users/username
-                               ::users/email
-                               ::users/role_id]))
-
 (defroutes users-routes
   (context "/users" {:keys [components]}
     :tags ["users"]
+    :coercion :spec
 
     (GET "/:username" [username]
       (let [result (dissoc (users/get-user (:user components) username) :id)]
@@ -72,19 +82,28 @@
     (POST "/" request
       ;; Call inbound adapter -> register-user -> dispatch to create-user/login
       ;; -> database
+      :swagger {:summary "Create a user"
+                :consumes #{"application/json"}
+                :produces #{"application/json"}
+                :parameters {:body ::user}
+                :responses {200 {:description "The user that was created"
+                                 :schema ::created_user}}}
       (try+ 
-       (let [{:keys [username password] :as payload} (parse-body request)
+       (let [{:keys [username password] :as payload} (:body-params request)
              result (users/register-user! (:user components)
                                           (dissoc payload :password)
                                           password)]
+         (log/info "User created:" result)
          (-> (created)
              (assoc :headers {"Location" (str "/users/" username)})
              (assoc :body result)
              (assoc-in [:body :avatar_url] (format "users/%s/avatar" username))))
        (catch [:type :PSQLException] e
+         (log/info (pr-str e))
          (-> (bad-request)
              (assoc :body e)))
        (catch [:type :IllegalArgumentException] e
+         (log/info (pr-str e))
          (-> (bad-request)
              (assoc :body e)))))
 

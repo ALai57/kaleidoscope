@@ -50,7 +50,7 @@
 (s/def ::first_name (s/and string? #(< 0 (count %))))
 (s/def ::last_name (s/and string? #(< 0 (count %))))
 (s/def ::username (s/and string? #(< 0 (count %)) alphanumeric?))
-(s/def ::email email?)
+(s/def ::email (s/and string? email?))
 (s/def ::avatar bytes?)
 (s/def ::role_id (s/and int? pos?))
 (s/def ::user (s/keys :req-un [::avatar
@@ -74,7 +74,7 @@
   (let [{:keys [score]} (password-strength password)]
     (<= 4 score)))
 
-(s/def ::password-strength sufficient-strength?)
+(s/def ::password (s/and string? sufficient-strength?))
 
 (comment
   (-> Zxcvbn
@@ -91,10 +91,10 @@
   (rdbms/insert! (:database this) "users" user))
 
 (defn- -create-login!
-  "Checks that the login meets the ::password-strength spec, then encrypts and
+  "Checks that the login meets the ::password spec, then encrypts and
   persists the login information"
   [this id password]
-  (validate ::password-strength password :IllegalArgumentException)
+  (validate ::password password :IllegalArgumentException)
   (let [encrypted-password (encrypt (make-encryption) password)]
     (rdbms/insert! (:database this) "logins"
                    {:id id, :hashed_password encrypted-password})))
@@ -104,6 +104,7 @@
   (try+
    ;; The user id role id stuff should be part of inbound adapter, not in
    ;; business layer
+   ;; TODO: Add a transaction around this
    (let [user-id (java.util.UUID/randomUUID)
          role-id (or (:role_id user) default-role)
          decoded-avatar (or (some-> user
