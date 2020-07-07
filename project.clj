@@ -51,7 +51,8 @@
             [lein-doo "0.1.10"]]
 
   ;; Used to make this compatible with Java 11
-  :managed-dependencies [[org.clojure/core.rrb-vector "0.1.1"]
+  :managed-dependencies [[metosin/ring-swagger-ui "3.25.3"]
+                         [org.clojure/core.rrb-vector "0.1.1"]
                          [org.flatland/ordered "1.5.7"]
                          [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
                          [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]

@@ -1,6 +1,8 @@
 (ns andrewslai.cljs.article
   (:require [clojure.string :as str]
             [hickory.core :as h]
+            [hickory.convert :refer [hickory-to-hiccup]]
+            [hickory.select :as hs]
             [re-frame.core :refer [subscribe]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -62,23 +64,35 @@
 
 (defn format-content [{:keys [content]}]
   [:div#article-content
-   (when content
+   (when (first content)
      (->> content
-          h/parse-fragment
-          (map h/as-hiccup)
           first
+          hickory-to-hiccup
           hiccup->sablono))])
 
-(defn insert-dynamic-js! [{:keys [dynamicjs]}]
-  (map format-js dynamicjs))
+(defn insert-dynamic-js! [content]
+  (when-not (empty? content)
+    (map format-js content)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Fully formatted primary content
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn primary-content
+  "Renders article content by parsing HTML (as a string) into Hickory, a CLJS
+  readable form. Incoming HTML is separated into two parts, (1) traditional HTML
+  that can be rendered with Hiccup and (2) script tags and JS that need to be
+  dynamically added to the DOM to render properly"
   []
-  (let [{{:keys [article timestamp author title content]} :article
-         :as active-content} @(subscribe [:active-content])]
+  (let [{:keys [article timestamp author title content] :as active-content}
+        @(subscribe [:active-content])
+
+        hickory-content (-> content
+                            h/parse
+                            h/as-hickory)
+        html-content    (->> hickory-content
+                             (hs/select (hs/and (hs/not (hs/tag :script)))))
+        js-content      (->> hickory-content
+                             (hs/select (hs/tag :script)))]
     (if active-content
       [:div#goodies
        [:h2.article-title title]
@@ -86,8 +100,8 @@
        [:div.article-subheading (format-timestamp active-content)]
        [:div.line]
        [:br][:br]
-       (format-content (first content))
-       (insert-dynamic-js! (first content))]
+       [:div (format-content (first html-content))]
+       (insert-dynamic-js! (map (comp :src :attrs) js-content))]
       [:div])))
 
 (comment

@@ -5,15 +5,10 @@
 (defn load-article [db [_ response]]
   (merge db {:loading? false
              :active-content response}))
-(reg-event-db
-  :load-article
-  load-article)
+(reg-event-db :load-article load-article)
 
 
 (defn load-recent-articles [db [_ response]]
   (merge db {:loading? false
              :recent-content response}))
-(reg-event-db
-  :load-recent-articles
-  load-recent-articles)
-
+(reg-event-db :load-recent-articles load-recent-articles)

@@ -15,15 +15,28 @@
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
+            [clojure.data.codec.base64 :as b64]
             [compojure.api.sweet :refer :all]
+            [compojure.api.middleware :as mw]
+            [compojure.api.swagger :as swag]
             [org.httpkit.server :as httpkit]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.cookies :refer [wrap-cookies]]
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.resource :refer [wrap-resource]]
+            [ring.middleware.reload :refer [wrap-reload]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
             [ring.util.http-response :refer :all]
+
+            [ring.swagger.common :as rsc]
+            [ring.swagger.middleware :as rsm]
+            [ring.swagger.core :as swagger]
+            [ring.swagger.swagger-ui :as swagger-ui]
+            [ring.swagger.swagger2 :as swagger2]
+
+            [spec-tools.swagger.core :as st]
+            [spec-tools.core :as st-core]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
@@ -37,30 +50,92 @@
 
 (def backend (session-backend))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Example data
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def example-b64-encoded-avatar (->> "Hello world!"
+                                     (map (comp byte int))
+                                     byte-array
+                                     b64/encode
+                                     String.))
+
+(def example-user-1 {:username "new-user"
+                     :avatar example-b64-encoded-avatar
+                     :password "CactusGnarlObsidianTheft"
+                     :first_name "new"
+                     :last_name "user"
+                     :email "newuser@andrewslai.com"})
+
+(def example-article-1 {:title "My test article"
+                        :article_tags "thoughts"
+                        :article_url "my-test-article"
+                        :author "Andrew Lai"
+                        :content "<h1>Hello world!</h1>"})
+
+(def example-data
+  {:ArticleExample1 {:summary "An example article"
+                     :value example-article-1}
+   :UserExample1 {:summary "An example user"
+                  :value example-user-1}})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Swagger routes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def swagger-ui-routes
+  (routes
+    (undocumented
+     (swagger-ui/swagger-ui {:path "/swagger"
+                             :swagger-docs "/swagger.json"}))
+    (GET "/swagger.json" req
+      (let [runtime-info1 (mw/get-swagger-data req)
+            runtime-info2 (rsm/get-swagger-data req)
+            base-path {:basePath (swag/base-path req)}
+            options (:compojure.api.request/ring-swagger req)
+            paths (:compojure.api.request/paths req)
+            swagger (apply rsc/deep-merge
+                           (keep identity [base-path
+                                           paths
+                                           runtime-info1
+                                           runtime-info2]))
+            spec (st/swagger-spec
+                  (swagger2/swagger-json swagger options))]
+
+        (-> spec
+            (assoc :openapi "3.0.2"
+                   :info {:title "andrewslai"
+                          :description "My personal website"}
+                   :components
+                   {:schemas
+                    {:Article (-> {:spec ::articles/article
+                                   :description "An article for the website"}
+                                  st-core/spec
+                                  st/transform)
+
+                     :User (-> {:spec ::users/user
+                                :description "A user on the website"}
+                               st-core/spec
+                               st/transform)}
+                    :examples example-data})
+            (dissoc :swagger)
+            ok)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Compojure Routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def app-routes
-  (-> {;; :exceptions nil
-       :swagger
-       {:swagger "2.0"
-        :ui "/swagger"
-        :coercion :spec
-        :spec "/swagger.json"
-        :data {:info {:title "andrewslai"
-                      :description "My personal website"}
-               :tags [{:name "api", :description "some apis"}]}}}
-      (api
-       (GET "/" []
-         (-> (resource-response "index.html" {:root "public"})
-             (content-type "text/html")))
+  (api
+   (GET "/" []
+     (-> (resource-response "index.html" {:root "public"})
+         (content-type "text/html")))
 
-       ping-routes
-       articles-routes
-       users-routes
-       projects-portfolio-routes
-       login-routes
-       admin-routes)))
+   ping-routes
+   articles-routes
+   users-routes
+   projects-portfolio-routes
+   login-routes
+   admin-routes
+   swagger-ui-routes))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Middleware
@@ -74,7 +149,7 @@
       (handler request))))
 
 (defn wrap-components
-  "Middlware that adds components to the Ring request"
+
   [handler components]
   (fn [request]
     (handler (assoc request :components components))))

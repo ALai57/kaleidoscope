@@ -59,6 +59,12 @@
           access-error)))
 
     (PATCH "/:username" {{:keys [username]} :route-params :as request}
+      :swagger {:summary "Update a user"
+                :consumes #{"application/json"}
+                :produces #{"application/json"}
+                :parameters {:body ::users/user-update}
+                :responses {200 {:description "The updated fields"
+                                 :schema ::users/user-update}}}
       (try+
        (let [update-map (parse-body request)
 
