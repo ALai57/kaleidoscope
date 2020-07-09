@@ -12,6 +12,6 @@
 
 
 (defn get-portfolio-cards []
-  (GET "/get-resume-info"
+  (GET "/projects-portfolio"
       {:handler #(dispatch [:load-portfolio-cards %])
        :error-handler #(dispatch [:load-portfolio-cards "Unable to load content"])}))
