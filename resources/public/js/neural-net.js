@@ -15,20 +15,20 @@ function loadScript (url) {
     var s = document.createElement('script');
     s.setAttribute('src', url);
     s.setAttribute('class', "dynamicjs");
-    document.getElementById('primary-content').appendChild(s); }
+    document.getElementById('neural-net.js').appendChild(s); }
 
 function loadCSS (url) {
     var s = document.createElement('link');
     s.setAttribute('rel', 'stylesheet');
     s.setAttribute('href', url);
     s.setAttribute('class', "dynamicjs");
-    document.getElementById('primary-content').appendChild(s); }
+    document.getElementById('neural-net.js').appendChild(s); }
 
 function addDiv (divname) {
     var div = document.createElement('div');
     div.setAttribute('id', divname);
     div.setAttribute('class', "dynamicjs");
-    document.getElementById('primary-content').appendChild(div); }
+    document.getElementById('neural-net.js').appendChild(div); }
 
 loadScript('https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js');
 loadScript('https://cdnjs.cloudflare.com/ajax/libs/d3/5.9.7/d3.min.js');

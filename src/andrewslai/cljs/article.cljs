@@ -62,11 +62,10 @@
                   (-> (.setAttribute "src" (str "js/" js-script)))))
   ^{:key (str js-script)} [:div])
 
-(defn format-content [{:keys [content]}]
+(defn format-content [content]
   [:div#article-content
-   (when (first content)
+   (when content
      (->> content
-          first
           hickory-to-hiccup
           hiccup->sablono))])
 
@@ -86,11 +85,13 @@
   (let [{:keys [article timestamp author title content] :as active-content}
         @(subscribe [:active-content])
 
-        hickory-content (-> content
-                            h/parse
-                            h/as-hickory)
+        hickory-content (->> content
+                             h/parse-fragment
+                             (map h/as-hickory)
+                             first)
         html-content    (->> hickory-content
-                             (hs/select (hs/and (hs/not (hs/tag :script)))))
+                             (hs/select (hs/and (hs/not (hs/tag :script))))
+                             first)
         js-content      (->> hickory-content
                              (hs/select (hs/tag :script)))]
     (if active-content
@@ -100,9 +101,9 @@
        [:div.article-subheading (format-timestamp active-content)]
        [:div.line]
        [:br][:br]
-       [:div (format-content (first html-content))]
+       [:div (format-content html-content)]
        (insert-dynamic-js! (map (comp :src :attrs) js-content))]
-      [:div])))
+      [:div#goodies])))
 
 (comment
   (require '[re-frame.db :refer [app-db]])
