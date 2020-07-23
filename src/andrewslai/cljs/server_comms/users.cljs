@@ -21,7 +21,7 @@
 ;; Login/logout
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn login [{:keys [username] :as creds}]
-  (POST "/login"
+  (POST "/sessions/login"
       {:params creds
        :format :json
        :handler
@@ -32,7 +32,7 @@
          (dispatch [:show-modal (login-failure-modal username)]))}))
 
 (defn logout []
-  (POST "/logout"
+  (POST "/sessions/logout"
       {:handler (fn [] (dispatch [:logout]))
        :error-handler (fn [] (dispatch [:logout]))}))
 

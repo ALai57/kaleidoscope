@@ -21,13 +21,15 @@
     :tags ["sessions"]
     :coercion :spec
 
-    (POST "/login" {:keys [body session] :as request}
+    (POST "/login" {:keys [body session body-params] :as request}
       :swagger {:summary "Login"
+                :consumes #{"application/json"}
                 :produces #{"application/json"}
                 :parameters {:body ::credentials}
                 #_#_:responses {200 {:description "The user that just authenticated"}}}
 
-      (let [{:keys [username] :as credentials} (parse-body request)]
+
+      (let [{:keys [username] :as credentials} body-params]
         (if-let [user-id (users/login (:user components) credentials)]
           (let [user (-> components
                          :user

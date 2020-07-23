@@ -50,11 +50,10 @@
           (ok result)
           (not-found))))
 
-    (DELETE "/:username" request
-      (let [credentials (parse-body request)
-            verified? (users/verify-credentials (:user components) credentials)]
+    (DELETE "/:username" {:keys [body-params] :as request}
+      (let [verified? (users/verify-credentials (:user components) body-params)]
         (if verified?
-          (do (when (= 1 (users/delete-user! (:user components) credentials))
+          (do (when (= 1 (users/delete-user! (:user components) body-params))
                 (no-content)))
           access-error)))
 
