@@ -65,7 +65,7 @@
                 :responses {200 {:description "The updated fields"
                                  :schema ::users/user-update}}}
       (try+
-       (let [update-map (parse-body request)
+       (let [update-map (:body-params request)
 
              decode-avatar (fn [{:keys [avatar] :as m}]
                              (if avatar

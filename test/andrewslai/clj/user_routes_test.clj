@@ -184,8 +184,8 @@
                          :last_name "user.2"}
 
             {:keys [status headers] :as response}
-            ((test-users-app) (mock/request :patch user-url
-                                            (json/generate-string user-update)))
+            ((test-users-app) (-> (mock/request :patch user-url)
+                                  (assoc :body-params user-update)))
             response-body (parse-body response)]
         (is (= 200 status))
         (is (= user-update (dissoc response-body :avatar_url)))
