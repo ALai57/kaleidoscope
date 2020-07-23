@@ -90,12 +90,11 @@
       (let [{:keys [status] :as response}
             ((test-users-app)
              (assoc (mock/request :delete user-path)
-                    :body (-> new-user
-                              (select-keys [:username :password])
-                              json/generate-string
-                              .getBytes
-                              java.io.ByteArrayInputStream.
-                              clojure.java.io/input-stream)))]
+                    :headers {:content-type "application/json"}
+                    ;; TODO: Figure out how to make this more generic
+                    ;; The tests should not be specific to server impl
+                    :body-params (-> new-user
+                                     (select-keys [:username :password]))))]
         (is (= 204 status)))
       (let [{:keys [status headers] :as response}
             ((test-users-app) (mock/request :get user-path))]
@@ -119,11 +118,11 @@
 (defdbtest login-test ptest/db-spec
   ((test-users-app) (assoc (mock/request :post "/users" (json/generate-string new-user))
                            :content-type "application/json"))
-  (let [credentials
-        (json/generate-string (select-keys new-user [:username :password]))
+  (let [credentials (select-keys new-user [:username :password])
 
         {:keys [status headers] :as initial-response}
-        ((test-users-app) (mock/request :post "/sessions/login" credentials))
+        ((test-users-app) (-> (mock/request :post "/sessions/login")
+                              (assoc :body-params credentials)))
 
         cookie (first (get headers "Set-Cookie"))]
     (testing "login happy path"
