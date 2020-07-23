@@ -31,7 +31,7 @@
   (create-article! [_ request]
     (ok (-> request
             (get-in [:components :db])
-            (articles/create-article! (parse-body request))))))
+            (articles/create-article! (:body-params request))))))
 
 (defn create-article-handler [request]
   (create-article! (->CompojureArticlesAdapter) request))

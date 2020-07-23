@@ -36,9 +36,8 @@
       #_(is (s/valid? ::articles/article (parse-body response))))))
 
 (defn assemble-post-request [endpoint payload]
-  (->> payload
-       json/generate-string
-       (mock/request :post endpoint)))
+  (-> (mock/request :post endpoint)
+      (assoc :body-params payload)))
 
 (defn get-cookie [response]
   (-> response
