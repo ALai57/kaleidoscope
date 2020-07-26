@@ -1,5 +1,6 @@
 (ns andrewslai.clj.routes.articles
-  (:require [andrewslai.clj.persistence.articles :as articles]
+  (:require [andrewslai.clj.api.articles :as articles-api]
+            [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.routes.admin :as admin]
             [andrewslai.clj.utils :refer [parse-body]]
             [buddy.auth.accessrules :refer [restrict]]
@@ -9,32 +10,9 @@
             [spec-tools.swagger.core :as swagger]))
 
 
-(defprotocol ArticlesAdapter
-  "A protocol that adapts some kind of incoming request input and translates the
-  request into a clojure data structure that the business logic can handle (i.e.
-  something that the articles persistence protocol can understand)"
-  (get-all-articles [_ request])
-  (get-article [_ request article-name])
-  (create-article! [_ request]))
-
-(defrecord CompojureArticlesAdapter []
-  ArticlesAdapter
-  (get-all-articles [_ request]
-    (ok (articles/get-all-articles (get-in request [:components :db]))))
-  (get-article [_ request article-name]
-    (let [article (-> request
-                      (get-in [:components :db])
-                      (articles/get-article article-name))]
-      (if article
-        (ok article)
-        (not-found {:reason "Missing"}))))
-  (create-article! [_ request]
-    (ok (-> request
-            (get-in [:components :db])
-            (articles/create-article! (:body-params request))))))
-
-(defn create-article-handler [request]
-  (create-article! (->CompojureArticlesAdapter) request))
+(defn create-article-handler [{{db :db} :components
+                               article :body-params}]
+  (ok (articles-api/create-article! db article)))
 
 (s/def ::cookie string?)
 (s/def ::message string?)
@@ -57,7 +35,8 @@
                 :produces #{"application/json"}
                 :responses {200 {:description "A collection of all articles"
                                  :schema ::articles/articles}}}
-      (get-all-articles (->CompojureArticlesAdapter) +compojure-api-request+))
+      (let [db (get-in +compojure-api-request+ [:components :db])]
+        (ok (articles-api/get-all-articles db))))
 
     (GET "/:article-name" [article-name]
       :swagger {:summary "Retrieve a single article"
@@ -65,9 +44,11 @@
                 :parameters {:path {:article-name ::articles/article_name}}
                 :responses {200 {:description "A single article"
                                  :schema ::articles/article}}}
-      (get-article (->CompojureArticlesAdapter)
-                   +compojure-api-request+
-                   article-name))
+      (let [db (get-in +compojure-api-request+ [:components :db])
+            article (articles-api/get-article db article-name)]
+        (if article
+          (ok article)
+          (not-found {:reason "Missing"}))))
 
     (POST "/" []
       :swagger {:summary "Create an article"
