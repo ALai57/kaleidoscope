@@ -94,7 +94,9 @@
       (try+ 
        (let [{:keys [username password] :as payload} (:body-params request)
              result (users-api/register-user! db
-                                              (dissoc payload :password)
+                                              (-> payload
+                                                  (dissoc :password)
+                                                  decode-avatar)
                                               password)]
          (log/info "User created:" result)
          (-> (created)

@@ -37,15 +37,10 @@
 (defn register-user! [this user password]
   (try+
    (let [user-id (java.util.UUID/randomUUID)
-         decoded-avatar (or (some-> user
-                                    :avatar
-                                    .getBytes
-                                    b64/decode)
-                            default-avatar)
          full-user (assoc user
                           :id user-id
                           :role_id default-role
-                          :avatar (or decoded-avatar default-avatar))]
+                          :avatar (or (:avatar user) default-avatar))]
      ;; TODO: Wrap in db transaction
      ;; TODO: Wrap each of these protocol methods with catch PSQL exception
      ;;        and rethrow as Persistence exception. Should not be tied to PSQL
