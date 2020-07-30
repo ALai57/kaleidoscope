@@ -17,19 +17,13 @@
 
 ;; TODO: Log client out after 30 mins
 
-;; TODO: Basic endpoint for adding a new username
-;; TODO: Verify that username doesn't already exist
-;; TODO: If username exists, throw a non-200
-
-
 (defprotocol UserPersistence
-  (register-user! [_ user password])
   (create-user! [_ user])
   (create-login! [_ user-id password])
   (get-user [_ username])
   (get-user-by-id [_ user-id])
   (get-users [_])
-  (update-user [_ username update-payload])
+  (update-user! [_ username update-payload])
   (get-password [_ user-id])
   (delete-user! [_ credentials])
   (verify-credentials [_ credentials])
@@ -100,32 +94,6 @@
                    {:id id, :hashed_password encrypted-password})))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn- -register-user! [this user password]
-  (try+
-   ;; The user id role id stuff should be part of inbound adapter, not in
-   ;; business layer
-   ;; TODO: Add a transaction around this
-   (let [user-id (java.util.UUID/randomUUID)
-         role-id (or (:role_id user) default-role)
-         decoded-avatar (or (some-> user
-                                    :avatar
-                                    .getBytes
-                                    b64/decode)
-                            default-avatar)
-         full-user (-> user
-                       (assoc :id user-id)
-                       (assoc :role_id role-id)
-                       (assoc :avatar decoded-avatar))]
-     (create-user! this full-user)
-     (create-login! this user-id password)
-     full-user)
-   (catch org.postgresql.util.PSQLException e
-     (throw+ {:type :PSQLException
-              :subtype ::UnableToCreateUser
-              :message {:data (select-keys user [:username :email])
-                        :reason (.getMessage e)
-                        :feedback "Try a different username and/or email"}}))))
-
 (defn -get-users [{:keys [database]}]
   (rdbms/hselect database {:select [:*]
                            :from [:users]}))
@@ -141,6 +109,7 @@
                                   :where [:= :users/id user-id]})))
 
 (defn -update-user! [{:keys [database]} username update-payload]
+  ;; TODO: Move this validation to the public API fns
   (validate ::user-update update-payload :IllegalArgumentException)
   (let [n-updates (first (rdbms/update! database
                                         "users"
@@ -163,26 +132,13 @@
                 password
                 (get-password this id)))))
 
-(defn -login [this {:keys [username password] :as credentials}]
-  (when (verify-credentials this credentials)
-    (:id (get-user this username))))
+(defn -delete-user! [{:keys [database] :as this} id]
+  (let [n-logins (first (rdbms/delete! database "logins" {:id id}))
+        n-users (first (rdbms/delete! database "users" {:id id}))]
+    n-users))
 
-(defn -delete-user! [{:keys [database] :as this}
-                     {:keys [username] :as credentials}]
-  (when (verify-credentials this credentials)
-    (let [{:keys [id]} (get-user this username)]
-      (rdbms/delete! database "logins" {:id id})
-      (first (rdbms/delete! database "users" {:username username})))))
-
-;; Can this be refactored so that the record takes an implementation as an arg?
-;; For example, you call ->UserDatabase, and instead of conn, give it another
-;;  object that has implemented protocol RelationalDatabase.
-;; Then, the only difference between Postgres and alternate implmenetaton is how
-;;  to do CRUD on the DB: e.g. how to update an atom vs to update a RDBMS
 (defrecord UserDatabase [database]
   UserPersistence
-  (register-user! [this user password]
-    (-register-user! this user password))
   (create-user! [this user]
     (-create-user! this user))
   (create-login! [this user-id password]
@@ -193,16 +149,14 @@
     (-get-user this username))
   (get-user-by-id [this user-id]
     (-get-user-by-id this user-id))
-  (update-user [this username update-payload]
-    (-update-user! this username update-payload))
   (get-password [this user-id]
     (-get-password this user-id))
+  (update-user! [this username update-payload]
+    (-update-user! this username update-payload))
   (delete-user! [this credentials]
     (-delete-user! this credentials))
   (verify-credentials [this credentials]
-    (-verify-credentials this credentials))
-  (login [this credentials]
-    (-login this credentials)))
+    (-verify-credentials this credentials)))
 
 (defn wrap-user [handler]
   (fn [{user-id :identity components :components :as req}]
@@ -276,7 +230,7 @@
   (sql/update! postgres/pg-db
                "users"
                {:avatar (file->bytes
-                          (java.io.File. "/home/alai/dev/andrewslai/resources/avatars/smiley_emoji.png"))}
+                         (java.io.File. "/home/alai/dev/andrewslai/resources/avatars/smiley_emoji.png"))}
                ["username = ?" "testuser"])
 
 

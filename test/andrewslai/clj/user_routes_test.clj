@@ -69,7 +69,9 @@
           (is (= (-> new-user
                      (dissoc :password)
                      (assoc :role_id 2))
-                 (parse-body response)))))))
+                 (-> response
+                     parse-body
+                     (dissoc :id))))))))
   (testing "Registration sad path"
     (testing "Duplicate user"
       (let [{:keys [status] :as response}
@@ -201,7 +203,9 @@
                 :last_name "user.2"
                 :email "newuser@andrewslai.com"
                 :role_id 2}
-               (parse-body response)))))
+               (-> response
+                   parse-body
+                   (dissoc :id))))))
     (testing "Error when user update is invalid"
       (let [user-update {:first_name ""}
 

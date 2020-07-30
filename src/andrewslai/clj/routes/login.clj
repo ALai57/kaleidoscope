@@ -1,6 +1,7 @@
 (ns andrewslai.clj.routes.login
   (:require [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.utils :refer [parse-body]]
+            [andrewslai.clj.api.users :as users-api]
             [cheshire.core :as json]
             [compojure.api.sweet :refer [defroutes GET POST]]
             [clojure.java.io :as io]
@@ -30,7 +31,7 @@
 
 
       (let [{:keys [username] :as credentials} body-params]
-        (if-let [user-id (users/login (:user components) credentials)]
+        (if-let [user-id (users-api/login (:user components) credentials)]
           (let [user (-> components
                          :user
                          (users/get-user-by-id user-id)

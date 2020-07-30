@@ -1,5 +1,6 @@
 (ns andrewslai.clj.routes.users
-  (:require [andrewslai.clj.persistence.users :as users]
+  (:require [andrewslai.clj.api.users :as users-api]
+            [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.routes.admin :refer [access-error]]
             [andrewslai.clj.utils :refer [file->bytes parse-body]]
             [buddy.auth.accessrules :refer [restrict]]
@@ -15,7 +16,6 @@
 
 ;; TODO: Add spec based schema validation.
 ;; https://www.metosin.fi/blog/clojure-spec-with-ring-and-swagger/
-;; TODO: Make inbound adapter for data
 
 (s/def ::user (s/keys :req-un [::users/avatar
                                ::users/first_name
@@ -33,31 +33,41 @@
                                        ::users/email
                                        ::avatar_url]))
 
-;; Extract to encoding ns
-(defn decode-avatar [avatar]
+(defn decode-avatar [{:keys [avatar] :as m}]
   (if avatar
-    (b64/decode (.getBytes avatar))
-    (file->bytes (clojure.java.io/resource "avatars/happy_emoji.jpg"))))
+    (assoc m :avatar (b64/decode (.getBytes avatar)))
+    m))
+
+
 
 (defroutes users-routes
-  (context "/users" {:keys [components]}
+  ;; TODO: #2 - rename db to something more meaningful - this is not a db, it's
+  ;; a component that has a DB backing it
+  (context "/users" {{db :user} :components}
     :tags ["users"]
     :coercion :spec
 
     (GET "/:username" [username]
-      (let [result (dissoc (users/get-user (:user components) username) :id)]
+      :swagger {:summary "Retrieve a user's profile"
+                :produces #{"application/json"}
+                :responses {200 {:description "User profile"
+                                 :schema ::users/user}
+                            404 {:description "Not found"
+                                 :schema string?}}}
+      (let [result (users-api/get-user db username)]
         (if result
           (ok result)
           (not-found))))
 
-    (DELETE "/:username" {:keys [body-params] :as request}
-      (let [verified? (users/verify-credentials (:user components) body-params)]
-        (if verified?
-          (do (when (= 1 (users/delete-user! (:user components) body-params))
-                (no-content)))
-          access-error)))
+    (DELETE "/:username" {credentials :body-params}
+      (let [result (users-api/delete-user! db credentials)]
+        (if (= 1 result)
+          (no-content)
+          (not-found))))
 
-    (PATCH "/:username" {{:keys [username]} :route-params :as request}
+    (PATCH "/:username" {{:keys [username]} :route-params
+                         update-map :body-params
+                         :as request}
       :swagger {:summary "Update a user"
                 :consumes #{"application/json"}
                 :produces #{"application/json"}
@@ -65,28 +75,16 @@
                 :responses {200 {:description "The updated fields"
                                  :schema ::users/user-update}}}
       (try+
-       (let [update-map (:body-params request)
-
-             decode-avatar (fn [{:keys [avatar] :as m}]
-                             (if avatar
-                               (assoc m :avatar (b64/decode (.getBytes avatar)))
-                               m))
-
-             response (-> components
-                          :user
-                          (users/update-user username (decode-avatar update-map))
-                          ok)]
-
-         (assoc-in response
-                   [:body :avatar_url]
-                   (format "users/%s/avatar" username)))
+       (let [transformed-input (decode-avatar update-map)
+             result (users-api/update-user! db username transformed-input)]
+         (-> result
+             (assoc :avatar_url (format "users/%s/avatar" username))
+             ok))
        (catch [:type :IllegalArgumentException] e
          (-> (bad-request)
              (assoc :body e)))))
 
     (POST "/" request
-      ;; Call inbound adapter -> register-user -> dispatch to create-user/login
-      ;; -> database
       :swagger {:summary "Create a user"
                 :consumes #{"application/json"}
                 :produces #{"application/json"}
@@ -95,9 +93,9 @@
                                  :schema ::created_user}}}
       (try+ 
        (let [{:keys [username password] :as payload} (:body-params request)
-             result (users/register-user! (:user components)
-                                          (dissoc payload :password)
-                                          password)]
+             result (users-api/register-user! db
+                                              (dissoc payload :password)
+                                              password)]
          (log/info "User created:" result)
          (-> (created)
              (assoc :headers {"Location" (str "/users/" username)})
@@ -120,7 +118,7 @@
                             404 {:description "Not found"
                                  :schema string?}}}
       (let [{:keys [avatar]}
-            (users/get-user (:user components) username)]
+            (users/get-user db username)]
         (if avatar
           (-> (response/response (io/input-stream avatar))
               (response/content-type "image/png")
