@@ -75,8 +75,10 @@
                 :responses {200 {:description "The updated fields"
                                  :schema ::users/user-update}}}
       (try+
-       (let [transformed-input (decode-avatar update-map)
-             result (users-api/update-user! db username transformed-input)]
+       (let [result (users-api/update-user! db
+                                            username
+                                            (decode-avatar update-map))]
+         ;; TODO: Find a nice way to transform this to a URL
          (-> result
              (assoc :avatar_url (format "users/%s/avatar" username))
              ok))
@@ -103,7 +105,7 @@
              (assoc :headers {"Location" (str "/users/" username)})
              (assoc :body result)
              (assoc-in [:body :avatar_url] (format "users/%s/avatar" username))))
-       (catch [:type :PSQLException] e
+       (catch [:type :PersistenceException] e
          (log/info (pr-str e))
          (-> (bad-request)
              (assoc :body e)))

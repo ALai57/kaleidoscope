@@ -80,7 +80,7 @@
                                      :content-type "application/json"))
             {:keys [type message]} (parse-body response)]
         (is (= 400 status))
-        (is (= "PSQLException" type))
+        (is (= "PersistenceException" type))
         (is (clojure.string/includes? message "ERROR: duplicate key value violates unique constraint"))))))
 
 (defdbtest deleting-user ptest/db-spec

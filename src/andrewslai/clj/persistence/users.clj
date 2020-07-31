@@ -81,17 +81,30 @@
 (defn- -create-user!
   "Checks that the user meets the ::user spec and creates a user"
   [this user]
-  (validate ::user user :IllegalArgumentException)
-  (rdbms/insert! (:database this) "users" user))
+  (try+
+   (validate ::user user :IllegalArgumentException)
+   (rdbms/insert! (:database this) "users" user)
+   (catch org.postgresql.util.PSQLException e
+     (throw+ {:type :PersistenceException
+              :subtype ::UnableToCreateUser
+              :message {:data (select-keys user [:username :email])
+                        :reason (.getMessage e)
+                        :feedback "Try a different username and/or email"}}))))
 
 (defn- -create-login!
   "Checks that the login meets the ::password spec, then encrypts and
   persists the login information"
   [this id password]
   (validate ::password password :IllegalArgumentException)
-  (let [encrypted-password (encrypt (make-encryption) password)]
-    (rdbms/insert! (:database this) "logins"
-                   {:id id, :hashed_password encrypted-password})))
+  (try+
+   (let [encrypted-password (encrypt (make-encryption) password)]
+     (rdbms/insert! (:database this) "logins"
+                    {:id id, :hashed_password encrypted-password}))
+   (catch org.postgresql.util.PSQLException e
+     (throw+ {:type :PersistenceException
+              :subtype ::UnableToCreateLogin
+              :message {:data {:id id}
+                        :reason (.getMessage e)}}))))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
 (defn -get-users [{:keys [database]}]

@@ -5,6 +5,7 @@
             [slingshot.slingshot :refer [try+ throw+]]
             [taoensso.timbre :as log]))
 
+;; TODO: Add spec into the API
 (defn login
   "Verify credentials and return the user ID if successful"
   [Persistence {:keys [username] :as credentials}]
@@ -34,22 +35,14 @@
                         clojure.java.io/resource
                         file->bytes))
 
-(defn register-user! [this user password]
-  (try+
-   (let [user-id (java.util.UUID/randomUUID)
-         full-user (assoc user
-                          :id user-id
-                          :role_id default-role
-                          :avatar (or (:avatar user) default-avatar))]
-     ;; TODO: Wrap in db transaction
-     ;; TODO: Wrap each of these protocol methods with catch PSQL exception
-     ;;        and rethrow as Persistence exception. Should not be tied to PSQL
-     (users/create-user! this full-user)
-     (users/create-login! this user-id password)
-     full-user)
-   (catch org.postgresql.util.PSQLException e
-     (throw+ {:type :PSQLException
-              :subtype ::UnableToCreateUser
-              :message {:data (select-keys user [:username :email])
-                        :reason (.getMessage e)
-                        :feedback "Try a different username and/or email"}}))))
+(defn register-user!
+  "Create a user with associated password"
+  [this user password]
+  (let [user-id (java.util.UUID/randomUUID)
+        full-user (assoc user
+                         :id user-id
+                         :role_id default-role
+                         :avatar (or (:avatar user) default-avatar))]
+    (users/create-user! this full-user)
+    (users/create-login! this user-id password)
+    full-user))
