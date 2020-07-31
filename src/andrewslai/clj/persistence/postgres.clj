@@ -34,6 +34,8 @@
             :user db-user
             :password db-password})
 
+(defn -insert!-2 [conn table payload]
+  (sql/insert! conn table payload))
 
 (defn -insert! [this table payload]
   (sql/insert! (:conn this) table payload))
@@ -52,21 +54,24 @@
         v (where k)]
     (sql/delete! (:conn this) table [(format "%s = ?" (name k)) v])))
 
-(defn -hselect [this sql-map]
-  (sql/query (:conn this) (hsql/format sql-map)))
+(defn -select [conn sql-map]
+  (sql/query conn (hsql/format sql-map)))
 
 (defrecord Postgres [conn]
   rdbms/RelationalDatabase
-  (hselect [this sql-map]
-    (-hselect this sql-map))
+  (select [this sql-map]
+    (-select conn sql-map))
   (delete! [this table where]
     (-delete! this table where))
   (update! [this table payload where]
     (-update! this table payload where))
+  (insert!-2 [this table payload]
+    (-insert!-2 conn table payload))
   (insert! [this table payload]
     (-insert! this table payload)))
 
 (comment
   (-select {:conn pg-db} )
   (sql/query pg-db ["SELECT * FROM users"])
+  select
   )

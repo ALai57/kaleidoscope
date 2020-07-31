@@ -80,10 +80,10 @@
 
 (defn- -create-user!
   "Checks that the user meets the ::user spec and creates a user"
-  [this user]
+  [{:keys [database]} user]
   (try+
    (validate ::user user :IllegalArgumentException)
-   (rdbms/insert! (:database this) "users" user)
+   (rdbms/insert!-2 database "users" user)
    (catch org.postgresql.util.PSQLException e
      (throw+ {:type :PersistenceException
               :subtype ::UnableToCreateUser
@@ -94,12 +94,12 @@
 (defn- -create-login!
   "Checks that the login meets the ::password spec, then encrypts and
   persists the login information"
-  [this id password]
+  [{:keys [database]} id password]
   (validate ::password password :IllegalArgumentException)
   (try+
    (let [encrypted-password (encrypt (make-encryption) password)]
-     (rdbms/insert! (:database this) "logins"
-                    {:id id, :hashed_password encrypted-password}))
+     (rdbms/insert!-2 database "logins"
+                      {:id id, :hashed_password encrypted-password}))
    (catch org.postgresql.util.PSQLException e
      (throw+ {:type :PersistenceException
               :subtype ::UnableToCreateLogin
@@ -108,18 +108,18 @@
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
 (defn -get-users [{:keys [database]}]
-  (rdbms/hselect database {:select [:*]
-                           :from [:users]}))
+  (rdbms/select database {:select [:*]
+                          :from [:users]}))
 
 (defn -get-user [{:keys [database]} username]
-  (first (rdbms/hselect database {:select [:*]
-                                  :from [:users]
-                                  :where [:= :users/username username]})))
+  (first (rdbms/select database {:select [:*]
+                                 :from [:users]
+                                 :where [:= :users/username username]})))
 
 (defn -get-user-by-id [{:keys [database]} user-id]
-  (first (rdbms/hselect database {:select [:*]
-                                  :from [:users]
-                                  :where [:= :users/id user-id]})))
+  (first (rdbms/select database {:select [:*]
+                                 :from [:users]
+                                 :where [:= :users/id user-id]})))
 
 (defn -update-user! [{:keys [database]} username update-payload]
   ;; TODO: Move this validation to the public API fns
@@ -132,10 +132,10 @@
       update-payload)))
 
 (defn -get-password [{:keys [database]} user-id]
-  (:hashed_password (first (rdbms/hselect database
-                                          {:select [:*]
-                                           :from [:logins]
-                                           :where [:= :users/id user-id]}))))
+  (:hashed_password (first (rdbms/select database
+                                         {:select [:*]
+                                          :from [:logins]
+                                          :where [:= :users/id user-id]}))))
 
 (defn -verify-credentials [this {:keys [username password]}]
   (let [{:keys [id]} (get-user this username)]

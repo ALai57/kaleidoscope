@@ -38,10 +38,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Get all articles
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- -get-all-articles [this]
+(defn- -get-all-articles [database]
   (try
-    (rdbms/hselect (:database this) {:select [:*]
-                                     :from [:articles]})
+    (rdbms/select database {:select [:*]
+                            :from [:articles]})
     (catch Exception e
       (str "get-all-articles caught exception: " (.getMessage e)))))
 
@@ -49,13 +49,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Article Metadata
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- -get-article-metadata [this article-url]
+(defn- -get-article-metadata [{:keys [database]} article-url]
   (try
     (first
-     (rdbms/hselect (:database this)
-                    {:select [:*]
-                     :from [:articles]
-                     :where [:= :articles/article_url article-url]}))
+     (rdbms/select database
+                   {:select [:*]
+                    :from [:articles]
+                    :where [:= :articles/article_url article-url]}))
     (catch Exception e
       (str "get-article-metadata caught exception: " (.getMessage e)
            #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
@@ -63,32 +63,32 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Full article
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn -get-article [this article_url]
+(defn -get-article [database article_url]
   (validate ::article_url article_url :IllegalArgumentException)
   (try+
    (first
-    (rdbms/hselect (:database this)
-                   {:select [:*]
-                    :from [:articles]
-                    :where [:= :articles/article_url article_url]}))
+    (rdbms/select database
+                  {:select [:*]
+                   :from [:articles]
+                   :where [:= :articles/article_url article_url]}))
    (catch Exception e
      (str "get-article-metadata caught exception: " (.getMessage e)
           #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
 
 
-(defn -create-article! [this article-payload]
+(defn -create-article! [database article-payload]
   (let [article (-> article-payload
                     (assoc :timestamp (java.time.LocalDateTime/now)))]
-    (first (rdbms/insert! (:database this) "articles" article))))
+    (first (rdbms/insert! database "articles" article))))
 
 (defrecord ArticleDatabase [database]
   ArticlePersistence
   (create-article! [this article-payload]
-    (-create-article! this article-payload))
+    (-create-article! database article-payload))
   (get-article [this article-name]
-    (-get-article this article-name))
+    (-get-article database article-name))
   (get-all-articles [this]
-    (-get-all-articles this)))
+    (-get-all-articles database)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

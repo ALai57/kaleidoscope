@@ -52,25 +52,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Resume info
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn- -get-project-portfolio [this]
+(defn- -get-project-portfolio [database]
   (try
-    (let [orgs (rdbms/hselect (:database this)
-                              {:select [:*] :from [:organizations]})
-          projects (rdbms/hselect (:database this)
-                                  {:select [:*] :from [:projects]})
-          skills (rdbms/hselect (:database this)
-                                {:select [:*] :from [:skills]})]
+    (let [orgs (rdbms/select database
+                             {:select [:*] :from [:organizations]})
+          projects (rdbms/select database
+                                 {:select [:*] :from [:projects]})
+          skills (rdbms/select database
+                               {:select [:*] :from [:skills]})]
       {:organizations orgs
        :projects projects
        :skills skills})
     (catch Exception e
       (str "get-project-portfolio caught exception: " (.getMessage e)
-           #_#_"postgres config: " (assoc (:database this) :password "xxxxxx")))))
+           #_#_"postgres config: " (assoc database :password "xxxxxx")))))
 
 (defrecord ProjectPortfolioDatabase [database]
   ProjectPortfolioPersistence
   (get-project-portfolio [this]
-    (-get-project-portfolio this)))
+    (-get-project-portfolio database)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection

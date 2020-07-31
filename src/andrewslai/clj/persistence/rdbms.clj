@@ -3,7 +3,8 @@
 
 (defprotocol RelationalDatabase
   (insert! [this table payload])
-  (hselect [this sql-map])
+  (insert!-2 [this table payload])
+  (select [this sql-map])
   (update! [this table payload where])
   (delete! [this table payload]))
 
