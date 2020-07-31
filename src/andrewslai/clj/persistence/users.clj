@@ -83,7 +83,7 @@
   [{:keys [database]} user]
   (try+
    (validate ::user user :IllegalArgumentException)
-   (rdbms/insert!-2 database "users" user)
+   (rdbms/insert! database "users" user)
    (catch org.postgresql.util.PSQLException e
      (throw+ {:type :PersistenceException
               :subtype ::UnableToCreateUser
@@ -98,8 +98,8 @@
   (validate ::password password :IllegalArgumentException)
   (try+
    (let [encrypted-password (encrypt (make-encryption) password)]
-     (rdbms/insert!-2 database "logins"
-                      {:id id, :hashed_password encrypted-password}))
+     (rdbms/insert! database "logins"
+                    {:id id, :hashed_password encrypted-password}))
    (catch org.postgresql.util.PSQLException e
      (throw+ {:type :PersistenceException
               :subtype ::UnableToCreateLogin

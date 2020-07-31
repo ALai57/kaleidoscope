@@ -34,11 +34,8 @@
             :user db-user
             :password db-password})
 
-(defn -insert!-2 [conn table payload]
+(defn -insert! [conn table payload]
   (sql/insert! conn table payload))
-
-(defn -insert! [this table payload]
-  (sql/insert! (:conn this) table payload))
 
 (defn -update! [this table payload where]
   (let [k (first (keys where))
@@ -65,10 +62,8 @@
     (-delete! this table where))
   (update! [this table payload where]
     (-update! this table payload where))
-  (insert!-2 [this table payload]
-    (-insert!-2 conn table payload))
   (insert! [this table payload]
-    (-insert! this table payload)))
+    (-insert! conn table payload)))
 
 (comment
   (-select {:conn pg-db} )
