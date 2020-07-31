@@ -37,19 +37,19 @@
 (defn -insert! [conn table payload]
   (sql/insert! conn table payload))
 
-(defn -update! [this table payload where]
+(defn -update! [conn table payload where]
   (let [k (first (keys where))
         v (where k)]
-    (sql/update! (:conn this)
+    (sql/update! conn
                  table
                  payload
                  [(format "%s = ?" (name k)) v])
     '(1)))
 
-(defn -delete! [this table where]
+(defn -delete! [conn table where]
   (let [k (first (keys where))
         v (where k)]
-    (sql/delete! (:conn this) table [(format "%s = ?" (name k)) v])))
+    (sql/delete! conn table [(format "%s = ?" (name k)) v])))
 
 (defn -select [conn sql-map]
   (sql/query conn (hsql/format sql-map)))
@@ -59,9 +59,9 @@
   (select [this sql-map]
     (-select conn sql-map))
   (delete! [this table where]
-    (-delete! this table where))
+    (-delete! conn table where))
   (update! [this table payload where]
-    (-update! this table payload where))
+    (-update! conn table payload where))
   (insert! [this table payload]
     (-insert! conn table payload)))
 
