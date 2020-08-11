@@ -12,9 +12,9 @@
   "Verify credentials and return the user ID if successful"
   [Persistence {:keys [username password] :as credentials}]
   (if-let [id (:id (users/get-user Persistence username))]
-    (let [true-password (users/get-password Persistence id)]
-      (and true-password
-           (password/check password true-password)
+    (let [password-from-db (users/get-password Persistence id)]
+      (and password-from-db
+           (password/check password password-from-db)
            id))))
 
 (defn get-user
@@ -26,16 +26,16 @@
 (defn delete-user!
   "Verifies that the user is authorized to perform the operation, then
   deletes the user"
-  [db credentials]
-  (when-let [id (login db credentials)]
+  [Persistence credentials]
+  (when-let [id (login Persistence credentials)]
     ;; TODO: Wrap in transaction
-    (users/delete-login! db id)
-    (users/delete-user! db id)))
+    (users/delete-login! Persistence id)
+    (users/delete-user! Persistence id)))
 
 (defn update-user!
   "Updates a particular user with an update payload"
-  [db username user-update]
-  (users/update-user! db username user-update))
+  [Persistence username user-update]
+  (users/update-user! Persistence username user-update))
 
 (def default-role 2)
 (def default-avatar (-> "avatars/happy_emoji.jpg"
@@ -44,12 +44,12 @@
 
 (defn register-user!
   "Create a user with associated password"
-  [this user password]
+  [Persistence user password]
   (let [user-id (java.util.UUID/randomUUID)
         full-user (assoc user
                          :id user-id
                          :role_id default-role
                          :avatar (or (:avatar user) default-avatar))]
-    (users/create-user! this full-user)
-    (users/create-login! this user-id password)
+    (users/create-user! Persistence full-user)
+    (users/create-login! Persistence user-id password)
     full-user))
