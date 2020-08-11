@@ -27,7 +27,6 @@
   (get-password [_ user-id])
   (delete-user! [_ credentials])
   (delete-login! [_ credentials])
-  (verify-credentials [_ credentials])
   (login [_ credentials]))
 
 (def default-avatar (-> "avatars/happy_emoji.jpg"
@@ -139,24 +138,11 @@
       first
       :hashed_password))
 
-(defn -verify-credentials [this {:keys [username password]}]
-  (let [{:keys [id]} (get-user this username)]
-    (and id
-         (get-password this id)
-         (check (make-encryption)
-                password
-                (get-password this id)))))
-
 (defn -delete-login! [database id]
   (first (rdbms/delete! database "logins" {:id id})))
 
-(defn -delete-user-2! [database id]
+(defn -delete-user! [database id]
   (first (rdbms/delete! database "users" {:id id})))
-
-(defn -delete-user! [{:keys [database] :as this} id]
-  (let [n-logins (first (rdbms/delete! database "logins" {:id id}))
-        n-users (first (rdbms/delete! database "users" {:id id}))]
-    n-users))
 
 (defrecord UserDatabase [database]
   UserPersistence
@@ -175,11 +161,9 @@
   (update-user! [this username update-payload]
     (-update-user! database username update-payload))
   (delete-user! [this id]
-    (-delete-user! this id))
+    (-delete-user! database id))
   (delete-login! [this id]
-    (-delete-login! this id))
-  (verify-credentials [this credentials]
-    (-verify-credentials this credentials)))
+    (-delete-login! database id)))
 
 (defn wrap-user [handler]
   (fn [{user-id :identity components :components :as req}]

@@ -51,7 +51,7 @@
 
     (testing "delete-user!"
       (is (some? (users/-get-user db username)))
-      (users/-delete-user-2! db id)
+      (users/-delete-user! db id)
       (is (nil? (users/-get-user db username))))))
 
 (defdbtest update-user-errors-test ptest/db-spec

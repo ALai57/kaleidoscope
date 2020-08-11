@@ -1,6 +1,8 @@
 (ns andrewslai.clj.api.users
   (:require [andrewslai.clj.persistence.users :as users]
+            [andrewslai.clj.auth.crypto :refer [encrypt check make-encryption]]
             [andrewslai.clj.utils :refer [file->bytes]]
+            [crypto.password.bcrypt :as password]
             [clojure.data.codec.base64 :as b64]
             [slingshot.slingshot :refer [try+ throw+]]
             [taoensso.timbre :as log]))
@@ -8,9 +10,12 @@
 ;; TODO: Add spec into the API
 (defn login
   "Verify credentials and return the user ID if successful"
-  [Persistence {:keys [username] :as credentials}]
-  (when (users/verify-credentials Persistence credentials)
-    (:id (users/get-user Persistence username))))
+  [Persistence {:keys [username password] :as credentials}]
+  (if-let [id (:id (users/get-user Persistence username))]
+    (let [true-password (users/get-password Persistence id)]
+      (and true-password
+           (password/check password true-password)
+           id))))
 
 (defn get-user
   "Retrieves a user's profile"
@@ -23,6 +28,8 @@
   deletes the user"
   [db credentials]
   (when-let [id (login db credentials)]
+    ;; TODO: Wrap in transaction
+    (users/delete-login! db id)
     (users/delete-user! db id)))
 
 (defn update-user!
