@@ -1,11 +1,7 @@
 (ns andrewslai.clj.api.users
   (:require [andrewslai.clj.persistence.users :as users]
-            [andrewslai.clj.auth.crypto :refer [encrypt check make-encryption]]
             [andrewslai.clj.utils :refer [file->bytes]]
-            [crypto.password.bcrypt :as password]
-            [clojure.data.codec.base64 :as b64]
-            [slingshot.slingshot :refer [try+ throw+]]
-            [taoensso.timbre :as log]))
+            [crypto.password.bcrypt :as password]))
 
 ;; TODO: Add spec into the API
 (defn login
