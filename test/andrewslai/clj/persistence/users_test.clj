@@ -28,39 +28,39 @@
   (let [db (postgres/->Postgres ptest/db-spec)]
 
     (testing "create-user! and get-user"
-      (users/-create-user-2! db example-user)
+      (users/-create-user! db example-user)
       (is (= (dissoc example-user :avatar)
-             (dissoc (users/-get-user-2 db username) :avatar)))
+             (dissoc (users/-get-user db username) :avatar)))
       (is (= (dissoc example-user :avatar)
-             (dissoc (users/-get-user-by-id-2 db id) :avatar))))
+             (dissoc (users/-get-user-by-id db id) :avatar))))
 
     (testing "create-login! and get-password"
-      (users/-create-login-2! db id password)
-      (is (some? (users/-get-password-2 db id))))
+      (users/-create-login! db id password)
+      (is (some? (users/-get-password db id))))
 
     (testing "update-user!"
       (let [first-name "Werdna"]
-        (is (= "A" (:first_name (users/-get-user-2 db username))))
-        (users/-update-user-2! db username {:first_name first-name})
-        (is (= first-name (:first_name (users/-get-user-2 db username))))))
+        (is (= "A" (:first_name (users/-get-user db username))))
+        (users/-update-user! db username {:first_name first-name})
+        (is (= first-name (:first_name (users/-get-user db username))))))
 
     (testing "delete-login!"
-      (is (some? (users/-get-password-2 db id)))
-      (users/-delete-login-2! db id)
-      (is (nil? (users/-get-password-2 db id))))
+      (is (some? (users/-get-password db id)))
+      (users/-delete-login! db id)
+      (is (nil? (users/-get-password db id))))
 
     (testing "delete-user!"
-      (is (some? (users/-get-user-2 db username)))
+      (is (some? (users/-get-user db username)))
       (users/-delete-user-2! db id)
-      (is (nil? (users/-get-user-2 db username))))))
+      (is (nil? (users/-get-user db username))))))
 
 (defdbtest update-user-errors-test ptest/db-spec
   (testing "Illegal last name"
     (is (thrown+? [:type :IllegalArgumentException]
-                  (users/-update-user-2! nil username {:last_name ""}))))
+                  (users/-update-user! nil username {:last_name ""}))))
   (testing "Illegal first name"
     (is (thrown+? [:type :IllegalArgumentException]
-                  (users/-update-user-2! nil username {:first_name ""})))))
+                  (users/-update-user! nil username {:first_name ""})))))
 
 #_(defn test-db []
     (-> ptest/db-spec

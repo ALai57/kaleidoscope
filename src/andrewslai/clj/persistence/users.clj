@@ -26,6 +26,7 @@
   (update-user! [_ username update-payload])
   (get-password [_ user-id])
   (delete-user! [_ credentials])
+  (delete-login! [_ credentials])
   (verify-credentials [_ credentials])
   (login [_ credentials]))
 
@@ -78,15 +79,9 @@
       (select-keys [:score :feedback]))
   )
 
-(defn -create-user-2!
+(defn -create-user!
   "Checks that the user meets the ::user spec and creates a user"
   [database user]
-  (validate ::user user :IllegalArgumentException)
-  (rdbms/insert! database "users" user))
-
-(defn- -create-user!
-  "Checks that the user meets the ::user spec and creates a user"
-  [{:keys [database]} user]
   (try+
    (validate ::user user :IllegalArgumentException)
    (rdbms/insert! database "users" user)
@@ -97,20 +92,10 @@
                         :reason (.getMessage e)
                         :feedback "Try a different username and/or email"}}))))
 
-(defn -create-login-2!
+(defn -create-login!
   "Checks that the login meets the ::password spec, then encrypts and
   persists the login information"
   [database id password]
-  (validate ::password password :IllegalArgumentException)
-  (let [encrypted-password (encrypt (make-encryption) password)]
-    (rdbms/insert! database
-                   "logins"
-                   {:id id, :hashed_password encrypted-password})))
-
-(defn- -create-login!
-  "Checks that the login meets the ::password spec, then encrypts and
-  persists the login information"
-  [{:keys [database]} id password]
   (validate ::password password :IllegalArgumentException)
   (try+
    (let [encrypted-password (encrypt (make-encryption) password)]
@@ -127,27 +112,17 @@
   (rdbms/select database {:select [:*]
                           :from [:users]}))
 
-(defn -get-user-2 [database username]
+(defn -get-user [database username]
   (first (rdbms/select database {:select [:*]
                                  :from [:users]
                                  :where [:= :users/username username]})))
 
-(defn -get-user [{:keys [database]} username]
-  (first (rdbms/select database {:select [:*]
-                                 :from [:users]
-                                 :where [:= :users/username username]})))
-
-(defn -get-user-by-id-2 [database user-id]
+(defn -get-user-by-id [database user-id]
   (first (rdbms/select database {:select [:*]
                                  :from [:users]
                                  :where [:= :users/id user-id]})))
 
-(defn -get-user-by-id [{:keys [database]} user-id]
-  (first (rdbms/select database {:select [:*]
-                                 :from [:users]
-                                 :where [:= :users/id user-id]})))
-
-(defn -update-user-2! [database username update-payload]
+(defn -update-user! [database username update-payload]
   (validate ::user-update update-payload :IllegalArgumentException)
   (let [n-updates (first (rdbms/update! database
                                         "users"
@@ -156,29 +131,13 @@
     (if (= 1 n-updates)
       update-payload)))
 
-(defn -update-user! [{:keys [database]} username update-payload]
-  ;; TODO: Move this validation to the public API fns
-  (validate ::user-update update-payload :IllegalArgumentException)
-  (let [n-updates (first (rdbms/update! database
-                                        "users"
-                                        update-payload
-                                        {:username username}))]
-    (if (= 1 n-updates)
-      update-payload)))
-
-(defn -get-password-2 [database user-id]
+(defn -get-password [database user-id]
   (-> database
       (rdbms/select {:select [:*]
                      :from [:logins]
                      :where [:= :users/id user-id]})
       first
       :hashed_password))
-
-(defn -get-password [{:keys [database]} user-id]
-  (:hashed_password (first (rdbms/select database
-                                         {:select [:*]
-                                          :from [:logins]
-                                          :where [:= :users/id user-id]}))))
 
 (defn -verify-credentials [this {:keys [username password]}]
   (let [{:keys [id]} (get-user this username)]
@@ -188,7 +147,7 @@
                 password
                 (get-password this id)))))
 
-(defn -delete-login-2! [database id]
+(defn -delete-login! [database id]
   (first (rdbms/delete! database "logins" {:id id})))
 
 (defn -delete-user-2! [database id]
@@ -202,21 +161,23 @@
 (defrecord UserDatabase [database]
   UserPersistence
   (create-user! [this user]
-    (-create-user! this user))
+    (-create-user! database user))
   (create-login! [this user-id password]
-    (-create-login! this user-id password))
+    (-create-login! database user-id password))
   (get-users [this]
     (-get-users this))
   (get-user [this username]
-    (-get-user this username))
+    (-get-user database username))
   (get-user-by-id [this user-id]
-    (-get-user-by-id this user-id))
+    (-get-user-by-id database user-id))
   (get-password [this user-id]
-    (-get-password this user-id))
+    (-get-password database user-id))
   (update-user! [this username update-payload]
-    (-update-user! this username update-payload))
-  (delete-user! [this credentials]
-    (-delete-user! this credentials))
+    (-update-user! database username update-payload))
+  (delete-user! [this id]
+    (-delete-user! this id))
+  (delete-login! [this id]
+    (-delete-login! this id))
   (verify-credentials [this credentials]
     (-verify-credentials this credentials)))
 
