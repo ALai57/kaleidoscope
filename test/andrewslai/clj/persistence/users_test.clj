@@ -7,59 +7,65 @@
             [slingshot.test]
             [slingshot.slingshot :refer [try+]]))
 
-(defn test-db []
-  (-> ptest/db-spec
-      postgres/->Postgres
-      users/->UserDatabase))
 
-(def example-user {:avatar "Hello world!"
+
+(def avatar (->> "Hello world!"
+                 (map (comp byte int))
+                 byte-array))
+(def id  #uuid "3fa8af93-0e13-471b-a96f-a15d420e1463")
+(def username "Andrew")
+(def example-user {:avatar avatar
                    :email "me@andrewslai.com"
-                   :first_name "Andrew"
+                   :first_name "A"
+                   :id id
                    :last_name "Lai"
-                   :username "Andrew"})
+                   :role_id 2
+                   :username username})
 
 (def password "CactusGnarlObsidianTheft")
 
-#_(defdbtest basic-db-test ptest/db-spec
-    (testing "register-user!"
-      (users/register-user! (test-db) example-user password)
-      (is (= {:first_name "Andrew"
-              :last_name "Lai"
-              :username "Andrew"}
-             (select-keys (-> (test-db)
-                              (users/get-user "Andrew")
-                              (dissoc :id))
-                          [:first_name :last_name :username]))))
-    (testing "get-user, get-password"
-      (let [{:keys [id]} (users/get-user (test-db) "Andrew")]
-        (is (uuid? id))
-        (is (some? (users/get-password (test-db) id)))))
-    (testing "verify-credentials"
-      (is (not (users/verify-credentials (test-db) {:username "Andrew"
-                                                    :password "Wrong"})))
-      (is (users/verify-credentials (test-db) {:username "Andrew"
-                                               :password password})))
-    (testing "update-user"
-      (is (= {:first_name "Werdna"}
-             (users/update-user! (test-db) "Andrew" {:first_name "Werdna"})))
-      (is (= (-> example-user
-                 (assoc :first_name "Werdna")
-                 (dissoc :avatar))
-             (select-keys (users/get-user (test-db) "Andrew")
-                          [:email :first_name :last_name :username]))))
-    (testing "delete-user!"
-      (is (= 1 (users/delete-user! (test-db) {:username "Andrew"
-                                              :password password})))
-      (is (nil? (users/get-user (test-db) "Andrew")))))
+(defdbtest basic-db-test ptest/db-spec
+  (let [db (postgres/->Postgres ptest/db-spec)]
 
-#_(defdbtest update-user-errors-test ptest/db-spec
-    (users/register-user! (test-db) example-user password)
-    (testing "Illegal last name"
-      (is (thrown+? [:type :IllegalArgumentException]
-                    (users/update-user! (test-db) (:username example-user) {:last_name ""}))))
-    (testing "Illegal first name"
-      (is (thrown+? [:type :IllegalArgumentException]
-                    (users/update-user! (test-db) (:username example-user) {:first_name ""})))))
+    (testing "create-user! and get-user"
+      (users/-create-user-2! db example-user)
+      (is (= (dissoc example-user :avatar)
+             (dissoc (users/-get-user-2 db username) :avatar)))
+      (is (= (dissoc example-user :avatar)
+             (dissoc (users/-get-user-by-id-2 db id) :avatar))))
+
+    (testing "create-login! and get-password"
+      (users/-create-login-2! db id password)
+      (is (some? (users/-get-password-2 db id))))
+
+    (testing "update-user!"
+      (let [first-name "Werdna"]
+        (is (= "A" (:first_name (users/-get-user-2 db username))))
+        (users/-update-user-2! db username {:first_name first-name})
+        (is (= first-name (:first_name (users/-get-user-2 db username))))))
+
+    (testing "delete-login!"
+      (is (some? (users/-get-password-2 db id)))
+      (users/-delete-login-2! db id)
+      (is (nil? (users/-get-password-2 db id))))
+
+    (testing "delete-user!"
+      (is (some? (users/-get-user-2 db username)))
+      (users/-delete-user-2! db id)
+      (is (nil? (users/-get-user-2 db username))))))
+
+(defdbtest update-user-errors-test ptest/db-spec
+  (testing "Illegal last name"
+    (is (thrown+? [:type :IllegalArgumentException]
+                  (users/-update-user-2! nil username {:last_name ""}))))
+  (testing "Illegal first name"
+    (is (thrown+? [:type :IllegalArgumentException]
+                  (users/-update-user-2! nil username {:first_name ""})))))
+
+#_(defn test-db []
+    (-> ptest/db-spec
+        postgres/->Postgres
+        users/->UserDatabase))
 
 ;; Does not belong here anymore
 #_(defdbtest registration-errors-test ptest/db-spec
