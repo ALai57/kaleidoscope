@@ -106,7 +106,8 @@
   :profiles
   {:dev {:dependencies [[binaryage/devtools "1.0.0"]
                         [cider/piggieback "0.4.2"]
-                        [figwheel-sidecar "0.5.19"]]
+                        [figwheel-sidecar "0.5.19"]
+                        [org.clojure/test.check "1.1.0"]]
          :source-paths ["src/andrewslai/cljs"]
          :repl-options {:nrepl-middleware
                         [cider.piggieback/wrap-cljs-repl]}
