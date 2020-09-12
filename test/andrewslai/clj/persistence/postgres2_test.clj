@@ -9,15 +9,6 @@
             [clojure.test.check.properties :as prop]
             [honeysql.helpers :as hh]))
 
-(def example-user
-  {:id         #uuid "f5778c59-e57d-46f0-b5e5-516e5d36481c"
-   :first_name "Andrew"
-   :last_name  "Lai"
-   :username   "alai"
-   :avatar     nil
-   :email      "andrew@andrew.com"
-   :role_id    2})
-
 (def gen-human-name
   (gen/let [ascii (gen/vector (gen/choose \a \z) 2 25)]
     (clojure.string/join (map char ascii))))
@@ -31,22 +22,6 @@
                 :avatar (gen/return nil)
                 :role_id (gen/choose 1 2)))
 
-(defdbtest insert-test ptest/db-spec
-  (let [db        (postgres/->Database ptest/db-spec)
-        all-users {:select [:*] :from [:users]}
-        add-user  (-> (hh/insert-into :users)
-                      (hh/values [example-user]))
-        del-user  (-> (hh/delete-from :users)
-                      (hh/where [:= :users/username (:username example-user)]))]
-
-    (is (empty? (p/select db all-users)))
-    (is (= example-user (p/transact! db add-user)))
-    (let [result (p/select db all-users)]
-      (is (= 1 (count result)))
-      (is (= example-user (first result))))
-    (is (= example-user (p/transact! db del-user)))
-    (is (empty? (p/select db all-users)))))
-
 (defn add-user [user]
   (-> (hh/insert-into :users)
       (hh/values [user])))
@@ -55,10 +30,7 @@
   (-> (hh/delete-from :users)
       (hh/where [:= :users/username username])))
 
-;; Need to dissoc avatar because byte arrays use Javas == semantics.
-;; This means they will only evaluate to equal if the arrays are, in fact the
-;; same array
-(defspec insert-test-2
+(defspec insert-get-delete-test
   (let [db        (postgres/->Database ptest/db-spec)
         all-users {:select [:*] :from [:users]}]
     (prop/for-all [user gen-user]
