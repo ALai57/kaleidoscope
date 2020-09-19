@@ -1,8 +1,11 @@
 (ns andrewslai.clj.persistence.postgres2
   (:require [andrewslai.clj.persistence :as p :refer [Persistence]]
+            [andrewslai.clj.utils :refer [validate]]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
-            [honeysql.core :as hsql])
+            [honeysql.core :as hsql]
+            [honeysql.helpers :as hh]
+            [slingshot.slingshot :refer [throw+ try+]])
   (:import org.postgresql.util.PGobject))
 
 (extend-protocol sql/IResultSetReadColumn
@@ -24,6 +27,21 @@
     (sql/query conn (hsql/format m)))
   (transact! [this m]
     (sql/execute! conn (hsql/format m) {:return-keys true})))
+
+;; TODO: Deal with m being a collection or not
+(defn insert! [database table m & {:keys [ex-subtype
+                                          input-validation]}]
+  (when input-validation
+    (validate input-validation m :IllegalArgumentException))
+  (try+
+   (p/transact! database (-> (hh/insert-into table)
+                             (hh/values [m])))
+   (catch org.postgresql.util.PSQLException e
+     (throw+ (merge {:type :PersistenceException
+                     :message {:data (select-keys m [:username :email])
+                               :reason (.getMessage e)}}
+                    (when ex-subtype
+                      {:subtype ex-subtype}))))))
 
 (comment
   (require '[andrewslai.clj.env :as env])
