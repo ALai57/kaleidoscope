@@ -2,6 +2,7 @@
   (:gen-class)
   (:require [andrewslai.clj.env :as env]
             [andrewslai.clj.persistence.postgres :as postgres]
+            [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.persistence.projects-portfolio :as portfolio]
@@ -186,6 +187,7 @@
    :user (-> db-spec
              postgres/->Postgres
              users/->UserDatabase)
+   :database (postgres2/->Database db-spec)
    :portfolio (-> db-spec
                   postgres/->Postgres
                   portfolio/->ProjectPortfolioDatabase)

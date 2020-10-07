@@ -20,7 +20,9 @@
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
             [ring.mock.request :as mock]
-            [andrewslai.clj.persistence.postgres :as postgres]))
+            [andrewslai.clj.persistence.postgres :as postgres]
+            [andrewslai.clj.persistence.postgres2 :as postgres2]
+            ))
 
 
 (def session-atom (atom {}))
@@ -29,6 +31,7 @@
   {:user (-> ptest/db-spec
              postgres/->Postgres
              users/->UserDatabase)
+   :database (postgres2/->Database ptest/db-spec)
    :session {:store (mem/memory-store session-atom)}})
 
 (defn test-users-app []

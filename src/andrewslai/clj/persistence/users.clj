@@ -1,6 +1,7 @@
 (ns andrewslai.clj.persistence.users
   (:require [andrewslai.clj.auth.crypto :refer [encrypt check make-encryption]]
             [andrewslai.clj.persistence.postgres :as postgres]
+            [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.utils :refer [file->bytes validate]]
             [clojure.data.codec.base64 :as b64]
@@ -70,6 +71,11 @@
 
 (s/def ::password (s/and string? sufficient-strength?))
 
+(s/def ::hashed_password string?)
+
+(s/def ::login (s/keys :opt-un [::id
+                                ::hashed_password]))
+
 (comment
   (-> Zxcvbn
       new
@@ -78,33 +84,23 @@
       (select-keys [:score :feedback]))
   )
 
-(defn -create-user!
+(defn create-user!
   "Checks that the user meets the ::user spec and creates a user"
   [database user]
-  (try+
-   (validate ::user user :IllegalArgumentException)
-   (rdbms/insert! database "users" user)
-   (catch org.postgresql.util.PSQLException e
-     (throw+ {:type :PersistenceException
-              :subtype ::UnableToCreateUser
-              :message {:data (select-keys user [:username :email])
-                        :reason (.getMessage e)
-                        :feedback "Try a different username and/or email"}}))))
+  (postgres2/insert! database :users
+                     user
+                     :ex-subtype :UnableToCreateUser
+                     :input-validation ::user))
 
-(defn -create-login!
+(defn create-login!
   "Checks that the login meets the ::password spec, then encrypts and
   persists the login information"
   [database id password]
   (validate ::password password :IllegalArgumentException)
-  (try+
-   (let [encrypted-password (encrypt (make-encryption) password)]
-     (rdbms/insert! database "logins"
-                    {:id id, :hashed_password encrypted-password}))
-   (catch org.postgresql.util.PSQLException e
-     (throw+ {:type :PersistenceException
-              :subtype ::UnableToCreateLogin
-              :message {:data {:id id}
-                        :reason (.getMessage e)}}))))
+  (postgres2/insert! database :logins
+                     {:id id, :hashed_password (encrypt (make-encryption) password)}
+                     :ex-subtype :UnableToCreateLogin
+                     :input-validation ::login))
 
 ;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
 (defn -get-users [{:keys [database]}]
@@ -146,10 +142,10 @@
 
 (defrecord UserDatabase [database]
   UserPersistence
-  (create-user! [this user]
-    (-create-user! database user))
-  (create-login! [this user-id password]
-    (-create-login! database user-id password))
+  #_(create-user! [this user]
+      (-create-user! database user))
+  #_(create-login! [this user-id password]
+      (-create-login! database user-id password))
   (get-users [this]
     (-get-users this))
   (get-user [this username]

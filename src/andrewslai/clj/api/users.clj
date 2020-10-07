@@ -40,12 +40,12 @@
 
 (defn register-user!
   "Create a user with associated password"
-  [Persistence user password]
+  [database user password]
   (let [user-id (java.util.UUID/randomUUID)
         full-user (assoc user
                          :id user-id
                          :role_id default-role
                          :avatar (or (:avatar user) default-avatar))]
-    (users/create-user! Persistence full-user)
-    (users/create-login! Persistence user-id password)
+    (users/create-user! database full-user)
+    (users/create-login! database user-id password)
     full-user))

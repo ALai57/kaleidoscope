@@ -1,5 +1,6 @@
 (ns andrewslai.clj.persistence.users-test
   (:require [andrewslai.clj.persistence.postgres :as postgres]
+            [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.test-utils :refer [defdbtest]]
@@ -25,17 +26,18 @@
 (def password "CactusGnarlObsidianTheft")
 
 (defdbtest basic-db-test ptest/db-spec
-  (let [db (postgres/->Postgres ptest/db-spec)]
+  (let [db (postgres/->Postgres ptest/db-spec)
+        database (postgres2/->Database ptest/db-spec)]
 
     (testing "create-user! and get-user"
-      (users/-create-user! db example-user)
+      (users/create-user! database example-user)
       (is (= (dissoc example-user :avatar)
              (dissoc (users/-get-user db username) :avatar)))
       (is (= (dissoc example-user :avatar)
              (dissoc (users/-get-user-by-id db id) :avatar))))
 
     (testing "create-login! and get-password"
-      (users/-create-login! db id password)
+      (users/create-login! database id password)
       (is (some? (users/-get-password db id))))
 
     (testing "update-user!"

@@ -43,7 +43,7 @@
 (defroutes users-routes
   ;; TODO: #2 - rename db to something more meaningful - this is not a db, it's
   ;; a component that has a DB backing it
-  (context "/users" {{db :user} :components}
+  (context "/users" {{db :user database :database} :components}
     :tags ["users"]
     :coercion :spec
 
@@ -95,7 +95,7 @@
                                  :schema ::created_user}}}
       (try+ 
        (let [{:keys [username password] :as payload} (:body-params request)
-             result (users-api/register-user! db
+             result (users-api/register-user! database
                                               (-> payload
                                                   (dissoc :password)
                                                   decode-avatar)
