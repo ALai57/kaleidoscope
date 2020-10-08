@@ -38,7 +38,7 @@
 
     (testing "create-login! and get-password"
       (users/create-login! database id password)
-      (is (some? (users/-get-password db id))))
+      (is (some? (users/get-password database id))))
 
     (testing "update-user!"
       (let [first-name "Werdna"]
@@ -47,9 +47,9 @@
         (is (= first-name (:first_name (users/get-user database username))))))
 
     (testing "delete-login!"
-      (is (some? (users/-get-password db id)))
+      (is (some? (users/get-password database id)))
       (users/-delete-login! db id)
-      (is (nil? (users/-get-password db id))))
+      (is (nil? (users/get-password database id))))
 
     (testing "delete-user!"
       (is (some? (users/get-user database username)))

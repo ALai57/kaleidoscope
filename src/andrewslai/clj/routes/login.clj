@@ -31,8 +31,7 @@
 
 
       (let [{:keys [username] :as credentials} body-params]
-        (if-let [user-id (users-api/login (:user components)
-                                          (:database components)
+        (if-let [user-id (users-api/login (:database components)
                                           credentials)]
           (let [user (-> components
                          :database

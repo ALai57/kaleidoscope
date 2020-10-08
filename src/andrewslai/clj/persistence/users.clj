@@ -121,11 +121,11 @@
     (if (= 1 n-updates)
       update-payload)))
 
-(defn -get-password [database user-id]
+(defn get-password [database user-id]
   (-> database
-      (rdbms/select {:select [:*]
-                     :from [:logins]
-                     :where [:= :users/id user-id]})
+      (postgres2/select {:select [:*]
+                         :from [:logins]
+                         :where [:= :users/id user-id]})
       first
       :hashed_password))
 
@@ -137,8 +137,6 @@
 
 (defrecord UserDatabase [database]
   UserPersistence
-  (get-password [this user-id]
-    (-get-password database user-id))
   (update-user! [this username update-payload]
     (-update-user! database username update-payload))
   (delete-user! [this id]
