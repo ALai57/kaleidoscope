@@ -28,6 +28,9 @@
   (transact! [this m]
     (sql/execute! conn (hsql/format m) {:return-keys true})))
 
+(defn select [database m]
+  (p/select database m))
+
 ;; TODO: Deal with m being a collection or not
 (defn insert! [database table m & {:keys [ex-subtype
                                           input-validation]}]

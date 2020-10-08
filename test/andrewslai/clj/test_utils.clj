@@ -21,12 +21,6 @@
        (binding [~db-spec db-spec#] 
          ~@body))))
 
-#_(defn get-db-spec [db]
-    {:classname "org.postgresql.Driver"
-     :subprotocol "postgresql"
-     :subname (str "//localhost:" (.getPort db) "/postgres")
-     :user "postgres"})
-
 (defn test-app-component-config [db-spec]
   {:db-spec db-spec
    :log-level :error

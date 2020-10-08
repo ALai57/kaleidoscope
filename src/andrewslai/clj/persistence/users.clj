@@ -102,15 +102,10 @@
                      :ex-subtype :UnableToCreateLogin
                      :input-validation ::login))
 
-;;https://www.donedone.com/building-the-optimal-user-database-model-for-your-application/
-(defn -get-users [{:keys [database]}]
-  (rdbms/select database {:select [:*]
-                          :from [:users]}))
-
-(defn -get-user [database username]
-  (first (rdbms/select database {:select [:*]
-                                 :from [:users]
-                                 :where [:= :users/username username]})))
+(defn get-user [database username]
+  (first (postgres2/select database {:select [:*]
+                                     :from [:users]
+                                     :where [:= :users/username username]})))
 
 (defn -get-user-by-id [database user-id]
   (first (rdbms/select database {:select [:*]
@@ -142,14 +137,6 @@
 
 (defrecord UserDatabase [database]
   UserPersistence
-  #_(create-user! [this user]
-      (-create-user! database user))
-  #_(create-login! [this user-id password]
-      (-create-login! database user-id password))
-  (get-users [this]
-    (-get-users this))
-  (get-user [this username]
-    (-get-user database username))
   (get-user-by-id [this user-id]
     (-get-user-by-id database user-id))
   (get-password [this user-id]

@@ -54,13 +54,13 @@
                                  :schema ::users/user}
                             404 {:description "Not found"
                                  :schema string?}}}
-      (let [result (users-api/get-user db username)]
+      (let [result (users-api/get-user database username)]
         (if result
           (ok result)
           (not-found))))
 
     (DELETE "/:username" {credentials :body-params}
-      (let [result (users-api/delete-user! db credentials)]
+      (let [result (users-api/delete-user! db database credentials)]
         (if (= 1 result)
           (no-content)
           (not-found))))
@@ -122,7 +122,7 @@
                             404 {:description "Not found"
                                  :schema string?}}}
       (let [{:keys [avatar]}
-            (users/get-user db username)]
+            (users/get-user database username)]
         (if avatar
           (-> (response/response (io/input-stream avatar))
               (response/content-type "image/png")

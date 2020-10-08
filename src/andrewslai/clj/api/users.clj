@@ -6,8 +6,8 @@
 ;; TODO: Add spec into the API
 (defn login
   "Verify credentials and return the user ID if successful"
-  [Persistence {:keys [username password] :as credentials}]
-  (if-let [id (:id (users/get-user Persistence username))]
+  [Persistence database {:keys [username password] :as credentials}]
+  (if-let [id (:id (users/get-user database username))]
     (let [password-from-db (users/get-password Persistence id)]
       (and password-from-db
            (password/check password password-from-db)
@@ -15,15 +15,14 @@
 
 (defn get-user
   "Retrieves a user's profile"
-  ;; TODO: Add a presenter in here too
-  [Persistence username]
-  (users/get-user Persistence username))
+  [database username]
+  (users/get-user database username))
 
 (defn delete-user!
   "Verifies that the user is authorized to perform the operation, then
   deletes the user"
-  [Persistence credentials]
-  (when-let [id (login Persistence credentials)]
+  [Persistence database credentials]
+  (when-let [id (login Persistence database credentials)]
     ;; TODO: Wrap in transaction
     (users/delete-login! Persistence id)
     (users/delete-user! Persistence id)))
