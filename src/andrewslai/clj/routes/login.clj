@@ -35,7 +35,7 @@
                                           (:database components)
                                           credentials)]
           (let [user (-> components
-                         :user
+                         :database
                          (users/get-user-by-id user-id)
                          (assoc :avatar_url (format "users/%s/avatar" username)))]
             (log/info "Authenticated login!")

@@ -107,10 +107,10 @@
                                      :from [:users]
                                      :where [:= :users/username username]})))
 
-(defn -get-user-by-id [database user-id]
-  (first (rdbms/select database {:select [:*]
-                                 :from [:users]
-                                 :where [:= :users/id user-id]})))
+(defn get-user-by-id [database user-id]
+  (first (postgres2/select database {:select [:*]
+                                     :from [:users]
+                                     :where [:= :users/id user-id]})))
 
 (defn -update-user! [database username update-payload]
   (validate ::user-update update-payload :IllegalArgumentException)
@@ -137,8 +137,6 @@
 
 (defrecord UserDatabase [database]
   UserPersistence
-  (get-user-by-id [this user-id]
-    (-get-user-by-id database user-id))
   (get-password [this user-id]
     (-get-password database user-id))
   (update-user! [this username update-payload]
@@ -150,8 +148,8 @@
 
 (defn wrap-user [handler]
   (fn [{user-id :identity components :components :as req}]
-    (if (and user-id (:user components))
-      (handler (assoc req :user (get-user-by-id (:user components) user-id)))
+    (if (and user-id (:database components))
+      (handler (assoc req :user (get-user-by-id (:database components) user-id)))
       (handler (assoc req :user nil)))))
 
 (comment

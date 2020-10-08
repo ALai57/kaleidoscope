@@ -34,7 +34,7 @@
       (is (= (dissoc example-user :avatar)
              (dissoc (users/get-user database username) :avatar)))
       (is (= (dissoc example-user :avatar)
-             (dissoc (users/-get-user-by-id db id) :avatar))))
+             (dissoc (users/get-user-by-id database id) :avatar))))
 
     (testing "create-login! and get-password"
       (users/create-login! database id password)
