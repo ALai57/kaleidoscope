@@ -43,7 +43,7 @@
 (defroutes users-routes
   ;; TODO: #2 - rename db to something more meaningful - this is not a db, it's
   ;; a component that has a DB backing it
-  (context "/users" {{db :user database :database} :components}
+  (context "/users" {{database :database} :components}
     :tags ["users"]
     :coercion :spec
 
@@ -60,8 +60,8 @@
           (not-found))))
 
     (DELETE "/:username" {credentials :body-params}
-      (let [result (users-api/delete-user! db database credentials)]
-        (if (= 1 result)
+      (let [result (users-api/delete-user! database credentials)]
+        (if (map? result)
           (no-content)
           (not-found))))
 

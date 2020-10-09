@@ -184,9 +184,6 @@
   {:db (-> db-spec
            postgres/->Postgres
            articles/->ArticleDatabase)
-   :user (-> db-spec
-             postgres/->Postgres
-             users/->UserDatabase)
    :database (postgres2/->Database db-spec)
    :portfolio (-> db-spec
                   postgres/->Postgres

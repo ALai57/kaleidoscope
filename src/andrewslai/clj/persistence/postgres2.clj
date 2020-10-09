@@ -61,6 +61,17 @@
                     (when ex-subtype
                       {:subtype ex-subtype}))))))
 
+(defn delete! [database table user-id & {:keys [ex-subtype]}]
+  (try+
+   (p/transact! database (-> (hh/delete-from table)
+                             (hh/where [:= :id user-id])))
+   (catch org.postgresql.util.PSQLException e
+     (throw+ (merge {:type :PersistenceException
+                     :message {:data user-id
+                               :reason (.getMessage e)}}
+                    (when ex-subtype
+                      {:subtype ex-subtype}))))))
+
 (comment
   (require '[andrewslai.clj.env :as env])
   (require '[honeysql.helpers :as hh])

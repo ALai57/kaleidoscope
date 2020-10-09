@@ -28,10 +28,7 @@
 (def session-atom (atom {}))
 
 (defn components []
-  {:user (-> ptest/db-spec
-             postgres/->Postgres
-             users/->UserDatabase)
-   :database (postgres2/->Database ptest/db-spec)
+  {:database (postgres2/->Database ptest/db-spec)
    :session {:store (mem/memory-store session-atom)}})
 
 (defn test-users-app []

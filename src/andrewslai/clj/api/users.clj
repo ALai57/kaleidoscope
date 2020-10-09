@@ -21,11 +21,11 @@
 (defn delete-user!
   "Verifies that the user is authorized to perform the operation, then
   deletes the user"
-  [Persistence database credentials]
+  [database credentials]
   (when-let [id (login database credentials)]
     ;; TODO: Wrap in transaction
-    (users/delete-login! Persistence id)
-    (users/delete-user! Persistence id)))
+    (users/delete-login! database id)
+    (users/delete-user! database id)))
 
 (defn update-user!
   "Updates a particular user with an update payload"

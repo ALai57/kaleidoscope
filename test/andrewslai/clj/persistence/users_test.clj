@@ -26,8 +26,7 @@
 (def password "CactusGnarlObsidianTheft")
 
 (defdbtest basic-db-test ptest/db-spec
-  (let [db (postgres/->Postgres ptest/db-spec)
-        database (postgres2/->Database ptest/db-spec)]
+  (let [database (postgres2/->Database ptest/db-spec)]
 
     (testing "create-user! and get-user"
       (users/create-user! database example-user)
@@ -48,12 +47,12 @@
 
     (testing "delete-login!"
       (is (some? (users/get-password database id)))
-      (users/-delete-login! db id)
+      (users/delete-login! database id)
       (is (nil? (users/get-password database id))))
 
     (testing "delete-user!"
       (is (some? (users/get-user database username)))
-      (users/-delete-user! db id)
+      (users/delete-user! database id)
       (is (nil? (users/get-user database username))))))
 
 (defdbtest update-user-errors-test ptest/db-spec
