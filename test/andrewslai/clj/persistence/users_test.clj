@@ -43,7 +43,7 @@
     (testing "update-user!"
       (let [first-name "Werdna"]
         (is (= "A" (:first_name (users/get-user database username))))
-        (users/-update-user! db username {:first_name first-name})
+        (users/update-user! database username {:first_name first-name})
         (is (= first-name (:first_name (users/get-user database username))))))
 
     (testing "delete-login!"
@@ -59,10 +59,10 @@
 (defdbtest update-user-errors-test ptest/db-spec
   (testing "Illegal last name"
     (is (thrown+? [:type :IllegalArgumentException]
-                  (users/-update-user! nil username {:last_name ""}))))
+                  (users/update-user! nil username {:last_name ""}))))
   (testing "Illegal first name"
     (is (thrown+? [:type :IllegalArgumentException]
-                  (users/-update-user! nil username {:first_name ""})))))
+                  (users/update-user! nil username {:first_name ""})))))
 
 #_(defn test-db []
     (-> ptest/db-spec

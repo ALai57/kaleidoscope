@@ -87,20 +87,21 @@
 (defn create-user!
   "Checks that the user meets the ::user spec and creates a user"
   [database user]
-  (postgres2/insert! database :users
-                     user
-                     :ex-subtype :UnableToCreateUser
-                     :input-validation ::user))
+  (postgres2/insert! database
+                     :users user
+                     :input-validation ::user
+                     :ex-subtype :UnableToCreateUser))
 
 (defn create-login!
   "Checks that the login meets the ::password spec, then encrypts and
   persists the login information"
   [database id password]
   (validate ::password password :IllegalArgumentException)
-  (postgres2/insert! database :logins
-                     {:id id, :hashed_password (encrypt (make-encryption) password)}
-                     :ex-subtype :UnableToCreateLogin
-                     :input-validation ::login))
+  (let [login {:id id, :hashed_password (encrypt (make-encryption) password)}]
+    (postgres2/insert! database
+                       :logins login
+                       :input-validation ::login
+                       :ex-subtype :UnableToCreateLogin)))
 
 (defn get-user [database username]
   (first (postgres2/select database {:select [:*]
@@ -112,15 +113,6 @@
                                      :from [:users]
                                      :where [:= :users/id user-id]})))
 
-(defn -update-user! [database username update-payload]
-  (validate ::user-update update-payload :IllegalArgumentException)
-  (let [n-updates (first (rdbms/update! database
-                                        "users"
-                                        update-payload
-                                        {:username username}))]
-    (if (= 1 n-updates)
-      update-payload)))
-
 (defn get-password [database user-id]
   (-> database
       (postgres2/select {:select [:*]
@@ -128,6 +120,12 @@
                          :where [:= :users/id user-id]})
       first
       :hashed_password))
+
+(defn update-user! [database username update-payload]
+  (postgres2/update! database :users
+                     update-payload username
+                     :input-validation ::user-update
+                     :ex-subtype :UnableToUpdateUser))
 
 (defn -delete-login! [database id]
   (first (rdbms/delete! database "logins" {:id id})))
@@ -137,8 +135,6 @@
 
 (defrecord UserDatabase [database]
   UserPersistence
-  (update-user! [this username update-payload]
-    (-update-user! database username update-payload))
   (delete-user! [this id]
     (-delete-user! database id))
   (delete-login! [this id]

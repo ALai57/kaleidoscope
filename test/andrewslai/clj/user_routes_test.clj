@@ -193,7 +193,7 @@
                                   (assoc :body-params user-update)))
             response-body (parse-body response)]
         (is (= 200 status))
-        (is (= user-update (dissoc response-body :avatar_url)))
+        (is (= user-update (select-keys response-body (keys user-update))))
         (is (= (format "users/%s/avatar" (:username new-user))
                (:avatar_url response-body)))))
     (testing "Can retrieve the new user"

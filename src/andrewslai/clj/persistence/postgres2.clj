@@ -46,6 +46,21 @@
                     (when ex-subtype
                       {:subtype ex-subtype}))))))
 
+(defn update! [database table m username & {:keys [ex-subtype
+                                                   input-validation]}]
+  (when input-validation
+    (validate input-validation m :IllegalArgumentException))
+  (try+
+   (p/transact! database (-> (hh/update table)
+                             (hh/sset m)
+                             (hh/where [:= :username username])))
+   (catch org.postgresql.util.PSQLException e
+     (throw+ (merge {:type :PersistenceException
+                     :message {:data (select-keys m [:username :email])
+                               :reason (.getMessage e)}}
+                    (when ex-subtype
+                      {:subtype ex-subtype}))))))
+
 (comment
   (require '[andrewslai.clj.env :as env])
   (require '[honeysql.helpers :as hh])
@@ -81,4 +96,8 @@
                (-> (hh/delete-from :users)
                    (hh/where [:= :users/username (:username example-user)])))
 
+  (p/transact! (->Database (pg-conn))
+               (-> (hh/update :users)
+                   (hh/sset {:first_name "FIRSTNAME"})
+                   (hh/where [:= :username (:username example-user)])))
   )

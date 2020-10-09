@@ -75,7 +75,7 @@
                 :responses {200 {:description "The updated fields"
                                  :schema ::users/user-update}}}
       (try+
-       (let [result (users-api/update-user! db
+       (let [result (users-api/update-user! database
                                             username
                                             (decode-avatar update-map))]
          ;; TODO: Find a nice way to transform this to a URL

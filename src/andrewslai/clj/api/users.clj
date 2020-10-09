@@ -29,8 +29,8 @@
 
 (defn update-user!
   "Updates a particular user with an update payload"
-  [Persistence username user-update]
-  (users/update-user! Persistence username user-update))
+  [database username user-update]
+  (users/update-user! database username user-update))
 
 (def default-role 2)
 (def default-avatar (-> "avatars/happy_emoji.jpg"
