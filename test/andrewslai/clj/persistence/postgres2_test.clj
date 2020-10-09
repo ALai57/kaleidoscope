@@ -7,6 +7,7 @@
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
+            [honeysql.core :as hsql]
             [honeysql.helpers :as hh]))
 
 (def gen-human-name
@@ -24,15 +25,17 @@
 
 (defn add-user [user]
   (-> (hh/insert-into :users)
-      (hh/values [user])))
+      (hh/values [user])
+      hsql/format))
 
 (defn del-user [username]
   (-> (hh/delete-from :users)
-      (hh/where [:= :users/username username])))
+      (hh/where [:= :users/username username])
+      hsql/format))
 
 (defspec insert-get-delete-test
   (let [db        (postgres/->Database ptest/db-spec)
-        all-users {:select [:*] :from [:users]}]
+        all-users (hsql/format {:select [:*] :from [:users]})]
     (prop/for-all [user gen-user]
       (and (is (empty? (p/select db all-users)))
            (is (= user (p/transact! db (add-user user))))

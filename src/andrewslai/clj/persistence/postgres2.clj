@@ -23,13 +23,13 @@
 
 (defrecord Database [conn]
   Persistence
-  (select [this m]
-    (sql/query conn (hsql/format m)))
-  (transact! [this m]
-    (sql/execute! conn (hsql/format m) {:return-keys true})))
+  (select [this stmt]
+    (sql/query conn stmt))
+  (transact! [this stmt]
+    (sql/execute! conn stmt {:return-keys true})))
 
 (defn select [database m]
-  (p/select database m))
+  (p/select database (hsql/format m)))
 
 ;; TODO: Deal with m being a collection or not
 (defn insert! [database table m & {:keys [ex-subtype
@@ -38,7 +38,8 @@
     (validate input-validation m :IllegalArgumentException))
   (try+
    (p/transact! database (-> (hh/insert-into table)
-                             (hh/values [m])))
+                             (hh/values [m])
+                             hsql/format))
    (catch org.postgresql.util.PSQLException e
      (throw+ (merge {:type :PersistenceException
                      :message {:data (select-keys m [:username :email])
@@ -53,7 +54,8 @@
   (try+
    (p/transact! database (-> (hh/update table)
                              (hh/sset m)
-                             (hh/where [:= :username username])))
+                             (hh/where [:= :username username])
+                             hsql/format))
    (catch org.postgresql.util.PSQLException e
      (throw+ (merge {:type :PersistenceException
                      :message {:data (select-keys m [:username :email])
@@ -64,7 +66,8 @@
 (defn delete! [database table user-id & {:keys [ex-subtype]}]
   (try+
    (p/transact! database (-> (hh/delete-from table)
-                             (hh/where [:= :id user-id])))
+                             (hh/where [:= :id user-id])
+                             hsql/format))
    (catch org.postgresql.util.PSQLException e
      (throw+ (merge {:type :PersistenceException
                      :message {:data user-id

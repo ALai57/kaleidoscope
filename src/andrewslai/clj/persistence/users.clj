@@ -46,6 +46,7 @@
 
 (s/def ::user-update (s/keys :opt-un [::first_name ::last_name ::avatar]))
 
+;; TODO: This should be dealt with in the API, not the persistence layer
 (defn password-strength [password]
   (-> Zxcvbn
       new
@@ -64,14 +65,6 @@
 (s/def ::login (s/keys :opt-un [::id
                                 ::hashed_password]))
 
-(comment
-  (-> Zxcvbn
-      new
-      (.measure "password")
-      j/from-java
-      (select-keys [:score :feedback]))
-  )
-
 (defn create-user!
   "Checks that the user meets the ::user spec and creates a user"
   [database user]
@@ -79,6 +72,26 @@
                      :users user
                      :input-validation ::user
                      :ex-subtype :UnableToCreateUser))
+
+;; TODO: These should not be different queries...
+(defn get-user [database username]
+  (first (postgres2/select database {:select [:*]
+                                     :from [:users]
+                                     :where [:= :users/username username]})))
+
+(defn get-user-by-id [database user-id]
+  (first (postgres2/select database {:select [:*]
+                                     :from [:users]
+                                     :where [:= :users/id user-id]})))
+
+(defn update-user! [database username update-payload]
+  (postgres2/update! database :users
+                     update-payload username
+                     :input-validation ::user-update
+                     :ex-subtype :UnableToUpdateUser))
+
+(defn delete-user! [database id]
+  (postgres2/delete! database :users id))
 
 (defn create-login!
   "Checks that the login meets the ::password spec, then encrypts and
@@ -91,15 +104,7 @@
                        :input-validation ::login
                        :ex-subtype :UnableToCreateLogin)))
 
-(defn get-user [database username]
-  (first (postgres2/select database {:select [:*]
-                                     :from [:users]
-                                     :where [:= :users/username username]})))
 
-(defn get-user-by-id [database user-id]
-  (first (postgres2/select database {:select [:*]
-                                     :from [:users]
-                                     :where [:= :users/id user-id]})))
 
 (defn get-password [database user-id]
   (-> database
@@ -109,17 +114,8 @@
       first
       :hashed_password))
 
-(defn update-user! [database username update-payload]
-  (postgres2/update! database :users
-                     update-payload username
-                     :input-validation ::user-update
-                     :ex-subtype :UnableToUpdateUser))
-
 (defn delete-login! [database id]
   (postgres2/delete! database :logins id))
-
-(defn delete-user! [database id]
-  (postgres2/delete! database :users id))
 
 (defn wrap-user [handler]
   (fn [{user-id :identity components :components :as req}]
