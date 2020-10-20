@@ -1,6 +1,5 @@
 (ns andrewslai.clj.persistence.users-test
-  (:require [andrewslai.clj.persistence.postgres :as postgres]
-            [andrewslai.clj.persistence.postgres2 :as postgres2]
+  (:require [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.entities.user :as user]
             [andrewslai.clj.test-utils :refer [defdbtest]]

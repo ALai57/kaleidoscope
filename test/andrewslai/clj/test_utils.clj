@@ -1,6 +1,5 @@
 (ns andrewslai.clj.test-utils
   (:require [andrewslai.clj.handler :as h]
-            [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer [deftest is testing]]

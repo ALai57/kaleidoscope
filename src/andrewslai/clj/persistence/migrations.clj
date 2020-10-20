@@ -1,9 +1,19 @@
 (ns andrewslai.clj.persistence.migrations
   (:require [andrewslai.clj.env :as env]
-            [andrewslai.clj.persistence.postgres :as postgres]
             [migratus.core :as m]
             [migratus.migrations :as mm]
             [clojure.java.jdbc :as sql]))
+
+(defn pg-conn []
+  (-> @env/env
+      (select-keys [:db-port :db-host
+                    :db-name :db-user
+                    :db-password])
+      (clojure.set/rename-keys {:db-name     :dbname
+                                :db-host     :host
+                                :db-user     :user
+                                :db-password :password})
+      (assoc :dbtype "postgresql")))
 
 (defn pg-db->migratus-config [{:keys [host dbname user password]}]
   {:migration-dirs "migrations"
@@ -15,7 +25,7 @@
         :password password}})
 
 
-#_(pg-db->migratus-config postgres/pg-db)
+#_(pg-db->migratus-config (pg-conn))
 #_{:dbtype "postgresql"
    , :dbname "andrewslai_db",
    :host "localhost",
@@ -33,7 +43,7 @@
              "init" m/init
              "create" m/create}
         op (or (ops v) m/migrate)]
-    (apply op (concat [(pg-db->migratus-config postgres/pg-db)]
+    (apply op (concat [(pg-db->migratus-config (pg-conn))]
                       args))))
 
 (comment
@@ -47,9 +57,9 @@
   (require '[migratus.database :as mig-db])
   (require '[migratus.protocols :as prot])
 
-  (def my-connection (atom (mig-db/connect* (:db (pg-db->migratus-config postgres/pg-db)))))
+  (def my-connection (atom (mig-db/connect* (:db (pg-db->migratus-config (pg-conn))))))
   (def mystore
-    (mig-db/->Database (:connection @my-connection) (pg-db->migratus-config postgres/pg-db)))
+    (mig-db/->Database (:connection @my-connection) (pg-db->migratus-config (pg-conn))))
 
   @my-connection
 

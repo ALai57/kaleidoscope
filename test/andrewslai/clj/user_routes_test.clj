@@ -18,7 +18,6 @@
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
             [ring.mock.request :as mock]
-            [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres2 :as postgres2]
             ))
 

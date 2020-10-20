@@ -1,7 +1,6 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [andrewslai.clj.env :as env]
-            [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.entities.article :as article]
             [andrewslai.clj.entities.portfolio :as portfolio]
@@ -196,11 +195,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn pg-conn []
+  (-> @env/env
+      (select-keys [:db-port :db-host
+                    :db-name :db-user
+                    :db-password])
+      (clojure.set/rename-keys {:db-name     :dbname
+                                :db-host     :host
+                                :db-user     :user
+                                :db-password :password})
+      (assoc :dbtype "postgresql")))
+
 (defn -main
   "Invoked to start a server and run the application"
   [& _]
   (println "Hello! Starting service...")
-  (let [component-config {:db-spec postgres/pg-db
+  (let [component-config {:db-spec (pg-conn)
                           :log-level :info
                           :session-atom (atom {})
                           :secure-session? true}]

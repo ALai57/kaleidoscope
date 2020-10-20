@@ -1,7 +1,6 @@
 (ns andrewslai.clj.articles-routes-test
   (:require [andrewslai.clj.handler :as h]
             [andrewslai.clj.entities.article :as article]
-            [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.user-routes-test :as u]
