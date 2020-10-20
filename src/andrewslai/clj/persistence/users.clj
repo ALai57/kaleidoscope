@@ -12,14 +12,7 @@
             [slingshot.slingshot :refer [throw+ try+]])
   (:import (com.nulabinc.zxcvbn Zxcvbn)))
 
-;; RESOURCES FOR AUTHENTICATION RELATED TOPICS
-;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
-;; https://funcool.github.io/buddy-auth/latest/#signed-jwt
 
-(def default-avatar (-> "avatars/happy_emoji.jpg"
-                        clojure.java.io/resource
-                        file->bytes))
-(def default-role 2)
 (def email-regex #"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$")
 (defn email? [s] (when (string? s)
                    (re-matches email-regex s)))
@@ -44,35 +37,19 @@
 
 (s/def ::user-update (s/keys :opt-un [::first_name ::last_name ::avatar]))
 
-;; TODO: This should be dealt with in the API, not the persistence layer
-(defn password-strength [password]
-  (-> Zxcvbn
-      new
-      (.measure password)
-      j/from-java
-      (select-keys [:score :feedback])))
-
-(defn sufficient-strength? [password]
-  (let [{:keys [score]} (password-strength password)]
-    (<= 4 score)))
-
-(s/def ::password (s/and string? sufficient-strength?))
-
 (s/def ::hashed_password string?)
 
 (s/def ::login (s/keys :opt-un [::id
                                 ::hashed_password]))
 
-(defn create-user!
-  "Checks that the user meets the ::user spec and creates a user"
-  [database user]
-  (postgres2/insert! database
-                     :users user
-                     :input-validation ::user
-                     :ex-subtype :UnableToCreateUser))
+#_(defn create-user!
+    [database user]
+    (postgres2/insert! database
+                       :users user
+                       :input-validation ::user
+                       :ex-subtype :UnableToCreateUser))
 
 ;; TODO: These should not be different queries...
-;; TODO: Remove the `first`s from these queries
 (defn get-user [database username]
   (first (postgres2/select database {:select [:*]
                                      :from [:users]
@@ -93,10 +70,7 @@
   (postgres2/delete! database :users id))
 
 (defn create-login!
-  "Checks that the login meets the ::password spec, then encrypts and
-  persists the login information"
   [database id password]
-  (validate ::password password :IllegalArgumentException)
   (let [login {:id id, :hashed_password (encrypt (make-encryption) password)}]
     (postgres2/insert! database
                        :logins login
@@ -104,10 +78,9 @@
                        :ex-subtype :UnableToCreateLogin)))
 
 (defn get-login [database user-id]
-  (-> database
-      (postgres2/select {:select [:*]
-                         :from [:logins]
-                         :where [:= :users/id user-id]})))
+  (first (postgres2/select database {:select [:*]
+                                     :from [:logins]
+                                     :where [:= :users/id user-id]})))
 
 (defn delete-login! [database id]
   (postgres2/delete! database :logins id))

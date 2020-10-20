@@ -19,13 +19,13 @@
 (s/def :andrewslai.user/email (s/and string? email?))
 (s/def :andrewslai.user/avatar bytes?)
 (s/def :andrewslai.user/role_id (s/and int? pos?))
-(s/def :andrewslai.user/user (s/keys :req-un [::avatar
-                                              ::first_name
-                                              ::last_name
-                                              ::username
-                                              ::email
-                                              ::role_id
-                                              ::id]))
+(s/def :andrewslai.user/user-profile (s/keys :req-un [::avatar
+                                                      ::first_name
+                                                      ::last_name
+                                                      ::username
+                                                      ::email
+                                                      ::role_id
+                                                      ::id]))
 
 (s/def :andrewslai.user/user-update (s/keys :opt-un [:andrewslai.user/first_name
                                                      :andrewslai.user/last_name
@@ -49,16 +49,11 @@
   (s/keys :req-un [:andrewslai.user/password
                    :andrewslai.user/id]))
 
-;; TODO: Don't rely on Postgres in this code. Somehow push that further down so
-;; you don't depend on implementation here. Insert can be generic enough to NOT
-;; need any DB specifics inside it's method. Also postgres2 should be able to be
-;; renamed RDBMS
 (defn create-user-profile! [database user]
   (pg/insert! database
               :users user
               :ex-subtype :UnableToCreateUser
-              ;; TODO: REmove this and use FDEF
-              :input-validation :andrewslai.user/user))
+              :input-validation :andrewslai.user/user-profile))
 
 (defn get-user-profiles
   ([database]

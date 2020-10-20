@@ -3,6 +3,7 @@
             [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.users :as users]
+            [andrewslai.clj.entities.user :as user-entity]
             [andrewslai.clj.test-utils :refer [defdbtest]]
             [clojure.test :refer [is testing]]
             [slingshot.test]
@@ -28,8 +29,8 @@
 (defdbtest basic-db-test ptest/db-spec
   (let [database (postgres2/->Database ptest/db-spec)]
 
-    (testing "create-user! and get-user"
-      (users/create-user! database example-user)
+    (testing "create-user-profile! and get-user"
+      (user-entity/create-user-profile! database example-user)
       (is (= (dissoc example-user :avatar)
              (dissoc (users/get-user database username) :avatar)))
       (is (= (dissoc example-user :avatar)
@@ -48,7 +49,7 @@
     (testing "delete-login!"
       (is (some? (users/get-login database id)))
       (users/delete-login! database id)
-      (is (empty? (users/get-login database id))))
+      (is (nil? (users/get-login database id))))
 
     (testing "delete-user!"
       (is (some? (users/get-user database username)))
