@@ -9,8 +9,8 @@
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.login :refer [login-routes]]
             [andrewslai.clj.routes.ping :refer [ping-routes]]
-            [andrewslai.clj.routes.projects-portfolio
-             :refer [projects-portfolio-routes]]
+            [andrewslai.clj.routes.portfolio
+             :refer [portfolio-routes]]
             [andrewslai.clj.routes.users :refer [users-routes] :as user-routes]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
@@ -133,7 +133,7 @@
    ping-routes
    articles-routes
    users-routes
-   projects-portfolio-routes
+   portfolio-routes
    login-routes
    admin-routes
    swagger-ui-routes))
