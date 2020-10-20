@@ -26,13 +26,12 @@
         (is (= status (:status response)))
         (is (s/valid? spec body))))
 
-    "/articles"                  200 ::articles/articles
-    "/articles/my-first-article" 200 ::articles/article)
+    "/articles"                  200 :andrewslai.article/articles
+    "/articles/my-first-article" 200 :andrewslai.article/article)
 
   (testing "Non-existent article"
     (let [response (tu/get-request "/articles/does-not-exist")]
-      (is (= 404 (:status response)))
-      #_(is (s/valid? ::articles/article (parse-body response))))))
+      (is (= 404 (:status response))))))
 
 (defn assemble-post-request [endpoint payload]
   (-> (mock/request :post endpoint)
@@ -75,8 +74,10 @@
         (testing "Article creation succeeds"
           (let [response (handler authorized-request)]
             (is (= 200 (:status response)))
-            (is (s/valid? ::articles/article (parse-body response)))))
+            (is (s/valid? :andrewslai.article/article
+                          (parse-body response)))))
         (testing "Article retrieval succeeds"
           (let [response (tu/get-request article-url)]
             (is (= 200 (:status response)))
-            (is (s/valid? ::articles/article (parse-body response)))))))))
+            (is (s/valid? :andrewslai.article/article
+                          (parse-body response)))))))))

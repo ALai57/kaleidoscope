@@ -1,6 +1,5 @@
 (ns andrewslai.clj.entities.user
-  (:require [andrewslai.clj.persistence :as p]
-            [andrewslai.clj.persistence.postgres2 :as pg]
+  (:require [andrewslai.clj.persistence.postgres2 :as pg]
             [clojure.java.data :as j]
             [clojure.spec.alpha :as s]))
 

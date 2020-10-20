@@ -9,14 +9,13 @@
             [clojure.spec.alpha :as s]
             [spec-tools.swagger.core :as swagger]))
 
-
-(defn create-article-handler [{{db :db} :components
-                               article :body-params}]
-  (ok (articles-api/create-article! db article)))
-
 (s/def ::cookie string?)
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))
+
+(defn create-article-handler [{{database :database} :components
+                               article :body-params}]
+  (ok (articles-api/create-article! database article)))
 
 (def articles-routes
   ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
@@ -34,18 +33,19 @@
                                   "The endpoint is currently not paginated")
                 :produces #{"application/json"}
                 :responses {200 {:description "A collection of all articles"
-                                 :schema ::articles/articles}}}
-      (let [db (get-in +compojure-api-request+ [:components :db])]
-        (ok (articles-api/get-all-articles db))))
+                                 :schema :andrewslai.article/articles}}}
+      (ok (articles-api/get-all-articles (get-in +compojure-api-request+
+                                                 [:components :database]))))
 
     (GET "/:article-name" [article-name]
       :swagger {:summary "Retrieve a single article"
                 :produces #{"application/json"}
-                :parameters {:path {:article-name ::articles/article_name}}
+                :parameters {:path {:article-name :andrewslai.article/article_name}}
                 :responses {200 {:description "A single article"
-                                 :schema ::articles/article}}}
-      (let [db (get-in +compojure-api-request+ [:components :db])
-            article (articles-api/get-article db article-name)]
+                                 :schema :andrewslai.article/article}}}
+      (let [article (articles-api/get-article (get-in +compojure-api-request+
+                                                      [:components :database])
+                                              article-name)]
         (if article
           (ok article)
           (not-found {:reason "Missing"}))))
@@ -54,10 +54,10 @@
       :swagger {:summary "Create an article"
                 :consumes #{"application/json"}
                 :produces #{"application/json"}
-                ::swagger/parameters {:body ::articles/article
+                ::swagger/parameters {:body :andrewslai.article/article
                                       :header-params {:cookie ::cookie}}
                 :responses {200 {:description "The article that was created"
-                                 :schema ::articles/article}
+                                 :schema :andrewslai.article/article}
                             401 {:description "Unauthorized"
                                  :schema ::error-message}}}
       (restrict create-article-handler

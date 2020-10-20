@@ -180,10 +180,7 @@
     :or {session-atom (atom {})
          secure-session? true
          log-level :info}}]
-  {:db (-> db-spec
-           postgres/->Postgres
-           articles/->ArticleDatabase)
-   :database (postgres2/->Database db-spec)
+  {:database (postgres2/->Database db-spec)
    :portfolio (-> db-spec
                   postgres/->Postgres
                   portfolio/->ProjectPortfolioDatabase)
