@@ -8,7 +8,7 @@
   "Verify credentials and return the user ID if successful"
   [database {:keys [username password] :as credentials}]
   (if-let [id (:id (users/get-user database username))]
-    (let [password-from-db (users/get-password database id)]
+    (let [[{password-from-db :hashed_password}] (users/get-login database id)]
       (and password-from-db
            (password/check password password-from-db)
            id))))

@@ -16,8 +16,6 @@
 ;; https://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
 ;; https://funcool.github.io/buddy-auth/latest/#signed-jwt
 
-;; TODO: Log client out after 30 mins
-
 (def default-avatar (-> "avatars/happy_emoji.jpg"
                         clojure.java.io/resource
                         file->bytes))
@@ -74,6 +72,7 @@
                      :ex-subtype :UnableToCreateUser))
 
 ;; TODO: These should not be different queries...
+;; TODO: Remove the `first`s from these queries
 (defn get-user [database username]
   (first (postgres2/select database {:select [:*]
                                      :from [:users]
@@ -104,15 +103,11 @@
                        :input-validation ::login
                        :ex-subtype :UnableToCreateLogin)))
 
-
-
-(defn get-password [database user-id]
+(defn get-login [database user-id]
   (-> database
       (postgres2/select {:select [:*]
                          :from [:logins]
-                         :where [:= :users/id user-id]})
-      first
-      :hashed_password))
+                         :where [:= :users/id user-id]})))
 
 (defn delete-login! [database id]
   (postgres2/delete! database :logins id))
