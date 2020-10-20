@@ -4,7 +4,6 @@
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.projects-portfolio :as portfolio]
-            [andrewslai.clj.persistence.users :as users]
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer [deftest is testing]]
             [ring.middleware.session.memory :as mem]

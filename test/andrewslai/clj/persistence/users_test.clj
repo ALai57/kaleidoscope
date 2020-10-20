@@ -2,7 +2,6 @@
   (:require [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.persistence.postgres-test :as ptest]
-            [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.entities.user :as user]
             [andrewslai.clj.test-utils :refer [defdbtest]]
             [clojure.test :refer [is testing]]
@@ -63,34 +62,3 @@
   (testing "Illegal first name"
     (is (thrown+? [:type :IllegalArgumentException]
                   (user/update-user-profile! nil username {:first_name ""})))))
-
-#_(defn test-db []
-    (-> ptest/db-spec
-        postgres/->Postgres
-        users/->UserDatabase))
-
-;; Does not belong here anymore
-#_(defdbtest registration-errors-test ptest/db-spec
-    (testing "Username includes escape chars"
-      (is (thrown+? [:type :IllegalArgumentException]
-                    (users/register-user! (test-db)
-                                          (assoc example-user :username "Andrew;")
-                                          password))))
-    (testing "Weak password"
-      (is (thrown+? [:type :IllegalArgumentException]
-                    (users/register-user! (test-db) example-user "password"))))
-    (testing "Invalid email"
-      (is (thrown+? [:type :IllegalArgumentException]
-                    (users/register-user! (test-db)
-                                          (assoc example-user :email 1)
-                                          password))))
-    #_(doseq [field [:first_name :last_name :username :email]]
-        (testing (str field " cannot be empty string")
-          (is (thrown+? [:type :IllegalArgumentException]
-                        (users/register-user! (test-db)
-                                              (assoc example-user field "")
-                                              password)))))
-    #_(testing "Duplicate user"
-        (is (thrown+? [:type :PSQLException]
-                      (users/register-user! (test-db) example-user password)
-                      (users/register-user! (test-db) example-user password)))))

@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.postgres-test
-  (:require [andrewslai.clj.persistence.users :as users]
+  (:require [andrewslai.clj.api.users :as users-api]
             [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.postgres :as postgres]
@@ -69,13 +69,13 @@
 
   (jdbc/query db-spec ["SELECT * FROM articles"])
 
-  (users/register-user! test-user-db
-                        {:first_name "Andrew"
-                         :last_name "Lai"
-                         :email "me@andrewslai.com"
-                         :username "Andrew"
-                         :avatar (byte-array (map (comp byte int) "Hello world!"))}
-                        "password")
+  (user-api/register-user! test-user-db
+                           {:first_name "Andrew"
+                            :last_name "Lai"
+                            :email "me@andrewslai.com"
+                            :username "Andrew"
+                            :avatar (byte-array (map (comp byte int) "Hello world!"))}
+                           "password")
 
   @test-user-db
   (users/get-user test-user-db "new-user")

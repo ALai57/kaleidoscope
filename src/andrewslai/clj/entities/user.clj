@@ -1,6 +1,5 @@
 (ns andrewslai.clj.entities.user
-  (:require [andrewslai.clj.auth.crypto :refer [encrypt check make-encryption]]
-            [andrewslai.clj.persistence :as p]
+  (:require [andrewslai.clj.persistence :as p]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [clojure.java.data :as j]
             [clojure.spec.alpha :as s])
@@ -78,7 +77,7 @@
 
 (defn create-user-login!
   [database id password]
-  (let [login {:id id, :hashed_password (encrypt (make-encryption) password)}]
+  (let [login {:id id, :hashed_password password}]
     (pg/insert! database
                 :logins login
                 :input-validation :andrewslai.user/login
@@ -91,19 +90,6 @@
 
 (defn delete-user-login! [database id]
   (pg/delete! database :logins id))
-
-
-;; TODO: REFACTOR S/T ALL USER NS ARE IN A USER FOLDER
-;;
-
-
-
-
-
-
-
-
-
 
 
 (comment

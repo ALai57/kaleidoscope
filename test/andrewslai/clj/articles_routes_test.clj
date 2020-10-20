@@ -4,7 +4,6 @@
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.articles-test :as a]
-            [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.user-routes-test :as u]
             [andrewslai.clj.utils :refer [parse-body]]
             [andrewslai.clj.test-utils :refer [defdbtest] :as tu]

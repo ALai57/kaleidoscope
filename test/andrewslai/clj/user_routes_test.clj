@@ -1,8 +1,6 @@
 (ns andrewslai.clj.user-routes-test
-  (:require [andrewslai.clj.auth.crypto :as encryption]
-            [andrewslai.clj.handler :as h]
+  (:require [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.postgres-test :as ptest]
-            [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.routes.users :as user-routes]
             [andrewslai.clj.test-utils :refer [defdbtest]]
             [andrewslai.clj.utils :refer [parse-body

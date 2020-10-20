@@ -1,6 +1,6 @@
 (ns andrewslai.clj.api.users
   (:require [andrewslai.clj.entities.user :as user]
-            [andrewslai.clj.persistence.users :as users]
+            [andrewslai.clj.env :as env]
             [andrewslai.clj.utils :refer [file->bytes validate]]
             [clojure.java.data :as j]
             [clojure.spec.alpha :as s]
@@ -49,13 +49,22 @@
                         file->bytes))
 
 (defn register-user!
-  [database user password]
-  (validate :user/password password :IllegalArgumentException)
-  (let [user-id (java.util.UUID/randomUUID)
-        full-user (assoc user
-                         :id user-id
-                         :role_id default-role
-                         :avatar (or (:avatar user) default-avatar))]
-    (user/create-user-profile! database full-user)
-    (user/create-user-login! database user-id password)
-    full-user))
+  ([database user password]
+   (register-user! database user password (:work-factor @env/env)))
+  ([database user password work-factor]
+   (validate :user/password password :IllegalArgumentException)
+   (let [user-id (java.util.UUID/randomUUID)
+         full-user (assoc user
+                          :id user-id
+                          :role_id default-role
+                          :avatar (or (:avatar user) default-avatar))]
+     (user/create-user-profile! database full-user)
+     (user/create-user-login! database
+                              user-id
+                              (password/encrypt password work-factor))
+     full-user)))
+
+(comment
+  ;; Checking encryption/decryption
+  (let [encrypted-password (encrypt (make-encryption) "foobar")]
+    (is (check (make-encryption) "foobar" encrypted-password))))
