@@ -3,8 +3,8 @@
   (:require [andrewslai.clj.env :as env]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres2 :as postgres2]
-            [andrewslai.clj.persistence.articles :as articles]
-            [andrewslai.clj.persistence.projects-portfolio :as portfolio]
+            [andrewslai.clj.entities.article :as article]
+            [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.login :refer [login-routes]]
@@ -107,7 +107,7 @@
                           :description "My personal website"}
                    :components
                    {:schemas
-                    {:Article (-> {:spec ::articles/article
+                    {:Article (-> {:spec :andrewslai.article/article
                                    :description "An article for the website"}
                                   st-core/spec
                                   st/transform)
@@ -181,12 +181,9 @@
          secure-session? true
          log-level :info}}]
   {:database (postgres2/->Database db-spec)
-   :portfolio (-> db-spec
-                  postgres/->Postgres
-                  portfolio/->ProjectPortfolioDatabase)
-   :logging (merge log/*config* {:level log-level})
-   :session {:cookie-attrs {:max-age 3600 :secure secure-session?}
-             :store (mem/memory-store session-atom)}})
+   :logging  (merge log/*config* {:level log-level})
+   :session  {:cookie-attrs {:max-age 3600 :secure secure-session?}
+              :store        (mem/memory-store session-atom)}})
 
 (defn configure-app
   "Configures the application by wrapping key middleware and adding

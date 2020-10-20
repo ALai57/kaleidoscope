@@ -1,6 +1,6 @@
 (ns andrewslai.clj.routes.articles
   (:require [andrewslai.clj.api.articles :as articles-api]
-            [andrewslai.clj.persistence.articles :as articles]
+            [andrewslai.clj.entities.article :as article]
             [andrewslai.clj.routes.admin :as admin]
             [andrewslai.clj.utils :refer [parse-body]]
             [buddy.auth.accessrules :refer [restrict]]

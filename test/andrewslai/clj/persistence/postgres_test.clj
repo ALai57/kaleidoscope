@@ -1,6 +1,5 @@
 (ns andrewslai.clj.persistence.postgres-test
   (:require [andrewslai.clj.api.users :as users-api]
-            [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.postgres :as postgres]
             [migratus.core :as m])
