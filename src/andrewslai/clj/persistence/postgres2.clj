@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.postgres2
-  (:require [andrewslai.clj.persistence :as p :refer [Persistence]]
+  (:require [andrewslai.clj.persistence.persistence :as p :refer [Persistence]]
             [andrewslai.clj.utils :refer [validate]]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]

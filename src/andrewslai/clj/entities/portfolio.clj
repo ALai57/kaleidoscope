@@ -65,3 +65,25 @@
     {:organizations orgs
      :projects      projects
      :skills        skills}))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Functions to test DB connection
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(comment
+  (-> pg-db
+      ->ProjectPortfolioDatabase
+      get-project-portfolio
+      :projects
+      clojure.pprint/pprint)
+
+  (-> pg-db
+      ->ProjectPortfolioDatabase
+      get-project-portfolio
+      :organizations
+      first
+      clojure.pprint/pprint)
+
+  (sql/query pg-db ["SELECT name FROM projects "])
+
+  )

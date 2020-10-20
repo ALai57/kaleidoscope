@@ -1,4 +1,4 @@
-(ns andrewslai.clj.persistence)
+(ns andrewslai.clj.persistence.persistence)
 
 (defprotocol Persistence
   (select  [this m])
