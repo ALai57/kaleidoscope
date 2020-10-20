@@ -1,5 +1,5 @@
 (ns andrewslai.clj.api.users
-  (:require [andrewslai.clj.entities.user :as user-entity]
+  (:require [andrewslai.clj.entities.user :as user]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.utils :refer [file->bytes validate]]
             [clojure.java.data :as j]
@@ -21,7 +21,7 @@
 (defn login
   "Verify credentials and return the user ID if successful"
   [database {:keys [username password] :as credentials}]
-  (if-let [id (:id (users/get-user database username))]
+  (if-let [id (:id (user/get-user-profile database username))]
     (let [{password-from-db :hashed_password} (users/get-login database id)]
       (and password-from-db
            (password/check password password-from-db)
@@ -29,18 +29,19 @@
 
 (defn get-user
   [database username]
-  (users/get-user database username))
+  (user/get-user-profile database username))
 
 (defn delete-user!
   [database credentials]
   (when-let [id (login database credentials)]
     ;; TODO: Wrap in transaction
     (users/delete-login! database id)
-    (users/delete-user! database id)))
+    (user/delete-user-profile! database id)))
 
+;; TODO: rename to update-user-profile!
 (defn update-user!
-  [database username user-update]
-  (users/update-user! database username user-update))
+  [database username profile-update]
+  (user/update-user-profile! database username profile-update))
 
 (def default-role 2)
 (def default-avatar (-> "avatars/happy_emoji.jpg"
@@ -55,6 +56,6 @@
                          :id user-id
                          :role_id default-role
                          :avatar (or (:avatar user) default-avatar))]
-    (user-entity/create-user-profile! database full-user)
+    (user/create-user-profile! database full-user)
     (users/create-login! database user-id password)
     full-user))

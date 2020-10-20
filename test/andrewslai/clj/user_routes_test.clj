@@ -214,7 +214,7 @@
                                             (json/generate-string user-update)))]
         (is (= 400 status))
         (is (= {:type "IllegalArgumentException"
-                :subtype "andrewslai.clj.persistence.users/user-update"}
+                :subtype "andrewslai.user/user-update"}
                (select-keys (-> response
                                 parse-body)
                             [:type :subtype])))))))

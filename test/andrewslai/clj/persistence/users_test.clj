@@ -3,7 +3,7 @@
             [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.users :as users]
-            [andrewslai.clj.entities.user :as user-entity]
+            [andrewslai.clj.entities.user :as user]
             [andrewslai.clj.test-utils :refer [defdbtest]]
             [clojure.test :refer [is testing]]
             [slingshot.test]
@@ -30,39 +30,39 @@
   (let [database (postgres2/->Database ptest/db-spec)]
 
     (testing "create-user-profile! and get-user"
-      (user-entity/create-user-profile! database example-user)
+      (user/create-user-profile! database example-user)
       (is (= (dissoc example-user :avatar)
-             (dissoc (users/get-user database username) :avatar)))
+             (dissoc (user/get-user-profile database username) :avatar)))
       (is (= (dissoc example-user :avatar)
-             (dissoc (users/get-user-by-id database id) :avatar))))
+             (dissoc (user/get-user-profile-by-id database id) :avatar))))
 
     (testing "create-login! and get-login"
       (users/create-login! database id password)
       (is (some? (users/get-login database id))))
 
-    (testing "update-user!"
+    (testing "update-user-profile!"
       (let [first-name "Werdna"]
-        (is (= "A" (:first_name (users/get-user database username))))
-        (users/update-user! database username {:first_name first-name})
-        (is (= first-name (:first_name (users/get-user database username))))))
+        (is (= "A" (:first_name (user/get-user-profile database username))))
+        (user/update-user-profile! database username {:first_name first-name})
+        (is (= first-name (:first_name (user/get-user-profile database username))))))
 
     (testing "delete-login!"
       (is (some? (users/get-login database id)))
       (users/delete-login! database id)
       (is (nil? (users/get-login database id))))
 
-    (testing "delete-user!"
-      (is (some? (users/get-user database username)))
-      (users/delete-user! database id)
-      (is (nil? (users/get-user database username))))))
+    (testing "delete-user-profile!"
+      (is (some? (user/get-user-profile database username)))
+      (user/delete-user-profile! database id)
+      (is (nil? (user/get-user-profile database username))))))
 
-(defdbtest update-user-errors-test ptest/db-spec
+(defdbtest update-user-profile-errors-test ptest/db-spec
   (testing "Illegal last name"
     (is (thrown+? [:type :IllegalArgumentException]
-                  (users/update-user! nil username {:last_name ""}))))
+                  (user/update-user-profile! nil username {:last_name ""}))))
   (testing "Illegal first name"
     (is (thrown+? [:type :IllegalArgumentException]
-                  (users/update-user! nil username {:first_name ""})))))
+                  (user/update-user-profile! nil username {:first_name ""})))))
 
 #_(defn test-db []
     (-> ptest/db-spec

@@ -55,13 +55,25 @@
               :ex-subtype :UnableToCreateUser
               :input-validation :andrewslai.user/user-profile))
 
-(defn get-user-profiles
-  ([database]
-   (get-user-profiles nil))
-  ([database where]
-   (p/select database (merge {:select [:*]
-                              :from [:users]}
-                             where))))
+;; TODO: These should not be different queries...
+(defn get-user-profile [database username]
+  (first (pg/select database {:select [:*]
+                              :from [:users]
+                              :where [:= :users/username username]})))
+
+(defn get-user-profile-by-id [database user-id]
+  (first (pg/select database {:select [:*]
+                              :from [:users]
+                              :where [:= :users/id user-id]})))
+
+(defn update-user-profile! [database username update-payload]
+  (pg/update! database :users
+              update-payload username
+              :input-validation :andrewslai.user/user-update
+              :ex-subtype :UnableToUpdateUser))
+
+(defn delete-user-profile! [database id]
+  (pg/delete! database :users id))
 
 (comment
   (require '[andrewslai.clj.dev-tools :as tools])

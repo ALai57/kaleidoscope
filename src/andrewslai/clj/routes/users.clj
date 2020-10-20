@@ -1,5 +1,6 @@
 (ns andrewslai.clj.routes.users
   (:require [andrewslai.clj.api.users :as users-api]
+            [andrewslai.clj.entities.user :as user]
             [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.routes.admin :refer [access-error]]
             [andrewslai.clj.utils :refer [file->bytes parse-body]]
@@ -122,7 +123,7 @@
                             404 {:description "Not found"
                                  :schema string?}}}
       (let [{:keys [avatar]}
-            (users/get-user database username)]
+            (user/get-user-profile database username)]
         (if avatar
           (-> (response/response (io/input-stream avatar))
               (response/content-type "image/png")

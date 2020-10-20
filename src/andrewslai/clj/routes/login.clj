@@ -1,5 +1,6 @@
 (ns andrewslai.clj.routes.login
-  (:require [andrewslai.clj.persistence.users :as users]
+  (:require [andrewslai.clj.entities.user :as user]
+            [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.utils :refer [parse-body]]
             [andrewslai.clj.api.users :as users-api]
             [cheshire.core :as json]
@@ -35,7 +36,7 @@
                                           credentials)]
           (let [user (-> components
                          :database
-                         (users/get-user-by-id user-id)
+                         (user/get-user-profile-by-id user-id)
                          (assoc :avatar_url (format "users/%s/avatar" username)))]
             (log/info "Authenticated login!")
             (assoc (ok user)
