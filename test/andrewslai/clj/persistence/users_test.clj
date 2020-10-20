@@ -36,9 +36,9 @@
       (is (= (dissoc example-user :avatar)
              (dissoc (user/get-user-profile-by-id database id) :avatar))))
 
-    (testing "create-login! and get-login"
-      (users/create-login! database id password)
-      (is (some? (users/get-login database id))))
+    (testing "create-user-login! and get-user-login"
+      (user/create-user-login! database id password)
+      (is (some? (user/get-user-login database id))))
 
     (testing "update-user-profile!"
       (let [first-name "Werdna"]
@@ -46,10 +46,10 @@
         (user/update-user-profile! database username {:first_name first-name})
         (is (= first-name (:first_name (user/get-user-profile database username))))))
 
-    (testing "delete-login!"
-      (is (some? (users/get-login database id)))
-      (users/delete-login! database id)
-      (is (nil? (users/get-login database id))))
+    (testing "delete-user-login!"
+      (is (some? (user/get-user-login database id)))
+      (user/delete-user-login! database id)
+      (is (nil? (user/get-user-login database id))))
 
     (testing "delete-user-profile!"
       (is (some? (user/get-user-profile database username)))

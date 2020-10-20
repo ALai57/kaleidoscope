@@ -3,7 +3,6 @@
   (:require [andrewslai.clj.env :as env]
             [andrewslai.clj.persistence.postgres :as postgres]
             [andrewslai.clj.persistence.postgres2 :as postgres2]
-            [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.persistence.articles :as articles]
             [andrewslai.clj.persistence.projects-portfolio :as portfolio]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
@@ -12,7 +11,7 @@
             [andrewslai.clj.routes.ping :refer [ping-routes]]
             [andrewslai.clj.routes.projects-portfolio
              :refer [projects-portfolio-routes]]
-            [andrewslai.clj.routes.users :refer [users-routes]]
+            [andrewslai.clj.routes.users :refer [users-routes] :as user-routes]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
@@ -113,7 +112,7 @@
                                   st-core/spec
                                   st/transform)
 
-                     :User (-> {:spec ::users/user
+                     :User (-> {:spec :andrewslai.user/user
                                 :description "A user on the website"}
                                st-core/spec
                                st/transform)}
@@ -162,7 +161,7 @@
   [routes app-components]
   (-> routes
       wrap-logging
-      users/wrap-user
+      user-routes/wrap-user
       (wrap-authentication backend)
       (wrap-authorization backend)
       (wrap-session (or (:session app-components) {}))

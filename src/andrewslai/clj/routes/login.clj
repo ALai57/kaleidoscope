@@ -1,6 +1,5 @@
 (ns andrewslai.clj.routes.login
   (:require [andrewslai.clj.entities.user :as user]
-            [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.utils :refer [parse-body]]
             [andrewslai.clj.api.users :as users-api]
             [cheshire.core :as json]

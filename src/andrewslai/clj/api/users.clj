@@ -22,7 +22,7 @@
   "Verify credentials and return the user ID if successful"
   [database {:keys [username password] :as credentials}]
   (if-let [id (:id (user/get-user-profile database username))]
-    (let [{password-from-db :hashed_password} (users/get-login database id)]
+    (let [{password-from-db :hashed_password} (user/get-user-login database id)]
       (and password-from-db
            (password/check password password-from-db)
            id))))
@@ -35,7 +35,7 @@
   [database credentials]
   (when-let [id (login database credentials)]
     ;; TODO: Wrap in transaction
-    (users/delete-login! database id)
+    (user/delete-user-login! database id)
     (user/delete-user-profile! database id)))
 
 ;; TODO: rename to update-user-profile!
@@ -57,5 +57,5 @@
                          :role_id default-role
                          :avatar (or (:avatar user) default-avatar))]
     (user/create-user-profile! database full-user)
-    (users/create-login! database user-id password)
+    (user/create-user-login! database user-id password)
     full-user))

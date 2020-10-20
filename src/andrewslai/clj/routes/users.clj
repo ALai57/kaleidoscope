@@ -1,7 +1,6 @@
 (ns andrewslai.clj.routes.users
   (:require [andrewslai.clj.api.users :as users-api]
             [andrewslai.clj.entities.user :as user]
-            [andrewslai.clj.persistence.users :as users]
             [andrewslai.clj.routes.admin :refer [access-error]]
             [andrewslai.clj.utils :refer [file->bytes parse-body]]
             [buddy.auth.accessrules :refer [restrict]]
@@ -18,20 +17,20 @@
 ;; TODO: Add spec based schema validation.
 ;; https://www.metosin.fi/blog/clojure-spec-with-ring-and-swagger/
 
-(s/def ::user (s/keys :req-un [::users/avatar
-                               ::users/first_name
-                               ::users/last_name
-                               ::users/username
-                               ::users/email
-                               ::users/password]))
+(s/def ::user (s/keys :req-un [:andrewslai.user/avatar
+                               :andrewslai.user/first_name
+                               :andrewslai.user/last_name
+                               :andrewslai.user/username
+                               :andrewslai.user/email
+                               :andrewslai.user/password]))
 
 (s/def ::avatar string?)
 (s/def ::avatar_url string?)
 (s/def ::created_user (s/keys :req-un [::avatar
-                                       ::users/first_name
-                                       ::users/last_name
-                                       ::users/username
-                                       ::users/email
+                                       :andrewslai.user/first_name
+                                       :andrewslai.user/last_name
+                                       :andrewslai.user/username
+                                       :andrewslai.user/email
                                        ::avatar_url]))
 
 (defn decode-avatar [{:keys [avatar] :as m}]
@@ -39,7 +38,14 @@
     (assoc m :avatar (b64/decode (.getBytes avatar)))
     m))
 
-
+(defn wrap-user [handler]
+  (fn [{user-id :identity
+        {database :database} :components
+        :as req}]
+    (if (and user-id database)
+      (handler (assoc req
+                      :user (user/get-user-profile-by-id database user-id)))
+      (handler (assoc req :user nil)))))
 
 (defroutes users-routes
   ;; TODO: #2 - rename db to something more meaningful - this is not a db, it's
@@ -52,7 +58,7 @@
       :swagger {:summary "Retrieve a user's profile"
                 :produces #{"application/json"}
                 :responses {200 {:description "User profile"
-                                 :schema ::users/user}
+                                 :schema ::user}
                             404 {:description "Not found"
                                  :schema string?}}}
       (let [result (users-api/get-user database username)]
@@ -72,9 +78,9 @@
       :swagger {:summary "Update a user"
                 :consumes #{"application/json"}
                 :produces #{"application/json"}
-                :parameters {:body ::users/user-update}
+                :parameters {:body :andrewslai.user/user-update}
                 :responses {200 {:description "The updated fields"
-                                 :schema ::users/user-update}}}
+                                 :schema :andrewslai.user/user-update}}}
       (try+
        (let [result (users-api/update-user! database
                                             username
