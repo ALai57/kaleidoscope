@@ -2,8 +2,7 @@
   (:require [andrewslai.clj.persistence :as p]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [clojure.java.data :as j]
-            [clojure.spec.alpha :as s])
-  (:import com.nulabinc.zxcvbn.Zxcvbn))
+            [clojure.spec.alpha :as s]))
 
 (def email-regex #"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$")
 (defn email? [s] (when (string? s)
@@ -31,19 +30,7 @@
                                                      :andrewslai.user/last_name
                                                      :andrewslai.user/avatar]))
 
-(defn password-strength [password]
-  (-> Zxcvbn
-      new
-      (.measure password)
-      j/from-java
-      (select-keys [:score :feedback])))
-
-(defn sufficient-strength? [password]
-  (let [{:keys [score]} (password-strength password)]
-    (<= 4 score)))
-
-(s/def :andrewslai.user/hashed_password
-  (s/and string? sufficient-strength?))
+(s/def :andrewslai.user/hashed_password string?)
 
 (s/def :andrewslai.user/login
   (s/keys :req-un [:andrewslai.user/hashed_password

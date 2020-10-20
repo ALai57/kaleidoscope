@@ -112,7 +112,7 @@
           {:keys [type subtype message]} (parse-body response)]
       (is (= 400 status))
       (is (= "IllegalArgumentException" type))
-      (is (= "user/password" subtype))
+      (is (= "andrewslai.user/password" subtype))
       (is (clojure.string/includes? message "failed: (fn sufficient-strength?")))))
 
 (defdbtest login-test ptest/db-spec

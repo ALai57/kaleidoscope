@@ -14,8 +14,9 @@
       j/from-java
       :score))
 
-(s/def :user/password (s/and string? (fn sufficient-strength? [password]
-                                       (<= 4 (password-strength password)))))
+(s/def :andrewslai.user/password
+  (s/and string? (fn sufficient-strength? [password]
+                   (<= 4 (password-strength password)))))
 
 ;; TODO: Add spec into the API
 (defn login
@@ -52,7 +53,7 @@
   ([database user password]
    (register-user! database user password (:work-factor @env/env)))
   ([database user password work-factor]
-   (validate :user/password password :IllegalArgumentException)
+   (validate :andrewslai.user/password password :IllegalArgumentException)
    (let [user-id (java.util.UUID/randomUUID)
          full-user (assoc user
                           :id user-id
