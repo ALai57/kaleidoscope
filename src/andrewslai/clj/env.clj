@@ -36,7 +36,7 @@
                          :doc "Work factor for encryption"}
            }
           env (env->map spec)]
-      (env/display-env spec)
+      #_(env/display-env spec)
       env)))
 
 (comment)

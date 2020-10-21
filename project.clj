@@ -19,6 +19,7 @@
                  [cljsjs/zxcvbn "4.4.0-1"]
                  [crypto-password "0.2.1"]
                  [com.nulab-inc/zxcvbn "1.3.0"]
+                 [org.slf4j/slf4j-nop "1.7.30"]
                  [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
                  [coreagile/defenv "1.0.9"]
                  [day8.re-frame/tracing "0.5.3"]
