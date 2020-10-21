@@ -32,7 +32,7 @@
 (defn select [database m]
   (p/select database (hsql/format m)))
 
-;; TODO: Deal with m being a collection or not
+;; TODO: Make this accept collections or maps
 (defn insert! [database table m & {:keys [ex-subtype
                                           input-validation]}]
   (when input-validation

@@ -90,8 +90,6 @@
             ((test-users-app)
              (assoc (mock/request :delete user-path)
                     :headers {:content-type "application/json"}
-                    ;; TODO: Figure out how to make this more generic
-                    ;; The tests should not be specific to server impl
                     :body-params (-> new-user
                                      (select-keys [:username :password]))))]
         (is (= 204 status)))

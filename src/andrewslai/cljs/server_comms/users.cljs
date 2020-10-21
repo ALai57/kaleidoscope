@@ -80,7 +80,6 @@
        :handler
        (fn [user]
          (dispatch [:show-modal (update-success-modal)])
-         ;; TODO: DO SOMETHING WITH BROWSER CACHING
          (get-user username (fn [user] (dispatch [:load-user-profile user]))))
 
        :error-handler

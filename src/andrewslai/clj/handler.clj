@@ -80,29 +80,29 @@
     (GET "/swagger.json" req
       (let [runtime-info1 (mw/get-swagger-data req)
             runtime-info2 (rsm/get-swagger-data req)
-            base-path {:basePath (swag/base-path req)}
-            options (:compojure.api.request/ring-swagger req)
-            paths (:compojure.api.request/paths req)
-            swagger (apply rsc/deep-merge
-                           (keep identity [base-path
-                                           paths
-                                           runtime-info1
-                                           runtime-info2]))
-            spec (st/swagger-spec
-                  (swagger2/swagger-json swagger options))]
+            base-path     {:basePath (swag/base-path req)}
+            options       (:compojure.api.request/ring-swagger req)
+            paths         (:compojure.api.request/paths req)
+            swagger       (apply rsc/deep-merge
+                                 (keep identity [base-path
+                                                 paths
+                                                 runtime-info1
+                                                 runtime-info2]))
+            spec          (st/swagger-spec
+                           (swagger2/swagger-json swagger options))]
 
         (-> spec
             (assoc :openapi "3.0.2"
-                   :info {:title "andrewslai"
+                   :info {:title       "andrewslai"
                           :description "My personal website"}
                    :components
                    {:schemas
-                    {:Article (-> {:spec :andrewslai.article/article
+                    {:Article (-> {:spec        :andrewslai.article/article
                                    :description "An article for the website"}
                                   st-core/spec
                                   st/transform)
 
-                     :User (-> {:spec :andrewslai.user/user
+                     :User (-> {:spec        :andrewslai.user/user
                                 :description "A user on the website"}
                                st-core/spec
                                st/transform)}
@@ -113,7 +113,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Compojure Routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; TODO: #1 Refactor me into clear, separate components/layers. Use EBI
 (def app-routes
   (api
    (GET "/" []
@@ -140,7 +139,6 @@
       (handler request))))
 
 (defn wrap-components
-
   [handler components]
   (fn [request]
     (handler (assoc request :components components))))

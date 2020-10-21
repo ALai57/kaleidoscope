@@ -14,9 +14,6 @@
             [slingshot.slingshot :refer [try+]]
             [taoensso.timbre :as log]))
 
-;; TODO: Add spec based schema validation.
-;; https://www.metosin.fi/blog/clojure-spec-with-ring-and-swagger/
-
 (s/def ::user (s/keys :req-un [:andrewslai.user/avatar
                                :andrewslai.user/first_name
                                :andrewslai.user/last_name
@@ -48,8 +45,6 @@
       (handler (assoc req :user nil)))))
 
 (defroutes users-routes
-  ;; TODO: #2 - rename db to something more meaningful - this is not a db, it's
-  ;; a component that has a DB backing it
   (context "/users" {{database :database} :components}
     :tags ["users"]
     :coercion :spec
@@ -85,7 +80,6 @@
        (let [result (users-api/update-user! database
                                             username
                                             (decode-avatar update-map))]
-         ;; TODO: Find a nice way to transform this to a URL
          (-> result
              (assoc :avatar_url (format "users/%s/avatar" username))
              ok))

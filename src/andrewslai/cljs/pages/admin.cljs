@@ -160,9 +160,6 @@
       (fn [& args]
         (user-comms/logout))}]]])
 
-
-;; TODO: Make user login timeout, so after 30 mins or so you can't see
-;;       the profile information
 (defn login-ui []
   (let [user (subscribe [:user])]
     [:div

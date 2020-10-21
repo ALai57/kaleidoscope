@@ -20,8 +20,6 @@
     (let [{:keys [status]} (get-request "/")]
       (is (= 200 status)))))
 
-;; TODO: Add tests that logging works properly
-
 (defn captured-logging [logging-atom]
   {:level :debug
    :appenders {:println {:enabled? true,

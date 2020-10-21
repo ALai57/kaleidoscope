@@ -17,7 +17,6 @@
   (s/and string? (fn sufficient-strength? [password]
                    (<= 4 (password-strength password)))))
 
-;; TODO: Add spec into the API
 (defn login
   "Verify credentials and return the user ID if successful"
   [database {:keys [username password] :as credentials}]
