@@ -1,41 +1,32 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [andrewslai.clj.persistence.postgres2 :as postgres2]
-            [andrewslai.clj.entities.article :as article]
-            [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.login :refer [login-routes]]
             [andrewslai.clj.routes.ping :refer [ping-routes]]
-            [andrewslai.clj.routes.portfolio
-             :refer [portfolio-routes]]
-            [andrewslai.clj.routes.users :refer [users-routes] :as user-routes]
+            [andrewslai.clj.routes.portfolio :refer [portfolio-routes]]
+            [andrewslai.clj.routes.users :as user-routes :refer [users-routes]]
             [andrewslai.clj.utils :as util]
             [buddy.auth.backends.session :refer [session-backend]]
-            [buddy.auth.middleware :refer [wrap-authentication
-                                           wrap-authorization]]
+            [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [clojure.data.codec.base64 :as b64]
-            [compojure.api.sweet :refer :all]
             [compojure.api.middleware :as mw]
             [compojure.api.swagger :as swag]
+            [compojure.api.sweet :refer [api routes undocumented GET POST]]
             [org.httpkit.server :as httpkit]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.cookies :refer [wrap-cookies]]
-            [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.resource :refer [wrap-resource]]
-            [ring.middleware.reload :refer [wrap-reload]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
-            [ring.util.http-response :refer :all]
-
             [ring.swagger.common :as rsc]
             [ring.swagger.middleware :as rsm]
-            [ring.swagger.core :as swagger]
             [ring.swagger.swagger-ui :as swagger-ui]
             [ring.swagger.swagger2 :as swagger2]
-
-            [spec-tools.swagger.core :as st]
+            [ring.util.http-response :refer [ok content-type resource-response]]
             [spec-tools.core :as st-core]
+            [spec-tools.swagger.core :as st]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
