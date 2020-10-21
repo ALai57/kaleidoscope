@@ -1,7 +1,6 @@
 (ns andrewslai.clj.handler
   (:gen-class)
-  (:require [andrewslai.clj.env :as env]
-            [andrewslai.clj.persistence.postgres2 :as postgres2]
+  (:require [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.entities.article :as article]
             [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
@@ -11,6 +10,7 @@
             [andrewslai.clj.routes.portfolio
              :refer [portfolio-routes]]
             [andrewslai.clj.routes.users :refer [users-routes] :as user-routes]
+            [andrewslai.clj.utils :as util]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication
                                            wrap-authorization]]
@@ -196,24 +196,15 @@
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn pg-conn []
-  (-> @env/env
-      (select-keys [:db-port :db-host
-                    :db-name :db-user
-                    :db-password])
-      (clojure.set/rename-keys {:db-name     :dbname
-                                :db-host     :host
-                                :db-user     :user
-                                :db-password :password})
-      (assoc :dbtype "postgresql")))
-
 (defn -main
-  "Invoked to start a server and run the application"
-  [& _]
+  "Start a server and run the application"
+  [& {:keys [port]}]
   (println "Hello! Starting service...")
-  (let [component-config {:db-spec (pg-conn)
-                          :log-level :info
-                          :session-atom (atom {})
-                          :secure-session? true}]
-    (httpkit/run-server (configure-app app-routes component-config)
-                        {:port (@env/env :port)})))
+  (httpkit/run-server (configure-app app-routes {:db-spec         (util/pg-conn)
+                                                 :log-level       :info
+                                                 :session-atom    (atom {})
+                                                 :secure-session? true})
+                      {:port (or port
+                                 (some-> (System/getenv "ANDREWSLAI_PORT")
+                                         int)
+                                 5000)}))

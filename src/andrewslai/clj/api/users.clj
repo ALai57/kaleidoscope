@@ -1,6 +1,5 @@
 (ns andrewslai.clj.api.users
   (:require [andrewslai.clj.entities.user :as user]
-            [andrewslai.clj.env :as env]
             [andrewslai.clj.utils :refer [file->bytes validate]]
             [clojure.java.data :as j]
             [clojure.spec.alpha :as s]
@@ -51,7 +50,10 @@
 
 (defn register-user!
   ([database user password]
-   (register-user! database user password (:work-factor @env/env)))
+   (register-user! database user password
+                   (or (some-> (System/getenv "ANDREWSLAI_ENCRYPTION_WORK_FACTOR")
+                               int)
+                       12)))
   ([database user password work-factor]
    (validate :andrewslai.user/password password :IllegalArgumentException)
    (let [user-id (java.util.UUID/randomUUID)

@@ -26,3 +26,16 @@
                   :reason reason
                   :feedback (or (:feedback data)
                                 reason)}}))))
+
+(defn pg-conn []
+  {:dbname   (System/getenv "ANDREWSLAI_DB_NAME")
+   :db-port  (or (System/getenv "ANDREWSLAI_DB_PORT") "5432")
+   :host     (System/getenv "ANDREWSLAI_DB_HOST")
+   :user     (System/getenv "ANDREWSLAI_DB_USER")
+   :password (System/getenv "ANDREWSLAI_DB_PASSWORD")
+   :dbtype   "postgresql"})
+
+(comment
+  (System/getenv "ANDREWSLAI_DB_PORT")
+  (pg-conn)
+  )

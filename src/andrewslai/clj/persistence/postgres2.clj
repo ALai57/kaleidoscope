@@ -5,7 +5,8 @@
             [clojure.java.jdbc :as sql]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
-            [slingshot.slingshot :refer [throw+ try+]])
+            [slingshot.slingshot :refer [throw+ try+]]
+            [andrewslai.clj.utils :as util])
   (:import org.postgresql.util.PGobject))
 
 (extend-protocol sql/IResultSetReadColumn
@@ -76,19 +77,8 @@
                       {:subtype ex-subtype}))))))
 
 (comment
-  (require '[andrewslai.clj.env :as env])
+  (require '[andrewslai.clj.utils :as util])
   (require '[honeysql.helpers :as hh])
-
-  (defn pg-conn []
-    (-> @env/env
-        (select-keys [:db-port :db-host
-                      :db-name :db-user
-                      :db-password])
-        (clojure.set/rename-keys {:db-name     :dbname
-                                  :db-host     :host
-                                  :db-user     :user
-                                  :db-password :password})
-        (assoc :dbtype "postgresql")))
 
   (def example-user
     {:id         #uuid "f5778c59-e57d-46f0-b5e5-516e5d36481c"
@@ -99,18 +89,18 @@
      :email      "andrew@andrew.com"
      :role_id    2})
 
-  (p/select (->Database (pg-conn))
+  (p/select (->Database (util/pg-conn))
             {:select [:*] :from [:users]})
 
-  (p/transact! (->Database (pg-conn))
+  (p/transact! (->Database (util/pg-conn))
                (-> (hh/insert-into :users)
                    (hh/values [example-user])))
 
-  (p/transact! (->Database (pg-conn))
+  (p/transact! (->Database (util/pg-conn))
                (-> (hh/delete-from :users)
                    (hh/where [:= :users/username (:username example-user)])))
 
-  (p/transact! (->Database (pg-conn))
+  (p/transact! (->Database (util/pg-conn))
                (-> (hh/update :users)
                    (hh/sset {:first_name "FIRSTNAME"})
                    (hh/where [:= :username (:username example-user)])))
