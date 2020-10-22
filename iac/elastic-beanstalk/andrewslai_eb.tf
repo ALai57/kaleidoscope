@@ -1,18 +1,3 @@
-provider "aws" {
-  access_key = "${var.access_key}"
-  secret_key = "${var.secret_key}"
-  region     = "${var.region}"
-}
-
-resource "aws_s3_bucket" "andrewslai_s3" {
-  bucket = "andrewslai-website-s3"
-}
-
-resource "aws_s3_bucket_object" "andrewslai_artifact" {
-  bucket = "${aws_s3_bucket.andrewslai_s3.id}"
-  key    = "deployment.zip"
-  source = "deployment.zip"
-}
 
 resource "aws_acm_certificate" "cert" {
   domain_name       = "andrewslai.com"
@@ -41,7 +26,7 @@ resource "aws_elastic_beanstalk_application" "andrewslai_app" {
 }
 
 resource "aws_elastic_beanstalk_environment" "andrewslai_env" {
-  name                = "staging"
+  name                = "production"
   application         = "${aws_elastic_beanstalk_application.andrewslai_app.name}"
   solution_stack_name = "64bit Amazon Linux 2018.03 v2.12.14 running Docker 18.06.1-ce"
 
@@ -92,12 +77,4 @@ resource "aws_elastic_beanstalk_environment" "andrewslai_env" {
     value     = "${var.ANDREWSLAI_DB_PORT}"
   }
 
-}
-
-resource "aws_elastic_beanstalk_application_version" "andrewslai_app_version" {
-  name        = "andrewslai-application-version"
-  application = "${aws_elastic_beanstalk_application.andrewslai_app.name}"
-  description = "application version created by terraform"
-  bucket      = "${aws_s3_bucket.andrewslai_s3.id}"
-  key         = "${aws_s3_bucket_object.andrewslai_artifact.id}"
 }
