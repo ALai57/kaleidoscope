@@ -1,0 +1,7 @@
+#!/bin/bash
+
+PGPASSWORD=$ANDREWSLAI_DB_PASSWORD \
+psql --username=$ANDREWSLAI_DB_USER \
+     --dbname=$ANDREWSLAI_DB_NAME \
+     --host=$ANDREWSLAI_DB_HOST \
+     --port=$ANDREWSLAI_DB_PORT
