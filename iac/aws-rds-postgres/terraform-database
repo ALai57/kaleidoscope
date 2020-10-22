@@ -6,5 +6,5 @@ if [ "init" = "$1" ]
 then
     terraform init -backend-config=provider_secrets.tfvars
 else
-    terraform $1 --var-file=provider_secrets.tfvars
+    terraform $1 --var-file=provider_secrets.tfvars --var-file=database_secrets.tfvars
 fi

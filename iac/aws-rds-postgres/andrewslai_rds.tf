@@ -100,7 +100,7 @@ module "db" {
   storage_encrypted = false
 
   # kms_key_id        = "arm:aws:kms:<region>:<account id>:key/<kms key id>"
-  name = "andrewslai-postgres"
+  name = "andrewslai"
 
   # NOTE: Do NOT use 'user' as the value for 'username' as it throws:
   # "Error creating DB Instance: InvalidParameterValue: MasterUsername
@@ -139,4 +139,6 @@ module "db" {
 
   # Database Deletion Protection
   deletion_protection = false
+
+  publicly_accessible = true
 }
