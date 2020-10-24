@@ -167,33 +167,26 @@ resource "aws_iam_instance_profile" "andrewslai_eb_profile" {
 
 ##############################################################
 # Routes
+# The Route53 record and acm certificate were configured manually
 ##############################################################
 
-#resource "aws_acm_certificate" "cert" {
-  #domain_name       = "andrewslai.com"
-  #validation_method = "DNS"
-#
-  #tags = {
-    #Environment = "test"
-  #}
-#
-  #lifecycle {
-    #create_before_destroy = true
-  #}
-#}
+data "aws_route53_zone" "andrewslai_domain" {
+  name          = "andrewslai.com"
+}
 
-
-# resource "aws_route53_record" "validation" {
-  # zone_id = "${aws_route53_zone.public_zone.zone_id}"
-  # name = "${aws_acm_certificate.cert.domain_validation_options.0.resource_record_name}"
-  # type = "${aws_acm_certificate.cert.domain_validation_options.0.resource_record_type}"
-  # records = ["${aws_acm_certificate.cert.domain_validation_options.0.resource_record_value}"]
-  # ttl = "300"
-# }
+data "aws_acm_certificate" "issued" {
+  domain   = "andrewslai.com"
+  statuses = ["ISSUED"]
+}
 
 ##############################################################
 # Beanstalk
 ##############################################################
+
+################### TODO !!!! GET ELB WORKING WITH APPLICATION LOAD BALANCER
+################### Going directly to EC2 instance is working... but Load balancing is not
+################### http://ec2-54-196-167-222.compute-1.amazonaws.com/#/admin
+################### Next time, try to get load balancer working, or just move to an EC2 instance
 
 resource "aws_elastic_beanstalk_application" "andrewslai_app" {
   name        = "andrewslai_site"
@@ -207,13 +200,39 @@ resource "aws_elastic_beanstalk_environment" "andrewslai_env" {
 
   setting {
     namespace = "aws:ec2:vpc"
-    name      = "VPCId"
-    value     = "${data.aws_vpc.default.id}"
-  }
-  setting {
-    namespace = "aws:ec2:vpc"
     name      = "ELBSubnets"
     value     = "${join(",", data.aws_subnet_ids.all.ids)}"
+  }
+  setting {
+    namespace = "aws:elasticbeanstalk:environment"
+    name      = "LoadBalancerType"
+    value     = "application"
+  }
+  setting {
+    namespace = "aws:elbv2:listener:default"
+    name      = "ListenerEnabled"
+    value     = "true"
+  }
+  setting {
+    namespace = "aws:elbv2:listener:443"
+    name      = "ListenerEnabled"
+    value     = "true"
+  }
+  setting {
+    namespace = "aws:elbv2:listener:443"
+    name      = "Protocol"
+    value     = "HTTPS"
+  }
+  setting {
+    namespace = "aws:elbv2:listener:443"
+    name      = "SSLCertificateArns"
+    value     = "${data.aws_acm_certificate.issued.arn}"
+  }
+
+  setting {
+    namespace = "aws:ec2:vpc"
+    name      = "VPCId"
+    value     = "${data.aws_vpc.default.id}"
   }
   setting {
     namespace = "aws:ec2:vpc"
@@ -256,4 +275,34 @@ resource "aws_elastic_beanstalk_environment" "andrewslai_env" {
     value     = "${var.ANDREWSLAI_DB_PORT}"
   }
 
+}
+
+
+##############################################################
+# Configure listners
+##############################################################
+
+data "aws_lb_listener" "http_listener" {
+  load_balancer_arn = "${aws_elastic_beanstalk_environment.andrewslai_env.load_balancers[0]}"
+  port              = 80
+}
+
+resource "aws_lb_listener_rule" "redirect_http_to_https" {
+  listener_arn = "${data.aws_lb_listener.http_listener.arn}"
+  priority = 1
+  action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
 }
