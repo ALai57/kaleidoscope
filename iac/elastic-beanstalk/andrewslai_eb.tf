@@ -183,11 +183,6 @@ data "aws_acm_certificate" "issued" {
 # Beanstalk
 ##############################################################
 
-################### TODO !!!! GET ELB WORKING WITH APPLICATION LOAD BALANCER
-################### Going directly to EC2 instance is working... but Load balancing is not
-################### http://ec2-54-196-167-222.compute-1.amazonaws.com/#/admin
-################### Next time, try to get load balancer working, or just move to an EC2 instance
-
 resource "aws_elastic_beanstalk_application" "andrewslai_app" {
   name        = "andrewslai_site"
   description = "My personal website"
