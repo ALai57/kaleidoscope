@@ -191,7 +191,15 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
         "name": "ENVIRONMENT",
         "value": "HELLO"
       }
-    ]
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/fargate/service/andrewslai-production",
+        "awslogs-region": "us-east-1",
+        "awslogs-stream-prefix": "ecs"
+      }
+    }
   }
 ]
 DEFINITION
@@ -234,4 +242,9 @@ resource "aws_ecs_service" "andrewslai_service" {
   ##lifecycle {
     ##ignore_changes = ["task_definition"]
   ##}
+}
+
+resource "aws_cloudwatch_log_group" "logs" {
+  name              = "/fargate/service/andrewslai-production"
+  retention_in_days = 90
 }
