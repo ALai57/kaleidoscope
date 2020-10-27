@@ -1,6 +1,30 @@
 #https://github.com/turnerlabs/terraform-ecs-fargate/blob/master/env/dev/ecs.tf
 
 ##############################################################
+# Variables
+##############################################################
+
+variable "ANDREWSLAI_DB_PASSWORD" {
+  description = "Database password"
+}
+
+variable "ANDREWSLAI_DB_USER" {
+  description = "Database username"
+}
+
+variable "ANDREWSLAI_DB_NAME" {
+  description = "Database password"
+}
+
+variable "ANDREWSLAI_DB_HOST" {
+  description = "Database host url"
+}
+
+variable "ANDREWSLAI_DB_PORT" {
+  description = "Database port"
+}
+
+##############################################################
 # Data sources to get VPC, subnets and security group details
 ##############################################################
 data "aws_vpc" "default" {
@@ -110,41 +134,69 @@ resource "aws_iam_role_policy" "role_policy" {
   EOF
 }
 
-  ##{
-    ##"Version": "2008-10-17",
-    ##"Statement": [
-      ##{
-        ##"Sid": "AllowECRPull",
-        ##"Effect": "Allow",
-        ##"Action": [
-          ##"ecr:BatchCheckLayerAvailability",
-          ##"ecr:BatchGetImage",
-          ##"ecr:GetDownloadUrlForLayer"
-        ##]
-      ##}
-    ##]
-  ##}
-##{
-    ##"Version": "2008-10-17",
-    ##"Statement": [
-        ##{
-            ##"Sid": "AllowPushPull",
-            ##"Effect": "Allow",
-            ##"Principal": {
-                ##"AWS": "arn:aws:iam::account-id:root"
-            ##},
-            ##"Action": [
-                ##"ecr:GetDownloadUrlForLayer",
-                ##"ecr:BatchGetImage",
-                ##"ecr:BatchCheckLayerAvailability",
-                ##"ecr:PutImage",
-                ##"ecr:InitiateLayerUpload",
-                ##"ecr:UploadLayerPart",
-                ##"ecr:CompleteLayerUpload"
-            ##]
-        ##}
-    ##]
-##}
+##############################################################
+# Load Balancer
+##############################################################
+
+resource "aws_alb" "main" {
+  name = "andrewslai-production"
+
+  # launch lbs in public or private subnets based on "internal" variable
+  internal = false
+
+  subnets = ["${data.aws_subnet_ids.all.ids}"]
+  security_groups = ["${data.aws_security_group.default.id}", "${aws_security_group.ecs_allow_http_https.id}"]
+
+}
+
+resource "aws_alb_target_group" "main" {
+  name                 = "andrewslai-production"
+  port                 = 443
+  protocol             = "HTTP"
+  vpc_id               = "${data.aws_vpc.default.id}"
+  target_type          = "ip"
+
+  lifecycle {
+      create_before_destroy = true
+  }
+
+  deregistration_delay = 20
+
+}
+
+resource "aws_lb_listener" "http_listener" {
+  load_balancer_arn = "${aws_alb.main.arn}"
+  protocol          = "HTTP"
+  port              = 80
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+data "aws_acm_certificate" "issued" {
+  domain   = "andrewslai.com"
+  statuses = ["ISSUED"]
+}
+
+resource "aws_lb_listener" "https_listener" {
+  load_balancer_arn = "${aws_alb.main.arn}"
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = "${data.aws_acm_certificate.issued.arn}"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = "${aws_alb_target_group.main.arn}"
+  }
+}
 
 ##############################################################
 # ECS
@@ -173,24 +225,31 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
     "portMappings": [
       {
         "protocol": "tcp",
-        "containerPort": 80,
-        "hostPort": 80
+        "containerPort": 5000,
+        "hostPort": 5000
       },
-      {
-        "protocol": "tcp",
-        "containerPort": 443,
-        "hostPort": 443
-      }
     ],
     "environment": [
       {
-        "name": "PORT",
-        "value": "40"
+        "name": "ANDREWSLAI_DB_PASSWORD",
+        "value": "${var.ANDREWSLAI_DB_PASSWORD}"
       },
       {
-        "name": "ENVIRONMENT",
-        "value": "HELLO"
-      }
+        "name": "ANDREWSLAI_DB_USER",
+        "value": "${var.ANDREWSLAI_DB_USER}"
+      },
+      {
+        "name": "ANDREWSLAI_DB_NAME",
+        "value": "${var.ANDREWSLAI_DB_NAME}"
+      },
+      {
+        "name": "ANDREWSLAI_DB_HOST",
+        "value": "${var.ANDREWSLAI_DB_HOST}"
+      },
+      {
+        "name": "ANDREWSLAI_DB_PORT",
+        "value": "${var.ANDREWSLAI_DB_PORT}"
+      },
     ],
     "logConfiguration": {
       "logDriver": "awslogs",
@@ -205,16 +264,6 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
 DEFINITION
 }
 
-
-    ##"logConfiguration": {
-      ##"logDriver": "awslogs",
-      ##"options": {
-        ##"awslogs-group": "/fargate/service/andrewslai-production",
-        ##"awslogs-region": "us-east-1",
-        ##"awslogs-stream-prefix": "ecs"
-      ##}
-    ##}
-
 resource "aws_ecs_service" "andrewslai_service" {
   name            = "andrewslai-service"
   cluster         = "${aws_ecs_cluster.andrewslai_cluster.id}"
@@ -228,11 +277,11 @@ resource "aws_ecs_service" "andrewslai_service" {
     assign_public_ip = "true"
   }
 
-  #load_balancer {
-    #target_group_arn = aws_alb_target_group.main.id
-    #container_name   = var.container_name
-    #container_port   = var.container_port
-  #}
+  load_balancer {
+    target_group_arn = "${aws_alb_target_group.main.id}"
+    container_name   = "andrewslai"
+    container_port   = "5000"
+  }
 
   # workaround for https://github.com/hashicorp/terraform/issues/12634
   #depends_on = [aws_alb_listener.http]
