@@ -220,14 +220,13 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
   {
     "name": "andrewslai",
     "image": "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr:latest",
-
     "essential": true,
     "portMappings": [
       {
         "protocol": "tcp",
         "containerPort": 5000,
         "hostPort": 5000
-      },
+      }
     ],
     "environment": [
       {
@@ -249,7 +248,7 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
       {
         "name": "ANDREWSLAI_DB_PORT",
         "value": "${var.ANDREWSLAI_DB_PORT}"
-      },
+      }
     ],
     "logConfiguration": {
       "logDriver": "awslogs",
