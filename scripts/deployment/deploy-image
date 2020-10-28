@@ -1,0 +1,4 @@
+aws ecs update-service \
+  --cluster andrewslai \
+  --service andrewslai-service \
+  --force-new-deployment

@@ -72,6 +72,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Swagger routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: Move this to a Swagger UI namespace
+;; TODO: TF for ECS, Dockerhub, S3 and GH actions/releases
+;; TODO: Clean up the database schema....
 (def swagger-ui-routes
   (routes
     (undocumented
