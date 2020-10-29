@@ -92,7 +92,7 @@
       :swagger {:summary "Update a user"
                 :consumes #{"application/json"}
                 :produces #{"application/json"}
-                :parameters {:body :andrewslai.user/user-update}
+                :request  :andrewslai.user/user-update
                 :responses {200 {:description "The updated fields"
                                  :schema :andrewslai.user/user-update}}}
       (try+

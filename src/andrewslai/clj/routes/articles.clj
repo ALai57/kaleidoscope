@@ -4,6 +4,7 @@
             [andrewslai.clj.routes.admin :as admin]
             [andrewslai.clj.utils :refer [parse-body]]
             [buddy.auth.accessrules :refer [restrict]]
+            [compojure.api.meta :as compojure-meta]
             [compojure.api.sweet :refer [context GET POST]]
             [ring.util.http-response :refer [ok not-found]]
             [clojure.spec.alpha :as s]
@@ -16,6 +17,22 @@
 (defn create-article-handler [{{database :database} :components
                                article :body-params}]
   (ok (articles-api/create-article! database article)))
+
+(defmethod compojure-meta/restructure-param :swagger
+  [_ {request-spec :request :as swagger} acc]
+  (let [path (fn [spec] (str "#/components/schemas/" (name spec)))
+        x (if request-spec
+            (-> swagger
+                (assoc :requestBody
+                       {:content
+                        {"application/json"
+                         {:schema
+                          {"$ref" (path request-spec)}}}})
+                (assoc-in [:components :schemas (name request-spec)]
+                          {:spec        request-spec
+                           :description "Automagically added"}))
+            swagger)]
+    (assoc-in acc [:info :public :swagger] x)))
 
 (def articles-routes
   ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
@@ -54,8 +71,9 @@
       :swagger {:summary "Create an article"
                 :consumes #{"application/json"}
                 :produces #{"application/json"}
-                ::swagger/parameters {:body :andrewslai.article/article
-                                      :header-params {:cookie ::cookie}}
+                :request :andrewslai.article/article
+                #_#_::swagger/parameters {:body :andrewslai.article/article
+                                          :header-params {:cookie ::cookie}}
                 :responses {200 {:description "The article that was created"
                                  :schema :andrewslai.article/article}
                             401 {:description "Unauthorized"
