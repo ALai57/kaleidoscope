@@ -9,9 +9,12 @@
             [clojure.java.io :as io]
             [clojure.spec.alpha :as s]
             [compojure.api.sweet :refer [context defroutes DELETE GET PATCH POST]]
+            [compojure.api.meta :as compojure-meta]
             [ring.util.http-response :refer [bad-request created not-found ok no-content]]
             [ring.util.response :as response]
             [slingshot.slingshot :refer [try+]]
+            [spec-tools.core :as st-core]
+            [spec-tools.swagger.core :as st]
             [taoensso.timbre :as log]))
 
 (s/def ::user (s/keys :req-un [:andrewslai.user/avatar
@@ -43,6 +46,22 @@
       (handler (assoc req
                       :user (user/get-user-profile-by-id database user-id)))
       (handler (assoc req :user nil)))))
+
+(defmethod compojure-meta/restructure-param :swagger
+  [_ {request-spec :request :as swagger} acc]
+  (let [path (fn [spec] (str "#/components/schemas/" (name spec)))
+        x (if request-spec
+            (-> swagger
+                (assoc :requestBody
+                       {:content
+                        {"application/json"
+                         {:schema
+                          {"$ref" (path request-spec)}}}})
+                (assoc-in [:components :schemas (name request-spec)]
+                          {:spec        request-spec
+                           :description "Automagically added"}))
+            swagger)]
+    (assoc-in acc [:info :public :swagger] x)))
 
 (defroutes users-routes
   (context "/users" {{database :database} :components}
@@ -88,12 +107,12 @@
              (assoc :body e)))))
 
     (POST "/" request
-      :swagger {:summary "Create a user"
-                :consumes #{"application/json"}
-                :produces #{"application/json"}
-                :parameters {:body ::user}
+      :swagger {:summary   "Create a user"
+                :consumes  #{"application/json"}
+                :produces  #{"application/json"}
+                :request   ::user
                 :responses {200 {:description "The user that was created"
-                                 :schema ::created_user}}}
+                                 :schema      ::created_user}}}
       (try+ 
        (let [{:keys [username password] :as payload} (:body-params request)
              result (users-api/register-user! database

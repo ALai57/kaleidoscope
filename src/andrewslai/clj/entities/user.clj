@@ -17,13 +17,13 @@
 (s/def :andrewslai.user/email (s/and string? email?))
 (s/def :andrewslai.user/avatar bytes?)
 (s/def :andrewslai.user/role_id (s/and int? pos?))
-(s/def :andrewslai.user/user-profile (s/keys :req-un [::avatar
-                                                      ::first_name
-                                                      ::last_name
-                                                      ::username
-                                                      ::email
-                                                      ::role_id
-                                                      ::id]))
+(s/def :andrewslai.user/user-profile (s/keys :req-un [:andrewslai.user/avatar
+                                                      :andrewslai.user/first_name
+                                                      :andrewslai.user/last_name
+                                                      :andrewslai.user/username
+                                                      :andrewslai.user/email
+                                                      :andrewslai.user/role_id
+                                                      :andrewslai.user/id]))
 
 (s/def :andrewslai.user/user-update (s/keys :opt-un [:andrewslai.user/first_name
                                                      :andrewslai.user/last_name

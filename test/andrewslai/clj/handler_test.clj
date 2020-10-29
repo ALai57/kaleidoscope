@@ -36,3 +36,7 @@
                                  {:logging (captured-logging logging-atom)})]
       (get-request "/ping" app)
       (is (= 1 (count @logging-atom))))))
+
+(deftest swagger-test
+  (let [app (h/wrap-middleware h/app-routes {})]
+    (get-request "/swagger.json" app)))
