@@ -3,6 +3,7 @@
             [andrewslai.clj.utils :refer [parse-body]]
             [andrewslai.clj.test-utils :refer [get-request]]
             [clojure.test :refer [deftest is testing]]
+            [clojure.spec.alpha :as s]
             [ring.mock.request :as mock]
             [taoensso.timbre :as timbre]))
 
@@ -55,3 +56,7 @@
 (deftest swagger-test
   (let [app (h/wrap-middleware h/app-routes {})]
     (get-request "/swagger.json" app)))
+
+(deftest valid-examples-test
+  (for [[k {:keys [value]}] h/example-data-2]
+    (is (s/valid? k value))))

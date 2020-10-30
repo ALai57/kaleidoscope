@@ -69,21 +69,21 @@
                                         :content "<h1>Hello world!</h1>"
                                         :timestamp "2020-10-28T00:00:00"
                                         :title "My test article"}}
-   :andrewslai.user/user-update {:summary "An example user update"
-                                 :value {:first_name "andrew"
-                                         :last_name "lai"
-                                         :avatar (->> "Hello world!"
-                                                      string->bytes
-                                                      b64-encode)}}
-   :andrewslai.clj.routes.user/user {:summary "An example user"
-                                     :value {:avatar (->> "Hello world!"
-                                                          string->bytes
-                                                          b64-encode)
-                                             :email "newuser@andrewslai.com"
-                                             :first_name "new"
-                                             :last_name "user"
-                                             :password "CactusGnarlObsidianTheft"
-                                             :username "new-user"}}})
+   :andrewslai.clj.routes.users/user-update {:summary "An example user update"
+                                             :value {:first_name "andrew"
+                                                     :last_name "lai"
+                                                     :avatar (->> "Hello world!"
+                                                                  string->bytes
+                                                                  b64-encode)}}
+   :andrewslai.clj.routes.users/user {:summary "An example user"
+                                      :value {:avatar (->> "Hello world!"
+                                                           string->bytes
+                                                           b64-encode)
+                                              :email "newuser@andrewslai.com"
+                                              :first_name "new"
+                                              :last_name "user"
+                                              :password "CactusGnarlObsidianTheft"
+                                              :username "new-user"}}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Swagger routes

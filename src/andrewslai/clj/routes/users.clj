@@ -17,21 +17,26 @@
             [spec-tools.swagger.core :as st]
             [taoensso.timbre :as log]))
 
-(s/def ::user (s/keys :req-un [:andrewslai.user/avatar
+(s/def ::avatar string?)
+(s/def ::avatar_url string?)
+
+(s/def ::user (s/keys :req-un [::avatar
                                :andrewslai.user/first_name
                                :andrewslai.user/last_name
                                :andrewslai.user/username
                                :andrewslai.user/email
                                :andrewslai.user/password]))
 
-(s/def ::avatar string?)
-(s/def ::avatar_url string?)
 (s/def ::created_user (s/keys :req-un [::avatar
                                        :andrewslai.user/first_name
                                        :andrewslai.user/last_name
                                        :andrewslai.user/username
                                        :andrewslai.user/email
                                        ::avatar_url]))
+
+(s/def ::user-update (s/keys :opt-un [::avatar
+                                      :andrewslai.user/first_name
+                                      :andrewslai.user/last_name]))
 
 (defn decode-avatar [{:keys [avatar] :as m}]
   (if avatar
@@ -95,9 +100,9 @@
       :swagger {:summary "Update a user"
                 :consumes #{"application/json"}
                 :produces #{"application/json"}
-                :request  :andrewslai.user/user-update
+                :request  ::user-update
                 :responses {200 {:description "The updated fields"
-                                 :schema :andrewslai.user/user-update}}}
+                                 :schema ::user-update}}}
       (try+
        (let [result (users-api/update-user! database
                                             username
