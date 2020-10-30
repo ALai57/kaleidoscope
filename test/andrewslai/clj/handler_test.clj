@@ -37,6 +37,21 @@
       (get-request "/ping" app)
       (is (= 1 (count @logging-atom))))))
 
+(deftest extract-swagger-specs-test
+  (let [swagger {:paths [["/" {:get
+                               {:components
+                                {:schemas
+                                 {"user"
+                                  {:spec :andrewslai.user/user-profile}}}}}]]}]
+    (is (= {"user" {:spec :andrewslai.user/user-profile}}
+           (h/extract-swagger-specs swagger)))))
+
+(deftest swagger-specs->components-test
+  (is (= {"user" {:type "string"
+                  :x-allOf [{:type "string"} {} {}]
+                  :title "andrewslai.user/username"}}
+         (h/specs->swagger {"user" {:spec :andrewslai.user/username}}))))
+
 (deftest swagger-test
   (let [app (h/wrap-middleware h/app-routes {})]
     (get-request "/swagger.json" app)))
