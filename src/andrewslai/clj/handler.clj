@@ -45,43 +45,45 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Example data
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def example-b64-encoded-avatar (->> "Hello world!"
-                                     (map (comp byte int))
-                                     byte-array
-                                     b64/encode
-                                     String.))
+(defn string->bytes [s]
+  (->> s
+       (map (comp byte int))
+       byte-array))
 
-(def example-user-1 {:avatar example-b64-encoded-avatar
-                     :email "newuser@andrewslai.com"
-                     :first_name "new"
-                     :id (java.util.UUID/randomUUID)
-                     :last_name "user"
-                     :password "CactusGnarlObsidianTheft"
-                     :role_id 2
-                     :username "new-user"})
+(defn b64-encode [s]
+  (->> s
+       b64/encode
+       String.))
 
-(def example-user-2 {:avatar example-b64-encoded-avatar
-                     :email "newuser@andrewslai.com"
-                     :first_name "new"
-                     :last_name "user"
-                     :password "CactusGnarlObsidianTheft"
-                     :username "new-user"})
+(def example-b64-encoded-avatar
+  (->> "Hello world!"
+       string->bytes
+       b64-encode))
 
-(def example-article-1 {:article_id 10
-                        :article_tags "thoughts"
-                        :article_url "my-test-article"
-                        :author "Andrew Lai"
-                        :content "<h1>Hello world!</h1>"
-                        :timestamp "2020-10-28T00:00:00"
-                        :title "My test article"})
-
-(def example-data
-  {:ArticleExample1 {:summary "An example article"
-                     :value example-article-1}
-   :UserExample1 {:summary "An example user"
-                  :value example-user-1}
-   :UserExample2 {:summary "An example user"
-                  :value example-user-2}})
+(def example-data-2
+  {:andrewslai.article/article {:summary "An example article"
+                                :value {:article_id 10
+                                        :article_tags "thoughts"
+                                        :article_url "my-test-article"
+                                        :author "Andrew Lai"
+                                        :content "<h1>Hello world!</h1>"
+                                        :timestamp "2020-10-28T00:00:00"
+                                        :title "My test article"}}
+   :andrewslai.user/user-update {:summary "An example user update"
+                                 :value {:first_name "andrew"
+                                         :last_name "lai"
+                                         :avatar (->> "Hello world!"
+                                                      string->bytes
+                                                      b64-encode)}}
+   :andrewslai.clj.routes.user/user {:summary "An example user"
+                                     :value {:avatar (->> "Hello world!"
+                                                          string->bytes
+                                                          b64-encode)
+                                             :email "newuser@andrewslai.com"
+                                             :first_name "new"
+                                             :last_name "user"
+                                             :password "CactusGnarlObsidianTheft"
+                                             :username "new-user"}}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Swagger routes
@@ -91,7 +93,7 @@
 ;; TODO: GH actions/releases
 ;; TODO: Clean up the database schema....
 
-(defn extract-swagger-specs [swagger]
+(defn extract-specs [swagger]
   (reduce (fn [acc [_ {{schemas :schemas} :components :as x}]]
             (if schemas
               (conj acc schemas)
@@ -99,7 +101,7 @@
           {}
           (mapcat second (:paths swagger))))
 
-(defn specs->swagger [swagger-specs]
+(defn specs->components [swagger-specs]
   (reduce-kv (fn [acc k v]
                (assoc acc
                       k (-> v st-core/create-spec st/transform)))
@@ -125,16 +127,19 @@
                                                  runtime-info1
                                                  runtime-info2]))
             spec          (st/swagger-spec
-                           (swagger2/swagger-json swagger options))
-
-            swagger-specs (extract-swagger-specs swagger)]
+                           (swagger2/swagger-json swagger options))]
         (-> spec
             (assoc :openapi "3.0.2"
                    :info {:title       "andrewslai"
                           :description "My personal website"}
                    :components
-                   {:schemas (specs->swagger swagger-specs)
-                    :examples example-data})
+                   {:schemas (-> swagger
+                                 extract-specs
+                                 specs->components)
+                    :examples (reduce-kv (fn [acc k v]
+                                           (assoc acc (name k) v))
+                                         {}
+                                         example-data-2)})
             (dissoc :swagger)
             ok)))))
 

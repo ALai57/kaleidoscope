@@ -50,13 +50,16 @@
 (defmethod compojure-meta/restructure-param :swagger
   [_ {request-spec :request :as swagger} acc]
   (let [path (fn [spec] (str "#/components/schemas/" (name spec)))
+        ex-path (fn [spec] (str "#/components/examples/" (name spec)))
         x (if request-spec
             (-> swagger
                 (assoc :requestBody
                        {:content
                         {"application/json"
                          {:schema
-                          {"$ref" (path request-spec)}}}})
+                          {"$ref" (path request-spec)}
+                          :examples
+                          {(name request-spec) {"$ref" (ex-path request-spec)}}}}})
                 (assoc-in [:components :schemas (name request-spec)]
                           {:spec        request-spec
                            :description "Automagically added"}))
