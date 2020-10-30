@@ -75,6 +75,9 @@
                                                      :avatar (->> "Hello world!"
                                                                   string->bytes
                                                                   b64-encode)}}
+   :andrewslai.credentials/credentials {:summary "Example user credentials"
+                                        :value {:username "andrewslai"
+                                                :password "mypassword"}}
    :andrewslai.clj.routes.users/user {:summary "An example user"
                                       :value {:avatar (->> "Hello world!"
                                                            string->bytes

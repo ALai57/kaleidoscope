@@ -38,6 +38,10 @@
                                       :andrewslai.user/first_name
                                       :andrewslai.user/last_name]))
 
+(s/def :andrewslai.credentials/credentials
+  (s/keys :req-un [:andrewslai.user/password
+                   :andrewslai.user/username]))
+
 (defn decode-avatar [{:keys [avatar] :as m}]
   (if avatar
     (assoc m :avatar (b64/decode (.getBytes avatar)))
@@ -89,6 +93,7 @@
           (not-found))))
 
     (DELETE "/:username" {credentials :body-params}
+      :swagger {:request :andrewslai.credentials/credentials}
       (let [result (users-api/delete-user! database credentials)]
         (if (map? result)
           (no-content)
