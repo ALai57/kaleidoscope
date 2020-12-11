@@ -14,8 +14,7 @@
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))
 
-(defn create-article-handler [{{database :database} :components
-                               article :body-params}]
+(defn create-article-handler [database {article :body-params}]
   (ok (articles-api/create-article! database article)))
 
 (defmethod compojure-meta/restructure-param :swagger
@@ -45,6 +44,7 @@
   ;; change the symbol =)
   (context "/articles" +compojure-api-request+
     :coercion :spec
+    :components [database]
     :tags ["articles"]
 
     (GET "/" []
@@ -54,8 +54,7 @@
                 :produces #{"application/json"}
                 :responses {200 {:description "A collection of all articles"
                                  :schema :andrewslai.article/articles}}}
-      (ok (articles-api/get-all-articles (get-in +compojure-api-request+
-                                                 [:components :database]))))
+      (ok (articles-api/get-all-articles database)))
 
     (GET "/:article-name" [article-name]
       :swagger {:summary "Retrieve a single article"
@@ -63,9 +62,7 @@
                 :parameters {:path {:article-name :andrewslai.article/article_name}}
                 :responses {200 {:description "A single article"
                                  :schema :andrewslai.article/article}}}
-      (let [article (articles-api/get-article (get-in +compojure-api-request+
-                                                      [:components :database])
-                                              article-name)]
+      (let [article (articles-api/get-article database article-name)]
         (if article
           (ok article)
           (not-found {:reason "Missing"}))))
@@ -81,6 +78,6 @@
                                  :schema :andrewslai.article/article}
                             401 {:description "Unauthorized"
                                  :schema ::error-message}}}
-      (restrict create-article-handler
+      (restrict (partial create-article-handler database)
                 {:handler admin/is-authenticated?
                  :on-error admin/access-error}))))

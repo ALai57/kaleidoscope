@@ -18,9 +18,10 @@
                                       ::password]))
 
 (defroutes login-routes
-  (context "/sessions" {:keys [components]}
+  (context "/sessions" []
     :tags ["sessions"]
     :coercion :spec
+    :components [database]
 
     (POST "/login" {:keys [body session body-params] :as request}
       :swagger {:summary "Login"
@@ -31,10 +32,8 @@
 
 
       (let [{:keys [username] :as credentials} body-params]
-        (if-let [user-id (users-api/login (:database components)
-                                          credentials)]
-          (let [user (-> components
-                         :database
+        (if-let [user-id (users-api/login database credentials)]
+          (let [user (-> database
                          (user/get-user-profile-by-id user-id)
                          (assoc :avatar_url (format "users/%s/avatar" username)))]
             (log/info "Authenticated login!")

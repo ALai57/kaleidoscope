@@ -168,16 +168,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn wrap-logging [handler]
   (fn [request]
-    (log/with-config (get-in request [:components :logging])
+    (log/with-config (get-in request [::mw/components :logging])
       (log/info "Request received for: "
                 (:request-method request)
                 (:uri request))
       (handler request))))
-
-(defn wrap-components
-  [handler components]
-  (fn [request]
-    (handler (assoc request :components components))))
 
 (defn wrap-middleware
   "Wraps a set of Compojure routes with middleware and adds
@@ -191,7 +186,7 @@
       (wrap-session (or (:session app-components) {}))
       (wrap-resource "public")
       wrap-cookies
-      (wrap-components app-components)
+      (mw/wrap-components app-components)
       wrap-content-type))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

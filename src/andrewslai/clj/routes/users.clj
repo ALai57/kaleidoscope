@@ -15,7 +15,8 @@
             [slingshot.slingshot :refer [try+]]
             [spec-tools.core :as st-core]
             [spec-tools.swagger.core :as st]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [compojure.api.middleware :as mw]))
 
 (s/def ::avatar string?)
 (s/def ::avatar_url string?)
@@ -49,7 +50,7 @@
 
 (defn wrap-user [handler]
   (fn [{user-id :identity
-        {database :database} :components
+        {database :database} ::mw/components
         :as req}]
     (if (and user-id database)
       (handler (assoc req
@@ -76,9 +77,10 @@
     (assoc-in acc [:info :public :swagger] x)))
 
 (defroutes users-routes
-  (context "/users" {{database :database} :components}
+  (context "/users" []
     :tags ["users"]
     :coercion :spec
+    :components [database]
 
     (GET "/:username" [username]
       :swagger {:summary "Retrieve a user's profile"
@@ -126,7 +128,7 @@
                 :request   ::user
                 :responses {200 {:description "The user that was created"
                                  :schema      ::created_user}}}
-      (try+ 
+      (try+
        (let [{:keys [username password] :as payload} (:body-params request)
              result (users-api/register-user! database
                                               (-> payload

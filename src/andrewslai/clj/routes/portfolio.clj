@@ -4,7 +4,8 @@
             [ring.util.http-response :refer [ok]]))
 
 (defroutes portfolio-routes
-  (context "/projects-portfolio" {{database :database} :components}
+  (context "/projects-portfolio" []
     :tags ["projects-portfolio"]
+    :components [database]
     (GET "/" []
       (ok (portfolio-api/get-portfolio database)))))
