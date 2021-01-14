@@ -1,15 +1,14 @@
 (ns andrewslai.clj.figwheel-backend
-  (:require [andrewslai.clj.handler :refer [configure-components
-                                            wrap-middleware
-                                            app-routes]]
-            [andrewslai.clj.utils :as util]))
+  (:require [andrewslai.clj.handler :as h]
+            [andrewslai.clj.persistence.postgres2 :as pg]
+            [andrewslai.clj.utils :as util]
+            [ring.middleware.session.memory :as mem]
+            [taoensso.timbre :as log]))
 
-;; This is for figwheel testing only
+;; For figwheel testing
 (def figwheel-app
-  (let [component-config {:db-spec (util/pg-conn)
-                          :log-level :debug
-                          :session-atom (atom {})
-                          :secure-session? false}]
-    (->> component-config
-         configure-components
-         (wrap-middleware app-routes))))
+  (h/wrap-middleware h/app-routes
+                     {:database (pg/->Database (util/pg-conn))
+                      :logging  (merge log/*config* {:level :info})
+                      :session  {:cookie-attrs {:max-age 3600 :secure true}
+                                 :store        (mem/memory-store (atom {}))}}))

@@ -1,10 +1,12 @@
 (ns andrewslai.clj.test-utils
   (:require [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.postgres-test :as ptest]
+            [andrewslai.clj.persistence.postgres2 :as pg]
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer [deftest is testing]]
             [ring.middleware.session.memory :as mem]
-            [ring.mock.request :as mock]))
+            [ring.mock.request :as mock]
+            [taoensso.timbre :as log]))
 
 ;; Deal with the dynamic vars better/at all
 (defmacro defdbtest
@@ -18,16 +20,16 @@
          ~@body))))
 
 (defn test-app-component-config [db-spec]
-  {:db-spec db-spec
-   :log-level :error
-   :secure-session? false
-   :session-atom (atom {})})
+  {:database (pg/->Database db-spec)
+   :logging  (merge log/*config* {:level :error})
+   :session  {:cookie-attrs {:max-age 3600 :secure false}
+              :store        (mem/memory-store (atom {}))}})
 
 (defn get-request
   ([route]
    (->> ptest/db-spec
         test-app-component-config
-        (h/configure-app h/app-routes)
+        (h/wrap-middleware h/app-routes)
         (get-request route)))
   ([route app]
    (->> route

@@ -1,5 +1,6 @@
 (ns andrewslai.clj.utils
   (:require [cheshire.core :as json]
+            [clojure.data.codec.base64 :as b64]
             [clojure.spec.alpha :as s]
             [slingshot.slingshot :refer [throw+]]))
 
@@ -26,6 +27,16 @@
                   :reason reason
                   :feedback (or (:feedback data)
                                 reason)}}))))
+
+(defn string->bytes [s]
+  (->> s
+       (map (comp byte int))
+       byte-array))
+
+(defn b64-encode [s]
+  (->> s
+       b64/encode
+       String.))
 
 (defn pg-conn []
   {:dbname   (System/getenv "ANDREWSLAI_DB_NAME")

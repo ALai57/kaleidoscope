@@ -42,6 +42,7 @@
                  [ring "1.8.0"]
                  [ring/ring-mock "0.4.0"]
                  [sablono "0.8.6"]
+                 [seancorfield/next.jdbc "1.1.613"]
                  [slingshot "0.12.2"]
                  [com.taoensso/timbre "4.10.0"]]
 

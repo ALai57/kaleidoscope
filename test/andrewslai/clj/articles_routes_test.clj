@@ -12,11 +12,6 @@
             [ring.mock.request :as mock]
             [clojure.spec.alpha :as s]))
 
-(comment
-  (jdbc/with-db-connection [db ptest/db-spec]
-    (jdbc/query db "select * from articles"))
-  )
-
 (defdbtest article-retrieval-test ptest/db-spec
   (are [endpoint status spec]
     (testing (format "%s returns %s, matching schema %s" endpoint status spec)
@@ -43,8 +38,8 @@
       first))
 
 (defdbtest create-article-test ptest/db-spec
-  (let [handler              (h/configure-app h/app-routes
-                                              (tu/test-app-component-config ptest/db-spec))
+  (let [handler              (h/wrap-middleware h/app-routes
+                                                (tu/test-app-component-config ptest/db-spec))
         create-user          (fn [user] (-> "/users"
                                             (assemble-post-request user)
                                             (assoc :content-type "application/json")
