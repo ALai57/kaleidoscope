@@ -44,15 +44,6 @@
     (assoc m :avatar (b64/decode (.getBytes avatar)))
     m))
 
-(defn wrap-user [handler]
-  (fn [{user-id :identity
-        {database :database} ::mw/components
-        :as req}]
-    (if (and user-id database)
-      (handler (assoc req
-                      :user (user/get-user-profile-by-id database user-id)))
-      (handler (assoc req :user nil)))))
-
 (defmethod compojure-meta/restructure-param :swagger
   [_ {request-spec :request :as swagger} acc]
   (let [path (fn [spec] (str "#/components/schemas/" (name spec)))

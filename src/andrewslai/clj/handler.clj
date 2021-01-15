@@ -1,6 +1,7 @@
 (ns andrewslai.clj.handler
   (:gen-class)
-  (:require [andrewslai.clj.persistence.postgres2 :as pg]
+  (:require [andrewslai.clj.entities.user :as user]
+            [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.login :refer [login-routes]]
@@ -62,13 +63,20 @@
                 (:uri request))
       (handler request))))
 
+(defn wrap-user [handler]
+  (fn [{user-id :identity
+        {database :database} ::mw/components
+        :as req}]
+    (handler (assoc req :user (when (and user-id database)
+                                (user/get-user-profile-by-id database user-id))))))
+
 (defn wrap-middleware
   "Wraps a set of Compojure routes with middleware and adds
   components via the wrap-components middleware"
   [routes components]
   (-> routes
       wrap-logging
-      user-routes/wrap-user
+      wrap-user
       (wrap-authentication backend)
       (wrap-authorization backend)
       (wrap-session (or (:session components) {}))
