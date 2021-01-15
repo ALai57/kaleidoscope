@@ -11,26 +11,17 @@
             [andrewslai.clj.utils :as util]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
-            [clojure.data.codec.base64 :as b64]
             [compojure.api.middleware :as mw]
-            [compojure.api.swagger :as swag]
-            [compojure.api.sweet :refer [api routes defroutes undocumented GET POST]]
+            [compojure.api.sweet :refer [api defroutes GET routes]]
             [org.httpkit.server :as httpkit]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.cookies :refer [wrap-cookies]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
-            [ring.swagger.common :as rsc]
-            [ring.swagger.middleware :as rsm]
-            [ring.swagger.swagger-ui :as swagger-ui]
-            [ring.swagger.swagger2 :as swagger2]
-            [ring.util.http-response :refer [ok content-type resource-response]]
-            [spec-tools.core :as st-core]
-            [spec-tools.swagger.core :as st]
+            [ring.util.http-response :refer [content-type resource-response]]
             [taoensso.timbre :as log]
-            [taoensso.timbre.appenders.core :as appenders]
-            [clojure.spec.alpha :as s]))
+            [taoensso.timbre.appenders.core :as appenders]))
 
 ;; https://adambard.com/blog/buddy-password-auth-example/
 
@@ -74,16 +65,16 @@
 (defn wrap-middleware
   "Wraps a set of Compojure routes with middleware and adds
   components via the wrap-components middleware"
-  [routes app-components]
+  [routes components]
   (-> routes
       wrap-logging
       user-routes/wrap-user
       (wrap-authentication backend)
       (wrap-authorization backend)
-      (wrap-session (or (:session app-components) {}))
+      (wrap-session (or (:session components) {}))
       (wrap-resource "public")
       wrap-cookies
-      (mw/wrap-components app-components)
+      (mw/wrap-components components)
       wrap-content-type))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

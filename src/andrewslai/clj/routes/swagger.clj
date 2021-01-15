@@ -2,16 +2,14 @@
   (:require [andrewslai.clj.utils :as utils]
             [compojure.api.middleware :as mw]
             [compojure.api.swagger :as swag]
-            [compojure.api.sweet :refer [routes undocumented GET]]
+            [compojure.api.sweet :refer [GET routes undocumented]]
             [ring.swagger.common :as rsc]
             [ring.swagger.middleware :as rsm]
             [ring.swagger.swagger-ui :as swagger-ui]
             [ring.swagger.swagger2 :as swagger2]
-            [ring.util.http-response :refer [ok content-type resource-response]]
+            [ring.util.http-response :refer [ok]]
             [spec-tools.core :as st-core]
-            [spec-tools.swagger.core :as st]
-            [taoensso.timbre :as log]))
-
+            [spec-tools.swagger.core :as st]))
 
 (def example-data-2
   {:andrewslai.article/article {:summary "An example article"

@@ -1,22 +1,18 @@
 (ns andrewslai.clj.routes.users
   (:require [andrewslai.clj.api.users :as users-api]
             [andrewslai.clj.entities.user :as user]
-            [andrewslai.clj.routes.admin :refer [access-error]]
-            [andrewslai.clj.utils :refer [file->bytes parse-body]]
-            [buddy.auth.accessrules :refer [restrict]]
-            [cheshire.core :as json]
             [clojure.data.codec.base64 :as b64]
             [clojure.java.io :as io]
             [clojure.spec.alpha :as s]
-            [compojure.api.sweet :refer [context defroutes DELETE GET PATCH POST]]
             [compojure.api.meta :as compojure-meta]
-            [ring.util.http-response :refer [bad-request created not-found ok no-content]]
+            [compojure.api.middleware :as mw]
+            [compojure.api.sweet :refer [context defroutes DELETE GET PATCH POST]]
+            [ring.util.http-response
+             :refer
+             [bad-request created no-content not-found ok]]
             [ring.util.response :as response]
             [slingshot.slingshot :refer [try+]]
-            [spec-tools.core :as st-core]
-            [spec-tools.swagger.core :as st]
-            [taoensso.timbre :as log]
-            [compojure.api.middleware :as mw]))
+            [taoensso.timbre :as log]))
 
 (s/def ::avatar string?)
 (s/def ::avatar_url string?)

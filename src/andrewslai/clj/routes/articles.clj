@@ -1,13 +1,11 @@
 (ns andrewslai.clj.routes.articles
   (:require [andrewslai.clj.api.articles :as articles-api]
-            [andrewslai.clj.entities.article :as article]
             [andrewslai.clj.routes.admin :as admin]
-            [andrewslai.clj.utils :refer [parse-body]]
             [buddy.auth.accessrules :refer [restrict]]
+            [clojure.spec.alpha :as s]
             [compojure.api.meta :as compojure-meta]
             [compojure.api.sweet :refer [context GET POST]]
-            [ring.util.http-response :refer [ok not-found]]
-            [clojure.spec.alpha :as s]
+            [ring.util.http-response :refer [not-found ok]]
             [spec-tools.swagger.core :as swagger]))
 
 (s/def ::cookie string?)

@@ -1,16 +1,10 @@
 (ns andrewslai.clj.routes.login
-  (:require [andrewslai.clj.entities.user :as user]
-            [andrewslai.clj.utils :refer [parse-body]]
-            [andrewslai.clj.api.users :as users-api]
-            [cheshire.core :as json]
-            [compojure.api.sweet :refer [defroutes GET POST]]
-            [clojure.java.io :as io]
-            [ring.util.http-response :refer [unauthorized ok not-found created]]
-            [ring.util.response :as response]
-            [taoensso.timbre :as log]
-            [compojure.api.sweet :refer [context defroutes GET]]
+  (:require [andrewslai.clj.api.users :as users-api]
+            [andrewslai.clj.entities.user :as user]
             [clojure.spec.alpha :as s]
-            [ring.util.http-response :refer [ok]]))
+            [compojure.api.sweet :refer [context defroutes POST]]
+            [ring.util.http-response :refer [ok unauthorized]]
+            [taoensso.timbre :as log]))
 
 (s/def ::username string?)
 (s/def ::password string?)
