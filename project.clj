@@ -28,6 +28,7 @@
                  [metosin/compojure-api "2.0.0-alpha31"]
                  [metosin/spec-tools "0.10.3"]
                  [migratus "1.2.8"]
+                 [nubank/matcher-combinators "3.1.4"]
                  [org.clojure/clojure "1.10.1"]
                  [org.clojure/clojurescript "1.10.597"]
                  [org.clojure/core.async "1.0.567"

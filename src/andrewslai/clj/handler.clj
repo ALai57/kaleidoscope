@@ -67,8 +67,10 @@
   (fn [{user-id :identity
         {database :database} ::mw/components
         :as req}]
-    (handler (assoc req :user (when (and user-id database)
-                                (user/get-user-profile-by-id database user-id))))))
+    (handler (assoc req
+                    :user (and user-id
+                               database
+                               (user/get-user-profile-by-id database user-id))))))
 
 (defn wrap-middleware
   "Wraps a set of Compojure routes with middleware and adds
@@ -88,17 +90,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn -main
   "Start a server and run the application"
   [& {:keys [port]}]
   (println "Hello! Starting andrewslai on port" port)
-  (httpkit/run-server (wrap-middleware app-routes
-                                       {:database (pg/->Database (util/pg-conn))
-                                        :logging  (merge log/*config* {:level :info})
-                                        :session  {:cookie-attrs {:max-age 3600 :secure true}
-                                                   :store        (mem/memory-store (atom {}))}})
-                      {:port (or port
-                                 (some-> (System/getenv "ANDREWSLAI_PORT")
-                                         int)
-                                 5000)}))
+  (httpkit/run-server
+   (wrap-middleware app-routes
+                    {:database (pg/->Database (util/pg-conn))
+                     :logging  (merge log/*config* {:level :info})
+                     :session  {:cookie-attrs {:max-age 3600 :secure true}
+                                :store        (mem/memory-store (atom {}))}})
+   {:port (or port
+              (some-> (System/getenv "ANDREWSLAI_PORT")
+                      int)
+              5000)}))
