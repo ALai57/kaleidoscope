@@ -4,7 +4,7 @@
             [clojure.java.data :as j]
             [clojure.spec.alpha :as s]
             [crypto.password.bcrypt :as password])
-  (:import (com.nulabinc.zxcvbn Zxcvbn)))
+  (:import com.nulabinc.zxcvbn.Zxcvbn))
 
 (defn password-strength [password]
   (-> Zxcvbn
