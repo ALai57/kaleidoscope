@@ -1,8 +1,7 @@
 (ns andrewslai.clj.persistence.migrations
   (:require [andrewslai.clj.utils :as util]
-            [migratus.core :as m]
-            [migratus.migrations :as mm]
-            [clojure.java.jdbc :as sql]))
+            [clojure.java.jdbc :as sql]
+            [migratus.core :as m]))
 
 (defn pg-db->migratus-config [{:keys [host dbname user password]}]
   {:migration-dirs "migrations"

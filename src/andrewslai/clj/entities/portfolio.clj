@@ -1,8 +1,6 @@
 (ns andrewslai.clj.entities.portfolio
   (:require [andrewslai.clj.persistence.postgres2 :as pg]
-            [clojure.java.data :as j]
-            [clojure.spec.alpha :as s]
-            [spec-tools.spec :as spec]))
+            [clojure.spec.alpha :as s]))
 
 (s/def :andrewslai.portfolio/id int?)
 (s/def :andrewslai.portfolio/name string?)

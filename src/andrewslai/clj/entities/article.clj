@@ -1,9 +1,7 @@
 (ns andrewslai.clj.entities.article
   (:require [andrewslai.clj.persistence.postgres2 :as pg]
-            [clojure.java.data :as j]
             [clojure.spec.alpha :as s]
             [spec-tools.spec :as spec]))
-
 
 (s/def :andrewslai.article/article_id spec/integer?)
 (s/def :andrewslai.article/article_name spec/string?)

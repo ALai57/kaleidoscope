@@ -1,12 +1,11 @@
 (ns andrewslai.clj.persistence.postgres2
   (:require [andrewslai.clj.persistence.persistence :as p :refer [Persistence]]
-            [andrewslai.clj.utils :refer [validate]]
+            [andrewslai.clj.utils :as util :refer [validate]]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
-            [slingshot.slingshot :refer [throw+ try+]]
-            [andrewslai.clj.utils :as util])
+            [slingshot.slingshot :refer [throw+ try+]])
   (:import org.postgresql.util.PGobject))
 
 (extend-protocol sql/IResultSetReadColumn
