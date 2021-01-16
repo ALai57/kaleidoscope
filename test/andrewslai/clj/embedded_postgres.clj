@@ -1,6 +1,7 @@
-(ns andrewslai.clj.embedded-db
+(ns andrewslai.clj.embedded-postgres
   (:require [clojure.java.jdbc :as jdbc]
-            [migratus.core :as migratus])
+            [migratus.core :as migratus]
+            [andrewslai.clj.persistence.postgres2 :as pg])
   (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
 
 (defn ->db-spec
@@ -15,13 +16,14 @@
    :store :database
    :db db-spec})
 
-(defmacro with-embedded-db
+(defmacro with-embedded-postgres
   "Starts a fresh db - will cleanup and rollback all database transactions
   db-spec defines the database connection. "
-  [db-spec & body]
+  [database & body]
   `(let [db#   (.start (EmbeddedPostgres/builder))
-         ~db-spec (->db-spec db#)]
-     (migratus/migrate (spec->migratus ~db-spec))
-     (jdbc/with-db-transaction [txn# ~db-spec]
+         db-spec# (->db-spec db#)
+         ~database (pg/->Database db-spec#)]
+     (migratus/migrate (spec->migratus db-spec#))
+     (jdbc/with-db-transaction [txn# db-spec#]
        (jdbc/db-set-rollback-only! txn#)
        ~@body)))
