@@ -1,13 +1,7 @@
 (ns andrewslai.clj.handler-test
-  (:require [andrewslai.clj.handler :as h]
-            [andrewslai.clj.test-utils :as u]
-            [cheshire.core :as json]
-            [clojure.test :refer [deftest is testing]]
-            [clojure.spec.alpha :as s]
-            [matcher-combinators.test]
-            [ring.mock.request :as mock]
-            [taoensso.timbre :as timbre]))
-
+  (:require [andrewslai.clj.test-utils :as u]
+            [clojure.test :refer [deftest is]]
+            [matcher-combinators.test]))
 
 (deftest ping-test
   (is (match? {:status 200
