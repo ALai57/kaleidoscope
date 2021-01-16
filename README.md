@@ -53,28 +53,6 @@ of Postgres running on an AWS database, you'll need to provide the correct
 environment variables for the database.
 `docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai`
 
-# Deployment
-
-CREATE ELASTIC BEANSTALK ENVIRONMENT
-```
-aws elasticbeanstalk create-environment \
-    --application-name andrewslai \
-    --environment-name staging \
-    --solution-stack-name "64bit Amazon Linux 2018.03 v2.12.14 running Docker 18.06.1-ce" \
-    --region us-east-1
-    --option-settings file://eb-default-vpc.json
-```
-
-MODIFY RESUME CARDS HORRIBLE HACK:
-`cider-jack-in-with-profile upload`
-in the articles.clj namespace, look at comment at bottom of file
-use this to update the database - but be careful! It overwrites
-existing DB and repopulates from scratch.
-
-TERRAFORM
-`terraform plan -var-file=andrewslai_secrets.tfvars`
-
-
 # Helpful commands
 
 CIDER JACK IN WITH PROFILE
@@ -102,13 +80,6 @@ docker build -t andrewslai .
 docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai
 docker ps
 docker stop 02d64e84e7c3
-```
-
-ELASTIC BEANSTALK
-```
-eb platform select
-eb platform show
-eb ssh staging
 ```
 
 PSQL:

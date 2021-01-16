@@ -20,7 +20,6 @@ docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai
 Step 3: Upload artifact
 
 ```
-copy-to-s3
-create-application-version
-update-environment
+./push-to-ecr
+./deploy-image
 ```
