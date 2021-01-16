@@ -25,16 +25,10 @@
                 (tu/http-request :get "/articles/does-not-exist"
                                  {:database database})))))
 
-(defn assemble-post-request [endpoint payload]
-  (-> (mock/request :post endpoint)
-      (assoc :body-params payload)))
-
 (defn get-cookie [response]
   (-> response
-      :headers
-      (get "Set-Cookie")
+      (get-in [:headers "Set-Cookie"])
       first))
-
 
 (defn create-user!
   [components user]
@@ -59,8 +53,7 @@
   (with-embedded-postgres database
     (let [session     (atom {})
           components  {:database database
-                       :session {:cookie-attrs {:max-age 3600 :secure false}
-                                 :store        (mem/memory-store session)}}
+                       :session {:store (mem/memory-store session)}}
 
           _        (create-user! components u/new-user)
           response (login-user components (select-keys u/new-user [:username :password]))]

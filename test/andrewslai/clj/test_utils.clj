@@ -2,6 +2,7 @@
   (:require [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.postgres2 :as pg]
+            [andrewslai.clj.utils :as util]
             [cheshire.core :as json]
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer [deftest]]
@@ -42,8 +43,6 @@
 
 
 
-
-
 (defn captured-logging [logging-atom]
   {:level :debug
    :appenders {:println {:enabled? true,
@@ -63,7 +62,10 @@
        :or {parser #(json/parse-string % keyword)}
        :as options}]]
 
-  (let [app (h/wrap-middleware h/app-routes components)]
+  (let [defaults {:logging (merge log/*config* {:level :error})
+                  :session {:cookie-attrs {:max-age 3600 :secure false}
+                            :store        (mem/memory-store (atom {}))}}
+        app (h/wrap-middleware h/app-routes (util/deep-merge defaults components))]
     (update (app (reduce conj
                          {:request-method method :uri endpoint}
                          options))
