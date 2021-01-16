@@ -42,22 +42,33 @@
                :last_name "user"
                :email "newuser@andrewslai.com"})
 
+
+(defn create-user!
+  [components user]
+  (tu/http-request :post "/users"
+                   components {:body-params user}))
+
+(defn get-user
+  [components user]
+  (tu/http-request :get (str "/users/" user) components))
+
+(defn delete-user!
+  [components user credentials]
+  (tu/http-request :delete (str "/users/" user)
+                   components {:body-params credentials}))
+
 (deftest user-registration-happy-path
   (with-embedded-postgres database
     (let [session     (atom {})
-          components  {:database database}
-
-          response (tu/http-request :post "/users" components
-                                    {:body-params new-user})]
+          components  {:database database}]
       (is (match? {:status 201
                    :body #(s/valid? ::user-routes/created_user %)
-                   :headers {"Location" "/users/new-user"}}
-                  response))
+                   :headers {"Location" (str "/users/" (:username new-user))}}
+                  (create-user! components new-user)))
 
       (is (match? {:status 200
-                   :body (dissoc new-user :password)}
-                  (update (tu/http-request :get (get-in response [:headers "Location"])
-                                           components)
+                   :body   (dissoc new-user :password)}
+                  (update (get-user components (:username new-user))
                           :body
                           #(dissoc % :id :role_id)))))))
 
@@ -68,44 +79,36 @@
 (deftest duplicate-user-registration
   (with-embedded-postgres database
     (let [components  {:database database}]
-      (tu/http-request :post "/users" components {:body-params new-user})
+      (create-user! components new-user)
       (is (match? {:status 400
                    :body {:type "PersistenceException"
                           :message unique-constraint-violation?}}
-                  (tu/http-request :post "/users"
-                                   components {:body-params new-user}) )))))
+                  (create-user! components new-user))))))
 
-(defdbtest deleting-user ptest/db-spec
-  (let [user-path (str "/users/" (:username new-user))]
-    (testing "Delete user"
-      ((test-users-app) (assoc (mock/request :post "/users"
-                                             (json/generate-string new-user))
-                               :content-type "application/json"))
-      (let [{:keys [status] :as response}
-            ((test-users-app)
-             (assoc (mock/request :delete user-path)
-                    :headers {:content-type "application/json"}
-                    :body-params (-> new-user
-                                     (select-keys [:username :password]))))]
-        (is (= 204 status)))
-      (let [{:keys [status headers] :as response}
-            ((test-users-app) (mock/request :get user-path))]
-        (is (= 404 status))))))
+(deftest delete-user
+  (with-embedded-postgres database
+    (let [components  {:database database}
+          credentials (select-keys new-user [:username :password])]
+      (create-user! components new-user)
+      (is (match? {:status 204 :body map?}
+                  (delete-user! components (:username new-user) credentials)))
+      (is (match? {:status 404 :body {:message string?}}
+                  (get-user components (:username new-user)))))))
 
-(defdbtest registration-invalid-arguments ptest/db-spec
-  (testing "Illegal Arguments"
-    (let [{:keys [status] :as response}
-          ((test-users-app)
-           (assoc (mock/request :post "/users"
-                                (json/generate-string (assoc new-user
-                                                             :password
-                                                             "password")))
-                  :content-type "application/json"))
-          {:keys [type subtype message]} (parse-body response)]
-      (is (= 400 status))
-      (is (= "IllegalArgumentException" type))
-      (is (= "andrewslai.user/password" subtype))
-      (is (clojure.string/includes? message "failed: (fn sufficient-strength?")))))
+(defn insufficient-strength?
+  [s]
+  (clojure.string/includes? s "failed: (fn sufficient-strength?"))
+
+(deftest registration-invalid-arguments
+  (with-embedded-postgres database
+    (let [components  {:database database}
+          user-path   (str "/users/" (:username new-user))]
+      (is (match? {:status 400
+                   :body {:type "IllegalArgumentException"
+                          :subtype "andrewslai.user/password"
+                          :message insufficient-strength?}}
+                  (create-user! components
+                                (assoc new-user :password "password")))))))
 
 (defdbtest login-test ptest/db-spec
   ((test-users-app) (assoc (mock/request :post "/users" (json/generate-string new-user))

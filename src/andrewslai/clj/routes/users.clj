@@ -79,14 +79,14 @@
       (let [result (users-api/get-user database username)]
         (if result
           (ok result)
-          (not-found))))
+          (not-found {:message "Could not find user"}))))
 
     (DELETE "/:username" {credentials :body-params}
       :swagger {:request :andrewslai.credentials/credentials}
       (let [result (users-api/delete-user! database credentials)]
         (if (map? result)
-          (no-content)
-          (not-found))))
+          {:status 204 :body result}
+          (not-found {:message "Could not delete user"}))))
 
     (PATCH "/:username" {{:keys [username]} :route-params
                          update-map :body-params
