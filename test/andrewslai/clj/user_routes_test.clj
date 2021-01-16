@@ -1,26 +1,19 @@
 (ns andrewslai.clj.user-routes-test
-  (:require [andrewslai.clj.handler :as h]
+  (:require [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
+            [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.postgres-test :as ptest]
+            [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.routes.users :as user-routes]
-            [andrewslai.clj.test-utils :refer [defdbtest]]
-            [andrewslai.clj.utils :refer [parse-body
-                                          file->bytes]]
-            [buddy.auth.backends.session :refer [session-backend]]
-            [buddy.auth.middleware :refer [wrap-authentication
-                                           wrap-authorization]]
+            [andrewslai.clj.test-utils :as tu :refer [defdbtest]]
+            [andrewslai.clj.utils :refer [parse-body]]
             [cheshire.core :as json]
             [clojure.data.codec.base64 :as b64]
-            [clojure.java.jdbc :as jdbc]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [deftest is testing]]
-            [compojure.api.sweet :refer [api GET POST]]
-            [ring.middleware.cookies :refer [wrap-cookies]]
-            [ring.middleware.session :refer [wrap-session]]
+            [compojure.api.sweet :refer [api GET]]
+            [matcher-combinators.test]
             [ring.middleware.session.memory :as mem]
-            [ring.mock.request :as mock]
-            [andrewslai.clj.persistence.postgres2 :as postgres2]
-            ))
-
+            [ring.mock.request :as mock]))
 
 (def session-atom (atom {}))
 
@@ -49,36 +42,38 @@
                :last_name "user"
                :email "newuser@andrewslai.com"})
 
-(defdbtest user-registration-test ptest/db-spec
-  (testing "Registration happy path"
-    (let [{:keys [status headers] :as response}
-          ((test-users-app) (assoc (mock/request :post "/users"
-                                                 (json/generate-string new-user))
-                                   :content-type "application/json"))
-          user-url (get headers "Location")]
-      (is (= 201 status))
-      (is (s/valid? ::user-routes/created_user (parse-body response)))
-      (is (= "/users/new-user" user-url))
-      (testing "Can retrieve the new user"
-        (let [{:keys [status headers] :as response}
-              ((test-users-app) (mock/request :get user-url))]
-          (is (= 200 status))
-          (is (= (-> new-user
-                     (dissoc :password)
-                     (assoc :role_id 2))
-                 (-> response
-                     parse-body
-                     (dissoc :id))))))))
-  (testing "Registration sad path"
-    (testing "Duplicate user"
-      (let [{:keys [status] :as response}
-            ((test-users-app) (assoc (mock/request :post "/users"
-                                                   (json/generate-string new-user))
-                                     :content-type "application/json"))
-            {:keys [type message]} (parse-body response)]
-        (is (= 400 status))
-        (is (= "PersistenceException" type))
-        (is (clojure.string/includes? message "ERROR: duplicate key value violates unique constraint"))))))
+(deftest user-registration-happy-path
+  (with-embedded-postgres database
+    (let [session     (atom {})
+          components  {:database database}
+
+          response (tu/http-request :post "/users" components
+                                    {:body-params new-user})]
+      (is (match? {:status 201
+                   :body #(s/valid? ::user-routes/created_user %)
+                   :headers {"Location" "/users/new-user"}}
+                  response))
+
+      (is (match? {:status 200
+                   :body (dissoc new-user :password)}
+                  (update (tu/http-request :get (get-in response [:headers "Location"])
+                                           components)
+                          :body
+                          #(dissoc % :id :role_id)))))))
+
+(defn unique-constraint-violation?
+  [s]
+  (clojure.string/includes? s "ERROR: duplicate key value violates unique constraint"))
+
+(deftest duplicate-user-registration
+  (with-embedded-postgres database
+    (let [components  {:database database}]
+      (tu/http-request :post "/users" components {:body-params new-user})
+      (is (match? {:status 400
+                   :body {:type "PersistenceException"
+                          :message unique-constraint-violation?}}
+                  (tu/http-request :post "/users"
+                                   components {:body-params new-user}) )))))
 
 (defdbtest deleting-user ptest/db-spec
   (let [user-path (str "/users/" (:username new-user))]
