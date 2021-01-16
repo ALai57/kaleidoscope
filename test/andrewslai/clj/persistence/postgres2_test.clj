@@ -1,8 +1,7 @@
 (ns andrewslai.clj.persistence.postgres2-test
-  (:require [andrewslai.clj.persistence.persistence :as p]
-            [andrewslai.clj.persistence.postgres-test :as ptest]
-            [andrewslai.clj.persistence.postgres2 :as postgres]
-            [andrewslai.clj.test-utils :refer [defdbtest]]
+  (:require [andrewslai.clj.persistence.persistence :as persist]
+            [andrewslai.clj.persistence.postgres2 :as pg]
+            [andrewslai.clj.embedded-db :refer [with-embedded-db]]
             [clojure.test :refer [is]]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
@@ -33,14 +32,15 @@
       (hh/where [:= :users/username username])
       hsql/format))
 
+(def all-users
+  (hsql/format {:select [:*] :from [:users]}))
+
 (defspec insert-get-delete-test
-  (let [db        (postgres/->Database ptest/db-spec)
-        all-users (hsql/format {:select [:*] :from [:users]})]
-    (prop/for-all [user gen-user]
-      (and (is (empty? (p/select db all-users)))
-           (is (= user (p/transact! db (add-user user))))
-           (let [result (p/select db all-users)]
-             (is (= 1 (count result)))
-             (is (= user (first result))))
-           (is (= user (p/transact! db (del-user (:username user)))))
-           (is (empty? (p/select db all-users)))))))
+  (with-embedded-db db-spec
+    (let [database (pg/->Database db-spec)]
+      (prop/for-all [user gen-user]
+        (and (is (empty?   (persist/select database all-users)))
+             (is (= user   (persist/transact! database (add-user user))))
+             (is (= [user] (persist/select database all-users)))
+             (is (= user   (persist/transact! database (del-user (:username user)))))
+             (is (empty?   (persist/select database all-users))))))))

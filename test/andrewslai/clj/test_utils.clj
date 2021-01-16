@@ -4,11 +4,13 @@
             [andrewslai.clj.persistence.postgres2 :as pg]
             [cheshire.core :as json]
             [clojure.java.jdbc :as jdbc]
-            [clojure.test :refer [deftest is testing]]
+            [clojure.test :refer [deftest]]
             [hickory.core :as hkry]
+            [migratus.core :as migratus]
             [ring.middleware.session.memory :as mem]
             [ring.mock.request :as mock]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log])
+  (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
 
 ;; Deal with the dynamic vars better/at all
 (defmacro defdbtest
@@ -37,6 +39,10 @@
    (->> route
         (mock/request :get)
         app)))
+
+
+
+
 
 (defn captured-logging [logging-atom]
   {:level :debug
