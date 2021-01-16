@@ -2,8 +2,10 @@
   (:require [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.postgres2 :as pg]
+            [cheshire.core :as json]
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer [deftest is testing]]
+            [hickory.core :as hkry]
             [ring.middleware.session.memory :as mem]
             [ring.mock.request :as mock]
             [taoensso.timbre :as log]))
@@ -35,3 +37,26 @@
    (->> route
         (mock/request :get)
         app)))
+
+(defn captured-logging [logging-atom]
+  {:level :debug
+   :appenders {:println {:enabled? true,
+                         :level :debug
+                         :output-fn (fn [data]
+                                      (force (:msg_ data)))
+                         :fn (fn [data]
+                               (let [{:keys [output_]} data]
+                                 (swap! logging-atom conj (force output_))))}}})
+
+(defn ->hiccup [s]
+  (hkry/as-hiccup (hkry/parse s)))
+
+(defn http-request
+  [method endpoint components
+   & [{:keys [body parser]
+       :or {parser #(json/parse-string % keyword)}
+       :as options}]]
+
+  (let [app (h/wrap-middleware h/app-routes components)]
+    (update (app {:request-method method :uri endpoint})
+            :body #(parser (slurp %)))))
