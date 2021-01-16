@@ -4,30 +4,13 @@
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.routes.users :as user-routes]
-            [andrewslai.clj.test-utils :as tu :refer [defdbtest]]
-            [andrewslai.clj.utils :refer [parse-body]]
-            [cheshire.core :as json]
+            [andrewslai.clj.test-utils :as tu]
             [clojure.data.codec.base64 :as b64]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [deftest is testing]]
             [compojure.api.sweet :refer [api GET]]
             [matcher-combinators.test]
-            [ring.middleware.session.memory :as mem]
-            [ring.mock.request :as mock]))
-
-(def session-atom (atom {}))
-
-(defn components []
-  {:database (postgres2/->Database ptest/db-spec)
-   :session {:store (mem/memory-store session-atom)}})
-
-(defn test-users-app []
-  (h/wrap-middleware h/app-routes (components)))
-
-(defn identity-handler []
-  (h/wrap-middleware (api
-                      (GET "/echo" request
-                        {:user-authentication (:user request)})) (components)))
+            [ring.middleware.session.memory :as mem]))
 
 (def b64-encoded-avatar (->> "Hello world!"
                              (map (comp byte int))
@@ -200,16 +183,11 @@
                                  (dissoc :password)
                                  (assoc :first_name "new.2"
                                         :last_name "user.2"))}
-                    (get-user components (:username new-user)))))))
-  #_(testing "Error when user update is invalid"
-      (let [user-update {:first_name ""}
+                    (get-user components (:username new-user)))))
 
-            {:keys [status headers] :as response}
-            ((test-users-app) (mock/request :patch user-url
-                                            (json/generate-string user-update)))]
-        (is (= 400 status))
-        (is (= {:type "IllegalArgumentException"
-                :subtype "andrewslai.user/user-update"}
-               (select-keys (-> response
-                                parse-body)
-                            [:type :subtype]))))))
+      (testing "Error when user update is invalid"
+        (is (match? {:status 400
+                     :body {:type "IllegalArgumentException"
+                            :subtype "andrewslai.user/user-update"}}
+                    (update-user! components (:username new-user)
+                                  {:first_name ""})))))))
