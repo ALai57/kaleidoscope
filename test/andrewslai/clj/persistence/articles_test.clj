@@ -20,8 +20,3 @@
         (is (= example-article (dissoc article :timestamp :article_id))))
       (testing "Retrieve article"
         (is (= article (article/get-article database "my-test-article")))))))
-
-#_(defdbtest exceptions-test ptest/db-spec
-    (testing "Invalid article name"
-      (is (thrown+? [:type :IllegalArgumentException]
-                    (article/get-article (test-db) 1)))))

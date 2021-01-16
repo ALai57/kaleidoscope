@@ -12,7 +12,7 @@
   (log/info "Not authorized for endpoint")
   {:status 401
    :headers {}
-   :body "Not authorized"})
+   :body {:reason "Not authorized"}})
 
 (defroutes admin-get
   (GET "/" []

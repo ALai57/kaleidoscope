@@ -64,5 +64,7 @@
        :as options}]]
 
   (let [app (h/wrap-middleware h/app-routes components)]
-    (update (app {:request-method method :uri endpoint})
+    (update (app (reduce conj
+                         {:request-method method :uri endpoint}
+                         options))
             :body #(parser (slurp %)))))
