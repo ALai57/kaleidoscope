@@ -57,6 +57,11 @@
   (tu/http-request :delete (str "/users/" user)
                    components {:body-params credentials}))
 
+(defn login-user
+  [components credentials]
+  (tu/http-request :post "/sessions/login"
+                   components {:body-params credentials}))
+
 (deftest user-registration-happy-path
   (with-embedded-postgres database
     (let [session     (atom {})
@@ -110,52 +115,51 @@
                   (create-user! components
                                 (assoc new-user :password "password")))))))
 
-(defdbtest login-test ptest/db-spec
-  ((test-users-app) (assoc (mock/request :post "/users" (json/generate-string new-user))
-                           :content-type "application/json"))
-  (let [credentials (select-keys new-user [:username :password])
+(defn admin-route
+  [components options]
+  (tu/http-request :get "/admin/" components options))
 
-        {:keys [status headers] :as initial-response}
-        ((test-users-app) (-> (mock/request :post "/sessions/login")
-                              (assoc :body-params credentials)))
+(defn logout
+  [components options]
+  (tu/http-request :post "/sessions/logout" components options))
 
-        cookie (first (get headers "Set-Cookie"))]
-    (testing "login happy path"
-      (is (= 200 status))
-      (is (contains? headers "Set-Cookie")))
-    (testing "cookies work properly"
-      (let [{:keys [user-authentication]}
-            ((identity-handler) (assoc-in (mock/request :get "/echo")
-                                          [:headers "cookie"] cookie))]
-        (is (= (dissoc new-user :avatar :password)
-               (-> {}
-                   (into user-authentication)
-                   (dissoc :id :role_id :avatar))))))
-    (testing "Can hit admin route with valid session token"
-      (let [response
-            ((test-users-app) (assoc-in (mock/request :get "/admin/")
-                                        [:headers "cookie"] cookie))]
-        (is (= 200 (:status response)))
-        (is (= {:message "Got to the admin-route!"} (parse-body response)))))
-    (testing "Rejected from admin route when valid session token not present"
-      (let [{:keys [status body]}
-            ((test-users-app) (mock/request :get "/admin/"))]
-        (is (= 401 status))
-        #_(is (= "Not authorized" body))))
-    (testing "After logout, cannot hit admin routes"
-      ((test-users-app) (assoc-in (mock/request :post "/sessions/logout")
-                                  [:headers "cookie"] cookie))
-      (let [{:keys [status body]}
-            ((test-users-app) (assoc-in (mock/request :get "/admin/")
-                                        [:headers "cookie"] cookie))]
-        (is (= 401 status))
-        #_(is (= "Not authorized" body)))))
-  (testing "Login with incorrect password"
-    (let [credentials (json/generate-string {:username "Andrew", :password "L"})
-          {:keys [status headers]}
-          ((test-users-app) (mock/request :post "/sessions/login" credentials))]
-      (is (= 401 status))
-      (is (not (contains? headers "Set-Cookie"))))))
+(deftest login-test
+  (with-embedded-postgres database
+    (let [session     (atom {})
+          components  {:database database
+                       :session  {:store (mem/memory-store session)}}
+          user-path   (str "/users/" (:username new-user))
+          _           (create-user! components new-user)
+          response    (login-user components (select-keys new-user [:username :password]))
+          [cookie]    (get-in response [:headers "Set-Cookie"])]
+
+      (testing "Sucessful login returns `Set-Cookie` header"
+        (is (match? {:status 200
+                     :headers {"Set-Cookie" coll?}}
+                    response)))
+
+      (testing "Can get to admin route by supplying cookie"
+        (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
+                    (admin-route components {:headers {"cookie" cookie}}))))
+
+      (testing "Can't get to admin route if no cookie present"
+        (is (match? {:status 401 :body {:reason "Not authorized"}}
+                    (admin-route components {}))))
+
+      (testing "After logout, cannot hit admin routes"
+        (logout components {:headers {"cookie" cookie}})
+        (is (match? {:status 401 :body {:reason "Not authorized"}}
+                    (admin-route components {:headers {"cookie" cookie}})))))))
+
+(deftest incorrect-password-cannot-login
+  (with-embedded-postgres database
+    (let [components  {:database database}
+          user-path   (str "/users/" (:username new-user))
+          _           (create-user! components new-user)
+          response    (login-user components {:username "Andrew", :password "L"})]
+      (is (match? {:status 401} response))
+      (is (not (contains? (:headers response) "Set-Cookie"))))))
+
 
 (defdbtest user-avatar-test ptest/db-spec
   ((test-users-app) (assoc (mock/request :post "/users" (json/generate-string new-user))

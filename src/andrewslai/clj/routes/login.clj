@@ -34,8 +34,8 @@
             (assoc (ok user)
                    :session (assoc session :identity user-id)))
           (do (log/info "Invalid username/password")
-              (unauthorized)))))
+              (unauthorized {:message "Unable to login"})))))
 
     (POST "/logout" []
-      (-> (ok)
+      (-> (ok {:message "Logout successful"})
           (assoc :session nil)))))
