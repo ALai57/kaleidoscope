@@ -45,6 +45,33 @@
   (tu/http-request :post "/sessions/login"
                    components {:body-params credentials}))
 
+(defn get-user-avatar
+  ([components user]
+   (get-user-avatar components user {}))
+  ([components user options]
+   (tu/http-request :get (str "/users/" user "/avatar") components options)))
+
+(defn update-user!
+  [components user user-update]
+  (tu/http-request :patch (str "/users/" user)
+                   components {:body-params user-update}))
+
+(defn admin-route
+  [components options]
+  (tu/http-request :get "/admin/" components options))
+
+(defn logout
+  [components options]
+  (tu/http-request :post "/sessions/logout" components options))
+
+(defn unique-constraint-violation?
+  [s]
+  (clojure.string/includes? s "ERROR: duplicate key value violates unique constraint"))
+
+(defn insufficient-strength?
+  [s]
+  (clojure.string/includes? s "failed: (fn sufficient-strength?"))
+
 (deftest user-registration-happy-path
   (with-embedded-postgres database
     (let [session     (atom {})
@@ -59,10 +86,6 @@
                   (update (get-user components (:username new-user))
                           :body
                           #(dissoc % :id :role_id)))))))
-
-(defn unique-constraint-violation?
-  [s]
-  (clojure.string/includes? s "ERROR: duplicate key value violates unique constraint"))
 
 (deftest duplicate-user-registration
   (with-embedded-postgres database
@@ -83,10 +106,6 @@
       (is (match? {:status 404 :body {:message string?}}
                   (get-user components (:username new-user)))))))
 
-(defn insufficient-strength?
-  [s]
-  (clojure.string/includes? s "failed: (fn sufficient-strength?"))
-
 (deftest registration-invalid-arguments
   (with-embedded-postgres database
     (let [components  {:database database}
@@ -97,14 +116,6 @@
                           :message insufficient-strength?}}
                   (create-user! components
                                 (assoc new-user :password "password")))))))
-
-(defn admin-route
-  [components options]
-  (tu/http-request :get "/admin/" components options))
-
-(defn logout
-  [components options]
-  (tu/http-request :post "/sessions/logout" components options))
 
 (deftest login-test
   (with-embedded-postgres database
@@ -143,13 +154,6 @@
       (is (match? {:status 401} response))
       (is (not (contains? (:headers response) "Set-Cookie"))))))
 
-(defn get-user-avatar
-  ([components user]
-   (get-user-avatar components user {}))
-  ([components user options]
-   (tu/http-request :get (str "/users/" user "/avatar") components options)))
-
-
 (deftest user-avatar-test
   (with-embedded-postgres database
     (let [components  {:database database}]
@@ -158,11 +162,6 @@
                    :body   "Hello world!"}
                   (get-user-avatar components (:username new-user)
                                    {:parser identity}))))))
-
-(defn update-user!
-  [components user user-update]
-  (tu/http-request :patch (str "/users/" user)
-                   components {:body-params user-update}))
 
 (deftest update-user-test
   (with-embedded-postgres database
