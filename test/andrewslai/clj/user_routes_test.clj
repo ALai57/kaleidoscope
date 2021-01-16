@@ -160,50 +160,48 @@
       (is (match? {:status 401} response))
       (is (not (contains? (:headers response) "Set-Cookie"))))))
 
+(defn get-user-avatar
+  ([components user]
+   (get-user-avatar components user {}))
+  ([components user options]
+   (tu/http-request :get (str "/users/" user "/avatar") components options)))
 
-(defdbtest user-avatar-test ptest/db-spec
-  ((test-users-app) (assoc (mock/request :post "/users" (json/generate-string new-user))
-                           :content-type "application/json"))
-  (testing "Get user avatar"
-    (let [{:keys [status body headers]}
-          ((test-users-app) (mock/request :get
-                                          "/users/new-user/avatar"
-                                          ))]
-      (is (= 200 status))
-      (is (= java.io.BufferedInputStream (type body))))))
 
-(defdbtest update-user-test ptest/db-spec
-  (let [{:keys [headers] :as response}
-        ((test-users-app) (assoc (mock/request :post "/users"
-                                               (json/generate-string new-user))
-                                 :content-type "application/json"))
-        user-url (get headers "Location")]
-    (testing "Can update the new user"
-      (let [user-update {:first_name "new.2"
-                         :last_name "user.2"}
+(deftest user-avatar-test
+  (with-embedded-postgres database
+    (let [components  {:database database}]
+      (create-user! components new-user)
+      (is (match? {:status 200
+                   :body   "Hello world!"}
+                  (get-user-avatar components (:username new-user)
+                                   {:parser identity}))))))
 
-            {:keys [status headers] :as response}
-            ((test-users-app) (-> (mock/request :patch user-url)
-                                  (assoc :body-params user-update)))
-            response-body (parse-body response)]
-        (is (= 200 status))
-        (is (= user-update (select-keys response-body (keys user-update))))
-        (is (= (format "users/%s/avatar" (:username new-user))
-               (:avatar_url response-body)))))
-    (testing "Can retrieve the new user"
-      (let [{:keys [status headers] :as response}
-            ((test-users-app) (mock/request :get user-url))]
-        (is (= 200 status))
-        (is (= {:username "new-user"
-                :avatar b64-encoded-avatar
-                :first_name "new.2"
-                :last_name "user.2"
-                :email "newuser@andrewslai.com"
-                :role_id 2}
-               (-> response
-                   parse-body
-                   (dissoc :id))))))
-    (testing "Error when user update is invalid"
+(defn update-user!
+  [components user user-update]
+  (tu/http-request :patch (str "/users/" user)
+                   components {:body-params user-update}))
+
+(deftest update-user-test
+  (with-embedded-postgres database
+    (let [components  {:database database}
+          user-update {:first_name "new.2"
+                       :last_name "user.2"}]
+      (create-user! components new-user)
+
+      (testing "Can make a user update"
+        (is (match? {:status 200
+                     :body (assoc user-update
+                                  :avatar_url (format "users/%s/avatar" (:username new-user)))}
+                    (update-user! components (:username new-user) user-update))))
+
+      (testing "Can retrieve the new user"
+        (is (match? {:status 200
+                     :body   (-> new-user
+                                 (dissoc :password)
+                                 (assoc :first_name "new.2"
+                                        :last_name "user.2"))}
+                    (get-user components (:username new-user)))))))
+  #_(testing "Error when user update is invalid"
       (let [user-update {:first_name ""}
 
             {:keys [status headers] :as response}
@@ -214,4 +212,4 @@
                 :subtype "andrewslai.user/user-update"}
                (select-keys (-> response
                                 parse-body)
-                            [:type :subtype])))))))
+                            [:type :subtype]))))))
