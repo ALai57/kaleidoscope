@@ -87,7 +87,7 @@
                           :body
                           #(dissoc % :id :role_id)))))))
 
-(deftest duplicate-user-registration
+(deftest cannot-register-duplicate-user
   (with-embedded-postgres database
     (let [components  {:database database}]
       (create-user! components new-user)
@@ -182,7 +182,14 @@
                                  (dissoc :password)
                                  (assoc :first_name "new.2"
                                         :last_name "user.2"))}
-                    (get-user components (:username new-user)))))
+                    (get-user components (:username new-user))))))))
+
+(deftest update-user-failure-test
+  (with-embedded-postgres database
+    (let [components  {:database database}
+          user-update {:first_name "new.2"
+                       :last_name "user.2"}]
+      (create-user! components new-user)
 
       (testing "Error when user update is invalid"
         (is (match? {:status 400
