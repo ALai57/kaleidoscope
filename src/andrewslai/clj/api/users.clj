@@ -3,7 +3,8 @@
             [andrewslai.clj.utils :refer [file->bytes validate]]
             [clojure.java.data :as j]
             [clojure.spec.alpha :as s]
-            [crypto.password.bcrypt :as password])
+            [crypto.password.bcrypt :as password]
+            [taoensso.timbre :as log])
   (:import com.nulabinc.zxcvbn.Zxcvbn))
 
 (defn password-strength [password]
@@ -29,10 +30,12 @@
 (defn login
   "Verify credentials and return the user ID if successful"
   [database {:keys [username password] :as credentials}]
-  (when-let [user-id (verify-credentials database credentials)]
-    (-> database
-        (user/get-user-profile-by-id user-id)
-        (assoc :avatar_url (format "users/%s/avatar" username)))))
+  (if-let [user-id (verify-credentials database credentials)]
+    (do (log/info "Authenticated login!")
+        (-> database
+            (user/get-user-profile-by-id user-id)
+            (assoc :avatar_url (format "users/%s/avatar" username))))
+    (log/info "Invalid username/password")))
 
 (defn get-user
   [database username]
