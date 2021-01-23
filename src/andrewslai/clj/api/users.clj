@@ -17,7 +17,7 @@
   (s/and string? (fn sufficient-strength? [password]
                    (<= 4 (password-strength password)))))
 
-(defn login
+(defn verify-credentials
   "Verify credentials and return the user ID if successful"
   [database {:keys [username password] :as credentials}]
   (if-let [id (:id (user/get-user-profile database username))]
@@ -26,13 +26,21 @@
            (password/check password password-from-db)
            id))))
 
+(defn login
+  "Verify credentials and return the user ID if successful"
+  [database {:keys [username password] :as credentials}]
+  (when-let [user-id (verify-credentials database credentials)]
+    (-> database
+        (user/get-user-profile-by-id user-id)
+        (assoc :avatar_url (format "users/%s/avatar" username)))))
+
 (defn get-user
   [database username]
   (user/get-user-profile database username))
 
 (defn delete-user!
   [database credentials]
-  (when-let [id (login database credentials)]
+  (when-let [{:keys [id]} (login database credentials)]
     ;; TODO: Wrap in transaction
     (user/delete-user-login! database id)
     (user/delete-user-profile! database id)))

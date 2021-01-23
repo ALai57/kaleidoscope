@@ -11,6 +11,14 @@
 (s/def ::credentials (s/keys :req-un [::username
                                       ::password]))
 
+(defn handle-authenticated-login
+  [{:keys [username id] :as user} session]
+  (log/info "Authenticated login!")
+  (-> (assoc user :avatar_url (format "users/%s/avatar" username))
+      ok
+      (assoc :session (assoc session :identity id)
+             :cookies {:access-token {:value "SOME-VALUE"}})))
+
 (defroutes login-routes
   (context "/sessions" []
     :tags ["sessions"]
@@ -23,19 +31,10 @@
                 :produces #{"application/json"}
                 :parameters {:body ::credentials}
                 #_#_:responses {200 {:description "The user that just authenticated"}}}
-
-
-      (let [{:keys [username] :as credentials} body-params]
-        (if-let [user-id (users-api/login database credentials)]
-          (let [user (-> database
-                         (user/get-user-profile-by-id user-id)
-                         (assoc :avatar_url (format "users/%s/avatar" username)))]
-            (log/info "Authenticated login!")
-            (assoc (ok user)
-                   :cookies {:access-token {:value "SOME-VALUE"}}
-                   :session (assoc session :identity user-id)))
-          (do (log/info "Invalid username/password")
-              (unauthorized {:message "Unable to login"})))))
+      (if-let [user (users-api/login database body-params)]
+        (handle-authenticated-login user session)
+        (do (log/info "Invalid username/password")
+            (unauthorized {:message "Unable to login"}))))
 
     (POST "/logout" []
       (-> (ok {:message "Logout successful"})
