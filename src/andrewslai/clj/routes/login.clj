@@ -32,6 +32,7 @@
                          (assoc :avatar_url (format "users/%s/avatar" username)))]
             (log/info "Authenticated login!")
             (assoc (ok user)
+                   :cookies {:access-token {:value "SOME-VALUE"}}
                    :session (assoc session :identity user-id)))
           (do (log/info "Invalid username/password")
               (unauthorized {:message "Unable to login"})))))

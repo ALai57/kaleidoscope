@@ -70,3 +70,8 @@
                          {:request-method method :uri endpoint}
                          options))
             :body #(parser (slurp %)))))
+
+(defn get-cookie [response cookie]
+  (->> (get-in response [:headers "Set-Cookie"])
+       (filter (partial re-find (re-pattern cookie)))
+       first))

@@ -125,7 +125,7 @@
           user-path   (str "/users/" (:username new-user))
           _           (create-user! components new-user)
           response    (login-user components (select-keys new-user [:username :password]))
-          [cookie]    (get-in response [:headers "Set-Cookie"])]
+          cookie      (tu/get-cookie response "ring-session")]
 
       (testing "Sucessful login returns `Set-Cookie` header"
         (is (match? {:status 200

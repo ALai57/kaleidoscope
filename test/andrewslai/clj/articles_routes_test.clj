@@ -25,11 +25,6 @@
                 (tu/http-request :get "/articles/does-not-exist"
                                  {:database database})))))
 
-(defn get-cookie [response]
-  (-> response
-      (get-in [:headers "Set-Cookie"])
-      first))
-
 (defn create-user!
   [components user]
   (tu/http-request :post "/users"
@@ -67,7 +62,8 @@
                      :body #(s/valid? :andrewslai.article/article %)}
                     (create-article! components
                                      {:body-params a/example-article
-                                      :headers {"cookie" (get-cookie response)}}))))
+                                      :headers {"cookie" (tu/get-cookie response
+                                                                        "ring-session")}}))))
       (testing "Article retrieval succeeds"
         (is (match? {:status 200
                      :body #(s/valid? :andrewslai.article/article %)}
