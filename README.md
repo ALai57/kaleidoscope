@@ -103,4 +103,70 @@ psql
 ALTER USER postgres WITH PASSWORD xxxxxxxx;
 ```
 
+# Keycloak Identity Provider
+The app is meant to work with the open-source Identity Provider, Keycloak. 
+
+To run Keycloak with an in-memory H2 DB: 
+`docker run -e KEYCLOAK_USER=<USERNAME> -e KEYCLOAK_PASSWORD=<PASSWORD> jboss/keycloak`
+
+TO run Keycloak locally and connect to a locally running PSQL database.  
+`docker run --network host \
+            -e DB_USER=keycloak  \
+            -e DB_PASSWORD=keycloak \
+            -e DB_DATABASE=keycloak \
+            -e DB_VENDOR=POSTGRES \
+            -e DB_ADDR=""  \
+            jboss/keycloak -Djgroups.bind_addr=127.0.0.1`
+
+If you navigate to 172.17.0.1:8080/auth you can see the actual keycloak process
+running The environment variable, KEYCLOAK_LOGLEVEL=DEBUG can be used to
+configure log level
+
+
+The Djgroups.bind_addr argument seems to refer to the address that the server
+will bind to on the local network. When this is set to localhost, the Wildfly
+(JBoss) application server will start on port 9990
+
+
+If you navigate to localhost:9990 you can see the process (JBoss or Wildfly)
+that manages deployment
+
+Keycloak will complain if it doesn't find any valid users. You can supply a
+admin user via command line arguments. With a Keycloak container running:
+`docker exec <CONTAINER_NAME> /opt/jboss/keycloak/bin/add-user.sh \
+        -u keycloak \
+        -p keycloak`
+
+There is also an `add-user-keycloak.sh` script that seems to add users
+specifically to Keycloak, and not to the Application Server
+
+
+
+
+# How to connect to Keycloak using the keycloak.js client
+
+
+``` javascript
+
+// Initialize Keycloak object
+var kc = Keycloak({"url": "http://172.17.0.1:8080/auth",
+                   "realm": "test", 
+                   "clientId": "test-login"})
+
+// Initialize connection to Keycloak. This forcees user to login if they are not already authenticated
+kc.init({"onLoad": "login-required", 
+         "checkLoginIframe": false,
+         "pkceMethod": "S256"})
+         .then(function (authenticated) {console.log(authenticated);})
+         .catch(function (authenticated) {console.log("BAADD");})
+
+// Now that we've logged in, we can get the user's profile - I believe this also loads kc.token and kc.idToken, which are the JWTs used to access Keycloak
+kc.loadUserProfile().then(function (profile) {console.log(profile)})
+
+=> {username: "andrewtest@test.com", firstName: "Andrew", lastName: "Test", email: "andrewtest@test.com", emailVerified: false, …}attributes: {}email: "andrewtest@test.com"emailVerified: falsefirstName: "Andrew"lastName: "Test"username: "andrewtest@test.com"__proto__: Object
+
+// We can also load user info
+kc.loadUserInfo().then(function (profile) {console.log(profile)})
+
+```
 
