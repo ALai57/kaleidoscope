@@ -5,7 +5,8 @@
             [andrewslai.cljs.modal :refer [close-modal modal-template] :as modal]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]
-            [cljsjs.zxcvbn :as zxcvbn]))
+            [cljsjs.zxcvbn :as zxcvbn]
+            [keycloak-js :as keycloak-js]))
 
 (defn form-data->map [form-id]
   (let [m (atom {})]
@@ -13,6 +14,52 @@
         (new (.getElementById js/document form-id))
         (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
     @m))
+
+(comment
+
+  ;; How to handle the redirect url
+  ;;  Because we're using hash routing, it is a little more difficult
+  ;;  Need to put the code that parses the redirect right up front and center
+  ;; https://github.com/okta/okta-auth-js#handling-the-callback-with-hash-routing
+  (def base-keycloak-url
+    "http://172.17.0.1:8080/auth")
+  (def keycloak-auth-endpoint
+    "/auth/realms/test/protocol/openid-connect/auth")
+
+  (def keycloak
+    (js/Keycloak (clj->js {:url base-keycloak-url
+                           :realm "test"
+                           :clientId "test-login"})))
+
+  ;; Init keycloak
+  (-> keycloak
+      (.init (clj->js {:checkLoginIframe false
+                       :pkceMethod "S256"}))
+      (.then (fn [auth?]
+               (println auth?)
+               (js/console.log "auth status:" auth?)))
+      (.catch (fn [auth?]
+                (js/console.log "Unable to initialize Keycloak"))))
+
+  ;; Login
+  (.login keycloak (clj->js {:scope "roles"
+                             :prompt "Please login to continue"
+                             :redirectUri "http://localhost:3449/"}))
+
+  (js/console.log keycloak)
+
+  (-> keycloak
+      (.init (clj->js {:onLoad "login-required"
+                       :checkLoginIframe false
+                       :pkceMethod "S256"}))
+      (.then (fn [auth?]
+               (println auth?)
+               (js/console.log "auth status:" auth?)))
+      (.catch (fn [auth?]
+                (js/console.log "BAD LOGIN"))))
+
+
+  )
 
 ;; TODO: Make sure refreshing the page doesn't clobber the authentication
 (defn login-form []

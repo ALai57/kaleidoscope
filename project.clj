@@ -80,6 +80,9 @@
      :compiler {:main andrewslai.cljs.core
                 :asset-path "js/compiled/out_andrewslai"
                 :optimizations :none
+                :externs ["lib/keycloak/keycloak-externs.js"]
+                :foreign-libs [{:file "lib/keycloak/keycloak.js"
+                                :provides ["keycloak-js"]}]
                 :output-to "resources/public/js/compiled/andrewslai.js"
                 :output-dir "resources/public/js/compiled/out_andrewslai"
                 :source-map true
@@ -90,6 +93,9 @@
      :compiler {:asset-path "resources/public/js/test/out_andrewslai_test"
                 :main andrewslai.cljs.test-runner
                 :optimizations :whitespace
+                :externs ["lib/keycloak/keycloak-externs.js"]
+                :foreign-libs [{:file "lib/keycloak/keycloak.js"
+                                :provides ["keycloak-js"]}]
                 :output-to "resources/public/js/test/andrewslai_test.js"
                 :output-dir "resources/public/js/test/out_andrewslai_test"}}
 
@@ -98,6 +104,9 @@
      :compiler {:main andrewslai.cljs.core
                 :asset-path "js/compiled/out_andrewslai"
                 :optimizations :advanced
+                :externs ["lib/keycloak/keycloak-externs.js"]
+                :foreign-libs [{:file "lib/keycloak/keycloak.js"
+                                :provides ["keycloak-js"]}]
                 :output-to "resources/public/js/compiled/andrewslai.js"
                 :output-dir "resources/public/js/compiled/out_prod"
                 :source-map-timestamp true}}}

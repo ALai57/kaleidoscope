@@ -28,7 +28,7 @@
            id))))
 
 (defn login
-  "Verify credentials and return the user ID if successful"
+  "Verify credentials and return the user if successful"
   [database {:keys [username password] :as credentials}]
   (if-let [user-id (verify-credentials database credentials)]
     (do (log/info "Authenticated login!")
