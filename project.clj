@@ -102,6 +102,9 @@
     :prod
     {:source-paths ["src/andrewslai/cljs"]
      :compiler {:main andrewslai.cljs.core
+                :closure-defines {andrewslai.cljs.keycloak/AUTH_URL "https://keycloak.andrewslai.com/auth"
+                                  andrewslai.cljs.keycloak/REALM "TBD"
+                                  andrewslai.cljs.keycloak/CLIENTID "TBD"}
                 :asset-path "js/compiled/out_andrewslai"
                 :optimizations :advanced
                 :externs ["lib/keycloak/keycloak-externs.js"]

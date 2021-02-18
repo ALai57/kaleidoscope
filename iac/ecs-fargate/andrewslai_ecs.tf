@@ -113,6 +113,7 @@ resource "aws_iam_role_policy_attachment" "ecsTaskExecutionRole_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Probably redundant - can this be killed?
 resource "aws_iam_role_policy" "role_policy" {
   name   = "${aws_iam_role.ecsTaskExecutionRole.name}"
   role   = "${aws_iam_role.ecsTaskExecutionRole.id}"

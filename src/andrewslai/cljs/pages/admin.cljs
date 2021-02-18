@@ -1,6 +1,7 @@
 (ns andrewslai.cljs.pages.admin
   (:require [ajax.core :refer [POST]]
             [andrewslai.cljs.navbar :as nav]
+            [andrewslai.cljs.keycloak :as keycloak]
             [andrewslai.cljs.server-comms.users :as user-comms]
             [andrewslai.cljs.modal :refer [close-modal modal-template] :as modal]
             [goog.object :as gobj]
@@ -87,6 +88,10 @@
        :value "Create a new account!"
        :onClick #(dispatch [:set-active-panel :registration])}]
      [:br]
+     [:input.btn-secondary
+      {:type "button"
+       :value "Login via Keycloak"
+       :onClick #(keycloak/login! keycloak/keycloak)}]
      [:br]]]])
 
 (defn text-input [field-name title initial-value & description]
