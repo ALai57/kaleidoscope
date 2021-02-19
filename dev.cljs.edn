@@ -1,0 +1,13 @@
+^{:watch-dirs ["test" "src"]
+  :css-dirs ["resources/public/css"]
+  :auto-testing true
+  :ring-handler andrewslai.clj.figwheel-backend/figwheel-app}
+{:main andrewslai.cljs.core
+ :asset-path "js/compiled/out_andrewslai"
+ :optimizations :none
+ :foreign-libs [{:file "lib/keycloak/keycloak.js"
+                 :provides ["keycloak-js"]}]
+ :output-to "resources/public/js/compiled/andrewslai.js"
+ :output-dir "resources/public/js/compiled/out_andrewslai"
+ :source-map true
+ :source-map-timestamp true}

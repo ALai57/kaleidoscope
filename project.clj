@@ -47,23 +47,20 @@
                  [slingshot "0.12.2"]
                  [com.taoensso/timbre "4.10.0"]]
 
-  :plugins [[lein-figwheel "0.5.19"]
-            [lein-cljsbuild "1.1.7"]
-            [lein-doo "0.1.10"]]
+  :plugins [[lein-doo "0.1.10"]]
 
   ;; Used to make this compatible with Java 11
-  :managed-dependencies [[metosin/ring-swagger-ui "3.25.3"]
-                         [org.clojure/core.rrb-vector "0.1.1"]
-                         [org.flatland/ordered "1.5.7"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
+  :managed-dependencies
+  [[metosin/ring-swagger-ui "3.25.3"]
+   [org.clojure/core.rrb-vector "0.1.1"]
+   [org.flatland/ordered "1.5.7"]
+   [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
+   [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
 
-  :ring {:handler andrewslai.clj.figwheel-backend/figwheel-app}
   :aot :all
   :uberjar-name "andrewslai.jar"
   :main andrewslai.clj.handler
-  :figwheel {:ring-handler andrewslai.clj.figwheel-backend/figwheel-app
-             :css-dirs ["resources/public/css"]}
+
   :clean-targets ^{:protect false} [:target-path "resources/public/js/compiled"]
 
   ;; See lein-doo documentation for installing Karma test runner
@@ -71,56 +68,19 @@
         :alias {:default [:chrome-headless]}
         :build "dev-test"}
 
-  :cljsbuild
-  {:builds
-   {:dev
-    {:source-paths ["src/andrewslai/cljs"]
-     :figwheel {:open-urls ["http://localhost:3449/"]
-                :on-jsload "andrewslai.cljs.core/main"}
-     :compiler {:main andrewslai.cljs.core
-                :asset-path "js/compiled/out_andrewslai"
-                :optimizations :none
-                :externs ["lib/keycloak/keycloak-externs.js"]
-                :foreign-libs [{:file "lib/keycloak/keycloak.js"
-                                :provides ["keycloak-js"]}]
-                :output-to "resources/public/js/compiled/andrewslai.js"
-                :output-dir "resources/public/js/compiled/out_andrewslai"
-                :source-map true
-                :source-map-timestamp true}}
-
-    :dev-test
-    {:source-paths ["src/andrewslai/cljs" "test/andrewslai/cljs"]
-     :compiler {:asset-path "resources/public/js/test/out_andrewslai_test"
-                :main andrewslai.cljs.test-runner
-                :optimizations :whitespace
-                :externs ["lib/keycloak/keycloak-externs.js"]
-                :foreign-libs [{:file "lib/keycloak/keycloak.js"
-                                :provides ["keycloak-js"]}]
-                :output-to "resources/public/js/test/andrewslai_test.js"
-                :output-dir "resources/public/js/test/out_andrewslai_test"}}
-
-    :prod
-    {:source-paths ["src/andrewslai/cljs"]
-     :compiler {:main andrewslai.cljs.core
-                :closure-defines {andrewslai.cljs.keycloak/AUTH_URL "https://keycloak.andrewslai.com/auth"
-                                  andrewslai.cljs.keycloak/REALM "TBD"
-                                  andrewslai.cljs.keycloak/CLIENTID "TBD"}
-                :asset-path "js/compiled/out_andrewslai"
-                :optimizations :advanced
-                :externs ["lib/keycloak/keycloak-externs.js"]
-                :foreign-libs [{:file "lib/keycloak/keycloak.js"
-                                :provides ["keycloak-js"]}]
-                :output-to "resources/public/js/compiled/andrewslai.js"
-                :output-dir "resources/public/js/compiled/out_prod"
-                :source-map-timestamp true}}}
-
-   }
+  :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
+            "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
+            "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
+            #_#_"fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "spa-figwheel.test-runner"]}
 
   :profiles
   {:dev {:dependencies [[binaryage/devtools "1.0.0"]
                         [cider/piggieback "0.4.2"]
                         [figwheel-sidecar "0.5.19"]
-                        [org.clojure/test.check "1.1.0"]]
+                        [org.clojure/test.check "1.1.0"]
+                        [com.bhauman/figwheel-main "0.2.12"]
+                        [com.bhauman/rebel-readline-cljs "0.1.4"]
+                        [lein-doo "0.1.10"]]
          :source-paths ["src/andrewslai/cljs"]
          :repl-options {:nrepl-middleware
                         [cider.piggieback/wrap-cljs-repl]}
@@ -132,24 +92,20 @@
 
    :prod {:source-paths ["src/andrewslai/cljs"]}
 
-   :dev-test {:source-paths ["src/andrewslai/cljs" "test/andrewslai/cljs"]}
-
-   :upload {:dependencies [[clj-postgresql "0.7.0"]
-                           [prismatic/plumbing "0.5.5"]]
-            :repl-options {:nrepl-middleware
-                           [cider.piggieback/wrap-cljs-repl]}
-            :plugins [[lein-ring "0.12.5"]]}
-
-   :uberjar {:source-paths ["src/andrewslai/cljs"]
+   :uberjar {:plugins [["lein-cljsbuild" "1.1.7"]]
+             :source-paths ["src/andrewslai/cljs"]
              :cljsbuild
-             {:builds {:deploy
-                       {:source-paths ["src/andrewslai/cljs"]
-                        :jar true
-                        :compiler
-                        {:main andrewslai.cljs.core
-                         :asset-path "js/compiled/out_andrewslai"
-                         :optimizations :advanced
-                         :output-to "resources/public/js/compiled/andrewslai.js"
-                         :output-dir "resources/public/js/compiled/out_deploy"
-                         :source-map-timestamp true}}}}
+             {:builds
+              {:deploy
+               {:source-paths ["src/andrewslai/cljs"]
+                :jar true
+                :compiler {:main andrewslai.cljs.core
+                           :asset-path "js/compiled/out_andrewslai"
+                           :optimizations :advanced
+                           :foreign-libs [{:file "lib/keycloak/keycloak.js"
+                                           :provides ["keycloak-js"]}]
+                           :externs ["lib/keycloak/keycloak-externs.js"]
+                           :output-to "resources/public/js/compiled/andrewslai.js"
+                           :output-dir "resources/public/js/compiled/out_deploy"
+                           :source-map-timestamp true}}}}
              :prep-tasks ["compile" ["cljsbuild" "once" "deploy"]]}})
