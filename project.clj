@@ -63,15 +63,9 @@
 
   :clean-targets ^{:protect false} [:target-path "resources/public/js/compiled"]
 
-  ;; See lein-doo documentation for installing Karma test runner
-  :doo {:paths {:karma "test_runner/node_modules/karma/bin/karma"}
-        :alias {:default [:chrome-headless]}
-        :build "dev-test"}
-
   :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
             "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
-            "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
-            #_#_"fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "spa-figwheel.test-runner"]}
+            "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]}
 
   :profiles
   {:dev {:dependencies [[binaryage/devtools "1.0.0"]
@@ -82,15 +76,12 @@
                         [com.bhauman/rebel-readline-cljs "0.1.4"]
                         [lein-doo "0.1.10"]]
          :source-paths ["src/andrewslai/cljs"]
-         :repl-options {:nrepl-middleware
-                        [cider.piggieback/wrap-cljs-repl]}
+         :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}
          :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.migrations]}
          :plugins [[lein-ancient "0.6.15"]
                    [lein-bikeshed "0.5.2"]
                    [lein-kibit "0.1.8"]
                    [lein-ring "0.12.5"]]}
-
-   :prod {:source-paths ["src/andrewslai/cljs"]}
 
    :uberjar {:plugins [["lein-cljsbuild" "1.1.7"]]
              :source-paths ["src/andrewslai/cljs"]
