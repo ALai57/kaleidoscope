@@ -1,5 +1,6 @@
 (ns andrewslai.cljs.db
-  (:require [cljs.spec.alpha :as s]))
+  (:require [cljs.spec.alpha :as s]
+            [andrewslai.cljs.keycloak :as keycloak]))
 
 
 ;; -- Spec --------------------------------------------------------------------
@@ -15,13 +16,16 @@
 ;; -- Default app-db Value  ---------------------------------------------------
 
 (def default-db
-  {:active-panel :home
-   :active-content nil
-   :resume-info nil
+  {:active-panel             :home
+   :active-content           nil
+   :resume-info              nil
    :selected-resume-category nil
-   :selected-resume-card nil
-   :recent-content nil
-   :loading? false
-   :loading-resume? false
-   :editor-data nil
-   :editor-metadata {}})
+   :selected-resume-card     nil
+   :recent-content           nil
+   :loading?                 false
+   :loading-resume?          false
+   :editor-data              nil
+   :editor-metadata          {}
+   :keycloak                 (keycloak/keycloak {:url      keycloak/AUTH_URL
+                                                 :realm    keycloak/REALM
+                                                 :clientId keycloak/CLIENTID})})

@@ -91,7 +91,7 @@
      [:input.btn-secondary
       {:type "button"
        :value "Login via Keycloak"
-       :onClick #(keycloak/login! keycloak/keycloak)}]
+       :onClick #(dispatch [:keycloak-login])}]
      [:br]]]])
 
 (defn text-input [field-name title initial-value & description]

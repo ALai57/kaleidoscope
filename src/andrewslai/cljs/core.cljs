@@ -21,16 +21,10 @@
 
 
 (dispatch-sync [:initialize-db])
-(portfolio-comms/get-portfolio-cards)
-(article-comms/get-articles 5)
+(dispatch-sync [:initialize-keycloak])
 
-(keycloak/initialize! keycloak/keycloak
-                      (fn [auth?]
-                        (js/console.log "Authenticated? " auth?)
-                        (when auth?
-                          (set! js/parent.location.hash "/home")))
-                      (fn [& args]))
-(js/console.log "***** Keycloak ****" keycloak/keycloak)
+(portfolio-comms/load-portfolio-cards!)
+(article-comms/load-articles! 5)
 
 ;; -- Debugging aids ----------------------------------------------------------
 ;;(devtools/install!)       ;; https://github.com/binaryage/cljs-devtools

@@ -1,5 +1,6 @@
 (ns andrewslai.cljs.events.core
   (:require [andrewslai.cljs.db :refer [default-db]]
+            [andrewslai.cljs.keycloak :as keycloak]
             [re-frame.core :refer [reg-event-db]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -12,9 +13,26 @@
    default-db))
 
 (reg-event-db
-  :modal
-  (fn [db [_ data]]
-    (assoc-in db [:modal] data)))
+ :initialize-keycloak
+ (fn [db [_ _]]
+   (keycloak/initialize! (:keycloak db)
+                         (fn on-success [auth?]
+                           (js/console.log "Authenticated? " auth?)
+                           (when auth? (set! js/parent.location.hash "/home")))
+                         (fn on-error [e]
+                           (js/console.log "Init error" e)))
+   (js/console.log "***** Keycloak ****" (:keycloak db))
+   db))
+
+(reg-event-db
+ :keycloak-login
+ (fn [db _]
+   (keycloak/login! (:keycloak db))))
+
+(reg-event-db
+ :modal
+ (fn [db [_ data]]
+   (assoc-in db [:modal] data)))
 
 (reg-event-db
   :show-modal

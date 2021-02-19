@@ -9,10 +9,9 @@
 (def HOST_URL
   (str js/window.location.protocol "//" js/window.location.host))
 
-(def keycloak
-  (js/Keycloak (clj->js {:url AUTH_URL
-                         :realm REALM
-                         :clientId CLIENTID})))
+(defn keycloak
+  [options]
+  (js/Keycloak (clj->js options)))
 
 (defn initialize!
   ([keycloak-instance]
@@ -30,3 +29,6 @@
   (.login keycloak (clj->js {:scope "roles"
                              :prompt "Please login to continue"
                              :redirectUri HOST_URL})))
+
+;; Make sequence diagram for the authentication flow
+;; Retrieve user ID and store in app db. Retreive all user params and store in reagent atom

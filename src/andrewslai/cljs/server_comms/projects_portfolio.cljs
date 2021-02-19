@@ -11,7 +11,7 @@
             [clojure.string :as str]))
 
 
-(defn get-portfolio-cards []
+(defn load-portfolio-cards! []
   (GET "/projects-portfolio"
       {:handler #(dispatch [:load-portfolio-cards %])
        :error-handler #(dispatch [:load-portfolio-cards "Unable to load content"])}))
