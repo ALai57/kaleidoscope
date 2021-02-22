@@ -4,8 +4,7 @@
             [andrewslai.cljs.navbar :as nav]
             [andrewslai.cljs.pages.home :refer [home]]
             [andrewslai.cljs.pages.editor :refer [editor-ui]]
-            [andrewslai.cljs.pages.admin :refer [login-ui
-                                                 registration-ui]]
+            [andrewslai.cljs.pages.admin :refer [login-ui]]
             [andrewslai.cljs.resume-cards :as resume-cards]
             [clojure.string :refer [includes?]]
             [re-frame.core :refer [subscribe
@@ -88,7 +87,6 @@
              :research [research]
              :data-analysis [data-analysis]
              :admin [login-ui]
-             :registration [registration-ui]
              :editor [editor-ui]
              })
 

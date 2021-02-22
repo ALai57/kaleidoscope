@@ -27,8 +27,15 @@
 
 (defn login! [keycloak]
   (.login keycloak (clj->js {:scope "roles"
-                             :prompt "Please login to continue"
+                             :prompt "none"
                              :redirectUri HOST_URL})))
+
+(defn logout! [keycloak]
+  (.logout keycloak))
+
+(defn account-management! [keycloak]
+  (.accountManagement keycloak))
+
 
 ;; Make sequence diagram for the authentication flow
 ;; Retrieve user ID and store in app db. Retreive all user params and store in reagent atom

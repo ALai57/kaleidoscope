@@ -67,32 +67,14 @@
   [:div.login-wrapper
    [:div.login-frame
     [:div.login-header [:h1 "Welcome!"]]
-    [:form {:id "login-form"}
-     [:input {:type "text"
-              :placeholder "Username"
-              :name "username"}]
-     [:br]
-     [:input {:type "password"
-              :placeholder "Password"
-              :name "password"}]
-     [:br]
-     [:br]
-     [:input.btn-primary
-      {:type "button"
-       :value "Login"
-       :on-click (fn [& xs] (user-comms/login (form-data->map "login-form")))}]
-     [:br]
-     [:br]
-     [:input.btn-secondary
-      {:type "button"
-       :value "Create a new account!"
-       :onClick #(dispatch [:set-active-panel :registration])}]
-     [:br]
-     [:input.btn-secondary
-      {:type "button"
-       :value "Login via Keycloak"
-       :onClick #(dispatch [:keycloak-login])}]
-     [:br]]]])
+    [:p "andrewslai.com uses the open source "
+     [:a {:href "https://www.keycloak.org"} "Keycloak"]
+     " identity provider. Clicking the link will redirect you."]
+    [:input.btn-secondary
+     {:type "button"
+      :value "Login via Keycloak"
+      :onClick #(dispatch [:keycloak-login])}]
+    [:br]]])
 
 (defn text-input [field-name title initial-value & description]
   [:dl.form-group
@@ -155,18 +137,9 @@
    :close-fn close-modal})
 
 
-(defn user-profile [{:keys [avatar_url username first_name last_name email] :as user}]
+(defn user-profile [{:keys [avatar_url username firstName lastName email] :as user}]
   [:div.user-profile-wrapper
-   [:form {:id "profile-update-form"
-           :method :post
-           :action "/echo"}
-    [:input.btn-danger
-     {:type "button"
-      :value "Delete user"
-      :style {:float "right"}
-      :on-click
-      (fn [& args]
-        (dispatch [:show-modal (modal-template (confirm-delete-user username))]))}]
+   [:form
     [:img {:src avatar_url
            :style {:width "100px"}}]
     [:img {:id "avatar-preview"
@@ -180,86 +153,43 @@
     [:br]
     [:br]
     [:dl.form-group
-     [:dt [:label {:for "username"} "Username"]]
-     [:dd [:input.form-control {:type "text"
-                                :name "username"
-                                :readOnly true
-                                :value username}]]
-     [:note "Cannot be modified"]]
-    [:dl.form-group
      [:dt [:label {:for "email"} "Email"]]
      [:dd [:input.form-control {:type "text"
                                 :readOnly true
-                                :value email}]]
-     [:note "Cannot be modified"]]
+                                :value email}]]]
+    [:dl.form-group
+     [:dt [:label {:for "firstName"} "First name"]]
+     [:dd [:input.form-control {:type "text"
+                                :readOnly true
+                                :value firstName}]]]
+    [:dl.form-group
+     [:dt [:label {:for "lastName"} "Last name"]]
+     [:dd [:input.form-control {:type "text"
+                                :readOnly true
+                                :value lastName}]]]
     [:br]
     [:br]
-    [text-input "first_name" "First Name" first_name]
-    [text-input "last_name" "Last Name" last_name]
-    [:br]
-    [:br]
-    [:input.btn-primary
+    [:input.btn-secondary
      {:type "button"
-      :value "Update profile"
-      :onClick
-      (fn [& args]
-        (user-comms/update-user (registration-data->map "profile-update-form")))}]
+      :value "Edit profile"
+      :style {:float "left"}
+      :on-click (fn [& args]
+                  (dispatch [:keycloak-account-management]))}]
     [:input.btn-secondary
      {:type "button"
       :value "Logout"
       :style {:float "right"}
-      :on-click
-      (fn [& args]
-        (user-comms/logout))}]]])
+      :on-click (fn [& args]
+                  (dispatch [:keycloak-logout]))}]]])
 
 (defn login-ui []
-  (let [user (subscribe [:user])]
+  (let [user (subscribe [:user-profile])]
     [:div
      [nav/primary-nav]
      [:br]
      (if @user
        [:div [user-profile @user]]
        [login-form])]))
-
-(defn register-user []
-  [:div.user-profile-wrapper
-   [:form {:id "registration-form"
-           :method :post
-           :action "/echo"}
-    [:img.avatar-thumbnail {:id "avatar-preview"
-                            :src "/images/smiley_emoji.png"}]
-    [:input.btn-primary
-     {:type "file"
-      :accept "image/png"
-      :on-change load-image}]
-    [:br]
-    [:br]
-    [:br]
-    [:dl.form-group
-     [:dt [:label {:for "username"} "Username"]]
-     [:dd [:input.form-control {:type "text"
-                                :name "username"
-                                :defaultValue ""}]]]
-    [text-input "first_name" "First Name" ""]
-    [text-input "last_name" "Last Name" ""]
-    [text-input "email" "Email" ""]
-    [:input {:type "password"
-             :placeholder "Password"
-             :name "password"}]
-    [:br]
-    [:input.btn-primary
-     {:type "button"
-      :value "Create user!"
-      :on-click
-      (fn [& args]
-        (user-comms/register-user (registration-data->map "registration-form")))}]]])
-
-(defn registration-ui []
-  [:div
-   [nav/primary-nav]
-   [:br]
-   [:div
-    [register-user]]])
 
 ;; For checking passwords client side
 (comment
