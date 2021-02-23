@@ -38,6 +38,7 @@
                  [org.clojure/java.jdbc "0.7.8"]
                  [org.clojure/java.data "1.0.64"]
                  [org.keycloak/keycloak-adapter-core "12.0.3"]
+                 [org.keycloak/keycloak-adapter-spi "12.0.3"]
                  [org.keycloak/keycloak-admin-client "12.0.3"]
                  [org.keycloak/keycloak-core "12.0.3"]
                  [org.keycloak/keycloak-common "12.0.3"]
