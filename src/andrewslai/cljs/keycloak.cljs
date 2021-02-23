@@ -27,7 +27,7 @@
 
 (defn login! [keycloak]
   (.login keycloak (clj->js {:scope "roles"
-                             :prompt "none"
+                             :prompt "consent"
                              :redirectUri HOST_URL})))
 
 (defn logout! [keycloak]
