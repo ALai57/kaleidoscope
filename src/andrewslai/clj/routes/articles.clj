@@ -60,10 +60,9 @@
                 :parameters {:path {:article-name :andrewslai.article/article_name}}
                 :responses {200 {:description "A single article"
                                  :schema :andrewslai.article/article}}}
-      (let [article (articles-api/get-article database article-name)]
-        (if article
-          (ok article)
-          (not-found {:reason "Missing"}))))
+      (if-let [article (articles-api/get-article database article-name)]
+        (ok article)
+        (not-found {:reason "Missing"})))
 
     (POST "/" []
       :swagger {:summary "Create an article"

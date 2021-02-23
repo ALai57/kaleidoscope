@@ -32,6 +32,10 @@
 (log/merge-config!
  {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}})
 
+
+;; implement buddy auth protocol IAUthentication for Keycloak
+;; -parse
+;; -authenticate
 (def backend (session-backend))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
