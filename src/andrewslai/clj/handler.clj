@@ -1,6 +1,7 @@
 (ns andrewslai.clj.handler
   (:gen-class)
-  (:require [andrewslai.clj.entities.user :as user]
+  (:require [andrewslai.clj.auth.keycloak :as keycloak]
+            [andrewslai.clj.entities.user :as user]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
@@ -32,12 +33,6 @@
 (log/merge-config!
  {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}})
 
-
-;; implement buddy auth protocol IAUthentication for Keycloak
-;; -parse
-;; -authenticate
-(def backend (session-backend))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Compojure Routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -67,25 +62,14 @@
                 (:uri request))
       (handler request))))
 
-(defn wrap-user [handler]
-  (fn [{user-id :identity
-        {database :database} ::mw/components
-        :as req}]
-    (handler (assoc req
-                    :user (and user-id
-                               database
-                               (user/get-user-profile-by-id database user-id))))))
-
 (defn wrap-middleware
   "Wraps a set of Compojure routes with middleware and adds
   components via the wrap-components middleware"
   [routes components]
   (-> routes
       wrap-logging
-      wrap-user
-      (wrap-authentication backend)
-      (wrap-authorization backend)
-      (wrap-session (or (:session components) {}))
+      (wrap-authentication (:auth components))
+      (wrap-authorization (:auth components))
       (wrap-resource "public")
       wrap-cookies
       (mw/wrap-components components)
@@ -106,6 +90,14 @@
      (wrap-middleware app-routes
                       {:database (pg/->Database (util/pg-conn))
                        :logging  (merge log/*config* {:level :info})
+                       :auth     (keycloak/keycloak-backend
+                                  (keycloak/make-keycloak
+                                   {:realm             "test"
+                                    :ssl-required      "external"
+                                    :auth-server-url   "http://172.17.0.1:8080/auth/"
+                                    :client-id         "test-login-java"
+                                    :client-secret     "18c28e7a-3eb6-4726-b8c7-9c5d02f6bc88"
+                                    :confidential-port 0}))
                        :session  {:cookie-attrs {:max-age 3600 :secure true}
                                   :store        (mem/memory-store (atom {}))}})
      {:port port})))

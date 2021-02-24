@@ -183,7 +183,7 @@
                   (dispatch [:keycloak-logout]))}]]])
 
 (defn login-ui []
-  (let [user (subscribe [:user-profile])]
+  (let [user (subscribe [:update-user-profile!])]
     [:div
      [nav/primary-nav]
      [:br]

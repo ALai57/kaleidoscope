@@ -56,7 +56,7 @@
    (:user db)))
 
 (reg-sub
- :user-profile
+ :update-user-profile!
  (fn [db]
    (:user-profile db)))
 

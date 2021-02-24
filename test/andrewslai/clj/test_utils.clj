@@ -1,5 +1,6 @@
 (ns andrewslai.clj.test-utils
   (:require [andrewslai.clj.handler :as h]
+            [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.utils :as util]
@@ -10,7 +11,8 @@
             [migratus.core :as migratus]
             [ring.middleware.session.memory :as mem]
             [ring.mock.request :as mock]
-            [taoensso.timbre :as log])
+            [taoensso.timbre :as log]
+            [slingshot.slingshot :refer [throw+]])
   (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
 
 ;; Deal with the dynamic vars better/at all
@@ -56,6 +58,19 @@
 (defn ->hiccup [s]
   (hkry/as-hiccup (hkry/parse s)))
 
+;; TODO: This is throwing but not getting caught... How to get around it?
+(defn unauthorized-backend
+  []
+  (reify keycloak/TokenAuthenticator
+    (keycloak/-validate [_ token]
+      (throw+ {:type :InvalidAccessError}))))
+
+(defn authorized-backend
+  []
+  (reify keycloak/TokenAuthenticator
+    (keycloak/-validate [_ token]
+      true)))
+
 (defn http-request
   [method endpoint components
    & [{:keys [body parser]
@@ -63,8 +78,7 @@
        :as options}]]
 
   (let [defaults {:logging (merge log/*config* {:level :error})
-                  :session {:cookie-attrs {:max-age 3600 :secure false}
-                            :store        (mem/memory-store (atom {}))}}
+                  :auth (keycloak/keycloak-backend (unauthorized-backend))}
         app (h/wrap-middleware h/app-routes (util/deep-merge defaults components))]
     (update (app (reduce conj
                          {:request-method method :uri endpoint}
@@ -75,3 +89,8 @@
   (->> (get-in response [:headers "Set-Cookie"])
        (filter (partial re-find (re-pattern cookie)))
        first))
+
+(def valid-token
+  (str "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+       "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ."
+       "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"))

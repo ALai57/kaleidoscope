@@ -1,5 +1,6 @@
 (ns andrewslai.clj.articles-routes-test
   (:require [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
+            [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.user-routes-test :as u]
@@ -46,9 +47,8 @@
 
 (deftest create-article-happy-path
   (with-embedded-postgres database
-    (let [session     (atom {})
-          components  {:database database
-                       :session {:store (mem/memory-store session)}}
+    (let [components  {:database database
+                       :auth (keycloak/keycloak-backend (tu/authorized-backend))}
 
           _        (create-user! components u/new-user)
           response (login-user components (select-keys u/new-user [:username :password]))]
@@ -62,8 +62,8 @@
                      :body #(s/valid? :andrewslai.article/article %)}
                     (create-article! components
                                      {:body-params a/example-article
-                                      :headers {"cookie" (tu/get-cookie response
-                                                                        "ring-session")}}))))
+                                      :headers {"Authorization"
+                                                (str "Bearer " tu/valid-token)}}))))
       (testing "Article retrieval succeeds"
         (is (match? {:status 200
                      :body #(s/valid? :andrewslai.article/article %)}

@@ -1,6 +1,7 @@
 (ns andrewslai.clj.user-routes-test
   (:require [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
             [andrewslai.clj.handler :as h]
+            [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.postgres2 :as postgres2]
             [andrewslai.clj.routes.users :as user-routes]
@@ -117,33 +118,19 @@
                   (create-user! components
                                 (assoc new-user :password "password")))))))
 
-(deftest login-test
+(deftest authorized-login-test
   (with-embedded-postgres database
-    (let [session     (atom {})
-          components  {:database database
-                       :session  {:store (mem/memory-store session)}}
-          user-path   (str "/users/" (:username new-user))
-          _           (create-user! components new-user)
-          response    (login-user components (select-keys new-user [:username :password]))
-          cookie      (tu/get-cookie response "ring-session")]
+    (let [components  {:database database
+                       :auth (keycloak/keycloak-backend (tu/authorized-backend))}]
+      (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
+                  (admin-route components {:headers {"Authorization" (str "Bearer " tu/valid-token)}}))))))
 
-      (testing "Sucessful login returns `Set-Cookie` header"
-        (is (match? {:status 200
-                     :headers {"Set-Cookie" coll?}}
-                    response)))
-
-      (testing "Can get to admin route by supplying cookie"
-        (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
-                    (admin-route components {:headers {"cookie" cookie}}))))
-
-      (testing "Can't get to admin route if no cookie present"
-        (is (match? {:status 401 :body {:reason "Not authorized"}}
-                    (admin-route components {}))))
-
-      (testing "After logout, cannot hit admin routes"
-        (logout components {:headers {"cookie" cookie}})
-        (is (match? {:status 401 :body {:reason "Not authorized"}}
-                    (admin-route components {:headers {"cookie" cookie}})))))))
+(deftest unauthorized-login-test
+  (with-embedded-postgres database
+    (let [components  {:database database
+                       :auth (keycloak/keycloak-backend (tu/unauthorized-backend))}]
+      (is (match? {:status 401 :body {:reason "Not authorized"}}
+                  (admin-route components {:headers {"Authorization" (str "Bearer " tu/valid-token)}}))))))
 
 (deftest incorrect-password-cannot-login
   (with-embedded-postgres database
