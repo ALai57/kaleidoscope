@@ -13,7 +13,10 @@
 (s/def ::error-message (s/keys :req-un [::message]))
 
 (defn create-article-handler [database {article :body-params}]
-  (ok (articles-api/create-article! database article)))
+  (try
+    (ok (articles-api/create-article! database article))
+    (catch Throwable t
+      nil)))
 
 (defmethod compojure-meta/restructure-param :swagger
   [_ {request-spec :request :as swagger} acc]

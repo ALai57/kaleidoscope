@@ -5,11 +5,9 @@
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
-            [andrewslai.clj.routes.login :refer [login-routes]]
             [andrewslai.clj.routes.ping :refer [ping-routes]]
             [andrewslai.clj.routes.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.routes.swagger :refer [swagger-ui-routes]]
-            [andrewslai.clj.routes.users :as user-routes :refer [users-routes]]
             [andrewslai.clj.utils :as util]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
@@ -45,9 +43,7 @@
   (api index-routes
        ping-routes
        articles-routes
-       users-routes
        portfolio-routes
-       login-routes
        admin-routes
        swagger-ui-routes))
 

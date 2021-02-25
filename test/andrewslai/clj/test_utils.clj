@@ -76,7 +76,6 @@
    & [{:keys [body parser]
        :or {parser #(json/parse-string % keyword)}
        :as options}]]
-
   (let [defaults {:logging (merge log/*config* {:level :error})
                   :auth (keycloak/keycloak-backend (unauthorized-backend))}
         app (h/wrap-middleware h/app-routes (util/deep-merge defaults components))]

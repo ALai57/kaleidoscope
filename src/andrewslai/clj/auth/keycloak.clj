@@ -17,13 +17,6 @@
       (.readContentAsString)
       (json/parse-string keyword)))
 
-(defn encode-token
-  [m]
-  (-> m
-      (JWSInput.)
-      (.readContentAsString)
-      (json/parse-string keyword)))
-
 (defn keycloak-adapter
   [{:keys [realm ssl-required auth-server-url
            client-id client-secret confidential-port]}]
@@ -50,11 +43,11 @@
   ;;(log/info "Checking authentication with Keycloak")
   ;;(log/info "Request: " request)
   ;;(log/info "Validating token: " (-validate keycloak token))
-  (try+
-   (-validate keycloak token)
-   (decode-token token)
-   (catch Throwable e
-     nil)))
+  (try
+    (-validate keycloak token)
+    (decode-token token)
+    (catch Throwable e
+      nil)))
 
 (defn keycloak-backend
   [keycloak]

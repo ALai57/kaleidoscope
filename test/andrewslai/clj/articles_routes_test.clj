@@ -26,16 +26,6 @@
                 (tu/http-request :get "/articles/does-not-exist"
                                  {:database database})))))
 
-(defn create-user!
-  [components user]
-  (tu/http-request :post "/users"
-                   components {:body-params user}))
-
-(defn login-user
-  [components credentials]
-  (tu/http-request :post "/sessions/login"
-                   components {:body-params credentials}))
-
 (defn create-article!
   [components options]
   (tu/http-request :post "/articles/"
@@ -48,10 +38,7 @@
 (deftest create-article-happy-path
   (with-embedded-postgres database
     (let [components  {:database database
-                       :auth (keycloak/keycloak-backend (tu/authorized-backend))}
-
-          _        (create-user! components u/new-user)
-          response (login-user components (select-keys u/new-user [:username :password]))]
+                       :auth (keycloak/keycloak-backend (tu/authorized-backend))}]
 
       (testing "Article retrieval fails"
         (is (match? {:status 404}
@@ -70,14 +57,6 @@
                     (get-article components (str "/articles/" (:article_url a/example-article)))))))))
 
 (deftest cannot-create-article-with-unauthorized-user
-  (with-embedded-postgres database
-    (let [session     (atom {})
-          components  {:database database
-                       :session {:cookie-attrs {:max-age 3600 :secure false}
-                                 :store        (mem/memory-store session)}}]
-
-      (testing "Article creation fails"
-        (is (match? {:status 401
-                     :body {:reason "Not authorized"}}
-                    (create-article! components
-                                     {:body-params a/example-article})))))))
+  (is (match? {:status 401
+               :body {:reason "Not authorized"}}
+              (create-article! {:database nil} {:body-params a/example-article}))))

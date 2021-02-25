@@ -5,8 +5,11 @@
             [taoensso.timbre :as log]))
 
 (defn is-authenticated? [req]
-  (log/info "Is authenticated?" (not (empty? (:identity req))))
-  (not (empty? (:identity req))))
+  (try
+    (log/info "Is authenticated?" (not (empty? (:identity req))))
+    (not (empty? (:identity req)))
+    (catch Throwable t
+      nil)))
 
 (defn access-error [request value]
   (log/info "Not authorized for endpoint")
