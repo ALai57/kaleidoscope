@@ -1,7 +1,6 @@
 (ns andrewslai.clj.test-utils
   (:require [andrewslai.clj.handler :as h]
             [andrewslai.clj.auth.keycloak :as keycloak]
-            [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.utils :as util]
             [cheshire.core :as json]
@@ -31,19 +30,6 @@
    :logging  (merge log/*config* {:level :error})
    :session  {:cookie-attrs {:max-age 3600 :secure false}
               :store        (mem/memory-store (atom {}))}})
-
-(defn get-request
-  ([route]
-   (->> ptest/db-spec
-        test-app-component-config
-        (h/wrap-middleware h/app-routes)
-        (get-request route)))
-  ([route app]
-   (->> route
-        (mock/request :get)
-        app)))
-
-
 
 (defn captured-logging [logging-atom]
   {:level :debug

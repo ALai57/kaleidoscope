@@ -3,12 +3,9 @@
             [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.test-utils :as tu]
-            [andrewslai.clj.user-routes-test :as u]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing]]
-            [matcher-combinators.test]
-            [ring.middleware.session.memory :as mem]
-            [ring.mock.request :as mock]))
+            [matcher-combinators.test]))
 
 (deftest article-retrieval-happy-path
   (with-embedded-postgres database
