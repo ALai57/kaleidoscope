@@ -19,7 +19,6 @@
   (:import [goog History]
            [goog.history EventType]))
 
-
 (dispatch-sync [:initialize-db])
 (dispatch-sync [:initialize-keycloak])
 

@@ -2,9 +2,9 @@
   (:require [keycloak-js :as keycloak-js]
             [re-frame.core :refer [dispatch]]))
 
-(goog-define AUTH_URL "http://172.17.0.1:8080/auth")
-(goog-define REALM "test")
-(goog-define CLIENTID "test-login")
+(goog-define AUTH_URL "defined-at-compile-time")
+(goog-define CLIENTID "defined-at-compile-time")
+(goog-define REALM "defined-at-compile-time")
 
 (def HOST_URL
   (str js/window.location.protocol "//" js/window.location.host))

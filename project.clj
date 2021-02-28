@@ -66,7 +66,8 @@
 
   :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
             "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
-            "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]}
+            "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
+            "fig:prod"  ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "uberjar"]}
 
   :profiles
   {:dev {:dependencies [[binaryage/devtools "1.0.0"]
@@ -76,28 +77,13 @@
                         [com.bhauman/figwheel-main "0.2.12"]
                         [com.bhauman/rebel-readline-cljs "0.1.4"]
                         [lein-doo "0.1.10"]]
+         :plugins [[lein-ancient "0.6.15"]
+                   [lein-kibit "0.1.8"]
+                   [lein-ring "0.12.5"]]
          :source-paths ["src/andrewslai/cljs"]
          :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}
-         :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.migrations]}
-         :plugins [[lein-ancient "0.6.15"]
-                   [lein-bikeshed "0.5.2"]
-                   [lein-kibit "0.1.8"]
-                   [lein-ring "0.12.5"]]}
+         :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.migrations]}}
 
-   :uberjar {:plugins [["lein-cljsbuild" "1.1.7"]]
+   :uberjar {:dependencies [[com.bhauman/figwheel-main "0.2.12"]]
              :source-paths ["src/andrewslai/cljs"]
-             :cljsbuild
-             {:builds
-              {:deploy
-               {:source-paths ["src/andrewslai/cljs"]
-                :jar true
-                :compiler {:main andrewslai.cljs.core
-                           :asset-path "js/compiled/out_andrewslai"
-                           :optimizations :advanced
-                           :foreign-libs [{:file "lib/keycloak/keycloak.js"
-                                           :provides ["keycloak-js"]}]
-                           :externs ["lib/keycloak/keycloak-externs.js"]
-                           :output-to "resources/public/js/compiled/andrewslai.js"
-                           :output-dir "resources/public/js/compiled/out_deploy"
-                           :source-map-timestamp true}}}}
-             :prep-tasks ["compile" ["cljsbuild" "once" "deploy"]]}})
+             :prep-tasks ["compile" "fig:prod"]}})

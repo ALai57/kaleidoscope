@@ -4,6 +4,10 @@
   :ring-handler andrewslai.clj.figwheel-backend/figwheel-app}
 {:main andrewslai.cljs.core
  :asset-path "js/compiled/out_andrewslai"
+ ;; Change this to connect to whatever realm is setup for local development
+ :closure-defines {andrewslai.cljs.keycloak/AUTH_URL "http://172.17.0.1:8080/auth"
+                   andrewslai.cljs.keycloak/CLIENTID "test-login"
+                   andrewslai.cljs.keycloak/REALM "test"}
  :optimizations :none
  :foreign-libs [{:file "lib/keycloak/keycloak.js"
                  :provides ["keycloak-js"]}]
