@@ -23,8 +23,6 @@
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
-;; https://adambard.com/blog/buddy-password-auth-example/
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global settings (Yuck!)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
