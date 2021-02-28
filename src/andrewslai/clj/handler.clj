@@ -1,7 +1,6 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [andrewslai.clj.auth.keycloak :as keycloak]
-            [andrewslai.clj.entities.user :as user]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]

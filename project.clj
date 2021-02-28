@@ -1,13 +1,10 @@
 (defproject andrewslai "0.0.1"
   :description "Template for full stack development in Clojure"
   :dependencies [[buddy/buddy-auth "2.2.0"]
-                 [buddy/buddy-hashers "1.4.0"]
-                 [buddy/buddy-sign "3.1.0"]
                  [cheshire "5.10.0"]
                  [clj-commons/secretary "1.2.4"]
                  [clj-http "3.10.0"]
                  [cljs-ajax "0.8.0"]
-                 [cljs-http "0.1.46"]
                  [cljsjs/react "16.13.0-0"]
                  [cljsjs/react-dom "16.13.0-0"]
                  [cljsjs/react-bootstrap "1.0.0-beta.14-0"] ;; latest release
@@ -16,7 +13,6 @@
                  [cljsjs/slate-react "0.12.6-0"]
                  [cljsjs/slate-html-serializer "0.6.3-0"]
                  [cljsjs/zxcvbn "4.4.0-1"]
-                 [crypto-password "0.2.1"]
                  [com.nulab-inc/zxcvbn "1.3.0"]
                  [org.slf4j/slf4j-nop "1.7.30"]
                  [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
