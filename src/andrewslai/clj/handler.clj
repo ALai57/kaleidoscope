@@ -14,7 +14,6 @@
             [compojure.api.sweet :refer [api defroutes GET routes]]
             [org.httpkit.server :as httpkit]
             [ring.middleware.content-type :refer [wrap-content-type]]
-            [ring.middleware.cookies :refer [wrap-cookies]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
@@ -47,12 +46,26 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Middleware
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn wrap-logging [handler]
+(defn wrap-request-identifier [handler]
   (fn [request]
+    (handler (assoc request :request-id (str (java.util.UUID/randomUUID))))))
+
+(defn log-request! [handler]
+  (fn [{:keys [request-method uri request-id] :as request}]
+    (handler (do (log/info "Request received: " {:method request-method
+                                                 :uri uri
+                                                 :request-id request-id})
+                 request))))
+
+(defn log-authentication! [handler]
+  (fn [{:keys [request-id identity] :as request}]
+    (handler (do (log/info "Authentication: " {:request-id request-id
+                                               :identity identity})
+                 request))))
+
+(defn wrap-logging [handler]
+  (fn [{:keys [request-method uri request-id] :as request}]
     (log/with-config (get-in request [::mw/components :logging])
-      (log/info "Request received for: "
-                (:request-method request)
-                (:uri request))
       (handler request))))
 
 (defn wrap-middleware
@@ -61,12 +74,14 @@
   [routes components]
   (-> routes
       wrap-logging
+      log-authentication!
       (wrap-authentication (:auth components))
       (wrap-authorization (:auth components))
       (wrap-resource "public")
-      wrap-cookies
       (mw/wrap-components components)
-      wrap-content-type))
+      wrap-content-type
+      log-request!
+      wrap-request-identifier))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server

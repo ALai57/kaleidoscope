@@ -26,12 +26,16 @@
 (deftest logging-test
   (let [logging-atom (atom [])]
     (u/http-request :get "/ping" {:logging (u/captured-logging logging-atom)})
-    (is (= 1 (count @logging-atom)))))
+    (is (= 2 (count @logging-atom)))))
 
-(deftest keycloak-backend-test
-  (let [app (wrap-authentication identity
-                                 (keycloak/keycloak-backend (tu/authorized-backend)))]
+(deftest authentication-middleware-test
+  (let [app (wrap-authentication identity (tu/authorized-backend))]
     (is (match? {:identity {:sub "1234567890"
                             :name "John Doe"
                             :iat 1516239022}}
                 (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})))))
+
+(deftest authentication-middleware-failure-test
+  (let [app  (wrap-authentication identity (tu/unauthorized-backend))
+        resp (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})]
+    (is (nil? (:identity resp)))))

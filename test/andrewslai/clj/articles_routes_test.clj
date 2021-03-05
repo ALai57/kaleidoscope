@@ -35,7 +35,7 @@
 (deftest create-article-happy-path
   (with-embedded-postgres database
     (let [components  {:database database
-                       :auth (keycloak/keycloak-backend (tu/authorized-backend))}]
+                       :auth (tu/authorized-backend)}]
 
       (testing "Article retrieval fails"
         (is (match? {:status 404}

@@ -47,15 +47,15 @@
 ;; TODO: This is throwing but not getting caught... How to get around it?
 (defn unauthorized-backend
   []
-  (reify keycloak/TokenAuthenticator
-    (keycloak/-validate [_ token]
-      (throw+ {:type :InvalidAccessError}))))
+  (keycloak/keycloak-backend (reify keycloak/TokenAuthenticator
+                               (keycloak/-validate [_ token]
+                                 (throw+ {:type :InvalidAccessError})))))
 
 (defn authorized-backend
   []
-  (reify keycloak/TokenAuthenticator
-    (keycloak/-validate [_ token]
-      true)))
+  (keycloak/keycloak-backend (reify keycloak/TokenAuthenticator
+                               (keycloak/-validate [_ token]
+                                 true))))
 
 (defn http-request
   [method endpoint components
@@ -63,7 +63,7 @@
        :or {parser #(json/parse-string % keyword)}
        :as options}]]
   (let [defaults {:logging (merge log/*config* {:level :error})
-                  :auth (keycloak/keycloak-backend (unauthorized-backend))}
+                  :auth (unauthorized-backend)}
         app (h/wrap-middleware h/app-routes (util/deep-merge defaults components))]
     (update (app (reduce conj
                          {:request-method method :uri endpoint}
