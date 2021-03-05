@@ -15,15 +15,6 @@
   (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
 
 ;; Deal with the dynamic vars better/at all
-(defmacro defdbtest
-  "Defines a test that will cleanup and rollback all database transactions
-  db-spec defines the database connection. "
-  [test-name db-spec & body]
-  `(deftest ~test-name
-     (jdbc/with-db-transaction [db-spec# ~db-spec]
-       (jdbc/db-set-rollback-only! db-spec#)
-       (binding [~db-spec db-spec#] 
-         ~@body))))
 
 (defn test-app-component-config [db-spec]
   {:database (pg/->Database db-spec)
