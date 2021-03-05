@@ -16,12 +16,6 @@
 
 ;; Deal with the dynamic vars better/at all
 
-(defn test-app-component-config [db-spec]
-  {:database (pg/->Database db-spec)
-   :logging  (merge log/*config* {:level :error})
-   :session  {:cookie-attrs {:max-age 3600 :secure false}
-              :store        (mem/memory-store (atom {}))}})
-
 (defn captured-logging [logging-atom]
   {:level :debug
    :appenders {:println {:enabled? true,

@@ -73,14 +73,14 @@
   components via the wrap-components middleware"
   [routes components]
   (-> routes
-      wrap-logging
       log-authentication!
       (wrap-authentication (:auth components))
       (wrap-authorization (:auth components))
       (wrap-resource "public")
-      (mw/wrap-components components)
       wrap-content-type
       log-request!
+      wrap-logging
+      (mw/wrap-components components)
       wrap-request-identifier))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
