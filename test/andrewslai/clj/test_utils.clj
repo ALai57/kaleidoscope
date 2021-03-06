@@ -1,5 +1,6 @@
 (ns andrewslai.clj.test-utils
   (:require [andrewslai.clj.handler :as h]
+            [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.utils :as util]
@@ -32,15 +33,15 @@
 ;; TODO: This is throwing but not getting caught... How to get around it?
 (defn unauthorized-backend
   []
-  (keycloak/oauth-backend (reify keycloak/TokenAuthenticator
-                            (keycloak/valid? [_ token]
-                              (throw+ {:type :InvalidAccessError})))))
+  (auth/oauth-backend (reify auth/TokenAuthenticator
+                        (auth/valid? [_ token]
+                          (throw+ {:type :InvalidAccessError})))))
 
 (defn authorized-backend
   []
-  (keycloak/oauth-backend (reify keycloak/TokenAuthenticator
-                            (keycloak/valid? [_ token]
-                              true))))
+  (auth/oauth-backend (reify auth/TokenAuthenticator
+                        (auth/valid? [_ token]
+                          true))))
 
 (defn http-request
   [method endpoint components
