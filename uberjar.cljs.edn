@@ -1,0 +1,17 @@
+^{:watch-dirs ["src/andrewslai/cljs"]
+  :css-dirs ["resources/public/css"]
+  :auto-testing true
+  :ring-handler andrewslai.clj.figwheel-backend/figwheel-app}
+{:main andrewslai.cljs.core
+ :asset-path "js/compiled/out_andrewslai"
+ :optimizations :advanced
+ :closure-defines {andrewslai.cljs.keycloak/AUTH_URL "https://keycloak.andrewslai.com/auth"
+                   andrewslai.cljs.keycloak/REALM "andrewslai"
+                   andrewslai.cljs.keycloak/CLIENTID "andrewslai-frontend"}
+ ;; Important for minification only
+ :externs ["lib/keycloak/keycloak-externs.js"]
+ :foreign-libs [{:file "lib/keycloak/keycloak.js"
+                 :provides ["keycloak-js"]}]
+ :output-to "resources/public/js/compiled/andrewslai.js"
+ :output-dir "resources/public/js/compiled/out_prod"
+ :source-map-timestamp true}

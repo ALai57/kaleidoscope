@@ -1,11 +1,8 @@
 (ns andrewslai.clj.persistence.articles-test
   (:require [andrewslai.clj.persistence.postgres2 :as pg]
-            [andrewslai.clj.persistence.postgres-test :as ptest]
             [andrewslai.clj.entities.article :as article]
             [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
-            [clojure.test :refer [deftest is testing]]
-            [slingshot.test]
-            [slingshot.slingshot :refer [try+]]))
+            [clojure.test :refer [deftest is testing]]))
 
 (def example-article {:title "My test article"
                       :article_tags "thoughts"

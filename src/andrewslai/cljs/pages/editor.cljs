@@ -251,6 +251,5 @@
       {:type "button"
        :on-click
        (fn [x]
-         (println (form-data->map "editor-article-form"))
-         (editor-comms/create-article (form-data->map "editor-article-form")))
+         (dispatch [:save-article! (form-data->map "editor-article-form")]))
        :value "Save article!"}]]))

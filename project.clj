@@ -1,13 +1,10 @@
-(defproject andrewslai "0.0.1"
+(defproject andrewslai "0.0.2"
   :description "Template for full stack development in Clojure"
   :dependencies [[buddy/buddy-auth "2.2.0"]
-                 [buddy/buddy-hashers "1.4.0"]
-                 [buddy/buddy-sign "3.1.0"]
                  [cheshire "5.10.0"]
                  [clj-commons/secretary "1.2.4"]
                  [clj-http "3.10.0"]
                  [cljs-ajax "0.8.0"]
-                 [cljs-http "0.1.46"]
                  [cljsjs/react "16.13.0-0"]
                  [cljsjs/react-dom "16.13.0-0"]
                  [cljsjs/react-bootstrap "1.0.0-beta.14-0"] ;; latest release
@@ -16,7 +13,6 @@
                  [cljsjs/slate-react "0.12.6-0"]
                  [cljsjs/slate-html-serializer "0.6.3-0"]
                  [cljsjs/zxcvbn "4.4.0-1"]
-                 [crypto-password "0.2.1"]
                  [com.nulab-inc/zxcvbn "1.3.0"]
                  [org.slf4j/slf4j-nop "1.7.30"]
                  [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
@@ -37,6 +33,11 @@
                  [org.clojure/data.codec "0.1.1"]
                  [org.clojure/java.jdbc "0.7.8"]
                  [org.clojure/java.data "1.0.64"]
+                 [org.keycloak/keycloak-adapter-core "12.0.3"]
+                 [org.keycloak/keycloak-adapter-spi "12.0.3"]
+                 [org.keycloak/keycloak-admin-client "12.0.3"]
+                 [org.keycloak/keycloak-core "12.0.3"]
+                 [org.keycloak/keycloak-common "12.0.3"]
                  [org.postgresql/postgresql "42.2.11"]
                  [re-frame "0.12.0"]
                  [reagent "0.10.0"]
@@ -47,97 +48,42 @@
                  [slingshot "0.12.2"]
                  [com.taoensso/timbre "4.10.0"]]
 
-  :plugins [[lein-figwheel "0.5.19"]
-            [lein-cljsbuild "1.1.7"]
-            [lein-doo "0.1.10"]]
+  :plugins [[lein-doo "0.1.10"]]
 
   ;; Used to make this compatible with Java 11
-  :managed-dependencies [[metosin/ring-swagger-ui "3.25.3"]
-                         [org.clojure/core.rrb-vector "0.1.1"]
-                         [org.flatland/ordered "1.5.7"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
+  :managed-dependencies
+  [[metosin/ring-swagger-ui "3.25.3"]
+   [org.clojure/core.rrb-vector "0.1.1"]
+   [org.flatland/ordered "1.5.7"]
+   [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
+   [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
 
-  :ring {:handler andrewslai.clj.figwheel-backend/figwheel-app}
   :aot :all
   :uberjar-name "andrewslai.jar"
   :main andrewslai.clj.handler
-  :figwheel {:ring-handler andrewslai.clj.figwheel-backend/figwheel-app
-             :css-dirs ["resources/public/css"]}
+
   :clean-targets ^{:protect false} [:target-path "resources/public/js/compiled"]
 
-  ;; See lein-doo documentation for installing Karma test runner
-  :doo {:paths {:karma "test_runner/node_modules/karma/bin/karma"}
-        :alias {:default [:chrome-headless]}
-        :build "dev-test"}
-
-  :cljsbuild
-  {:builds
-   {:dev
-    {:source-paths ["src/andrewslai/cljs"]
-     :figwheel {:open-urls ["http://localhost:3449/"]
-                :on-jsload "andrewslai.cljs.core/main"}
-     :compiler {:main andrewslai.cljs.core
-                :asset-path "js/compiled/out_andrewslai"
-                :optimizations :none
-                :output-to "resources/public/js/compiled/andrewslai.js"
-                :output-dir "resources/public/js/compiled/out_andrewslai"
-                :source-map true
-                :source-map-timestamp true}}
-
-    :dev-test
-    {:source-paths ["src/andrewslai/cljs" "test/andrewslai/cljs"]
-     :compiler {:asset-path "resources/public/js/test/out_andrewslai_test"
-                :main andrewslai.cljs.test-runner
-                :optimizations :whitespace
-                :output-to "resources/public/js/test/andrewslai_test.js"
-                :output-dir "resources/public/js/test/out_andrewslai_test"}}
-
-    :prod
-    {:source-paths ["src/andrewslai/cljs"]
-     :compiler {:main andrewslai.cljs.core
-                :asset-path "js/compiled/out_andrewslai"
-                :optimizations :advanced
-                :output-to "resources/public/js/compiled/andrewslai.js"
-                :output-dir "resources/public/js/compiled/out_prod"
-                :source-map-timestamp true}}}
-
-   }
+  :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
+            "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
+            "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
+            "fig:prod"  ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "uberjar"]}
 
   :profiles
   {:dev {:dependencies [[binaryage/devtools "1.0.0"]
                         [cider/piggieback "0.4.2"]
                         [figwheel-sidecar "0.5.19"]
-                        [org.clojure/test.check "1.1.0"]]
-         :source-paths ["src/andrewslai/cljs"]
-         :repl-options {:nrepl-middleware
-                        [cider.piggieback/wrap-cljs-repl]}
-         :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.migrations]}
+                        [org.clojure/test.check "1.1.0"]
+                        [com.bhauman/figwheel-main "0.2.12"]
+                        [com.bhauman/rebel-readline-cljs "0.1.4"]
+                        [lein-doo "0.1.10"]]
          :plugins [[lein-ancient "0.6.15"]
-                   [lein-bikeshed "0.5.2"]
                    [lein-kibit "0.1.8"]
-                   [lein-ring "0.12.5"]]}
+                   [lein-ring "0.12.5"]]
+         :source-paths ["src/andrewslai/cljs"]
+         :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}
+         :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.migrations]}}
 
-   :prod {:source-paths ["src/andrewslai/cljs"]}
-
-   :dev-test {:source-paths ["src/andrewslai/cljs" "test/andrewslai/cljs"]}
-
-   :upload {:dependencies [[clj-postgresql "0.7.0"]
-                           [prismatic/plumbing "0.5.5"]]
-            :repl-options {:nrepl-middleware
-                           [cider.piggieback/wrap-cljs-repl]}
-            :plugins [[lein-ring "0.12.5"]]}
-
-   :uberjar {:source-paths ["src/andrewslai/cljs"]
-             :cljsbuild
-             {:builds {:deploy
-                       {:source-paths ["src/andrewslai/cljs"]
-                        :jar true
-                        :compiler
-                        {:main andrewslai.cljs.core
-                         :asset-path "js/compiled/out_andrewslai"
-                         :optimizations :advanced
-                         :output-to "resources/public/js/compiled/andrewslai.js"
-                         :output-dir "resources/public/js/compiled/out_deploy"
-                         :source-map-timestamp true}}}}
-             :prep-tasks ["compile" ["cljsbuild" "once" "deploy"]]}})
+   :uberjar {:dependencies [[com.bhauman/figwheel-main "0.2.12"]]
+             :source-paths ["src/andrewslai/cljs"]
+             :prep-tasks ["compile" "fig:prod"]}})

@@ -13,7 +13,10 @@
 (s/def ::error-message (s/keys :req-un [::message]))
 
 (defn create-article-handler [database {article :body-params}]
-  (ok (articles-api/create-article! database article)))
+  (try
+    (ok (articles-api/create-article! database article))
+    (catch Throwable t
+      nil)))
 
 (defmethod compojure-meta/restructure-param :swagger
   [_ {request-spec :request :as swagger} acc]
@@ -60,10 +63,9 @@
                 :parameters {:path {:article-name :andrewslai.article/article_name}}
                 :responses {200 {:description "A single article"
                                  :schema :andrewslai.article/article}}}
-      (let [article (articles-api/get-article database article-name)]
-        (if article
-          (ok article)
-          (not-found {:reason "Missing"}))))
+      (if-let [article (articles-api/get-article database article-name)]
+        (ok article)
+        (not-found {:reason "Missing"})))
 
     (POST "/" []
       :swagger {:summary "Create an article"

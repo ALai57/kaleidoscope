@@ -8,9 +8,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Create articles
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn create-article [data]
+(defn create-article [data headers]
   (POST "/articles/"
       {:params data
+       :headers headers
        :format :json
        :handler #(dispatch [:show-modal (create-article-success-modal %)])
        :error-handler #(dispatch [:show-modal (create-article-failure-modal %)])}))

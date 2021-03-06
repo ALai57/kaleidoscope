@@ -1,22 +1,21 @@
 (ns andrewslai.clj.routes.swagger-test
   (:require [andrewslai.clj.routes.swagger :as swg]
+            [andrewslai.clj.entities.article]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [deftest is]]))
 
 (deftest extract-swagger-specs-test
-  (let [swagger {:paths [["/" {:get
-                               {:components
-                                {:schemas
-                                 {"user"
-                                  {:spec :andrewslai.user/user-profile}}}}}]]}]
-    (is (= {"user" {:spec :andrewslai.user/user-profile}}
-           (swg/extract-specs swagger)))))
+  (is (= {"article" {:spec :andrewslai.article/title}}
+         (swg/extract-specs {:paths [["/" {:get
+                                           {:components
+                                            {:schemas
+                                             {"article"
+                                              {:spec :andrewslai.article/title}}}}}]]}))))
 
 (deftest swagger-specs->components-test
-  (is (= {"user" {:type "string"
-                  :x-allOf [{:type "string"} {} {}]
-                  :title "andrewslai.user/username"}}
-         (swg/specs->components {"user" {:spec :andrewslai.user/username}}))))
+  (is (= {"article" {:type "string"
+                     :title "andrewslai.article/title"}}
+         (swg/specs->components {"article" {:spec :andrewslai.article/title}}))))
 
 (deftest valid-examples-test
   (for [[k {:keys [value]}] swg/example-data-2]

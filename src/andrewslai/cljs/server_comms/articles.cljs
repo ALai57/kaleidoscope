@@ -28,7 +28,7 @@
        (fn [response]
          (dispatch [:load-article "Unable to load content"]))}))
 
-(defn get-articles [n]
+(defn load-articles! [n]
   (GET (make-get-all-articles-url)
       {:handler
        (fn [response]

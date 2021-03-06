@@ -46,19 +46,24 @@
     (:loading? db)))
 
 (reg-sub
-  :test-transitions
-  (fn [db]
-    (:test-transitions db)))
+ :test-transitions
+ (fn [db]
+   (:test-transitions db)))
 
 (reg-sub
-  :user
-  (fn [db]
-    (:user db)))
+ :user
+ (fn [db]
+   (:user db)))
 
 (reg-sub
-  :modal
-  (fn [db]
-    (:modal db)))
+ :update-user-profile!
+ (fn [db]
+   (:user-profile db)))
+
+(reg-sub
+ :modal
+ (fn [db]
+   (:modal db)))
 
 (reg-sub
   :editor-data

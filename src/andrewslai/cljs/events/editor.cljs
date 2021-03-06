@@ -4,6 +4,7 @@
             [andrewslai.cljs.modals.editor :refer [create-article-failure-modal
                                                    create-article-success-modal]]
             [andrewslai.cljs.modal :refer [modal-template close-modal]]
+            [andrewslai.cljs.server-comms.editor :as editor-comms]
             [reagent.core :as reagent]))
 
 ;; HTML Serializer
@@ -88,12 +89,16 @@
 (defn editor-text-changed [db [_ new-value]]
   (let [serialized-text (editor-model->clj new-value)]
     (assoc db :editor-data new-value)))
-(reg-event-db
-  :editor-text-changed
-  editor-text-changed)
+(reg-event-db :editor-text-changed
+              editor-text-changed)
 
 (defn editor-metadata-changed [db [_ new-value]]
   (assoc db :editor-metadata new-value))
-(reg-event-db
-  :editor-metadata-changed
-  editor-metadata-changed)
+(reg-event-db :editor-metadata-changed
+              editor-metadata-changed)
+
+(reg-event-db :save-article!
+              (fn [db [_ article]]
+                (editor-comms/create-article article
+                                             {:Authorization
+                                              (str "Bearer " (.-token (:keycloak db)))})))

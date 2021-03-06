@@ -11,17 +11,19 @@
             [andrewslai.cljs.events.users]
             [andrewslai.cljs.events.editor]
             [andrewslai.cljs.events.projects-portfolio]
+            [andrewslai.cljs.keycloak :as keycloak]
             [andrewslai.cljs.subs]   ;; load them (see docs/App-Structure.md)
             [andrewslai.cljs.views]
             ;;[devtools.core :as devtools]
-            )
+            [keycloak-js :as keycloak-js])
   (:import [goog History]
            [goog.history EventType]))
 
-
 (dispatch-sync [:initialize-db])
-(portfolio-comms/get-portfolio-cards)
-(article-comms/get-articles 5)
+(dispatch-sync [:initialize-keycloak])
+
+(portfolio-comms/load-portfolio-cards!)
+(article-comms/load-articles! 5)
 
 ;; -- Debugging aids ----------------------------------------------------------
 ;;(devtools/install!)       ;; https://github.com/binaryage/cljs-devtools

@@ -4,9 +4,12 @@
             [ring.util.http-response :refer [ok]]
             [taoensso.timbre :as log]))
 
-(defn is-authenticated? [{:keys [user] :as req}]
-  (log/info "Is authenticated?" (not (empty? user)))
-  (not (empty? user)))
+(defn is-authenticated? [req]
+  (try
+    (log/info "Is authenticated?" (not (empty? (:identity req))))
+    (not (empty? (:identity req)))
+    (catch Throwable t
+      nil)))
 
 (defn access-error [request value]
   (log/info "Not authorized for endpoint")

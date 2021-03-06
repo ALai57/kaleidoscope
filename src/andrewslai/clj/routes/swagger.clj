@@ -19,25 +19,7 @@
                                         :author "Andrew Lai"
                                         :content "<h1>Hello world!</h1>"
                                         :timestamp "2020-10-28T00:00:00"
-                                        :title "My test article"}}
-   :andrewslai.clj.routes.users/user-update {:summary "An example user update"
-                                             :value {:first_name "andrew"
-                                                     :last_name "lai"
-                                                     :avatar (->> "Hello world!"
-                                                                  utils/string->bytes
-                                                                  utils/b64-encode)}}
-   :andrewslai.credentials/credentials {:summary "Example user credentials"
-                                        :value {:username "andrewslai"
-                                                :password "mypassword"}}
-   :andrewslai.clj.routes.users/user {:summary "An example user"
-                                      :value {:avatar (->> "Hello world!"
-                                                           utils/string->bytes
-                                                           utils/b64-encode)
-                                              :email "newuser@andrewslai.com"
-                                              :first_name "new"
-                                              :last_name "user"
-                                              :password "CactusGnarlObsidianTheft"
-                                              :username "new-user"}}})
+                                        :title "My test article"}}})
 
 (defn extract-specs [swagger]
   (reduce (fn [acc [_ {{schemas :schemas} :components :as x}]]
