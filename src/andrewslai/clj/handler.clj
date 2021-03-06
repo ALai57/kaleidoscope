@@ -1,6 +1,7 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [andrewslai.clj.auth.keycloak :as keycloak]
+            [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
@@ -91,7 +92,7 @@
      (wrap-middleware app-routes
                       {:database (pg/->Database (util/pg-conn))
                        :logging  (merge log/*config* {:level :info})
-                       :auth     (keycloak/oauth-backend
+                       :auth     (auth/oauth-backend
                                   (keycloak/make-keycloak
                                    {:realm             "test"
                                     :ssl-required      "external"

@@ -157,6 +157,12 @@ resource "aws_alb_target_group" "main" {
   vpc_id               = "${data.aws_vpc.default.id}"
   target_type          = "ip"
 
+  health_check {
+     interval = 45
+     unhealthy_threshold = 4
+     path = "/"
+  }
+
   lifecycle {
       create_before_destroy = true
   }

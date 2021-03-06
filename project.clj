@@ -1,4 +1,4 @@
-(defproject andrewslai "0.0.1"
+(defproject andrewslai "0.0.2"
   :description "Template for full stack development in Clojure"
   :dependencies [[buddy/buddy-auth "2.2.0"]
                  [cheshire "5.10.0"]

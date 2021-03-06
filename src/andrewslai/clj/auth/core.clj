@@ -38,8 +38,6 @@
                         :authfn (partial authenticate authenticator)
                         :unauthorized-handler (fn [])}))
 
-
-
 (comment
   (def valid-token
     (str "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
