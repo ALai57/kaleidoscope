@@ -32,15 +32,15 @@
 ;; TODO: This is throwing but not getting caught... How to get around it?
 (defn unauthorized-backend
   []
-  (keycloak/keycloak-backend (reify keycloak/TokenAuthenticator
-                               (keycloak/-validate [_ token]
-                                 (throw+ {:type :InvalidAccessError})))))
+  (keycloak/oauth-backend (reify keycloak/TokenAuthenticator
+                            (keycloak/valid? [_ token]
+                              (throw+ {:type :InvalidAccessError})))))
 
 (defn authorized-backend
   []
-  (keycloak/keycloak-backend (reify keycloak/TokenAuthenticator
-                               (keycloak/-validate [_ token]
-                                 true))))
+  (keycloak/oauth-backend (reify keycloak/TokenAuthenticator
+                            (keycloak/valid? [_ token]
+                              true))))
 
 (defn http-request
   [method endpoint components

@@ -57,12 +57,6 @@
                                                  :request-id request-id})
                  request))))
 
-(defn log-authentication! [handler]
-  (fn [{:keys [request-id identity] :as request}]
-    (handler (do (log/info "Authentication: " {:request-id request-id
-                                               :identity identity})
-                 request))))
-
 (defn wrap-logging [handler]
   (fn [{:keys [request-method uri request-id] :as request}]
     (log/with-config (get-in request [::mw/components :logging])
@@ -73,7 +67,6 @@
   components via the wrap-components middleware"
   [routes components]
   (-> routes
-      log-authentication!
       (wrap-authentication (:auth components))
       (wrap-authorization (:auth components))
       (wrap-resource "public")
@@ -98,7 +91,7 @@
      (wrap-middleware app-routes
                       {:database (pg/->Database (util/pg-conn))
                        :logging  (merge log/*config* {:level :info})
-                       :auth     (keycloak/keycloak-backend
+                       :auth     (keycloak/oauth-backend
                                   (keycloak/make-keycloak
                                    {:realm             "test"
                                     :ssl-required      "external"

@@ -4,7 +4,8 @@
             [buddy.auth.middleware :refer [wrap-authentication]]
             [andrewslai.clj.test-utils :as tu]
             [clojure.test :refer [deftest is]]
-            [matcher-combinators.test]))
+            [matcher-combinators.test]
+            [taoensso.timbre :as log]))
 
 (deftest ping-test
   (is (match? {:status 200
@@ -26,16 +27,22 @@
 (deftest logging-test
   (let [logging-atom (atom [])]
     (u/http-request :get "/ping" {:logging (u/captured-logging logging-atom)})
-    (is (= 2 (count @logging-atom)))))
+    (is (= 1 (count @logging-atom)))))
+
+(defn quiet [handler]
+  (fn [request]
+    (log/with-log-level :error
+      (handler request))))
 
 (deftest authentication-middleware-test
-  (let [app (wrap-authentication identity (tu/authorized-backend))]
+  (let [app (quiet (wrap-authentication identity (tu/authorized-backend)))]
     (is (match? {:identity {:sub "1234567890"
                             :name "John Doe"
                             :iat 1516239022}}
                 (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})))))
 
 (deftest authentication-middleware-failure-test
-  (let [app  (wrap-authentication identity (tu/unauthorized-backend))
-        resp (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})]
-    (is (nil? (:identity resp)))))
+  (log/with-log-level :error
+    (let [app  (quiet (wrap-authentication identity (tu/unauthorized-backend)))
+          resp (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})]
+      (is (nil? (:identity resp))))))

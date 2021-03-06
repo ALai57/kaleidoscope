@@ -2,6 +2,7 @@
   (:require [buddy.auth.backends.token :as token]
             [buddy.core.codecs.base64 :as b64]
             [cheshire.core :as json]
+            [taoensso.timbre :as log]
             [slingshot.slingshot :refer [try+]])
   (:import org.keycloak.adapters.KeycloakDeploymentBuilder
            org.keycloak.adapters.rotation.AdapterTokenVerifier
@@ -9,14 +10,38 @@
            org.keycloak.representations.adapters.config.AdapterConfig))
 
 (defprotocol TokenAuthenticator
-  (-validate [_ token]))
+  (valid? [_ token] "Returns true if authenticated"))
 
-(defn decode-token
-  [s]
-  (-> s
-      (JWSInput.)
-      (.readContentAsString)
-      (json/parse-string keyword)))
+(defn b64->clj [s]
+  (json/parse-string (apply str (map char (b64/decode s)))
+                     keyword))
+
+(defn clj->b64 [m]
+  (apply str (map char (b64/encode (json/generate-string m)))))
+
+(defn jwt-header [jwt]
+  (b64->clj (first (clojure.string/split jwt #"\."))))
+
+(defn jwt-body [jwt]
+  (b64->clj (second (clojure.string/split jwt #"\."))))
+
+(defn authenticate
+  [authenticator {:keys [request-id] :as request} token]
+  (try
+    (log/info "Validating token: " {:header     (jwt-header token)
+                                    :body       (jwt-body token)
+                                    :request-id request-id})
+    (when (valid? authenticator token)
+      (jwt-body token))
+    (catch Throwable e
+      nil)))
+
+(defn oauth-backend
+  [authenticator]
+  (token/token-backend {:token-name "Bearer"
+                        :authfn (partial authenticate authenticator)
+                        :unauthorized-handler (fn [])}))
+
 
 (defn keycloak-adapter
   [{:keys [realm ssl-required auth-server-url
@@ -32,42 +57,14 @@
 
 (defn make-keycloak
   [config]
-  (let [adapter (keycloak-adapter config)]
-    (reify TokenAuthenticator
-      (-validate [_ token]
-        (->> adapter
-             (KeycloakDeploymentBuilder/build)
-             (AdapterTokenVerifier/verifyToken token))
-        token))))
+  (reify TokenAuthenticator
+    (valid? [_ token]
+      (->> (keycloak-adapter config)
+           (KeycloakDeploymentBuilder/build)
+           (AdapterTokenVerifier/verifyToken token))
+      true)))
 
-(defn authenticate [keycloak request token]
-  ;;(log/info "Checking authentication with Keycloak")
-  ;;(log/info "Request: " request)
-  ;;(log/info "Validating token: " (-validate keycloak token))
-  (try
-    (-validate keycloak token)
-    (decode-token token)
-    (catch Throwable e
-      nil)))
 
-(defn keycloak-backend
-  [keycloak]
-  (token/token-backend {:token-name "Bearer"
-                        :authfn (partial authenticate keycloak)
-                        :unauthorized-handler (fn [])}))
-
-(defn b64->clj [s]
-  (json/parse-string (apply str (map char (b64/decode s)))
-                     keyword))
-
-(defn clj->b64 [m]
-  (apply str (map char (b64/encode (json/generate-string m)))))
-
-(defn jwt-header [jwt]
-  (b64->clj (first (clojure.string/split jwt #"\."))))
-
-(defn jwt-body [jwt]
-  (b64->clj (second (clojure.string/split jwt #"\."))))
 
 (comment
 
@@ -141,5 +138,5 @@
   (.getConfidentialPort adapter-config) ;; => 0
   (type adapter-config)
 
-  (decode-token token)
+  (jwt-body token)
   )
