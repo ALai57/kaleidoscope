@@ -74,6 +74,12 @@
      {:type "button"
       :value "Login via Keycloak"
       :onClick #(dispatch [:keycloak-login])}]
+    [:br]
+    [:br]
+    [:input.btn-secondary
+     {:type "button"
+      :value "Try hitting restricted route"
+      :onClick #(dispatch [:request-admin-route])}]
     [:br]]])
 
 (defn text-input [field-name title initial-value & description]
@@ -180,7 +186,14 @@
       :value "Logout"
       :style {:float "right"}
       :on-click (fn [& args]
-                  (dispatch [:keycloak-logout]))}]]])
+                  (dispatch [:keycloak-logout]))}]
+    [:br]
+    [:br]
+    [:input.btn-secondary
+     {:type "button"
+      :value "Try hitting restricted route"
+      :onClick #(dispatch [:request-admin-route])}]
+    ]])
 
 (defn login-ui []
   (let [user (subscribe [:update-user-profile!])]

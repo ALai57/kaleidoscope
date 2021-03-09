@@ -4,7 +4,6 @@
             [reagent.dom :refer [render]]
             [re-frame.core :refer [dispatch dispatch-sync]]
             [secretary.core :as secretary]
-            [andrewslai.cljs.server-comms.projects-portfolio :as portfolio-comms]
             [andrewslai.cljs.events.core] ;; required to make the compiler
             [andrewslai.cljs.events.articles]
             [andrewslai.cljs.events.users]

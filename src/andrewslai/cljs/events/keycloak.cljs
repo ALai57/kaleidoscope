@@ -1,5 +1,6 @@
 (ns andrewslai.cljs.events.keycloak
   (:require [andrewslai.cljs.keycloak :as keycloak]
+            [ajax.core :as ajax]
             [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx]]))
 
 
@@ -63,3 +64,15 @@
  :set-hash-fragment
  (fn [cofx [_ path]]
    {:hash-fragment path}))
+
+(reg-event-fx
+ :request-admin-route
+ (fn [{:keys [db]} [_ article-name]]
+   {:http-xhrio {:method          :get
+                 :uri             "/admin"
+                 :headers         {:Authorization (str "Bearer " (.-token (:keycloak db)))}
+                 :format          (ajax/json-response-format)
+                 :response-format (ajax/json-response-format {:keywords? true})
+                 :on-success      [:load-article]
+                 :on-failure      [:load-article]}
+    :db         (assoc db :loading? true)}))
