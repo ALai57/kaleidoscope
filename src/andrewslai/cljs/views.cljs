@@ -92,6 +92,5 @@
 
 (defn app []
   (let [active-panel (subscribe [:active-panel])]
-    (fn []
-      (println "active panel" active-panel)
-      (get panels @active-panel))))
+    (println "active panel" @active-panel)
+    (get panels @active-panel)))

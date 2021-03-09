@@ -22,7 +22,7 @@
 
 (defn make-card
   [{:keys [article_tags title article_url article_id timestamp] :as article}]
-  (let [date (first (.split (.toISOString timestamp) "T"))]
+  (let [date (first (.split timestamp "T"))]
     ^{:key article_id}
     [Card {:class "text-white bg-light mb-3 article-card"}
      [:div.container-fluid
@@ -43,11 +43,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn recent-content-display
   [content-type]
-  (let [recent-content (subscribe [:recent-content])
+  (let [recent-content @(subscribe [:recent-content])
         the-content (if content-type
                       (filter #(= (:article_tags %1) content-type)
-                              @recent-content)
-                      @recent-content)]
+                              recent-content)
+                      recent-content)]
     [:div#recent-content
      [:div#recent-article-cards.card-group
       (map make-card the-content)]]))

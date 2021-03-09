@@ -4,7 +4,6 @@
             [reagent.dom :refer [render]]
             [re-frame.core :refer [dispatch dispatch-sync]]
             [secretary.core :as secretary]
-            [andrewslai.cljs.server-comms.articles :as article-comms]
             [andrewslai.cljs.server-comms.projects-portfolio :as portfolio-comms]
             [andrewslai.cljs.events.core] ;; required to make the compiler
             [andrewslai.cljs.events.articles]
@@ -22,9 +21,9 @@
 
 (dispatch-sync [:initialize-db])
 (dispatch-sync [:initialize-keycloak])
+(dispatch-sync [:request-recent-articles])
 
 (portfolio-comms/load-portfolio-cards!)
-(article-comms/load-articles! 5)
 
 ;; -- Debugging aids ----------------------------------------------------------
 ;;(devtools/install!)       ;; https://github.com/binaryage/cljs-devtools
@@ -38,7 +37,7 @@
   (dispatch [:set-active-panel (keyword path)]))
 (defroute "/:path/content/:content-name" [path content-name]
   (dispatch [:set-active-panel (keyword path)])
-  (article-comms/get-article content-name))
+  (dispatch [:request-article content-name]))
 
 
 (def history

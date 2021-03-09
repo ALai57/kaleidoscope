@@ -27,7 +27,6 @@
 
 (defn modal []
   (let [modal (subscribe [:modal])]
-    (.log js/console "Opened modal")
     (fn []
       [:div
        (if (:show? @modal)

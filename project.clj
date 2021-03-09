@@ -17,6 +17,7 @@
                  [org.slf4j/slf4j-nop "1.7.30"]
                  [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
                  [day8.re-frame/tracing "0.5.3"]
+                 [day8.re-frame/http-fx "0.2.3"]
                  [hiccup "1.0.5"]
                  [hickory "0.7.1"]
                  [honeysql "0.9.10"]
