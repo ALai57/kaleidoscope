@@ -22,8 +22,7 @@
 (dispatch-sync [:initialize-db])
 (dispatch-sync [:initialize-keycloak])
 (dispatch-sync [:request-recent-articles])
-
-(portfolio-comms/load-portfolio-cards!)
+(dispatch-sync [:request-portfolio-cards])
 
 ;; -- Debugging aids ----------------------------------------------------------
 ;;(devtools/install!)       ;; https://github.com/binaryage/cljs-devtools

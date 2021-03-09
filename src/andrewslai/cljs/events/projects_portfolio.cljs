@@ -1,6 +1,6 @@
 (ns andrewslai.cljs.events.projects-portfolio
-  (:require [ajax.core :refer [GET]]
-            [re-frame.core :refer [dispatch reg-event-db]]))
+  (:require [ajax.core :as ajax]
+            [re-frame.core :refer [dispatch reg-event-db reg-event-fx]]))
 
 (defn json-string->clj [s]
   (-> js/JSON
@@ -114,3 +114,14 @@
  :test-transitions
  (fn [db [_ value]]
    (assoc db :test-transitions value)))
+
+(reg-event-fx
+ :request-portfolio-cards
+ (fn [{:keys [db]} [_ article-name]]
+   {:http-xhrio {:method          :get
+                 :uri             "/projects-portfolio"
+                 :format          (ajax/json-response-format)
+                 :response-format (ajax/json-response-format {:keywords? true})
+                 :on-success      [:load-portfolio-cards]
+                 :on-failure      [:load-portfolio-cards]}
+    :db         (assoc db :loading? true)}))
