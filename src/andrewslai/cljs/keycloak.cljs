@@ -36,6 +36,12 @@
 (defn account-management! [keycloak]
   (.accountManagement keycloak))
 
+(defn load-profile!
+  [keycloak]
+  (-> keycloak
+      .loadUserProfile
+      (.then #(dispatch [:update-user-profile! (js->clj % :keywordize-keys true)]))))
+
 
 ;; Make sequence diagram for the authentication flow
 ;; Retrieve user ID and store in app db. Retreive all user params and store in reagent atom

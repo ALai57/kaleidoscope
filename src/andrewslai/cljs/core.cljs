@@ -10,6 +10,7 @@
             [andrewslai.cljs.events.articles]
             [andrewslai.cljs.events.users]
             [andrewslai.cljs.events.editor]
+            [andrewslai.cljs.events.keycloak]
             [andrewslai.cljs.events.projects-portfolio]
             [andrewslai.cljs.keycloak :as keycloak]
             [andrewslai.cljs.subs]   ;; load them (see docs/App-Structure.md)
