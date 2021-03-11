@@ -118,10 +118,10 @@
     ]])
 
 (defn login-ui []
-  (let [user (subscribe [:update-user-profile!])]
+  (let [user @(subscribe [:update-user-profile!])]
     [:div
      [nav/primary-nav]
      [:br]
-     (if @user
-       [:div [user-profile @user]]
+     (if user
+       [:div [user-profile user]]
        [login-form])]))

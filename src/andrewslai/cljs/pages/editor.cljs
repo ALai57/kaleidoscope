@@ -173,7 +173,7 @@
                          (.-innerText)))))
 
 (defn editor-ui []
-  (let [{:keys [username first_name last_name] :as user} @(subscribe [:user])
+  (let [{:keys [username firstName lastName] :as user} @(subscribe [:update-user-profile!])
         {:keys [article_tags article_url title]} @(subscribe [:editor-metadata])]
     [:div
      [nav/primary-nav]
@@ -202,7 +202,7 @@
                        :font-weight "bold"}
                :name "author"
                :readOnly true
-               :value (when user (str first_name " " last_name))}]
+               :value (when user (str firstName " " lastName))}]
       [:br]
       [:select {:id "article-tags-input"
                 :type "Article tags"

@@ -1,10 +1,10 @@
 (ns andrewslai.cljs.events.editor
   (:require [cljsjs.slate-html-serializer :as shs]
-            [re-frame.core :refer [dispatch reg-event-db]]
+            [ajax.core :as ajax]
+            [re-frame.core :refer [dispatch reg-event-db reg-event-fx]]
             [andrewslai.cljs.modals.editor :refer [create-article-failure-modal
                                                    create-article-success-modal]]
             [andrewslai.cljs.modal :refer [modal-template close-modal]]
-            [andrewslai.cljs.server-comms.editor :as editor-comms]
             [reagent.core :as reagent]))
 
 ;; HTML Serializer
@@ -97,8 +97,29 @@
 (reg-event-db :editor-metadata-changed
               editor-metadata-changed)
 
-(reg-event-db :save-article!
-              (fn [db [_ article]]
-                (editor-comms/create-article article
-                                             {:Authorization
-                                              (str "Bearer " (.-token (:keycloak db)))})))
+(reg-event-db
+ :save-success
+ (fn [db [_ response]]
+   (js/console.log "POST RESPONSE" response)
+   (dispatch [:show-modal (create-article-success-modal response)])
+   db))
+
+(reg-event-db
+ :save-failure
+ (fn [db [_ response]]
+   (js/console.log "POST RESPONSE" response)
+   (dispatch [:show-modal (create-article-failure-modal response)])
+   db))
+
+(reg-event-fx
+ :save-article!
+ (fn [{:keys [db]} [_ article]]
+   {:http-xhrio {:method          :post
+                 :uri             "/articles/"
+                 :body            article
+                 :headers         {:Authorization (str "Bearer " (.-token (:keycloak db)))}
+                 :format          (ajax/json-response-format)
+                 :response-format (ajax/json-response-format {:keywords? true})
+                 :on-success      [:save-success]
+                 :on-failure      [:save-failure]}
+    :db         (assoc db :loading? true)}))
