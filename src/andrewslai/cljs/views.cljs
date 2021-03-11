@@ -2,7 +2,6 @@
   (:require [andrewslai.cljs.article :as article]
             [andrewslai.cljs.article-cards :as cards]
             [andrewslai.cljs.navbar :as nav]
-            [andrewslai.cljs.pages.home :refer [home]]
             [andrewslai.cljs.pages.editor :refer [editor-ui]]
             [andrewslai.cljs.pages.admin :refer [login-ui]]
             [andrewslai.cljs.resume-cards :as resume-cards]
@@ -10,15 +9,15 @@
             [re-frame.core :refer [subscribe
                                    dispatch]]))
 
-;; Redirect with a "Welcome User" message upon login
-
-;; Write tests with cookies....
-;; https://github.com/reagent-project/reagent-utils/blob/master/test/reagent/cookies_test.cljs
-;; https://github.com/SMX-LTD/re-frame-cookie-fx
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Landing pages
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn home []
+  (println "Home")
+  [:div
+   [nav/primary-nav]
+   [cards/recent-content-display]])
 
 (defn thoughts []
   [:div

@@ -30,7 +30,6 @@
 (defn ->hiccup [s]
   (hkry/as-hiccup (hkry/parse s)))
 
-;; TODO: This is throwing but not getting caught... How to get around it?
 (defn unauthorized-backend
   []
   (auth/oauth-backend (reify auth/TokenAuthenticator

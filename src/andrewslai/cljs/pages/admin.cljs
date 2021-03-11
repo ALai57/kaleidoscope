@@ -14,7 +14,6 @@
         (.forEach (fn [v k obj] (swap! m conj {(keyword k) v}))))
     @m))
 
-;; TODO: Make sure refreshing the page doesn't clobber the authentication
 (defn login-form []
   [:div.login-wrapper
    [:div.login-frame
@@ -56,7 +55,6 @@
       (swap! m assoc :avatar avatar)
       (swap! m dissoc :avatar))
     @m))
-
 
 (defn load-image [file-added-event]
   (let [file (first (array-seq (.. file-added-event -target -files)))

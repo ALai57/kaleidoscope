@@ -56,8 +56,6 @@
                     skills)))
           projects))
 
-;; Select organizations associated with project
-;; TODO: Testing around this!
 (defn select-organizations-associated-with-project [projects organizations]
   (println projects)
   (let [associated-organizations (->> projects

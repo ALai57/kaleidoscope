@@ -20,7 +20,6 @@
    :user "andrewslai",
    :password "andrewslai"}
 
-;; TODO: Make a lein alias for this
 (defn -main [& [v & args]]
   (let [ops {"migrate" m/migrate
              "pending" m/pending-list
