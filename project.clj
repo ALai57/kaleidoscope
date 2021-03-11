@@ -12,8 +12,6 @@
                  [cljsjs/slate "0.33.6-0"]
                  [cljsjs/slate-react "0.12.6-0"]
                  [cljsjs/slate-html-serializer "0.6.3-0"]
-                 [cljsjs/zxcvbn "4.4.0-1"]
-                 [com.nulab-inc/zxcvbn "1.3.0"]
                  [org.slf4j/slf4j-nop "1.7.30"]
                  [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
                  [day8.re-frame/tracing "0.5.3"]
