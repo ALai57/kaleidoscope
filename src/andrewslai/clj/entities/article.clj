@@ -1,27 +1,7 @@
 (ns andrewslai.clj.entities.article
   (:require [andrewslai.clj.persistence.postgres2 :as pg]
-            [clojure.spec.alpha :as s]
-            [spec-tools.spec :as spec]))
-
-(s/def :andrewslai.article/article_id spec/integer?)
-(s/def :andrewslai.article/article_name spec/string?)
-(s/def :andrewslai.article/title spec/string?)
-(s/def :andrewslai.article/article_tags spec/string?)
-(s/def :andrewslai.article/timestamp (s/or :date spec/inst? :string spec/string?))
-(s/def :andrewslai.article/article_url spec/string?)
-(s/def :andrewslai.article/author spec/string?)
-(s/def :andrewslai.article/content spec/string?)
-
-(s/def :andrewslai.article/article
-  (s/keys :req-un [:andrewslai.article/title
-                   :andrewslai.article/article_tags
-                   :andrewslai.article/author
-                   :andrewslai.article/timestamp
-                   :andrewslai.article/article_url
-                   :andrewslai.article/article_id]
-          :opt-un [:andrewslai.article/content]))
-
-(s/def :andrewslai.article/articles (s/coll-of :andrewslai.article/article))
+            [andrewslai.cljc.specs.articles]
+            [clojure.spec.alpha :as s]))
 
 (defn get-all-articles [database]
   (pg/select database {:select [:*]
@@ -37,10 +17,7 @@
 (defn create-article! [database article]
   (pg/insert! database
               :articles article
-              ;;:input-validation :andrewslai.article/article
               :ex-subtype :UnableToCreateArticle))
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection

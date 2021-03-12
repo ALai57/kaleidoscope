@@ -8,7 +8,6 @@
             [ring.util.http-response :refer [not-found ok]]
             [spec-tools.swagger.core :as swagger]))
 
-(s/def ::cookie string?)
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))
 

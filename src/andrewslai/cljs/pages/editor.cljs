@@ -1,7 +1,6 @@
 (ns andrewslai.cljs.pages.editor
   (:require [ajax.core :refer [POST]]
             [andrewslai.cljs.navbar :as nav]
-            [andrewslai.cljs.server-comms.editor :as editor-comms]
             [andrewslai.cljs.events.editor :as ed]
             [goog.object :as gobj]
             [re-frame.core :refer [dispatch subscribe]]
@@ -32,14 +31,14 @@
   [props]
   #_(.log js/console props)
   (let [attributes (.-attributes props)
-        node (.-node props)
-        children (.-children props)
-        node-type (.-type node)]
+        node       (.-node props)
+        children   (.-children props)
+        node-type  (.-type node)]
     (case node-type
-      "code" (reagent/as-element [:pre (js->clj attributes)
-                                  [:code children]])
+      "code"       (reagent/as-element [:pre (js->clj attributes)
+                                        [:code children]])
       "code-block" (reagent/as-element [:pre (merge {:style {:white-space "pre-wrap"
-                                                             :background "hsl(30,80%,90%)"}}
+                                                             :background  "hsl(30,80%,90%)"}}
                                                     (js->clj attributes))
                                         [:code children]])
       (reagent/as-element [:p (js->clj attributes) children]))))

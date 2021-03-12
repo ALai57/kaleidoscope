@@ -1,8 +1,9 @@
 (ns andrewslai.cljs.events.articles
-  (:require [ajax.core :refer [GET]]
+  (:require [ajax.core :as ajax]
+            [andrewslai.cljc.specs.articles]
+            [cljs.spec.alpha :as s]
             [day8.re-frame.http-fx]
-            [re-frame.core :refer [dispatch reg-event-db reg-event-fx]]
-            [ajax.core :as ajax]))
+            [re-frame.core :refer [dispatch reg-event-db reg-event-fx]]))
 
 (defn load-article [db [_ response]]
   (merge db {:loading? false
@@ -25,7 +26,8 @@
 
 (defn load-recent-articles [db [_ response]]
   (merge db {:loading? false
-             :recent-content response}))
+             :recent-content (filter (partial s/valid? :andrewslai.article/article)
+                                     response)}))
 (reg-event-db :load-recent-articles load-recent-articles)
 
 (reg-event-fx

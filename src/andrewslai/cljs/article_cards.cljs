@@ -14,11 +14,12 @@
 ;; Card formatting
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn article-tags->icon [article-tags]
-  (condp = article-tags
+  (case article-tags
     "research" "images/nav-bar/neuron-icon.svg"
     "archive" "images/nav-bar/archive-icon.svg"
     "about" "images/nav-bar/andrew-silhouette-icon.svg"
-    "thoughts" "images/nav-bar/andrew-head-icon.svg"))
+    "thoughts" "images/nav-bar/andrew-head-icon.svg"
+    "images/nav-bar/unknown-user.svg"))
 
 (defn make-card
   [{:keys [article_tags title article_url article_id timestamp] :as article}]
