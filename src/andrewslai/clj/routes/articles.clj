@@ -1,19 +1,27 @@
 (ns andrewslai.clj.routes.articles
   (:require [andrewslai.clj.api.articles :as articles-api]
             [andrewslai.clj.routes.admin :as admin]
+            [andrewslai.clj.auth.core :as auth]
             [buddy.auth.accessrules :refer [restrict]]
             [clojure.spec.alpha :as s]
             [compojure.api.meta :as compojure-meta]
-            [compojure.api.sweet :refer [context GET POST]]
+            [compojure.api.sweet :refer [context GET PUT]]
             [ring.util.http-response :refer [not-found ok]]
             [spec-tools.swagger.core :as swagger]))
 
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))
 
-(defn create-article-handler [database {article :body-params}]
+(defn ->article [article-url {:keys [body-params] :as request}]
+  (-> body-params
+      (select-keys [:title :article_tags :article_name :content])
+      (assoc :article_url article-url)
+      (assoc :author (auth/get-full-name (:identity request)))))
+
+(defn create-article-handler
+  [database article-url {:keys [body-params] :as request}]
   (try
-    (ok (articles-api/create-article! database article))
+    (ok (articles-api/create-article! database (->article article-url request)))
     (catch Throwable t
       nil)))
 
@@ -66,17 +74,15 @@
         (ok article)
         (not-found {:reason "Missing"})))
 
-    (POST "/" []
+    (PUT "/:article-url" [article-url]
       :swagger {:summary "Create an article"
                 :consumes #{"application/json"}
                 :produces #{"application/json"}
                 :request :andrewslai.article/article
-                #_#_::swagger/parameters {:body :andrewslai.article/article
-                                          :header-params {:cookie ::cookie}}
                 :responses {200 {:description "The article that was created"
                                  :schema :andrewslai.article/article}
                             401 {:description "Unauthorized"
                                  :schema ::error-message}}}
-      (restrict (partial create-article-handler database)
+      (restrict (partial create-article-handler database article-url)
                 {:handler admin/is-authenticated?
                  :on-error admin/access-error}))))

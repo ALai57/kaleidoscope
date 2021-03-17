@@ -21,6 +21,10 @@
 (defn jwt-body [jwt]
   (b64->clj (second (clojure.string/split jwt #"\."))))
 
+(defn get-full-name
+  [claims]
+  (:name claims))
+
 (defn authenticate
   [authenticator {:keys [request-id] :as request} token]
   (try

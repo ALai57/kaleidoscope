@@ -45,20 +45,15 @@
 (defn http-request
   [method endpoint components
    & [{:keys [body parser]
-       :or {parser #(json/parse-string % keyword)}
-       :as options}]]
+       :or   {parser #(json/parse-string % keyword)}
+       :as   options}]]
   (let [defaults {:logging (merge log/*config* {:level :error})
-                  :auth (unauthorized-backend)}
-        app (h/wrap-middleware h/app-routes (util/deep-merge defaults components))]
+                  :auth    (unauthorized-backend)}
+        app      (h/wrap-middleware h/app-routes (util/deep-merge defaults components))]
     (update (app (reduce conj
                          {:request-method method :uri endpoint}
                          options))
             :body #(parser (slurp %)))))
-
-(defn get-cookie [response cookie]
-  (->> (get-in response [:headers "Set-Cookie"])
-       (filter (partial re-find (re-pattern cookie)))
-       first))
 
 (def valid-token
   (str "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."

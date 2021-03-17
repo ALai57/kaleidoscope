@@ -24,8 +24,8 @@
                                  {:database database})))))
 
 (defn create-article!
-  [components options]
-  (tu/http-request :post "/articles/"
+  [components url options]
+  (tu/http-request :put (str "/articles/" url)
                    components options))
 
 (defn get-article
@@ -34,8 +34,8 @@
 
 (deftest create-article-happy-path
   (with-embedded-postgres database
-    (let [components  {:database database
-                       :auth (tu/authorized-backend)}]
+    (let [components {:database database
+                      :auth     (tu/authorized-backend)}]
 
       (testing "Article retrieval fails"
         (is (match? {:status 404}
@@ -43,17 +43,20 @@
 
       (testing "Article creation succeeds"
         (is (match? {:status 200
-                     :body #(s/valid? :andrewslai.article/article %)}
+                     :body   #(s/valid? :andrewslai.article/article %)}
                     (create-article! components
+                                     (:article_url a/example-article)
                                      {:body-params a/example-article
-                                      :headers {"Authorization"
-                                                (str "Bearer " tu/valid-token)}}))))
+                                      :headers     {"Authorization"
+                                                    (str "Bearer " tu/valid-token)}}))))
       (testing "Article retrieval succeeds"
         (is (match? {:status 200
-                     :body #(s/valid? :andrewslai.article/article %)}
+                     :body   #(s/valid? :andrewslai.article/article %)}
                     (get-article components (str "/articles/" (:article_url a/example-article)))))))))
 
 (deftest cannot-create-article-with-unauthorized-user
   (is (match? {:status 401
                :body {:reason "Not authorized"}}
-              (create-article! {:database nil} {:body-params a/example-article}))))
+              (create-article! {:database nil}
+                               (:article_url a/example-article)
+                               {:body-params a/example-article}))))

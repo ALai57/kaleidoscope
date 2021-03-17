@@ -8,7 +8,5 @@
 (defn get-article [db article-name]
   (article/get-article db article-name))
 
-(defn create-article! [db {:keys [timestamp] :as article}]
-  (article/create-article! db (if (nil? timestamp)
-                                (assoc article :timestamp (java.time.LocalDateTime/now))
-                                article)))
+(defn create-article! [db article]
+  (article/create-article! db (assoc article :timestamp (java.time.LocalDateTime/now))))
