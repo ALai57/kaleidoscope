@@ -31,7 +31,7 @@
 
 (defn quiet [handler]
   (fn [request]
-    (log/with-log-level :error
+    (log/with-log-level :fatal
       (handler request))))
 
 (deftest authentication-middleware-test
@@ -42,7 +42,6 @@
                 (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})))))
 
 (deftest authentication-middleware-failure-test
-  (log/with-log-level :error
-    (let [app  (quiet (wrap-authentication identity (tu/unauthorized-backend)))
-          resp (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})]
-      (is (nil? (:identity resp))))))
+  (let [app  (quiet (wrap-authentication identity (tu/unauthorized-backend)))
+        resp (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})]
+    (is (nil? (:identity resp)))))

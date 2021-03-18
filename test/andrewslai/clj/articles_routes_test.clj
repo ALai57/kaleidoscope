@@ -56,7 +56,7 @@
 
 (deftest cannot-create-article-with-unauthorized-user
   (is (match? {:status 401
-               :body {:reason "Not authorized"}}
+               :body   {:reason "Not authorized"}}
               (create-article! {:database nil}
                                (:article_url a/example-article)
                                {:body-params a/example-article}))))

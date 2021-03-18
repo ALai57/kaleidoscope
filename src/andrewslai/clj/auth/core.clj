@@ -33,8 +33,8 @@
                                     :request-id request-id})
     (when (valid? authenticator token)
       (jwt-body token))
-    (catch Throwable e
-      nil)))
+    (catch Exception e
+      (log/error "Authentication exception" e))))
 
 (defn oauth-backend
   [authenticator]

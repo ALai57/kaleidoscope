@@ -13,8 +13,9 @@
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [compojure.api.middleware :as mw]
             [compojure.api.sweet :refer [api defroutes GET routes]]
-            [org.httpkit.server :as httpkit]
+            [aleph.http :as http]
             [ring.middleware.content-type :refer [wrap-content-type]]
+            [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
@@ -52,9 +53,10 @@
     (handler (assoc request :request-id (str (java.util.UUID/randomUUID))))))
 
 (defn log-request! [handler]
-  (fn [{:keys [request-method uri request-id] :as request}]
-    (handler (do (log/info "Request received: " {:method request-method
-                                                 :uri uri
+  (fn [{:keys [request-method uri request-id body] :as request}]
+    (handler (do (log/info "Request received: " {:method     request-method
+                                                 :uri        uri
+                                                 :body       body
                                                  :request-id request-id})
                  request))))
 
@@ -71,6 +73,7 @@
       (wrap-authentication (:auth components))
       (wrap-authorization (:auth components))
       (wrap-resource "public")
+      wrap-json-response
       wrap-content-type
       log-request!
       wrap-logging
@@ -88,7 +91,7 @@
                          int)
                  5000)]
     (println "Hello! Starting andrewslai on port" port)
-    (httpkit/run-server
+    (http/start-server
      (wrap-middleware app-routes
                       {:database (pg/->Database (util/pg-conn))
                        :logging  (merge log/*config* {:level :info})

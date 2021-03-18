@@ -111,14 +111,23 @@
    (dispatch [:show-modal (create-article-failure-modal response)])
    db))
 
+(defn title->url
+  [title]
+  (-> title
+      str
+      clojure.string/lower-case
+      (clojure.string/replace  #"[!|.|(|)|]" "")
+      (clojure.string/replace  " " "-")))
+
 (reg-event-fx
  :save-article!
- (fn [{:keys [db]} [_ article]]
-   {:http-xhrio {:method          :post
-                 :uri             "/articles/"
-                 :body            article
-                 :headers         {:Authorization (str "Bearer " (.-token (:keycloak db)))}
-                 :format          (ajax/json-response-format)
+ (fn [{:keys [db]} [_ {:keys [title] :as article}]]
+   {:http-xhrio {:method          :put
+                 :uri             (str "/articles/" (title->url title))
+                 :params          article
+                 :headers         {:Authorization (str "Bearer " (.-token (:keycloak db)))
+                                   :Content-Type "application/json"}
+                 :format          (ajax/json-request-format)
                  :response-format (ajax/json-response-format {:keywords? true})
                  :on-success      [:save-success]
                  :on-failure      [:save-failure]}

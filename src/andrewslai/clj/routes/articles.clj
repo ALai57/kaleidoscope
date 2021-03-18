@@ -7,7 +7,8 @@
             [compojure.api.meta :as compojure-meta]
             [compojure.api.sweet :refer [context GET PUT]]
             [ring.util.http-response :refer [not-found ok]]
-            [spec-tools.swagger.core :as swagger]))
+            [spec-tools.swagger.core :as swagger]
+            [taoensso.timbre :as log]))
 
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))
@@ -19,11 +20,13 @@
       (assoc :author (auth/get-full-name (:identity request)))))
 
 (defn create-article-handler
-  [database article-url {:keys [body-params] :as request}]
+  [database article-url request]
   (try
-    (ok (articles-api/create-article! database (->article article-url request)))
-    (catch Throwable t
-      nil)))
+    (let [article (->article article-url request)]
+      (ok (doto (articles-api/create-article! database article)
+            log/info)))
+    (catch Exception e
+      (log/info "Caught exception " e))))
 
 (defmethod compojure-meta/restructure-param :swagger
   [_ {request-spec :request :as swagger} acc]

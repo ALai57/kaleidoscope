@@ -15,8 +15,6 @@
             [slingshot.slingshot :refer [throw+]])
   (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
 
-;; Deal with the dynamic vars better/at all
-
 (defn captured-logging [logging-atom]
   {:level :debug
    :appenders {:println {:enabled? true,
@@ -34,7 +32,7 @@
   []
   (auth/oauth-backend (reify auth/TokenAuthenticator
                         (auth/valid? [_ token]
-                          (throw+ {:type :InvalidAccessError})))))
+                          (throw+ {:type :Unauthorized})))))
 
 (defn authorized-backend
   []
@@ -47,7 +45,7 @@
    & [{:keys [body parser]
        :or   {parser #(json/parse-string % keyword)}
        :as   options}]]
-  (let [defaults {:logging (merge log/*config* {:level :error})
+  (let [defaults {:logging (merge log/*config* {:level :fatal})
                   :auth    (unauthorized-backend)}
         app      (h/wrap-middleware h/app-routes (util/deep-merge defaults components))]
     (update (app (reduce conj

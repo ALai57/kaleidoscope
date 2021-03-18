@@ -173,7 +173,7 @@
 
 (defn editor-ui []
   (let [{:keys [username firstName lastName] :as user} @(subscribe [:update-user-profile!])
-        {:keys [article_tags article_url title]} @(subscribe [:editor-metadata])]
+        {:keys [article_tags title]} @(subscribe [:editor-metadata])]
     [:div
      [nav/primary-nav]
      [:br]
@@ -216,25 +216,13 @@
        [:option {:value "data-analysis"} "Data Analysis"]]
       [:br]
       [:br]
-      [:label {:id "article-url-label" :for "article-url-input"
+      [:label {:id "article-url-label"
                :style {:font-style "italic"
                        :font-size "14pt"
                        :margin "3px"}}
        (str "https://andrewslai.com/#/"
             (or article_tags "thoughts")
             "/content/ ")]
-      [:input {:id "article-url-input"
-               :type "URL"
-               :style {:border "none"
-                       :font-size "14pt"}
-               :placeholder "your-article-url"
-               :name "article_url"
-               :read-only true
-               :value (-> title
-                          str
-                          clojure.string/lower-case
-                          (clojure.string/replace  #"[!|.|(|)|]" "")
-                          (clojure.string/replace  " " "-"))}]
       [:br]
       [:br][:br]
       [:h5 "How text looks in an article"]

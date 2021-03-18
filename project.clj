@@ -1,6 +1,7 @@
 (defproject andrewslai "0.0.2"
   :description "Template for full stack development in Clojure"
-  :dependencies [[buddy/buddy-auth "2.2.0"]
+  :dependencies [[aleph "0.4.7-alpha7"]
+                 [buddy/buddy-auth "2.2.0"]
                  [cheshire "5.10.0"]
                  [clj-commons/secretary "1.2.4"]
                  [clj-http "3.10.0"]
@@ -19,7 +20,6 @@
                  [hiccup "1.0.5"]
                  [hickory "0.7.1"]
                  [honeysql "0.9.10"]
-                 [http-kit "2.3.0"]
                  [metosin/compojure-api "2.0.0-alpha31"]
                  [metosin/spec-tools "0.10.3"]
                  [migratus "1.2.8"]
@@ -42,6 +42,7 @@
                  [reagent "0.10.0"]
                  [ring "1.8.0"]
                  [ring/ring-mock "0.4.0"]
+                 [ring/ring-json "0.5.0"]
                  [sablono "0.8.6"]
                  [seancorfield/next.jdbc "1.1.613"]
                  [slingshot "0.12.2"]
@@ -65,6 +66,7 @@
 
   :aliases {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
             "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
+            "fig:dev"   ["run" "-m" "figwheel.main" "-bo" "dev"]
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
             "fig:prod"  ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "uberjar"]}
 
