@@ -47,11 +47,11 @@
        :as   options}]]
   (let [defaults {:logging (merge log/*config* {:level :fatal})
                   :auth    (unauthorized-backend)}
-        app      (h/wrap-middleware h/app-routes (util/deep-merge defaults components))]
+        app      (h/app-routes (util/deep-merge defaults components))]
     (update (app (reduce conj
                          {:request-method method :uri endpoint}
                          options))
-            :body #(parser (slurp %)))))
+            :body #(parser %))))
 
 (def valid-token
   (str "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."

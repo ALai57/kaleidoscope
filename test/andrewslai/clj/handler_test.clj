@@ -18,7 +18,7 @@
   (is (match? {:status 200
                :headers {"Content-Type" string?}
                :body seq?}
-              (u/http-request :get "/" {} {:parser u/->hiccup}))))
+              (u/http-request :get "/" {} {:parser (comp u/->hiccup slurp)}))))
 
 (deftest swagger-test
   (is (match? {:status 200 :body map?}

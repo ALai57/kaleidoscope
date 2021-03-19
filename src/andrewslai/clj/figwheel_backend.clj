@@ -7,8 +7,8 @@
 
 ;; For figwheel testing
 (def figwheel-app
-  (h/wrap-middleware h/app-routes
-                     {:database (pg/->Database (util/pg-conn))
-                      :logging  (merge log/*config* {:level :info})
-                      :session  {:cookie-attrs {:max-age 3600 :secure true}
-                                 :store        (mem/memory-store (atom {}))}}))
+  (h/app-routes
+   {:database (pg/->Database (util/pg-conn))
+    :logging  (merge log/*config* {:level :info})
+    :session  {:cookie-attrs {:max-age 3600 :secure true}
+               :store        (mem/memory-store (atom {}))}}))

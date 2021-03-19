@@ -10,7 +10,7 @@
             [andrewslai.clj.routes.swagger :refer [swagger-ui-routes]]
             [andrewslai.clj.utils :as util]
             [buddy.auth.backends.session :refer [session-backend]]
-            [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
+            [buddy.auth.middleware :as ba]
             [compojure.api.middleware :as mw]
             [compojure.api.sweet :refer [api defroutes GET routes]]
             [aleph.http :as http]
@@ -29,29 +29,10 @@
 (log/merge-config!
  {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}})
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Compojure Routes
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defroutes index-routes
-  (GET "/" []
-    (-> (resource-response "index.html" {:root "public"})
-        (content-type "text/html"))))
-
-(def app-routes
-  (api index-routes
-       ping-routes
-       articles-routes
-       portfolio-routes
-       admin-routes
-       swagger-ui-routes))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Middleware
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn wrap-request-identifier [handler]
-  (fn [request]
-    (handler (assoc request :request-id (str (java.util.UUID/randomUUID))))))
-
 (defn log-request! [handler]
   (fn [{:keys [request-method uri request-id body] :as request}]
     (handler (do (log/info "Request received: " {:method     request-method
@@ -60,25 +41,40 @@
                                                  :request-id request-id})
                  request))))
 
+(defn wrap-request-identifier [handler]
+  (fn [request]
+    (handler (assoc request :request-id (str (java.util.UUID/randomUUID))))))
+
 (defn wrap-logging [handler]
   (fn [{:keys [request-method uri request-id] :as request}]
     (log/with-config (get-in request [::mw/components :logging])
       (handler request))))
 
-(defn wrap-middleware
-  "Wraps a set of Compojure routes with middleware and adds
-  components via the wrap-components middleware"
-  [routes components]
-  (-> routes
-      (wrap-authentication (:auth components))
-      (wrap-authorization (:auth components))
-      (wrap-resource "public")
-      wrap-json-response
-      wrap-content-type
-      log-request!
-      wrap-logging
-      (mw/wrap-components components)
-      wrap-request-identifier))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Compojure Routes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defroutes index-routes
+  (GET "/" []
+    (-> (resource-response "index.html" {:root "public"})
+        (content-type "text/html"))))
+
+(defn app-routes
+  [components]
+  (api {:components components
+        :middleware [wrap-request-identifier
+                     wrap-logging
+                     wrap-content-type
+                     wrap-json-response
+                     log-request!
+                     #(wrap-resource % "public")
+                     #(ba/wrap-authorization % (:auth components))
+                     #(ba/wrap-authentication % (:auth components))]}
+       index-routes
+       ping-routes
+       articles-routes
+       portfolio-routes
+       admin-routes
+       swagger-ui-routes))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
@@ -92,17 +88,17 @@
                  5000)]
     (println "Hello! Starting andrewslai on port" port)
     (http/start-server
-     (wrap-middleware app-routes
-                      {:database (pg/->Database (util/pg-conn))
-                       :logging  (merge log/*config* {:level :info})
-                       :auth     (auth/oauth-backend
-                                  (keycloak/make-keycloak
-                                   {:realm             "test"
-                                    :ssl-required      "external"
-                                    :auth-server-url   "http://172.17.0.1:8080/auth/"
-                                    :client-id         "test-login-java"
-                                    :client-secret     "18c28e7a-3eb6-4726-b8c7-9c5d02f6bc88"
-                                    :confidential-port 0}))
-                       :session  {:cookie-attrs {:max-age 3600 :secure true}
-                                  :store        (mem/memory-store (atom {}))}})
+     (app-routes
+      {:database (pg/->Database (util/pg-conn))
+       :logging  (merge log/*config* {:level :info})
+       :auth     (auth/oauth-backend
+                  (keycloak/make-keycloak
+                   {:realm             "test"
+                    :ssl-required      "external"
+                    :auth-server-url   "http://172.17.0.1:8080/auth/"
+                    :client-id         "test-login-java"
+                    :client-secret     "18c28e7a-3eb6-4726-b8c7-9c5d02f6bc88"
+                    :confidential-port 0}))
+       :session  {:cookie-attrs {:max-age 3600 :secure true}
+                  :store        (mem/memory-store (atom {}))}})
      {:port port})))
