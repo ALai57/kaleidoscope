@@ -50,6 +50,7 @@
     (log/with-config (get-in request [::mw/components :logging])
       (handler request))))
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Compojure Routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -76,6 +77,7 @@
        admin-routes
        swagger-ui-routes))
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -88,17 +90,14 @@
                  5000)]
     (println "Hello! Starting andrewslai on port" port)
     (http/start-server
-     (app-routes
-      {:database (pg/->Database (util/pg-conn))
-       :logging  (merge log/*config* {:level :info})
-       :auth     (auth/oauth-backend
-                  (keycloak/make-keycloak
-                   {:realm             "test"
-                    :ssl-required      "external"
-                    :auth-server-url   "http://172.17.0.1:8080/auth/"
-                    :client-id         "test-login-java"
-                    :client-secret     "18c28e7a-3eb6-4726-b8c7-9c5d02f6bc88"
-                    :confidential-port 0}))
-       :session  {:cookie-attrs {:max-age 3600 :secure true}
-                  :store        (mem/memory-store (atom {}))}})
+     (app-routes {:database (pg/->Database (util/pg-conn))
+                  :logging  (merge log/*config* {:level :info})
+                  :auth     (auth/oauth-backend
+                             (keycloak/make-keycloak
+                              {:realm             "test"
+                               :ssl-required      "external"
+                               :auth-server-url   "http://172.17.0.1:8080/auth/"
+                               :client-id         "test-login-java"
+                               :client-secret     "18c28e7a-3eb6-4726-b8c7-9c5d02f6bc88"
+                               :confidential-port 0}))})
      {:port port})))
