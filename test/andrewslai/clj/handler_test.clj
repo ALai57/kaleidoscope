@@ -10,8 +10,7 @@
 (deftest ping-test
   (is (match? {:status 200
                :headers {"Content-Type" string?}
-               :body {:service-status "ok"
-                      :sha string?}}
+               :body {:revision string?}}
               (u/http-request :get "/ping" {}))))
 
 (deftest home-test
