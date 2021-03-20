@@ -103,4 +103,4 @@
                   ["docker" "push"]
                   ["change" "version" "leiningen.release/bump-version"]
                   ["vcs" "commit"]
-                  #_["vcs" "push"]])
+                  ["vcs" "push"]])
