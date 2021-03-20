@@ -1,4 +1,4 @@
-(defproject andrewslai "0.0.5"
+(defproject andrewslai "0.0.5-SNAPSHOT"
   :description "Template for full stack development in Clojure"
   :dependencies [[aleph "0.4.7-alpha7"]
                  [buddy/buddy-auth "2.2.0"]
@@ -97,8 +97,7 @@
                   ["uberjar"]
                   ["shell" "docker" "build" "-t" "andrewslai" "."]
                   ["shell" "docker" "tag" "andrewslai:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com"]
-                  ["shell" "docker" "push"]
-                  ["docker" "push" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
+                  ["shell" "docker" "push" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
                   ["change" "version" "leiningen.release/bump-version"]
                   ["vcs" "commit"]
                   ["vcs" "push"]])
