@@ -96,7 +96,7 @@
                   ["clean"]
                   ["uberjar"]
                   ["shell" "docker" "build" "-t" "andrewslai" "."]
-                  ["shell" "docker" "tag" "andrewslai:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com"]
+                  ["shell" "docker" "tag" "andrewslai:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
                   ["shell" "docker" "push" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
                   ["change" "version" "leiningen.release/bump-version"]
                   ["vcs" "commit"]
