@@ -1,4 +1,4 @@
-(defproject andrewslai "0.0.3"
+(defproject andrewslai "0.0.4-SNAPSHOT"
   :description "Template for full stack development in Clojure"
   :dependencies [[aleph "0.4.7-alpha7"]
                  [buddy/buddy-auth "2.2.0"]
@@ -49,7 +49,7 @@
                  [com.taoensso/timbre "4.10.0"]]
 
   :plugins [[lein-doo "0.1.10"]
-            [gorillalabs/lein-docker "1.3.0"]]
+            [lein-shell "0.5.0"]]
 
   ;; Used to make this compatible with Java 11
   :managed-dependencies
@@ -90,17 +90,14 @@
              :source-paths ["src/andrewslai/cljs"]
              :prep-tasks ["compile" "fig:prod"]}}
 
-  :docker {:image-name "andrewslai"
-           :tags ["758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr" "latest"]
-           :dockerfile "Dockerfile"
-           :build-dir  "target"}
-
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]
                   ["vcs" "commit"]
                   ["clean"]
                   ["uberjar"]
-                  ["docker" "build"]
+                  ["shell" "docker" "build" "-t" "andrewslai" "."]
+                  ["shell" "docker" "tag" "andrewslai:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com"]
+                  ["shell" "docker" "push"]
                   ["docker" "push"]
                   ["change" "version" "leiningen.release/bump-version"]
                   ["vcs" "commit"]
