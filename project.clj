@@ -48,7 +48,8 @@
                  [slingshot "0.12.2"]
                  [com.taoensso/timbre "4.10.0"]]
 
-  :plugins [[lein-doo "0.1.10"]]
+  :plugins [[lein-doo "0.1.10"]
+            [io.sarnowski/lein-docker "1.0.0"]]
 
   ;; Used to make this compatible with Java 11
   :managed-dependencies
@@ -89,10 +90,17 @@
              :source-paths ["src/andrewslai/cljs"]
              :prep-tasks ["compile" "fig:prod"]}}
 
+  :docker {:image-name "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"
+           :dockerfile "Dockerfile"
+           :build-dir  "target"}
+
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]
                   ["vcs" "commit"]
-                  ;;["deploy"]
+                  ["clean"]
+                  ["uberjar"]
+                  ["docker" "build"]
+                  ["docker" "push"]
                   ["change" "version" "leiningen.release/bump-version"]
                   ["vcs" "commit"]
                   #_["vcs" "push"]])
