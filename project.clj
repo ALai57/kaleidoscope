@@ -87,4 +87,13 @@
 
    :uberjar {:dependencies [[com.bhauman/figwheel-main "0.2.12"]]
              :source-paths ["src/andrewslai/cljs"]
-             :prep-tasks ["compile" "fig:prod"]}})
+             :prep-tasks ["compile" "fig:prod"]}}
+
+  :release-tasks [["vcs" "assert-committed"]
+                  ["change" "version" "leiningen.release/bump-version" "release"]
+                  ["vcs" "commit"]
+                  ["vcs" "tag"]
+                  ;;["deploy"]
+                  ["change" "version" "leiningen.release/bump-version"]
+                  ["vcs" "commit"]
+                  #_["vcs" "push"]])
