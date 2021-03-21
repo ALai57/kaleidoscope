@@ -38,7 +38,7 @@
     (handler (do (log/info "Request received: " {:method     request-method
                                                  :uri        uri
                                                  :body       body
-                                                 :headers    headers
+                                                 ;;:headers    headers
                                                  :request-id request-id})
                  request))))
 
