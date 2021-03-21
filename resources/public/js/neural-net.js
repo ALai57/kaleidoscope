@@ -77,11 +77,11 @@ var myWeights = [
 function forwardPropagate(d,wts){
     var networkOutput = [];
 
-    for (n=0;n<d.length;n++) {
+    for (i=0;i<d.length;i++) {
 
 	//Hidden Layer
-	var in3 = d[n].x1*wts[0].t + d[n].x2*wts[2].t + myNeurons[2].b;
-	var in4 = d[n].x1*wts[1].t + d[n].x2*wts[3].t + myNeurons[3].b;
+	var in3 = d[i].x1*wts[0].t + d[i].x2*wts[2].t + myNeurons[2].b;
+	var in4 = d[i].x1*wts[1].t + d[i].x2*wts[3].t + myNeurons[3].b;
 	var out3 = activate(in3);
 	var out4 = activate(in4);
 
@@ -92,7 +92,7 @@ function forwardPropagate(d,wts){
 	    <!-- console.log(in5); -->
 	    <!-- console.log(out5); -->
 
-	obj = {"predicted" : out5, "target": d[n].y};
+	obj = {"predicted" : out5, "target": d[i].y};
 	networkOutput.push(obj);
 
     }
@@ -222,25 +222,25 @@ whenAvailable('d3_rebind', function (t) {
     // Add sliders to change neuron weights
     /////////////////////////////////////////////////////
 
-    for (n=1;n<=6;n++) {
+    for (i=1;i<=6;i++) {
         var div = document.createElement('div');
-        div.setAttribute('id','weightSlider' + n);
-        if (n==1) {var marginleft = "20px"} else {var marginleft = "10px"}
+        div.setAttribute('id','weightSlider' + i);
+        if (i==1) {var marginleft = "20px"} else {var marginleft = "10px"}
         div.setAttribute('style', 'float:left;margin-left:' + marginleft + ';margin-right:10px;');
         div.setAttribute('class', 'dynamicjs');
         document.getElementById('primary-content').appendChild(div);
 
     }
 
-    function setupWeightSlider(n) {
-        var newSlider = d3.slider().value(z(myWeights[n].t)).orientation("vertical")
+    function setupWeightSlider(i) {
+        var newSlider = d3.slider().value(z(myWeights[i].t)).orientation("vertical")
             .on("slide",
 	        function (val){
-		    myWeights[n].t = z_inv(val);
+		    myWeights[i].t = z_inv(val);
 		    if (z_inv(val) > 0){var c = "black";}
 		    else {var c = "red";}
 
-		    d3.select('#weight'+n)
+		    d3.select('#weight'+i)
 		        .attr("stroke-width", Math.abs(z_inv(val)*5) )
 		        .attr("stroke", c);
 
@@ -248,11 +248,11 @@ whenAvailable('d3_rebind', function (t) {
 	        }
 	       );
 
-        if (myWeights[n].t > 0){var c = "black";}
+        if (myWeights[i].t > 0){var c = "black";}
         else {var c = "red";}
 
-        d3.select('#weight'+n)
-	    .attr("stroke-width", Math.abs(myWeights[n].t*3) )
+        d3.select('#weight'+i)
+	    .attr("stroke-width", Math.abs(myWeights[i].t*3) )
 	    .attr("stroke", c);
         return newSlider;
     }
@@ -268,10 +268,10 @@ whenAvailable('d3_rebind', function (t) {
     // Add sliders to change neuron biases
     /////////////////////////////////////////////////////
 
-    for (n=1;n<=3;n++) {
+    for (i=1;i<=3;i++) {
         var div = document.createElement('div');
-        div.setAttribute('id','biasSlider' + n);
-        if (n==1) {var marginleft = "100px"} else {var marginleft = "10px"}
+        div.setAttribute('id','biasSlider' + i);
+        if (i==1) {var marginleft = "100px"} else {var marginleft = "10px"}
         div.setAttribute('style', 'float:left;margin-left:' + marginleft + ';margin-right:10px;');
         div.setAttribute('class', 'dynamicjs');
         document.getElementById('primary-content').appendChild(div);
@@ -279,15 +279,15 @@ whenAvailable('d3_rebind', function (t) {
     }
 
 
-    function setupBiasSlider(n) {
-        var newSlider = d3.slider().value(z(myNeurons[n+2].b)).orientation("vertical")
+    function setupBiasSlider(i) {
+        var newSlider = d3.slider().value(z(myNeurons[i+2].b)).orientation("vertical")
             .on("slide",
 	        function (val){
-		    myNeurons[n+2].b = z_inv(val);
+		    myNeurons[i+2].b = z_inv(val);
 
-		    var xval = x(myNeurons[n+2].x) + myNeurons[n+2].b*myNeurons[n+2].r/z_rng*3/2;
+		    var xval = x(myNeurons[i+2].x) + myNeurons[i+2].b*myNeurons[i+2].r/z_rng*3/2;
 
-		    d3.select('#biasline'+n)
+		    d3.select('#biasline'+i)
 		        .attr("x1", xval )
 		        .attr("x2", xval );
 
@@ -295,9 +295,9 @@ whenAvailable('d3_rebind', function (t) {
 	        }
 	       );
 
-        var xval = x(myNeurons[n+2].x) + myNeurons[n+2].b*myNeurons[n+2].r/z_rng*3/2;
+        var xval = x(myNeurons[i+2].x) + myNeurons[i+2].b*myNeurons[i+2].r/z_rng*3/2;
 
-        d3.select('#biasline'+n)
+        d3.select('#biasline'+i)
 	    .attr("x1", xval )
 	    .attr("x2", xval );
 
