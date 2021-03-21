@@ -136,22 +136,22 @@
             (dispatch [:editor-text-changed new-value])))]
 
     (reagent/create-class
-      {:display-name "slatejs-editor"
-       :component-did-mount (fn [this] (reset! this-editor this))
-       :component-will-unmount (fn [this] (reset! this-editor nil))
-       :reagent-render (fn [_]
-                         [:> js/SlateReact.Editor
-                          {:auto-focus true
-                           :class-name "slatejs-text-editor"
-                           :id "slatejs-editor-instance-1"
-                           :on-change change-handler
-                           :on-key-down key-down-handler
-                           :render-mark render-mark
-                           :render-node render-node
-                           :ref update-editor-ref
-                           :value (or @editor-text
-                                      @section-data
-                                      (blank-value))}])})))
+     {:display-name "slatejs-editor"
+      :component-did-mount (fn [this] (reset! this-editor this))
+      :component-will-unmount (fn [this] (reset! this-editor nil))
+      :reagent-render (fn [_]
+                        [:> js/SlateReact.Editor
+                         {:auto-focus true
+                          :class-name "slatejs-text-editor"
+                          :id "slatejs-editor-instance-1"
+                          :on-change change-handler
+                          :on-key-down key-down-handler
+                          :render-mark render-mark
+                          :render-node render-node
+                          :ref update-editor-ref
+                          :value (or @editor-text
+                                     @section-data
+                                     (blank-value))}])})))
 
 (defn serialized-data []
   (let [section-data (subscribe [:editor-data])]
@@ -179,29 +179,19 @@
      [:br]
      [:h1 "Editor"]
      [:br]
-     [:form {:id "editor-article-form"
-             :class "slatejs-article-editor"}
-      [:input {:type "text"
-               :placeholder "Article title"
-               :name "title"
-               :on-change (fn [x]
-                            (dispatch [:editor-metadata-changed
-                                       (form-data->map "editor-article-form")]))
-               :style {:border "none"
-                       :font-size "24pt"
-                       :font-weight "bold"
-                       :margin "5px"}}]
+     [:form {:id "editor-article-form" :class "slatejs-article-editor"}
+      [:input.editor-title {:type "text"
+                            :placeholder "Article title"
+                            :name "title"
+                            :on-change (fn [x]
+                                         (dispatch [:editor-metadata-changed
+                                                    (form-data->map "editor-article-form")]))}]
       [:br]
-      [:input {:type "Author"
-               :placeholder "Author"
-               :style {:border "none"
-                       :font-size "16pt"
-                       :margin "3px"
-                       :color "darkgray"
-                       :font-weight "bold"}
-               :name "author"
-               :readOnly true
-               :value (when user (str firstName " " lastName))}]
+      [:input.editor-author {:type "Author"
+                             :placeholder "Author"
+                             :name "author"
+                             :readOnly true
+                             :value (when user (str firstName " " lastName))}]
       [:br]
       [:select {:id "article-tags-input"
                 :type "Article tags"
@@ -216,27 +206,20 @@
        [:option {:value "data-analysis"} "Data Analysis"]]
       [:br]
       [:br]
-      [:label {:id "article-url-label"
-               :style {:font-style "italic"
-                       :font-size "14pt"
-                       :margin "3px"}}
-       (str "https://andrewslai.com/#/"
-            (or article_tags "thoughts")
-            "/content/ ")]
+      [:label.url {:id "article-url-label"} (str "https://andrewslai.com/#/"
+                                                 (or article_tags "thoughts")
+                                                 "/content/ ")]
       [:br]
       [:br][:br]
       [:h5 "How text looks in an article"]
       [:div {:style {:border-style "double"}}
        [editor]]]
      [:br] [:br]
-     [:div {:id "editor-article-form"
-            :class "slatejs-article-editor"
-            :style {:border-style "ridge"}}
+     [:div.serialized-article {:id "editor-article-form"
+                               :class "slatejs-article-editor"}
       [:h5 "How text looks in the database"]
       [serialized-data]]
-     [:input
-      {:type "button"
-       :on-click
-       (fn [x]
-         (dispatch [:save-article! (form-data->map "editor-article-form")]))
-       :value "Save article!"}]]))
+     [:input {:type "button"
+              :on-click (fn [x]
+                          (dispatch [:save-article! (form-data->map "editor-article-form")]))
+              :value "Save article!"}]]))
