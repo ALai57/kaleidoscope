@@ -67,7 +67,8 @@
 
 (reg-event-fx
  :request-admin-route
- (fn [{:keys [db]} [_ article-name]]
+ (fn [{:keys [db]} [_]]
+   (js/console.log "TOKEN" (.-token (:keycloak db)))
    {:http-xhrio {:method          :get
                  :uri             "/admin"
                  :headers         {:Authorization (str "Bearer " (.-token (:keycloak db)))}
