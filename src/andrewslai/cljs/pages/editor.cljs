@@ -8,49 +8,48 @@
             [cljsjs.slate-react]
             [cljsjs.slate]))
 
-
-
-(defn get-children [x]
-  (some-> x (.-children)))
-
-(defn get-attributes [x]
-  (some-> x (.-attributes)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Renderers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn bold [attributes children]
- [:strong attributes children])
+  [:strong attributes (clj->js children)])
 
 (defn italic [attributes children]
-  [:em attributes children])
+  [:em attributes (clj->js children)])
 
 (defn code [attributes children]
-  [:pre attributes [:code children]])
+  [:pre attributes [:code (clj->js children)]])
 
 (defn code-block [attributes children]
-  [:pre.code-block attributes [:code children]])
+  [:pre.code-block attributes [:code (clj->js children)]])
 
 (defn paragraph [attributes children]
-  [:p attributes children])
+  [:p attributes (clj->js children)])
 
 (defn get-renderer [obj]
-  (let [type (some-> obj (.-type))]
-    (get {"bold"       bold
-          "italic"     italic
-          "code"       code
-          "code-block" code-block}
-         type
-         paragraph)))
+  (get {"bold"       bold
+        "italic"     italic
+        "code"       code
+        "code-block" code-block}
+       (:text-type obj)
+       paragraph))
+
+(defn get-type [text-obj]
+  (.-type text-obj))
+
+(defn props->clj [props]
+  (let [{:keys [node mark] :as p} (js->clj props :keywordize-keys true)]
+    (assoc p :text-type (get-type (or node mark)))))
 
 ;; https://github.com/jhund/re-frame-and-reagent-and-slatejs/blob/master/src/cljs/rrs/ui/slatejs/views.cljs
 ;; https://reactrocket.com/post/slatejs-basics/
 (defn render
   "Renders a slatejs mark to HTML."
-  [get-obj props editor next]
-  (let [renderer (get-renderer (get-obj props))]
-    (reagent/as-element (renderer (js->clj (get-attributes props))
-                                  (get-children props)))))
+  [props editor next]
+  ;;(js/console.log "PROPS!!" (js->clj props :keywordize-keys true))
+  (let [{:keys [attributes children] :as properties} (props->clj props)
+        renderer (get-renderer properties)]
+    (reagent/as-element (renderer attributes children))))
 
 (defn toggle-mark
   "Toggles `mark-type` in editor's current selection."
@@ -155,8 +154,8 @@
                           :id "slatejs-editor-instance-1"
                           :on-change change-handler
                           :on-key-down key-down-handler
-                          :render-mark (partial render (fn [x] (.-mark x)))
-                          :render-node (partial render (fn [x] (.-node x)))
+                          :render-mark render
+                          :render-node render
                           :ref update-editor-ref
                           :value (or @editor-text
                                      @section-data
