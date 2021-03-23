@@ -11,35 +11,18 @@
 
 ;; https://github.com/jhund/re-frame-and-reagent-and-slatejs/blob/master/src/cljs/rrs/ui/slatejs/views.cljs
 ;; https://reactrocket.com/post/slatejs-basics/
-(defn render-mark
+(defn render
   "Renders a slatejs mark to HTML."
-  [props editor next]
-
-  (let [attributes (.-attributes props)
-        children (.-children props)
-        mark (.-mark props)
-        mark-type (.-type mark)]
-    (case mark-type
-      "bold"   (reagent/as-element [:strong (merge {:style {:font-weight "bold"}}
-                                                   (js->clj attributes))
-                                    children])
-      "italic" (reagent/as-element [:em (js->clj attributes) children])
-      (next))))
-
-(defn render-node
-  "Renders a slatejs node to HTML."
-  [props]
-  #_(.log js/console props)
-  (let [attributes (.-attributes props)
-        node       (.-node props)
+  [get-obj props editor next]
+  (let [attributes (js->clj (.-attributes props))
         children   (.-children props)
-        node-type  (.-type node)]
-    (case node-type
-      "code"       (reagent/as-element [:pre (js->clj attributes)
-                                        [:code children]])
-      "code-block" (reagent/as-element [:pre.code-block (js->clj attributes)
-                                        [:code children]])
-      (reagent/as-element [:p (js->clj attributes) children]))))
+        obj-type   (.-type (get-obj props))]
+    (case obj-type
+      "bold"       (reagent/as-element [:strong attributes children])
+      "italic"     (reagent/as-element [:em attributes children])
+      "code"       (reagent/as-element [:pre attributes [:code children]])
+      "code-block" (reagent/as-element [:pre.code-block attributes [:code children]])
+      (reagent/as-element [:p attributes children]))))
 
 (defn toggle-mark
   "Toggles `mark-type` in editor's current selection."
@@ -144,8 +127,8 @@
                           :id "slatejs-editor-instance-1"
                           :on-change change-handler
                           :on-key-down key-down-handler
-                          :render-mark render-mark
-                          :render-node render-node
+                          :render-mark (partial render (fn [x] (.-mark x)))
+                          :render-node (partial render (fn [x] (.-node x)))
                           :ref update-editor-ref
                           :value (or @editor-text
                                      @section-data
