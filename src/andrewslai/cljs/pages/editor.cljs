@@ -9,20 +9,48 @@
             [cljsjs.slate]))
 
 
+
+(defn get-children [x]
+  (some-> x (.-children)))
+
+(defn get-attributes [x]
+  (some-> x (.-attributes)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Renderers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn bold [attributes children]
+ [:strong attributes children])
+
+(defn italic [attributes children]
+  [:em attributes children])
+
+(defn code [attributes children]
+  [:pre attributes [:code children]])
+
+(defn code-block [attributes children]
+  [:pre.code-block attributes [:code children]])
+
+(defn paragraph [attributes children]
+  [:p attributes children])
+
+(defn get-renderer [obj]
+  (let [type (some-> obj (.-type))]
+    (get {"bold"       bold
+          "italic"     italic
+          "code"       code
+          "code-block" code-block}
+         type
+         paragraph)))
+
 ;; https://github.com/jhund/re-frame-and-reagent-and-slatejs/blob/master/src/cljs/rrs/ui/slatejs/views.cljs
 ;; https://reactrocket.com/post/slatejs-basics/
 (defn render
   "Renders a slatejs mark to HTML."
   [get-obj props editor next]
-  (let [attributes (js->clj (.-attributes props))
-        children   (.-children props)
-        obj-type   (.-type (get-obj props))]
-    (case obj-type
-      "bold"       (reagent/as-element [:strong attributes children])
-      "italic"     (reagent/as-element [:em attributes children])
-      "code"       (reagent/as-element [:pre attributes [:code children]])
-      "code-block" (reagent/as-element [:pre.code-block attributes [:code children]])
-      (reagent/as-element [:p attributes children]))))
+  (let [renderer (get-renderer (get-obj props))]
+    (reagent/as-element (renderer (js->clj (get-attributes props))
+                                  (get-children props)))))
 
 (defn toggle-mark
   "Toggles `mark-type` in editor's current selection."
