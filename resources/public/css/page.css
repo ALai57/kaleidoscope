@@ -273,6 +273,11 @@ pre {
   color: darkgray;
 }
 
+.code-block {
+  white-space: pre-wrap;
+  background: hsl(30, 80%, 90%);
+}
+
 .url {
   font-style: italic;
   font-size: 14pt;

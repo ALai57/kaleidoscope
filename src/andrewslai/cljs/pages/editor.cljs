@@ -37,9 +37,7 @@
     (case node-type
       "code"       (reagent/as-element [:pre (js->clj attributes)
                                         [:code children]])
-      "code-block" (reagent/as-element [:pre (merge {:style {:white-space "pre-wrap"
-                                                             :background  "hsl(30,80%,90%)"}}
-                                                    (js->clj attributes))
+      "code-block" (reagent/as-element [:pre.code-block (js->clj attributes)
                                         [:code children]])
       (reagent/as-element [:p (js->clj attributes) children]))))
 
