@@ -1,6 +1,7 @@
 (ns andrewslai.cljs.events.articles-test
   (:require [andrewslai.cljs.events.articles :as a]
-            [cljs.test :refer-macros [deftest is testing]]))
+            [cljs.test :refer-macros [deftest is testing]]
+            [matcher-combinators.standalone :as sa :refer [match?]]))
 
 (def example-article
   {:title "article"
@@ -13,9 +14,9 @@
 
 (deftest articles-db-events 
   (testing "Load article"
-    (is (= {:loading? false, :active-content {:article-name "Something"}}
-           (a/load-article {} [nil {:article-name "Something"}]))))
+    (is (sa/match? {:active-content {:article-name "Something"}}
+                   (a/load-article {} [nil {:article-name "Something"}]))))
   (testing "Load recent articles"
-    (is (= {:loading? false, :recent-content [example-article]}
-           (a/load-recent-articles {} [nil [example-article
-                                            {:article-name "Something"}]])))))
+    (is (sa/match? {:recent-content [example-article]}
+                   (a/load-recent-articles {} [nil [example-article
+                                                    {:article-name "Something"}]])))))
