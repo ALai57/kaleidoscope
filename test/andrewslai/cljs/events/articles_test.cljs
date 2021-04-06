@@ -1,7 +1,7 @@
 (ns andrewslai.cljs.events.articles-test
   (:require [andrewslai.cljs.events.articles :as a]
             [cljs.test :refer-macros [deftest is testing]]
-            [matcher-combinators.standalone :as sa :refer [match?]]))
+            [matcher-combinators.standalone :as sa]))
 
 (def example-article
   {:title "article"

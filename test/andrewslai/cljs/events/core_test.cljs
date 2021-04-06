@@ -1,9 +1,8 @@
 (ns andrewslai.cljs.events.core-test
   (:require [andrewslai.cljs.events.core :as c]
-            [cljs.test :refer-macros [deftest is testing]]))
+            [cljs.test :refer-macros [deftest is]]
+            [matcher-combinators.standalone :as sa]))
 
-(testing "Set active panel"
-  (is (= {:loading? true
-          :active-panel :home
-          :active-content nil}
-         (c/set-active-panel {} [nil :home]))))
+(deftest set-active-panel
+  (is (sa/match? {:loading? true, :active-panel :home}
+                 (c/set-active-panel {} [nil :home]))))
