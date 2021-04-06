@@ -37,7 +37,8 @@
 (defn get-type [text-obj]
   (.-type text-obj))
 
-(defn props->clj [props]
+(defn props->clj
+  [props]
   (let [{:keys [node mark] :as p} (js->clj props :keywordize-keys true)]
     (assoc p :text-type (get-type (or node mark)))))
 

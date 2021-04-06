@@ -2,11 +2,20 @@
   (:require [andrewslai.cljs.events.articles :as a]
             [cljs.test :refer-macros [deftest is testing]]))
 
+(def example-article
+  {:title "article"
+   :article_tags "tag"
+   :author "Andrew Lai"
+   :timestamp "2021-04-05"
+   :article_url "http://google.com"
+   :article_id 1
+   :content "content"})
+
 (deftest articles-db-events 
   (testing "Load article"
     (is (= {:loading? false, :active-content {:article-name "Something"}}
            (a/load-article {} [nil {:article-name "Something"}]))))
   (testing "Load recent articles"
-    (is (= {:loading? false, :recent-content [{:article-name "Something"}]}
-           (a/load-recent-articles {} [nil [{:article-name "Something"}]])))))
-
+    (is (= {:loading? false, :recent-content [example-article]}
+           (a/load-recent-articles {} [nil [example-article
+                                            {:article-name "Something"}]])))))

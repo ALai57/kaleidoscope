@@ -34,6 +34,9 @@ The frontend is built using `figwheel-main`
 To build the project without any Google Closure optimizations, use `lein
 fig:build` (this will also connect a figwheel REPL for interactive development)
 
+To test the Clojurescript app, start a figwheel server with `lein fig:build`,
+then navigate to `/tests.html` to see test output
+
 ## Postgres
 Install postgres (on Ubuntu, `sudo apt get install postgresql`)
 Create a database `createdb <DATABASE-NAME>` 
