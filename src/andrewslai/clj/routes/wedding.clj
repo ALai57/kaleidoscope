@@ -5,7 +5,9 @@
             [andrewslai.clj.routes.admin :as admin]
             [clojure.string :as string]
             [compojure.api.sweet :refer [context GET]]
-            [ring.util.http-response :refer [not-found ok internal-server-error]]
+            [ring.util.http-response :refer [content-type not-found ok
+                                             internal-server-error
+                                             resource-response]]
             [spec-tools.swagger.core :as swagger]
             [taoensso.timbre :as log]))
 
@@ -37,9 +39,8 @@
                 :produces    #{"text/html"}
                 :responses   {200 {:description "Landing page for wedding"
                                    :schema      any?}}}
-      (-> (s3/get-object WEDDING-BUCKET "index.html")
-          :input-stream
-          slurp))
+      (-> (resource-response "wedding-index.html" {:root "public"})
+          (content-type "text/html")))
 
     (context "/media" []
       (GET "/" []
