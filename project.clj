@@ -1,6 +1,7 @@
 (defproject andrewslai "0.0.12-SNAPSHOT"
   :description "Template for full stack development in Clojure"
   :dependencies [[aleph "0.4.7-alpha7"]
+                 [amazonica "0.3.156"]
                  [buddy/buddy-auth "2.2.0"]
                  [cheshire "5.10.0"]
                  [clj-commons/secretary "1.2.4"]
