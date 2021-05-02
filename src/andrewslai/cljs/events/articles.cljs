@@ -6,8 +6,9 @@
             [re-frame.core :refer [dispatch reg-event-db reg-event-fx]]))
 
 (defn load-article [db [_ response]]
-  (merge db {:loading? false
-             :active-content response}))
+  (assoc db
+         :loading? false
+         :active-content response))
 (reg-event-db :load-article load-article)
 
 (defn make-article-url [article-name]
@@ -25,9 +26,10 @@
     :db         (assoc db :loading? true)}))
 
 (defn load-recent-articles [db [_ response]]
-  (merge db {:loading? false
-             :recent-content (filter (partial s/valid? :andrewslai.article/article)
-                                     response)}))
+  (assoc db
+         :loading? false
+         :recent-content (filter (partial s/valid? :andrewslai.article/article)
+                                 response)))
 (reg-event-db :load-recent-articles load-recent-articles)
 
 (reg-event-fx

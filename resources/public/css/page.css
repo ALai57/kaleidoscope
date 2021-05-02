@@ -258,10 +258,39 @@ pre {
     box-shadow: inset 1px 1px 5px 0px;
 }
 
+.editor-title {
+  border: none;
+  font-size: 24pt;
+  font-weight: bold;
+  margin: 5px;
+}
+
+.editor-author {
+  border: none;
+  font-size: 16pt;
+  font-weight: bold;
+  margin: 3px;
+  color: darkgray;
+}
+
+.code-block {
+  white-space: pre-wrap;
+  background: hsl(30, 80%, 90%);
+}
+
+.url {
+  font-style: italic;
+  font-size: 14pt;
+  margin: 3px;
+}
+
+.serialized-article {
+  border-style: ridge;
+}
 
 .login-wrapper {
-    text-align: center;
-    margin: 20px;
+  text-align: center;
+  margin: 20px;
 }
 
 .login-frame {

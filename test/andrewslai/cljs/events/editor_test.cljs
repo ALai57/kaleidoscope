@@ -1,7 +1,6 @@
 (ns andrewslai.cljs.events.editor-test
   (:require [cljs.test :as t :refer-macros [deftest is testing]]
-            [andrewslai.cljs.events.editor :as e]
-            [andrewslai.cljs.pages.editor :refer [blank-value]]))
+            [andrewslai.cljs.events.editor :as e]))
 
 (defn paragraph-with [nodes]
   (->> {:document {:nodes [{:object "block"

@@ -8,40 +8,49 @@
             [cljsjs.slate-react]
             [cljsjs.slate]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Renderers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn bold [attributes children]
+  [:strong attributes (clj->js children)])
+
+(defn italic [attributes children]
+  [:em attributes (clj->js children)])
+
+(defn code [attributes children]
+  [:pre attributes [:code (clj->js children)]])
+
+(defn code-block [attributes children]
+  [:pre.code-block attributes [:code (clj->js children)]])
+
+(defn paragraph [attributes children]
+  [:p attributes (clj->js children)])
+
+(defn get-renderer [obj]
+  (get {"bold"       bold
+        "italic"     italic
+        "code"       code
+        "code-block" code-block}
+       (:text-type obj)
+       paragraph))
+
+(defn get-type [text-obj]
+  (.-type text-obj))
+
+(defn props->clj
+  [props]
+  (let [{:keys [node mark] :as p} (js->clj props :keywordize-keys true)]
+    (assoc p :text-type (get-type (or node mark)))))
 
 ;; https://github.com/jhund/re-frame-and-reagent-and-slatejs/blob/master/src/cljs/rrs/ui/slatejs/views.cljs
 ;; https://reactrocket.com/post/slatejs-basics/
-(defn render-mark
+(defn render
   "Renders a slatejs mark to HTML."
   [props editor next]
-
-  (let [attributes (.-attributes props)
-        children (.-children props)
-        mark (.-mark props)
-        mark-type (.-type mark)]
-    (case mark-type
-      "bold"   (reagent/as-element [:strong (merge {:style {:font-weight "bold"}}
-                                                   (js->clj attributes))
-                                    children])
-      "italic" (reagent/as-element [:em (js->clj attributes) children])
-      (next))))
-
-(defn render-node
-  "Renders a slatejs node to HTML."
-  [props]
-  #_(.log js/console props)
-  (let [attributes (.-attributes props)
-        node       (.-node props)
-        children   (.-children props)
-        node-type  (.-type node)]
-    (case node-type
-      "code"       (reagent/as-element [:pre (js->clj attributes)
-                                        [:code children]])
-      "code-block" (reagent/as-element [:pre (merge {:style {:white-space "pre-wrap"
-                                                             :background  "hsl(30,80%,90%)"}}
-                                                    (js->clj attributes))
-                                        [:code children]])
-      (reagent/as-element [:p (js->clj attributes) children]))))
+  ;;(js/console.log "PROPS!!" (js->clj props :keywordize-keys true))
+  (let [{:keys [attributes children] :as properties} (props->clj props)
+        renderer (get-renderer properties)]
+    (reagent/as-element (renderer attributes children))))
 
 (defn toggle-mark
   "Toggles `mark-type` in editor's current selection."
@@ -136,22 +145,22 @@
             (dispatch [:editor-text-changed new-value])))]
 
     (reagent/create-class
-      {:display-name "slatejs-editor"
-       :component-did-mount (fn [this] (reset! this-editor this))
-       :component-will-unmount (fn [this] (reset! this-editor nil))
-       :reagent-render (fn [_]
-                         [:> js/SlateReact.Editor
-                          {:auto-focus true
-                           :class-name "slatejs-text-editor"
-                           :id "slatejs-editor-instance-1"
-                           :on-change change-handler
-                           :on-key-down key-down-handler
-                           :render-mark render-mark
-                           :render-node render-node
-                           :ref update-editor-ref
-                           :value (or @editor-text
-                                      @section-data
-                                      (blank-value))}])})))
+     {:display-name "slatejs-editor"
+      :component-did-mount (fn [this] (reset! this-editor this))
+      :component-will-unmount (fn [this] (reset! this-editor nil))
+      :reagent-render (fn [_]
+                        [:> js/SlateReact.Editor
+                         {:auto-focus true
+                          :class-name "slatejs-text-editor"
+                          :id "slatejs-editor-instance-1"
+                          :on-change change-handler
+                          :on-key-down key-down-handler
+                          :render-mark render
+                          :render-node render
+                          :ref update-editor-ref
+                          :value (or @editor-text
+                                     @section-data
+                                     (blank-value))}])})))
 
 (defn serialized-data []
   (let [section-data (subscribe [:editor-data])]
@@ -179,29 +188,19 @@
      [:br]
      [:h1 "Editor"]
      [:br]
-     [:form {:id "editor-article-form"
-             :class "slatejs-article-editor"}
-      [:input {:type "text"
-               :placeholder "Article title"
-               :name "title"
-               :on-change (fn [x]
-                            (dispatch [:editor-metadata-changed
-                                       (form-data->map "editor-article-form")]))
-               :style {:border "none"
-                       :font-size "24pt"
-                       :font-weight "bold"
-                       :margin "5px"}}]
+     [:form {:id "editor-article-form" :class "slatejs-article-editor"}
+      [:input.editor-title {:type "text"
+                            :placeholder "Article title"
+                            :name "title"
+                            :on-change (fn [x]
+                                         (dispatch [:editor-metadata-changed
+                                                    (form-data->map "editor-article-form")]))}]
       [:br]
-      [:input {:type "Author"
-               :placeholder "Author"
-               :style {:border "none"
-                       :font-size "16pt"
-                       :margin "3px"
-                       :color "darkgray"
-                       :font-weight "bold"}
-               :name "author"
-               :readOnly true
-               :value (when user (str firstName " " lastName))}]
+      [:input.editor-author {:type "Author"
+                             :placeholder "Author"
+                             :name "author"
+                             :readOnly true
+                             :value (when user (str firstName " " lastName))}]
       [:br]
       [:select {:id "article-tags-input"
                 :type "Article tags"
@@ -216,27 +215,20 @@
        [:option {:value "data-analysis"} "Data Analysis"]]
       [:br]
       [:br]
-      [:label {:id "article-url-label"
-               :style {:font-style "italic"
-                       :font-size "14pt"
-                       :margin "3px"}}
-       (str "https://andrewslai.com/#/"
-            (or article_tags "thoughts")
-            "/content/ ")]
+      [:label.url {:id "article-url-label"} (str "https://andrewslai.com/#/"
+                                                 (or article_tags "thoughts")
+                                                 "/content/ ")]
       [:br]
       [:br][:br]
       [:h5 "How text looks in an article"]
       [:div {:style {:border-style "double"}}
        [editor]]]
      [:br] [:br]
-     [:div {:id "editor-article-form"
-            :class "slatejs-article-editor"
-            :style {:border-style "ridge"}}
+     [:div.serialized-article {:id "editor-article-form"
+                               :class "slatejs-article-editor"}
       [:h5 "How text looks in the database"]
       [serialized-data]]
-     [:input
-      {:type "button"
-       :on-click
-       (fn [x]
-         (dispatch [:save-article! (form-data->map "editor-article-form")]))
-       :value "Save article!"}]]))
+     [:input {:type "button"
+              :on-click (fn [x]
+                          (dispatch [:save-article! (form-data->map "editor-article-form")]))
+              :value "Save article!"}]]))

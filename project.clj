@@ -48,8 +48,7 @@
                  [slingshot "0.12.2"]
                  [com.taoensso/timbre "4.10.0"]]
 
-  :plugins [[lein-doo "0.1.10"]
-            [lein-shell "0.5.0"]]
+  :plugins [[lein-shell "0.5.0"]]
 
   ;; Used to make this compatible with Java 11
   :managed-dependencies
@@ -78,7 +77,7 @@
                         [org.clojure/test.check "1.1.0"]
                         [com.bhauman/figwheel-main "0.2.12"]
                         [com.bhauman/rebel-readline-cljs "0.1.4"]
-                        [lein-doo "0.1.10"]]
+                        [com.bhauman/cljs-test-display "0.1.1"]]
          :plugins [[lein-ancient "0.6.15"]
                    [lein-kibit "0.1.8"]
                    [lein-ring "0.12.5"]]

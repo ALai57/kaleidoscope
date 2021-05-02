@@ -1,11 +1,17 @@
 (ns andrewslai.cljs.test-runner
-  (:require [andrewslai.cljs.events.editor-test]
+  (:require [andrewslai.cljs.core-test]
             [andrewslai.cljs.events.articles-test]
-            [andrewslai.cljs.core-test]
-            [doo.runner :refer-macros [doo-tests]]))
+            [andrewslai.cljs.events.core-test]
+            [andrewslai.cljs.events.editor-test]
+            [andrewslai.cljs.events.projects-portfolio-test]
+            [cljs-test-display.core]
+            [figwheel.main.testing :refer-macros [run-tests]]))
 
 (enable-console-print!)
 
-(doo-tests 'andrewslai.cljs.core-test
+(run-tests (cljs-test-display.core/init! "app-testing")
+           'andrewslai.cljs.core-test
+           'andrewslai.cljs.events.core-test
            'andrewslai.cljs.events.articles-test
-           'andrewslai.cljs.events.editor-test)
+           'andrewslai.cljs.events.editor-test
+           'andrewslai.cljs.events.projects-portfolio-test)

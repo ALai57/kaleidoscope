@@ -1,7 +1,8 @@
 ^{:watch-dirs ["test" "src"]
   :css-dirs ["resources/public/css"]
   :auto-testing true
-  :ring-handler andrewslai.clj.figwheel-backend/figwheel-app}
+  :ring-handler andrewslai.clj.figwheel-backend/figwheel-app
+  :extra-main-files {:testing {:main andrewslai.cljs.test-runner}}}
 {:main andrewslai.cljs.core
  :asset-path "js/compiled/out_andrewslai"
  ;; Change this to connect to whatever realm is setup for local development
