@@ -1,0 +1,10 @@
+#!/bin/bash
+
+: ${1?"Must provide a terraform command to run: e.g. init, plan, apply"}
+
+if [ "init" = "$1" ]
+then
+    terraform init -backend-config=provider_secrets.tfvars
+else
+    terraform $1 --var-file=provider_secrets.tfvars --var-file=keycloak_secrets.tfvars
+fi
