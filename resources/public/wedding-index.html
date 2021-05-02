@@ -1,0 +1,26 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="css/wedding.css">
+</head>
+<body>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"> </script>
+  <h1>Welcome to our wedding photos page!</h1>
+  <div id='wedding-media'></div>
+<script>
+  // GET list of all media
+  $.ajax({
+    type: 'get',
+    url: 'http://localhost:5000/wedding/media',
+    success:function(images){
+      var id = 'wedding-media';
+      console.log(images);
+      $.each(JSON.parse(images), function(){
+        $('<img src="wedding/' + this.key + '" class="wedding-image" />').appendTo('#wedding-media');
+      })
+    }
+  })
+</script>
+</body>
+</html>
