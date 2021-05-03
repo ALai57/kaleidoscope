@@ -8,8 +8,10 @@
             [andrewslai.clj.routes.ping :refer [ping-routes]]
             [andrewslai.clj.routes.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.routes.swagger :refer [swagger-ui-routes]]
-            [andrewslai.clj.routes.wedding :refer [wedding-routes]]
+            [andrewslai.clj.routes.wedding :as wedding :refer [wedding-routes]]
+            [andrewslai.clj.persistence.s3 :as fs]
             [andrewslai.clj.utils :as util]
+            [buddy.auth.accessrules :refer [wrap-access-rules]]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :as ba]
             [compojure.api.middleware :as mw]
@@ -71,14 +73,16 @@
                      log-request!
                      #(wrap-resource % "public")
                      #(ba/wrap-authorization % (:auth components))
-                     #(ba/wrap-authentication % (:auth components))]}
+                     #(ba/wrap-authentication % (:auth components))
+                     #(wrap-access-rules % {:rules wedding/access-rules})
+                     ]}
        index-routes
        ping-routes
        articles-routes
        portfolio-routes
        admin-routes
-       swagger-ui-routes
-       wedding-routes))
+       wedding-routes
+       swagger-ui-routes))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -93,14 +97,16 @@
                  5000)]
     (println "Hello! Starting andrewslai on port" port)
     (http/start-server
-     (app-routes {:database (pg/->Database (util/pg-conn))
-                  :logging  (merge log/*config* {:level :info})
-                  :auth     (auth/oauth-backend
-                             (keycloak/make-keycloak
-                              {:realm             "test"
-                               :ssl-required      "external"
-                               :auth-server-url   "http://172.17.0.1:8080/auth/"
-                               :client-id         "test-login-java"
-                               :client-secret     "18c28e7a-3eb6-4726-b8c7-9c5d02f6bc88"
-                               :confidential-port 0}))})
+     (app-routes
+      {:database        (pg/->Database (util/pg-conn))
+       :wedding-storage (fs/make-s3 {:bucket-name "andrewslai-wedding"})
+       :logging         (merge log/*config* {:level :info})
+       :auth            (auth/oauth-backend
+                         (keycloak/make-keycloak
+                          {:realm             "test"
+                           :ssl-required      "external"
+                           :auth-server-url   "http://172.17.0.1:8080/auth/"
+                           :client-id         "test-login-java"
+                           :client-secret     "18c28e7a-3eb6-4726-b8c7-9c5d02f6bc88"
+                           :confidential-port 0}))})
      {:port port})))

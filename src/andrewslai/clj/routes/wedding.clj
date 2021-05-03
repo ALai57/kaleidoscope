@@ -2,7 +2,10 @@
   (:require [amazonica.core :as amazon]
             [amazonica.aws.s3 :as s3]
             [amazonica.aws.s3transfer :as s3t]
+            [andrewslai.clj.auth.core :as auth]
+            [andrewslai.clj.persistence.s3 :as fs]
             [andrewslai.clj.routes.admin :as admin]
+            [buddy.auth.accessrules :as ar]
             [clojure.string :as string]
             [compojure.api.sweet :refer [context GET]]
             [ring.util.http-response :refer [content-type not-found ok
@@ -11,25 +14,25 @@
             [spec-tools.swagger.core :as swagger]
             [taoensso.timbre :as log]))
 
-(def WEDDING-BUCKET
-  "andrewslai-wedding")
-
 (def MEDIA-FOLDER
   "media")
 
-(defn s3-path [xs]
-  (string/join "/" xs))
+(defn require-scope
+  [scope {:keys [identity] :as request}]
+  (if (contains? (auth/get-scopes identity) scope)
+    true
+    (ar/error (format "Unauthorized for scope: %s (valid scopes: %s)"
+                      scope
+                      (auth/get-scopes identity)))))
 
-(defn exception-response
-  [{:keys [status-code] :as exception-map}]
-  (case status-code
-    404 (not-found)
-    (internal-server-error "Unknown exception")))
+(def access-rules
+  [{:pattern #"^/wedding/media*"
+    :handler (partial require-scope "wedding")}])
 
 (def wedding-routes
   (context "/wedding" []
     :coercion :spec
-    :components []
+    :components [wedding-storage]
     :tags ["wedding"]
 
     (GET "/" []
@@ -48,11 +51,7 @@
                   :produces  #{"application/json"}
                   :responses {200 {:description "List of all wedding media"
                                    :schema      any?}}}
-        (->> (s3/list-objects-v2 {:bucket-name WEDDING-BUCKET
-                                  :prefix      (str MEDIA-FOLDER "/")})
-             :object-summaries
-             (drop 1)
-             (map (fn [m] (select-keys m [:key :size :etag])))))
+        (fs/ls wedding-storage (str MEDIA-FOLDER "/")))
 
       (GET "/:id" [id]
         :swagger {:summary     "Retrieve a picture or video"
@@ -60,11 +59,7 @@
                   :produces    #{"image/png" "image/svg"}
                   :responses   {200 {:description "S3 object"
                                      :schema      any?}}}
-        (try
-          (-> (s3/get-object WEDDING-BUCKET (s3-path [MEDIA-FOLDER id]))
-              :input-stream)
-          (catch Exception e
-            (exception-response (amazon/ex->map e))))))))
+        (fs/get-file wedding-storage (str MEDIA-FOLDER "/" id))))))
 
 (comment
   (s3-path [MEDIA-FOLDER "something.ptg"])

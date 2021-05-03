@@ -6,6 +6,7 @@
             [andrewslai.clj.utils :as util]
             [cheshire.core :as json]
             [clojure.java.jdbc :as jdbc]
+            [clojure.string :as string]
             [clojure.test :refer [deftest]]
             [hickory.core :as hkry]
             [migratus.core :as migratus]
@@ -51,7 +52,16 @@
     (update (app (reduce conj
                          {:request-method method :uri endpoint}
                          options))
-            :body #(parser %))))
+            :body parser)))
+
+(defn make-jwt
+  [{:keys [hdr body sig]
+    :or {hdr "" sig ""}}]
+  (string/join "." ["" body ""]))
+
+(defn bearer-token
+  [m]
+  (str "Bearer " (make-jwt {:body (auth/clj->b64 m)})))
 
 (def valid-token
   (str "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."

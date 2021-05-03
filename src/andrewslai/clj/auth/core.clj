@@ -21,6 +21,10 @@
 (defn jwt-body [jwt]
   (b64->clj (second (clojure.string/split jwt #"\."))))
 
+(defn get-scopes
+  [{:keys [scope] :as claims}]
+  (and scope (set (clojure.string/split scope #" "))))
+
 (defn get-full-name
   [claims]
   (:name claims))
@@ -87,4 +91,7 @@
   ;;     :typ "Bearer",
   ;;     :preferred_username "a@a.com",
   ;;     :iat 1614122870}
+
+
+  (get-scopes {:scope "openid email profile",})
   )
