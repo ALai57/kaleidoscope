@@ -45,20 +45,20 @@
                                   {:key "media/b.txt" :etag "bcdefg" :size 200}]}
               (wedding-route {:auth (tu/authorized-backend)
                               :wedding-storage (mock-fs mock-files)}
-                             {:headers {"Authorization" (tu/bearer-token {:scope "wedding"})}}))))
+                             {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}}))))
 
 (deftest unauthorized-user-test
-  (is (match? {:status 400 :body #"Unauthorized for scope"}
+  (is (match? {:status 400 :body #"Unauthorized for role"}
               (wedding-route {:auth (tu/unauthorized-backend)
                               :wedding-storage (mock-fs mock-files)}
-                             {:headers {"Authorization" (tu/bearer-token {:scope "wedding"})}
+                             {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
                               :parser identity}))))
 
 (comment
   (wedding-route {:auth (tu/authorized-backend)}
-                 {:headers {"Authorization" (tu/bearer-token {:scope "wedding"})}})
+                 {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}})
 
   (auth/jwt-body (make-jwt {:hdr ""
-                            :body (auth/clj->b64 {:scope "wedding"})
+                            :body (auth/clj->b64 {:realm_access {:roles ["wedding"]}})
                             :sig ""}))
   )

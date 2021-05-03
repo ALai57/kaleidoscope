@@ -25,6 +25,10 @@
   [{:keys [scope] :as claims}]
   (and scope (set (clojure.string/split scope #" "))))
 
+(defn get-realm-roles
+  [claims]
+  (set (get-in claims [:realm_access :roles])))
+
 (defn get-full-name
   [claims]
   (:name claims))

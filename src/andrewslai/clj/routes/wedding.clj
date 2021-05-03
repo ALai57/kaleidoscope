@@ -17,17 +17,17 @@
 (def MEDIA-FOLDER
   "media")
 
-(defn require-scope
-  [scope {:keys [identity] :as request}]
-  (if (contains? (auth/get-scopes identity) scope)
+(defn require-role
+  [role {:keys [identity] :as request}]
+  (if (contains? (auth/get-realm-roles identity) role)
     true
-    (ar/error (format "Unauthorized for scope: %s (valid scopes: %s)"
-                      scope
-                      (auth/get-scopes identity)))))
+    (ar/error (format "Unauthorized for role: %s (valid roles: %s)"
+                      role
+                      (auth/get-realm-roles identity)))))
 
 (def access-rules
   [{:pattern #"^/wedding/media*"
-    :handler (partial require-scope "wedding")}])
+    :handler (partial require-role "wedding")}])
 
 (def wedding-routes
   (context "/wedding" []
