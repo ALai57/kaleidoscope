@@ -70,7 +70,7 @@
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
             "fig:prod"  ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "uberjar"]}
 
-  :shell {:env "DOCKER_BUILDKIT" "1"}
+  :shell {:env {"DOCKER_BUILDKIT" "1"}}
 
   :profiles
   {:dev {:dependencies [[binaryage/devtools "1.0.0"]
