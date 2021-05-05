@@ -88,6 +88,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn -main
   "Start a server and run the application"
   [& {:keys [port]}]
@@ -103,10 +104,10 @@
        :logging         (merge log/*config* {:level :info})
        :auth            (auth/oauth-backend
                          (keycloak/make-keycloak
-                          {:realm             "test"
+                          {:realm             (System/getenv "ANDREWSLAI_AUTH_REALM")
                            :ssl-required      "external"
-                           :auth-server-url   "http://172.17.0.1:8080/auth/"
-                           :client-id         "test-login-java"
-                           :client-secret     "18c28e7a-3eb6-4726-b8c7-9c5d02f6bc88"
+                           :auth-server-url   (System/getenv "ANDREWSLAI_AUTH_URL")
+                           :client-id         (System/getenv "ANDREWSLAI_AUTH_CLIENT")
+                           :client-secret     (System/getenv "ANDREWSLAI_AUTH_SECRET")
                            :confidential-port 0}))})
      {:port port})))

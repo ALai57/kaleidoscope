@@ -24,6 +24,24 @@ variable "ANDREWSLAI_DB_PORT" {
   description = "Database port"
 }
 
+
+variable "ANDREWSLAI_AUTH_REALM" {
+  description = "Keycloak realm to auth into"
+}
+
+variable "ANDREWSLAI_AUTH_URL" {
+  description = "Keycloak URL"
+}
+
+variable "ANDREWSLAI_AUTH_CLIENT" {
+  description = "Keycloak client id"
+}
+
+variable "ANDREWSLAI_AUTH_SECRET" {
+  description = "Keycloak client secret"
+}
+
+
 ##############################################################
 # Data sources to get VPC, subnets and security group details
 ##############################################################
@@ -255,7 +273,25 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
       {
         "name": "ANDREWSLAI_DB_PORT",
         "value": "${var.ANDREWSLAI_DB_PORT}"
+      },
+      {
+        "name": "ANDREWSLAI_AUTH_REALM",
+        "value": "${var.ANDREWSLAI_AUTH_REALM}"
+      },
+      {
+        "name": "ANDREWSLAI_AUTH_URL",
+        "value": "${var.ANDREWSLAI_AUTH_URL}"
+      },
+      {
+        "name": "ANDREWSLAI_AUTH_CLIENT",
+        "value": "${var.ANDREWSLAI_AUTH_CLIENT}"
+      },
+      {
+        "name": "ANDREWSLAI_AUTH_SECRET",
+        "value": "${var.ANDREWSLAI_AUTH_SECRET}"
       }
+
+
     ],
     "logConfiguration": {
       "logDriver": "awslogs",
