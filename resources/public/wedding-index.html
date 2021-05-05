@@ -13,7 +13,11 @@
     <button id="load-images">Load images</button>
   <div id='wedding-media'></div>
 <script>
-  var keycloak_url = "http://172.17.0.1:8080/auth/realms/test";
+  var keycloak_url = if (window.location.hostname == 'localhost') {
+                        "http://172.17.0.1:8080/auth/realms/test"
+                     } else {
+                         "https://keycloak.andrewslai.com/auth/realms/andrewslai"
+                     };
 
   var connection = {"authority": keycloak_url,
                     "client_id": "test-login",
