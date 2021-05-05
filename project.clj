@@ -70,6 +70,8 @@
             "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
             "fig:prod"  ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "uberjar"]}
 
+  :shell {:env "DOCKER_BUILDKIT" "1"}
+
   :profiles
   {:dev {:dependencies [[binaryage/devtools "1.0.0"]
                         [cider/piggieback "0.4.2"]
@@ -94,7 +96,7 @@
                   ["vcs" "commit"]
                   ["clean"]
                   ["uberjar"]
-                  ["shell" "DOCKER_BUILDKIT=1" "docker" "build" "-t" "andrewslai" "."]
+                  ["shell" "docker" "build" "-t" "andrewslai" "."]
                   ["shell" "docker" "tag" "andrewslai:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
                   ["shell" "docker" "push" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
                   ["change" "version" "leiningen.release/bump-version"]
