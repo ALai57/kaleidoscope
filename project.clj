@@ -1,4 +1,4 @@
-(defproject andrewslai "0.0.18"
+(defproject andrewslai "0.0.19-SNAPSHOT"
   :description "Template for full stack development in Clojure"
   :dependencies [[aleph "0.4.7-alpha7"]
                  [amazonica "0.3.156"]
