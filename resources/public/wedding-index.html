@@ -14,18 +14,32 @@
   <div id='wedding-media'></div>
 <script>
 
+  function is_dev() {
+      return window.location.hostname == 'localhost'
+  }
+
+  IS_DEV = is_dev();
+
   function get_auth_url() {
-      if (window.location.hostname == 'localhost') {
+      if (IS_DEV) {
           return "http://172.17.0.1:8080/auth/realms/test"
       } else {
           return "https://keycloak.andrewslai.com/auth/realms/andrewslai"
       };
   }
 
+  function get_client_id() {
+      if (IS_DEV) {
+          return "test-login"
+      } else {
+          return "andrewslai-frontend"
+      };
+  }
+
   var keycloak_url = get_auth_url();
 
   var connection = {"authority": keycloak_url,
-                    "client_id": "test-login",
+                    "client_id": get_client_id(),
                     "redirect_uri": window.location.protocol + "//" + window.location.host + "/wedding",
                     "post_logout_redirect_uri": window.location.protocol + "//" + window.location.host + "/wedding",
                     "response_type": "code",
