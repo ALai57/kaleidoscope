@@ -6,21 +6,60 @@
 </head>
 <body>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"> </script>
+  <script src="https://cdn.jsdelivr.net/npm/oidc-client@1.11.5/lib/oidc-client.min.js"></script>
   <h1>Welcome to our wedding photos page!</h1>
+    <button id="login">Login</button>
+    <button id="logout">Logout</button>
+    <button id="load-images">Load images</button>
   <div id='wedding-media'></div>
 <script>
+  var keycloak_url = "http://172.17.0.1:8080/auth/realms/test";
+
+  var connection = {"authority": keycloak_url,
+                    "client_id": "test-login",
+                    "redirect_uri": window.location.protocol + "//" + window.location.host + "/wedding",
+                    "post_logout_redirect_uri": window.location.protocol + "//" + window.location.host + "/wedding",
+                    "response_type": "code",
+                    "scope": "openid"};
+
+  var usrmgr =  new UserManager(connection);
+
+  // Try to parse the URL and see if we can retrieve user profile
+  var signinResponse;
+
+  usrmgr.processSigninResponse()
+    .then(function(user) {
+            signinResponse = user;
+            console.log("User: ", signinResponse);})
+    .catch(e => console.log("Error logging in:\n ", e));
+
+
+  // Connect functionality to UI buttons
+  function login() {usrmgr.signinRedirect();}
+
+  function logout() {usrmgr.signoutRedirect();}
+
+  document.getElementById("login").addEventListener("click", login, false);
+
+  document.getElementById("logout").addEventListener("click", logout, false);
+
   // GET list of all media
+
+  function load_images() {
   $.ajax({
     type: 'get',
-    url: 'https://caheriaguilar.and.andrewslai.com/wedding/media',
-    success:function(images){
-      var id = 'wedding-media';
-      console.log(images);
-      $.each(JSON.parse(images), function(){
-        $('<img src="wedding/' + this.key + '" class="wedding-image" />').appendTo('#wedding-media');
-      })
-    }
-  })
+      url: window.location.protocol + '//' + window.location.host + '/wedding/media',
+      headers: {"Authorization": "Bearer " + signinResponse.access_token},
+      success:function(images){
+          var id = 'wedding-media';
+          console.log(images);
+          $.each(JSON.parse(images), function(){
+  $('<img src="wedding/' + this.key + '" class="wedding-image" />').appendTo('#wedding-media');})}})
+  }
+
+  document.getElementById("load-images").addEventListener("click", load_images, false);
+</script>
+<script>
 </script>
 </body>
 </html>
