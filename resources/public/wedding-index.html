@@ -13,11 +13,16 @@
     <button id="load-images">Load images</button>
   <div id='wedding-media'></div>
 <script>
-  var keycloak_url = if (window.location.hostname == 'localhost') {
-                        "http://172.17.0.1:8080/auth/realms/test"
-                     } else {
-                         "https://keycloak.andrewslai.com/auth/realms/andrewslai"
-                     };
+
+  function get_auth_url() {
+      if (window.location.hostname == 'localhost') {
+          return "http://172.17.0.1:8080/auth/realms/test"
+      } else {
+          return "https://keycloak.andrewslai.com/auth/realms/andrewslai"
+      };
+  }
+
+  var keycloak_url = get_auth_url();
 
   var connection = {"authority": keycloak_url,
                     "client_id": "test-login",
