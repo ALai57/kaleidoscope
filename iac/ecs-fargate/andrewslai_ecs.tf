@@ -118,12 +118,6 @@ resource "aws_security_group" "ecs_allow_http_https" {
 # Roles
 ##############################################################
 
-# https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html
-resource "aws_iam_role" "ecsTaskExecutionRole" {
-  name               = "andrewslai-production-ecs"
-  assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
-}
-
 data "aws_iam_policy_document" "assume_role_policy" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -135,13 +129,14 @@ data "aws_iam_policy_document" "assume_role_policy" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "ecsTaskExecutionRole_policy" {
-  role       = "${aws_iam_role.ecsTaskExecutionRole.name}"
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+
+# https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html
+resource "aws_iam_role" "ecsTaskExecutionRole" {
+  name               = "andrewslai-production-ecs"
+  assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
 }
 
-# Probably redundant - can this be killed?
-resource "aws_iam_role_policy" "role_policy" {
+resource "aws_iam_role_policy" "ecsTaskExecutionRolePolicy" {
   name   = "${aws_iam_role.ecsTaskExecutionRole.name}"
   role   = "${aws_iam_role.ecsTaskExecutionRole.id}"
   policy = <<-EOF
@@ -150,13 +145,34 @@ resource "aws_iam_role_policy" "role_policy" {
     "Statement": [
       {
         "Action": [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:BatchGetImage",
-          "ecr:GetDownloadUrlForLayer"
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
         ],
         "Effect": "Allow",
         "Resource": "*"
-      },
+      }
+    ]
+  }
+  EOF
+}
+
+## For the actual task that is running
+resource "aws_iam_role" "ecsTaskRole" {
+  name               = "andrewslai-task"
+  assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
+}
+
+resource "aws_iam_role_policy" "ecsTaskRolePolicy" {
+  name   = "${aws_iam_role.ecsTaskRole.name}"
+  role   = "${aws_iam_role.ecsTaskRole.id}"
+  policy = <<-EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
       {
             "Sid": "VisualEditor0",
             "Effect": "Allow",
@@ -277,6 +293,7 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
   cpu                   = "256"
   memory                = "512"
   execution_role_arn    = "${aws_iam_role.ecsTaskExecutionRole.arn}"
+  task_role_arn         = "${aws_iam_role.ecsTaskRole.arn}"
 
  container_definitions = <<DEFINITION
 [
