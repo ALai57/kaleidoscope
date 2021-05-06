@@ -51,7 +51,13 @@
                   :produces  #{"application/json"}
                   :responses {200 {:description "List of all wedding media"
                                    :schema      any?}}}
-        (fs/ls wedding-storage (str MEDIA-FOLDER "/")))
+        (try
+          (fs/ls wedding-storage (str MEDIA-FOLDER "/"))
+          (catch Exception e
+            {:msg (.getMessage e)
+             :stack-trace (.getStackTrace e)
+             :cause (.getCause e)
+             :str (.toString e)})))
 
       (GET "/:id" [id]
         :swagger {:summary     "Retrieve a picture or video"

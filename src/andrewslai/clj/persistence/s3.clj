@@ -5,7 +5,8 @@
             [clojure.string :as string]
             [ring.util.http-response :refer [content-type not-found ok
                                              internal-server-error
-                                             resource-response]]))
+                                             resource-response]]
+            [taoensso.timbre :as log]))
 
 (defprotocol FileSystem
   (ls [_ path])
@@ -22,6 +23,9 @@
   [config]
   (reify FileSystem
     (ls [_ path]
+      (log/info "List objects in S3")
+      (log/info (:credentials config))
+      (log/info (keys (bean (.getCredentials (:credentials config)))))
       (->> (s3/list-objects-v2 (:credentials config)
                                {:bucket-name (:bucket-name config)
                                 :prefix      path})
@@ -41,7 +45,7 @@
 
   (amazon/get-credentials nil)
 
-  (bean (.getCredentials (DefaultAWSCredentialsProviderChain/getInstance)))
+  (keys (bean (.getCredentials (DefaultAWSCredentialsProviderChain/getInstance))))
 
   (ls (make-s3 {:bucket-name "andrewslai-wedding"
                 :credentials (DefaultAWSCredentialsProviderChain/getInstance)})
