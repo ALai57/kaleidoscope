@@ -147,7 +147,36 @@ resource "aws_iam_role_policy" "role_policy" {
         ],
         "Effect": "Allow",
         "Resource": "*"
-      }
+      },
+      {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "s3:DeleteObjectTagging",
+                "s3:GetObjectRetention",
+                "s3:DeleteObjectVersion",
+                "s3:GetObjectVersionTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:DeleteObjectVersionTagging",
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:AbortMultipartUpload",
+                "s3:GetObjectTagging",
+                "s3:PutObjectTagging",
+                "s3:DeleteObject",
+                "s3:GetObjectVersion"
+            ],
+            "Resource": "arn:aws:s3:::*/*"
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucketVersions",
+                "s3:ListBucket"
+            ],
+            "Resource": "arn:aws:s3:::*"
+        }
     ]
   }
   EOF
