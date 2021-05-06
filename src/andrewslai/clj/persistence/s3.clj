@@ -22,7 +22,8 @@
   [config]
   (reify FileSystem
     (ls [_ path]
-      (->> (s3/list-objects-v2 {:bucket-name (:bucket-name config)
+      (->> (s3/list-objects-v2 {:endpoint (:endpoint config)}
+                               {:bucket-name (:bucket-name config)
                                 :prefix      path})
            :object-summaries
            (drop 1)
@@ -37,7 +38,8 @@
 (comment
   (s3/list-buckets)
 
-  (ls (make-s3 {:bucket-name "andrewslai-wedding"})
+  (ls (make-s3 {:bucket-name "andrewslai-wedding"
+                :endpoint "us-east-1"})
       "media/")
 
   (get-file (make-s3 {:bucket-name "andrewslai-wedding"})

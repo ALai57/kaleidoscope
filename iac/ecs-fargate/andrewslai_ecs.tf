@@ -46,7 +46,7 @@ variable "ANDREWSLAI_AUTH_SECRET" {
 # then it calls EC2MetadataUtils
 #https://github.com/aws/containers-roadmap/issues/337
 #https://github.com/spring-cloud/spring-cloud-aws/issues/556
-variable "AWS_REGION" {
+variable "AWS_DEFAULT_REGION" {
   description = "AWS region."
   default = "us-east-1"
 }
@@ -329,8 +329,8 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
         "value": "${var.ANDREWSLAI_AUTH_SECRET}"
       },
       {
-        "name": "AWS_REGION",
-        "value": "${var.AWS_REGION}"
+        "name": "AWS_DEFAULT_REGION",
+        "value": "${var.AWS_DEFAULT_REGION}"
       }
 
 

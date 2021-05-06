@@ -100,7 +100,12 @@
     (http/start-server
      (app-routes
       {:database        (pg/->Database (util/pg-conn))
-       :wedding-storage (fs/make-s3 {:bucket-name "andrewslai-wedding"})
+       :wedding-storage (fs/make-s3 {:bucket-name "andrewslai-wedding"
+                                     ;; Need to tell AWS what region the S3 bucket is in
+                                     ;; or else it tries to look up something it can't find
+                                     ;; using the EC2 instance metadata endpoints
+                                     :endpoint (or (System/getenv "AWS_DEFAULT_REGION")
+                                                   "us-east-1")})
        :logging         (merge log/*config* {:level :info})
        :auth            (auth/oauth-backend
                          (keycloak/make-keycloak
