@@ -9,6 +9,7 @@
             [clojure.string :as string]
             [compojure.api.sweet :refer [context GET]]
             [ring.util.http-response :refer [content-type not-found ok
+                                             bad-gateway
                                              internal-server-error
                                              resource-response]]
             [spec-tools.swagger.core :as swagger]
@@ -35,6 +36,8 @@
     :components [wedding-storage]
     :tags ["wedding"]
 
+    ;; Serve andrewslai.js from S3, instead of from the classpath
+    ;; Set up a virtual host to serve the two websites on different handlers
     (GET "/" []
       :swagger {:summary     "Landing page"
                 :description (str "This landing page is the ui for viewing and"
@@ -42,8 +45,20 @@
                 :produces    #{"text/html"}
                 :responses   {200 {:description "Landing page for wedding"
                                    :schema      any?}}}
-      (-> (resource-response "wedding-index.html" {:root "public"})
-          (content-type "text/html")))
+      (try
+        (-> (ok (fs/get-file wedding-storage "wedding-index.html"))
+            (content-type "text/html"))
+        (catch Exception e
+          (log/error {:msg (.getMessage e)
+                      :stack-trace (.getStackTrace e)
+                      :cause (.getCause e)
+                      :str (.toString e)})
+          (bad-gateway (str "Unable to access the requested object: "
+                            "`wedding-index.html` using: "
+                            (type wedding-storage)))))
+
+      #_(-> (resource-response "wedding-index.html" {:root "public"})
+            (content-type "text/html")))
 
     (context "/media" []
       (GET "/" []
@@ -54,26 +69,32 @@
         (try
           (fs/ls wedding-storage (str MEDIA-FOLDER "/"))
           (catch Exception e
-            (doto {:msg (.getMessage e)
-                   :stack-trace (.getStackTrace e)
-                   :cause (.getCause e)
-                   :str (.toString e)}
-              log/info))))
+            (log/error {:msg (.getMessage e)
+                        :stack-trace (.getStackTrace e)
+                        :cause (.getCause e)
+                        :str (.toString e)})
+            (bad-gateway (str "Unable to access the requested repository: "
+                              MEDIA-FOLDER
+                              " using: "
+                              (type wedding-storage))))))
 
       (GET "/:id" [id]
         :swagger {:summary     "Retrieve a picture or video"
                   :description "Retrieve an object from the media/ folder"
-                  :produces    #{"image/png" "image/svg"}
+                  :produces    #{"image/png" "image/svg" "image/jpg"}
                   :responses   {200 {:description "S3 object"
                                      :schema      any?}}}
         (try
           (fs/get-file wedding-storage (str MEDIA-FOLDER "/" id))
           (catch Exception e
-            (doto {:msg (.getMessage e)
-                   :stack-trace (.getStackTrace e)
-                   :cause (.getCause e)
-                   :str (.toString e)}
-              log/info)))))))
+            (log/error {:msg (.getMessage e)
+                        :stack-trace (.getStackTrace e)
+                        :cause (.getCause e)
+                        :str (.toString e)})
+            (bad-gateway (str "Unable to access the requested object: "
+                              MEDIA-FOLDER
+                              " using persistence: "
+                              (type wedding-storage)))))))))
 
 (comment
   (s3-path [MEDIA-FOLDER "something.ptg"])

@@ -105,7 +105,7 @@
                                      ;; Need to tell AWS what region the S3 bucket is in
                                      ;; or else it tries to look up something it can't find
                                      ;; using the EC2 instance metadata endpoints
-                                     :credentials (ContainerCredentialsProvider.)})
+                                     :credentials fs/CustomAWSCredentialsProviderChain})
        :logging         (merge log/*config* {:level :info})
        :auth            (auth/oauth-backend
                          (keycloak/make-keycloak

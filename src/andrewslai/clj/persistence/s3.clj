@@ -6,7 +6,21 @@
             [ring.util.http-response :refer [content-type not-found ok
                                              internal-server-error
                                              resource-response]]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log])
+  (:import [com.amazonaws.auth
+            AWSCredentialsProviderChain
+            EnvironmentVariableCredentialsProvider
+            ContainerCredentialsProvider
+            EC2ContainerCredentialsProviderWrapper]
+           [com.amazonaws.auth.profile ProfileCredentialsProvider]))
+
+(def CustomAWSCredentialsProviderChain
+  (AWSCredentialsProviderChain.
+   [^AWSCredentialsProvider (new EnvironmentVariableCredentialsProvider)
+    ^AWSCredentialsProvider (new ProfileCredentialsProvider)
+    ^AWSCredentialsProvider (new ContainerCredentialsProvider)]))
+
+#_(bean (.getCredentials CustomAWSCredentialsProviderChain))
 
 (defprotocol FileSystem
   (ls [_ path])
@@ -23,9 +37,7 @@
   [config]
   (reify FileSystem
     (ls [_ path]
-      (log/info "List objects in S3")
-      (log/info (:credentials config))
-      (log/info (keys (bean (.getCredentials (:credentials config)))))
+      (log/info "List objects in S3: " path)
       (->> (s3/list-objects-v2 (:credentials config)
                                {:bucket-name (:bucket-name config)
                                 :prefix      path})
@@ -33,9 +45,7 @@
            (drop 1)
            (map (fn [m] (select-keys m [:key :size :etag])))))
     (get-file [_ path]
-      (log/info "Get object in S3")
-      (log/info (:credentials config))
-      (log/info (keys (bean (.getCredentials (:credentials config)))))
+      (log/info "Get object in S3: " path)
       (try
         (-> (s3/get-object (:bucket-name config) path)
             :input-stream)
@@ -55,7 +65,7 @@
       "media/")
 
   (get-file (make-s3 {:bucket-name "andrewslai-wedding"})
-            "media/clojure-logo.png")
+            "index.html")
 
   (spit "myindex.html" "<h1>HELLO</h1>")
 
