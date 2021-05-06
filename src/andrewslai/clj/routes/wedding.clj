@@ -54,10 +54,11 @@
         (try
           (fs/ls wedding-storage (str MEDIA-FOLDER "/"))
           (catch Exception e
-            {:msg (.getMessage e)
-             :stack-trace (.getStackTrace e)
-             :cause (.getCause e)
-             :str (.toString e)})))
+            (doto {:msg (.getMessage e)
+                   :stack-trace (.getStackTrace e)
+                   :cause (.getCause e)
+                   :str (.toString e)}
+              log/info))))
 
       (GET "/:id" [id]
         :swagger {:summary     "Retrieve a picture or video"
@@ -65,7 +66,14 @@
                   :produces    #{"image/png" "image/svg"}
                   :responses   {200 {:description "S3 object"
                                      :schema      any?}}}
-        (fs/get-file wedding-storage (str MEDIA-FOLDER "/" id))))))
+        (try
+          (fs/get-file wedding-storage (str MEDIA-FOLDER "/" id))
+          (catch Exception e
+            (doto {:msg (.getMessage e)
+                   :stack-trace (.getStackTrace e)
+                   :cause (.getCause e)
+                   :str (.toString e)}
+              log/info)))))))
 
 (comment
   (s3-path [MEDIA-FOLDER "something.ptg"])

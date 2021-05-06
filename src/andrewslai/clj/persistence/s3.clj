@@ -33,6 +33,9 @@
            (drop 1)
            (map (fn [m] (select-keys m [:key :size :etag])))))
     (get-file [_ path]
+      (log/info "Get object in S3")
+      (log/info (:credentials config))
+      (log/info (keys (bean (.getCredentials (:credentials config)))))
       (try
         (-> (s3/get-object (:bucket-name config) path)
             :input-stream)
