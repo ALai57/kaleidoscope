@@ -24,7 +24,8 @@
             [ring.middleware.session.memory :as mem]
             [ring.util.http-response :refer [content-type resource-response]]
             [taoensso.timbre :as log]
-            [taoensso.timbre.appenders.core :as appenders]))
+            [taoensso.timbre.appenders.core :as appenders])
+  (:import [com.amazonaws.auth ContainerCredentialsProvider]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global settings (Yuck!)
@@ -104,8 +105,7 @@
                                      ;; Need to tell AWS what region the S3 bucket is in
                                      ;; or else it tries to look up something it can't find
                                      ;; using the EC2 instance metadata endpoints
-                                     :endpoint (or (System/getenv "AWS_DEFAULT_REGION")
-                                                   "us-east-1")})
+                                     :credentials (ContainerCredentialsProvider.)})
        :logging         (merge log/*config* {:level :info})
        :auth            (auth/oauth-backend
                          (keycloak/make-keycloak
@@ -116,3 +116,8 @@
                            :client-secret     (System/getenv "ANDREWSLAI_AUTH_SECRET")
                            :confidential-port 0}))})
      {:port port})))
+
+(comment
+  ;;(import [com.amazonaws.auth AWSCredentialsProvider])
+  (instance? AWSCredentialsProvider (ContainerCredentialsProvider.))
+  )

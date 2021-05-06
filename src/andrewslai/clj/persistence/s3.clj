@@ -22,7 +22,7 @@
   [config]
   (reify FileSystem
     (ls [_ path]
-      (->> (s3/list-objects-v2 {:endpoint (:endpoint config)}
+      (->> (s3/list-objects-v2 (:credentials config)
                                {:bucket-name (:bucket-name config)
                                 :prefix      path})
            :object-summaries
@@ -36,10 +36,15 @@
           (exception-response (amazon/ex->map e)))))))
 
 (comment
+  (import '[com.amazonaws.auth DefaultAWSCredentialsProviderChain])
   (s3/list-buckets)
 
+  (amazon/get-credentials nil)
+
+  (bean (.getCredentials (DefaultAWSCredentialsProviderChain/getInstance)))
+
   (ls (make-s3 {:bucket-name "andrewslai-wedding"
-                :endpoint "us-east-1"})
+                :credentials (DefaultAWSCredentialsProviderChain/getInstance)})
       "media/")
 
   (get-file (make-s3 {:bucket-name "andrewslai-wedding"})
