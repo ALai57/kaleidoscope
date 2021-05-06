@@ -41,6 +41,15 @@ variable "ANDREWSLAI_AUTH_SECRET" {
   description = "Keycloak client secret"
 }
 
+# Necessary because it seems like the DefaultRegionProviderChain walks down a chain of
+# providers to find its region. If it cannot find the AWS region in environment, etc
+# then it calls EC2MetadataUtils
+#https://github.com/aws/containers-roadmap/issues/337
+#https://github.com/spring-cloud/spring-cloud-aws/issues/556
+variable "AWS_REGION" {
+  description = "AWS region."
+  default = "us-east-1"
+}
 
 ##############################################################
 # Data sources to get VPC, subnets and security group details
@@ -318,7 +327,12 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
       {
         "name": "ANDREWSLAI_AUTH_SECRET",
         "value": "${var.ANDREWSLAI_AUTH_SECRET}"
+      },
+      {
+        "name": "AWS_REGION",
+        "value": "${var.AWS_REGION}"
       }
+
 
 
     ],
