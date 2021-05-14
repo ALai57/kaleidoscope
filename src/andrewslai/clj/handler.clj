@@ -69,9 +69,9 @@
   (api {:components components
         :middleware [wrap-request-identifier
                      wrap-logging
+                     log-request!
                      wrap-content-type
                      wrap-json-response
-                     log-request!
                      #(wrap-resource % "public")
                      #(ba/wrap-authorization % (:auth components))
                      #(ba/wrap-authentication % (:auth components))
