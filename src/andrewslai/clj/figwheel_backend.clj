@@ -7,6 +7,5 @@
 
 ;; For figwheel testing
 (def figwheel-app
-  (h/app-routes
-   {:database (pg/->Database (util/pg-conn))
-    :logging  (merge log/*config* {:level :info})}))
+  (h/andrewslai-app {:database (pg/->Database (util/pg-conn))
+                     :logging  (merge log/*config* {:level :info})}))

@@ -8,13 +8,14 @@
             [andrewslai.clj.routes.ping :refer [ping-routes]]
             [andrewslai.clj.routes.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.routes.swagger :refer [swagger-ui-routes]]
-            [andrewslai.clj.routes.wedding :as wedding :refer [wedding-routes]]
+            [andrewslai.clj.routes.wedding :as wedding]
             [andrewslai.clj.persistence.s3 :as fs]
             [andrewslai.clj.utils :as util]
             [buddy.auth.accessrules :refer [wrap-access-rules]]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :as ba]
             [compojure.api.middleware :as mw]
+            [compojure.api.routes :as r]
             [compojure.api.sweet :refer [api defroutes GET routes]]
             [aleph.http :as http]
             [ring.middleware.content-type :refer [wrap-content-type]]
@@ -22,9 +23,11 @@
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
+            [ring.util.request :as req]
             [ring.util.http-response :refer [content-type resource-response]]
             [taoensso.timbre :as log]
-            [taoensso.timbre.appenders.core :as appenders])
+            [taoensso.timbre.appenders.core :as appenders]
+            [clojure.spec.alpha :as s])
   (:import [com.amazonaws.auth ContainerCredentialsProvider]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -50,12 +53,6 @@
   (fn [request]
     (handler (assoc request :request-id (str (java.util.UUID/randomUUID))))))
 
-(defn wrap-logging [handler]
-  (fn [{:keys [request-method uri request-id] :as request}]
-    (log/with-config (get-in request [::mw/components :logging])
-      (handler request))))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Compojure Routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -64,27 +61,84 @@
     (-> (resource-response "index.html" {:root "public"})
         (content-type "text/html"))))
 
-(defn app-routes
+(defn andrewslai-app
   [components]
-  (api {:components components
-        :middleware [wrap-request-identifier
-                     wrap-logging
-                     log-request!
-                     wrap-content-type
-                     wrap-json-response
-                     #(wrap-resource % "public")
-                     #(ba/wrap-authorization % (:auth components))
-                     #(ba/wrap-authentication % (:auth components))
-                     #(wrap-access-rules % {:rules wedding/access-rules})
-                     ]}
-       index-routes
-       ping-routes
-       articles-routes
-       portfolio-routes
-       admin-routes
-       wedding-routes
-       swagger-ui-routes))
+  (log/with-config (:logging components)
+    (api {:components components
+          :middleware [wrap-request-identifier
+                       log-request!
+                       wrap-content-type
+                       wrap-json-response
+                       #(wrap-resource % "public")
+                       #(ba/wrap-authorization % (:auth components))
+                       #(ba/wrap-authentication % (:auth components))
+                       #(wrap-access-rules % {:rules wedding/access-rules})
+                       ]}
+         index-routes
+         ping-routes
+         articles-routes
+         portfolio-routes
+         admin-routes
+         swagger-ui-routes)))
 
+(defn wedding-app
+  [components]
+  (log/with-config (:logging components)
+    (api {:components components
+          :middleware [wrap-request-identifier
+                       log-request!
+                       wrap-content-type
+                       wrap-json-response
+                       #(wrap-resource % "public")
+                       #(ba/wrap-authorization % (:auth components))
+                       #(ba/wrap-authentication % (:auth components))
+                       #(wrap-access-rules % {:rules wedding/access-rules})
+                       ]}
+         wedding/index-routes
+         wedding/routes)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Virtual hosting
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-virtual-host-url
+  [virtual-host]
+  (first virtual-host))
+
+(defn get-virtual-host-priority
+  [virtual-host]
+  (or (:priority (second virtual-host)) 0))
+
+(defn valid-virtual-host?
+  [request host-url]
+  (some? (re-find host-url (req/request-url request))))
+
+(defn select-virtual-host
+  [request virtual-hosts]
+  (->> virtual-hosts
+       (filter (fn [virtual-host]
+                 (valid-virtual-host? request (get-virtual-host-url virtual-host))))
+       (sort-by get-virtual-host-priority)
+       (first)))
+
+(defn host-based-routing
+  [virtual-hosts]
+  (fn
+    ([request]
+     ((select-virtual-host request virtual-hosts) request))
+    ([request respond raise]
+     ((select-virtual-host request virtual-hosts) request respond raise))))
+
+(s/def :network/protocol #{"http" "https"})
+(s/def :network/domain string?)
+(s/def :network/port pos-int?)
+(s/def :network/host string?)
+(s/def :network/endpoint string?)
+
+(s/def :network/query string?)
+(s/def :network/fragment string?)
+
+(s/def :network/url string?)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
@@ -99,22 +153,21 @@
                  5000)]
     (println "Hello! Starting andrewslai on port" port)
     (http/start-server
-     (app-routes
-      {:database        (pg/->Database (util/pg-conn))
-       :wedding-storage (fs/make-s3 {:bucket-name "andrewslai-wedding"
-                                     ;; Need to tell AWS what region the S3 bucket is in
-                                     ;; or else it tries to look up something it can't find
-                                     ;; using the EC2 instance metadata endpoints
-                                     :credentials fs/CustomAWSCredentialsProviderChain})
-       :logging         (merge log/*config* {:level :info})
-       :auth            (auth/oauth-backend
-                         (keycloak/make-keycloak
-                          {:realm             (System/getenv "ANDREWSLAI_AUTH_REALM")
-                           :ssl-required      "external"
-                           :auth-server-url   (System/getenv "ANDREWSLAI_AUTH_URL")
-                           :client-id         (System/getenv "ANDREWSLAI_AUTH_CLIENT")
-                           :client-secret     (System/getenv "ANDREWSLAI_AUTH_SECRET")
-                           :confidential-port 0}))})
+     (andrewslai-app {:database        (pg/->Database (util/pg-conn))
+                      :wedding-storage (fs/make-s3 {:bucket-name "andrewslai-wedding"
+                                                    ;; Need to tell AWS what region the S3 bucket is in
+                                                    ;; or else it tries to look up something it can't find
+                                                    ;; using the EC2 instance metadata endpoints
+                                                    :credentials fs/CustomAWSCredentialsProviderChain})
+                      :logging         (merge log/*config* {:level :info})
+                      :auth            (auth/oauth-backend
+                                        (keycloak/make-keycloak
+                                         {:realm             (System/getenv "ANDREWSLAI_AUTH_REALM")
+                                          :ssl-required      "external"
+                                          :auth-server-url   (System/getenv "ANDREWSLAI_AUTH_URL")
+                                          :client-id         (System/getenv "ANDREWSLAI_AUTH_CLIENT")
+                                          :client-secret     (System/getenv "ANDREWSLAI_AUTH_SECRET")
+                                          :confidential-port 0}))})
      {:port port})))
 
 (comment

@@ -7,7 +7,7 @@
             [andrewslai.clj.routes.admin :as admin]
             [buddy.auth.accessrules :as ar]
             [clojure.string :as string]
-            [compojure.api.sweet :refer [context GET]]
+            [compojure.api.sweet :refer [context defroutes GET]]
             [ring.util.http-response :refer [content-type not-found ok
                                              bad-gateway
                                              internal-server-error
@@ -30,36 +30,38 @@
   [{:pattern #"^/wedding/media*"
     :handler (partial require-role "wedding")}])
 
-(def wedding-routes
-  (context "/wedding" []
+(defroutes index-routes
+  (GET "/" []
     :coercion :spec
     :components [wedding-storage]
     :tags ["wedding"]
 
-    ;; Serve andrewslai.js from S3, instead of from the classpath
-    ;; Set up a virtual host to serve the two websites on different handlers
-    (GET "/" []
-      :swagger {:summary     "Landing page"
-                :description (str "This landing page is the ui for viewing and"
-                                  " uploading wedding media.")
-                :produces    #{"text/html"}
-                :responses   {200 {:description "Landing page for wedding"
-                                   :schema      any?}}}
-      (try
-        (-> (ok (fs/get-file wedding-storage "wedding-index.html"))
-            (content-type "text/html"))
-        (catch Exception e
-          (log/error {:msg (.getMessage e)
-                      :stack-trace (.getStackTrace e)
-                      :cause (.getCause e)
-                      :str (.toString e)})
-          (bad-gateway (str "Unable to access the requested object: "
-                            "`wedding-index.html` using: "
-                            (type wedding-storage)))))
+    :swagger {:summary     "Landing page"
+              :description (str "This landing page is the ui for viewing and"
+                                " uploading wedding media.")
+              :produces    #{"text/html"}
+              :responses   {200 {:description "Landing page for wedding"
+                                 :schema      any?}}}
+    (try
+      (-> (ok (fs/get-file wedding-storage "wedding-index.html"))
+          (content-type "text/html"))
+      (catch Exception e
+        (log/error {:msg (.getMessage e)
+                    :stack-trace (.getStackTrace e)
+                    :cause (.getCause e)
+                    :str (.toString e)})
+        (bad-gateway (str "Unable to access the requested object: "
+                          "`wedding-index.html` using: "
+                          (type wedding-storage)))))
 
-      #_(-> (resource-response "wedding-index.html" {:root "public"})
-            (content-type "text/html")))
+    #_(-> (resource-response "wedding-index.html" {:root "public"})
+          (content-type "text/html"))))
 
+(def routes
+  (context "/wedding" []
+    :coercion :spec
+    :components [wedding-storage]
+    :tags ["wedding"]
     (context "/media" []
       (GET "/" []
         :swagger {:summary   "Retrieve a list of all wedding media"

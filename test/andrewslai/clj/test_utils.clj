@@ -48,7 +48,7 @@
        :as   options}]]
   (let [defaults {:logging (merge log/*config* {:level :fatal})
                   :auth    (unauthorized-backend)}
-        app      (h/app-routes (util/deep-merge defaults components))]
+        app      (h/andrewslai-app (util/deep-merge defaults components))]
     (update (app (reduce conj
                          {:request-method method :uri endpoint}
                          options))
