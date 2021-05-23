@@ -1,14 +1,22 @@
 (ns andrewslai.clj.wedding-routes-test
   (:require [andrewslai.clj.auth.core :as auth]
+            [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.s3 :as fs]
             [andrewslai.clj.test-utils :as tu]
             [clojure.string :as string]
-            [clojure.test :refer [deftest is]]
-            [matcher-combinators.test]))
+            [clojure.test :refer [deftest is use-fixtures]]
+            [matcher-combinators.test]
+            [taoensso.timbre :as log]))
+
+(use-fixtures :once
+  (fn [f]
+    (log/with-log-level :fatal
+      (f))))
 
 (defn wedding-route
   [components options]
-  (tu/http-request :get "/wedding/media" components options))
+  (tu/http-request :get "/wedding/media" components (assoc options
+                                                           :app h/wedding-app)))
 
 (defn mock-fs
   [m]

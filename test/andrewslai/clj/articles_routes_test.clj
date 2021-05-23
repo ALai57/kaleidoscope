@@ -4,8 +4,14 @@
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]
-            [clojure.test :refer [are deftest is testing]]
-            [matcher-combinators.test]))
+            [clojure.test :refer [are deftest is testing use-fixtures]]
+            [matcher-combinators.test]
+            [taoensso.timbre :as log]))
+
+(use-fixtures :once
+  (fn [f]
+    (log/with-log-level :fatal
+      (f))))
 
 (deftest article-retrieval-happy-path
   (with-embedded-postgres database

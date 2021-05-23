@@ -43,12 +43,13 @@
 
 (defn http-request
   [method endpoint components
-   & [{:keys [body parser]
-       :or   {parser #(json/parse-string % keyword)}
+   & [{:keys [body parser app]
+       :or   {parser #(json/parse-string % keyword)
+              app    h/andrewslai-app}
        :as   options}]]
   (let [defaults {:logging (merge log/*config* {:level :fatal})
                   :auth    (unauthorized-backend)}
-        app      (h/andrewslai-app (util/deep-merge defaults components))]
+        app      (app (util/deep-merge defaults components))]
     (update (app (reduce conj
                          {:request-method method :uri endpoint}
                          options))

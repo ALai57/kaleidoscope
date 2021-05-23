@@ -2,8 +2,14 @@
   (:require [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
             [andrewslai.clj.test-utils :as tu]
-            [clojure.test :refer [deftest is]]
-            [matcher-combinators.test]))
+            [clojure.test :refer [deftest is use-fixtures]]
+            [matcher-combinators.test]
+            [taoensso.timbre :as log]))
+
+(use-fixtures :once
+  (fn [f]
+    (log/with-log-level :fatal
+      (f))))
 
 (defn admin-route
   [components options]

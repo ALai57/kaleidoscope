@@ -98,49 +98,6 @@
          wedding/routes)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Virtual hosting
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-virtual-host-url
-  [virtual-host]
-  (first virtual-host))
-
-(defn get-virtual-host-priority
-  [virtual-host]
-  (or (:priority (second virtual-host)) 0))
-
-(defn valid-virtual-host?
-  [request host-url]
-  (some? (re-find host-url (req/request-url request))))
-
-(defn select-virtual-host
-  [request virtual-hosts]
-  (->> virtual-hosts
-       (filter (fn [virtual-host]
-                 (valid-virtual-host? request (get-virtual-host-url virtual-host))))
-       (sort-by get-virtual-host-priority)
-       (first)))
-
-(defn host-based-routing
-  [virtual-hosts]
-  (fn
-    ([request]
-     ((select-virtual-host request virtual-hosts) request))
-    ([request respond raise]
-     ((select-virtual-host request virtual-hosts) request respond raise))))
-
-(s/def :network/protocol #{"http" "https"})
-(s/def :network/domain string?)
-(s/def :network/port pos-int?)
-(s/def :network/host string?)
-(s/def :network/endpoint string?)
-
-(s/def :network/query string?)
-(s/def :network/fragment string?)
-
-(s/def :network/url string?)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
