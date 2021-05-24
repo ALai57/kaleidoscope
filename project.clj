@@ -1,5 +1,9 @@
-(defproject org.clojars.alai57/andrewslai "0.0.32"
-  :url "andrewslai.com"
+(defproject org.clojars.alai57/andrewslai "0.0.33"
+  :url "https://github.com/ALai57/andrewslai"
+  :license {:name         "Eclipse Public License - v 1.0"
+            :url          "http://www.eclipse.org/legal/epl-v10.html"
+            :distribution :repo
+            :comments     "same as Clojure"}
   :description "The backend for alai57's blogging app"
   :dependencies [[aleph "0.4.7-alpha7"]
                  [amazonica "0.3.156" :exclusions [com.amazonaws/aws-java-sdk]]
@@ -37,7 +41,7 @@
 
   :plugins [[lein-shell "0.5.0"]]
 
-  :repositories [["releases" {:url "https://clojars.org"
+  :repositories [["releases" {:url   "https://clojars.org"
                               :creds :gpg}]]
 
   ;; Used to make this compatible with Java 11
