@@ -1,33 +1,34 @@
 (ns andrewslai.clj.handler
   (:gen-class)
-  (:require [andrewslai.clj.auth.keycloak :as keycloak]
+  (:require [aleph.http :as http]
             [andrewslai.clj.auth.core :as auth]
+            [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres2 :as pg]
+            [andrewslai.clj.persistence.s3 :as fs]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.ping :refer [ping-routes]]
             [andrewslai.clj.routes.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.routes.swagger :refer [swagger-ui-routes]]
             [andrewslai.clj.routes.wedding :as wedding]
-            [andrewslai.clj.persistence.s3 :as fs]
             [andrewslai.clj.utils :as util]
+            [andrewslai.clj.virtual-hosting :as vh]
             [buddy.auth.accessrules :refer [wrap-access-rules]]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :as ba]
+            [clojure.spec.alpha :as s]
             [compojure.api.middleware :as mw]
             [compojure.api.routes :as r]
             [compojure.api.sweet :refer [api defroutes GET routes]]
-            [aleph.http :as http]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as mem]
-            [ring.util.request :as req]
             [ring.util.http-response :refer [content-type resource-response]]
+            [ring.util.request :as req]
             [taoensso.timbre :as log]
-            [taoensso.timbre.appenders.core :as appenders]
-            [clojure.spec.alpha :as s])
+            [taoensso.timbre.appenders.core :as appenders])
   (:import [com.amazonaws.auth ContainerCredentialsProvider]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -82,6 +83,10 @@
          admin-routes
          swagger-ui-routes)))
 
+;; TODO: Verify this?
+;; Need to tell AWS what region the S3 bucket is in
+;; or else it tries to look up something it can't find
+;; using the EC2 instance metadata endpoints
 (defn wedding-app
   [components]
   (log/with-config (:logging components)
@@ -105,27 +110,34 @@
 (defn -main
   "Start a server and run the application"
   [& {:keys [port]}]
-  (let [port (or port
-                 (some-> (System/getenv "ANDREWSLAI_PORT")
-                         int)
-                 5000)]
+  (let [port         (or port
+                         (some-> (System/getenv "ANDREWSLAI_PORT")
+                                 int)
+                         5000)
+        auth-backend (auth/oauth-backend
+                      (keycloak/make-keycloak
+                       {:realm             (System/getenv "ANDREWSLAI_AUTH_REALM")
+                        :ssl-required      "external"
+                        :auth-server-url   (System/getenv "ANDREWSLAI_AUTH_URL")
+                        :client-id         (System/getenv "ANDREWSLAI_AUTH_CLIENT")
+                        :client-secret     (System/getenv "ANDREWSLAI_AUTH_SECRET")
+                        :confidential-port 0}))
+        ]
     (println "Hello! Starting andrewslai on port" port)
     (http/start-server
-     (andrewslai-app {:database        (pg/->Database (util/pg-conn))
-                      :wedding-storage (fs/make-s3 {:bucket-name "andrewslai-wedding"
-                                                    ;; Need to tell AWS what region the S3 bucket is in
-                                                    ;; or else it tries to look up something it can't find
-                                                    ;; using the EC2 instance metadata endpoints
-                                                    :credentials fs/CustomAWSCredentialsProviderChain})
-                      :logging         (merge log/*config* {:level :info})
-                      :auth            (auth/oauth-backend
-                                        (keycloak/make-keycloak
-                                         {:realm             (System/getenv "ANDREWSLAI_AUTH_REALM")
-                                          :ssl-required      "external"
-                                          :auth-server-url   (System/getenv "ANDREWSLAI_AUTH_URL")
-                                          :client-id         (System/getenv "ANDREWSLAI_AUTH_CLIENT")
-                                          :client-secret     (System/getenv "ANDREWSLAI_AUTH_SECRET")
-                                          :confidential-port 0}))})
+     (vh/host-based-routing
+      {#"andrewslai.com"
+       {:priority 100
+        :app      (andrewslai-app {:database (pg/->Database (util/pg-conn))
+                                   :logging  (merge log/*config* {:level :info})
+                                   :auth     auth-backend})}
+
+       #"caheriaguilar.and.andrewslai.com"
+       {:priority 0
+        :app      (wedding-app {:wedding-storage (fs/make-s3 {:bucket-name "andrewslai-wedding"
+                                                              :credentials fs/CustomAWSCredentialsProviderChain})
+                                :logging         (merge log/*config* {:level :info})
+                                :auth            auth-backend})}})
      {:port port})))
 
 (comment
