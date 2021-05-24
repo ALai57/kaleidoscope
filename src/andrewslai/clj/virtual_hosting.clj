@@ -3,35 +3,63 @@
   (:require [clojure.spec.alpha :as s]
             [ring.util.request :as req]))
 
+(defn regex?
+  [x]
+  (= java.util.regex.Pattern (type x)))
 
-(defn get-virtual-host-url
+(s/def :virtual-hosts/url regex?)
+(s/def :virtual-hosts/app ifn?)
+(s/def :virtual-hosts/priority int?)
+(s/def :virtual-hosts/configuration
+  (s/keys :req-un [:virtual-hosts/app]
+          :opt-un [:virtual-hosts/priority]))
+(s/def :virtual-hosts/host
+  (s/cat :url :virtual-hosts/url :config :virtual-hosts/configuration))
+(s/def :virtual-hosts/hosts
+  (s/map-of :virtual-hosts/url :virtual-hosts/configuration))
+
+
+(defn get-app
+  [[url {:keys [app]}]]
+  app)
+
+(defn get-host-url
   [virtual-host]
   (first virtual-host))
 
 (defn get-priority
+  "Lower numbers indicate higher priority"
   [virtual-host]
   (or (:priority (second virtual-host)) 0))
 
 (defn matching-url?
-  [request candidate-url]
-  (some? (re-find candidate-url (req/request-url request))))
+  [request host-url]
+  (some? (re-find host-url (req/request-url request))))
 
-(defn route
-  "Route a given request to one of the supplied virtual hosts"
+(defn select-app
+  "Select an app to route the request to"
   [request virtual-hosts]
   (->> virtual-hosts
        (filter (fn [virtual-host]
-                 (matching-url? request (get-virtual-host-url virtual-host))))
+                 (matching-url? request (get-host-url virtual-host))))
        (sort-by get-priority)
-       (first)))
+       (first)
+       (get-app)))
 
 (defn host-based-routing
+  "Route a request to one of the supplied apps"
   [virtual-hosts]
   (fn
     ([request]
-     ((route request virtual-hosts) request))
+     (if-let [app (select-app request virtual-hosts)]
+       (app request)
+       (throw (IllegalArgumentException. (str "Unrecognized host. "
+                                              (req/request-url request))))))
     ([request respond raise]
-     ((route request virtual-hosts) request respond raise))))
+     (if-let [app (select-app request virtual-hosts)]
+       ((select-app request virtual-hosts) request respond raise)
+       (throw (IllegalArgumentException. (str "Unrecognized host. "
+                                              (req/request-url request))))))))
 
 (s/def :network/protocol #{"http" "https"})
 (s/def :network/domain string?)

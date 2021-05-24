@@ -16,10 +16,10 @@
             [ring.util.request :as req]
             [taoensso.timbre :as log]))
 
-#_(use-fixtures :once
-    (fn [f]
-      (log/with-log-level :fatal
-        (f))))
+(use-fixtures :once
+  (fn [f]
+    (log/with-log-level :fatal
+      (f))))
 
 (deftest ping-test
   (is (match? {:status 200
@@ -44,9 +44,9 @@
 
 (deftest authentication-middleware-test
   (let [app (wrap-authentication identity (tu/authorized-backend))]
-    (is (match? {:identity {:sub "1234567890"
+    (is (match? {:identity {:sub  "1234567890"
                             :name "John Doe"
-                            :iat 1516239022}}
+                            :iat  1516239022}}
                 (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})))))
 
 (deftest authentication-middleware-failure-test

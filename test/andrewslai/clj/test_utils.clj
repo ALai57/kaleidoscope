@@ -11,7 +11,6 @@
             [hickory.core :as hkry]
             [migratus.core :as migratus]
             [ring.middleware.session.memory :as mem]
-            [ring.mock.request :as mock]
             [taoensso.timbre :as log]
             [slingshot.slingshot :refer [throw+]])
   (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
@@ -47,13 +46,12 @@
        :or   {parser #(json/parse-string % keyword)
               app    h/andrewslai-app}
        :as   options}]]
-  (let [defaults {:logging (merge log/*config* {:level :fatal})
-                  :auth    (unauthorized-backend)}
+  (let [defaults {:auth    (unauthorized-backend)}
         app      (app (util/deep-merge defaults components))]
-    (update (app (reduce conj
-                         {:request-method method :uri endpoint}
-                         options))
-            :body parser)))
+    (when-let [result (app (reduce conj
+                                   {:request-method method :uri endpoint}
+                                   options))]
+      (update result :body parser))))
 
 (defn make-jwt
   [{:keys [hdr body sig]

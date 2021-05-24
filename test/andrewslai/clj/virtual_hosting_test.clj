@@ -1,12 +1,14 @@
 (ns andrewslai.clj.virtual-hosting-test
-  (:require [andrewslai.clj.virtual-hosting :as vh]
+  (:require [andrewslai.clj.test-utils :as tu]
+            [andrewslai.clj.virtual-hosting :as vh]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
-            [clojure.test :refer [deftest is]]
+            [clojure.test :refer [are deftest is]]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
             [compojure.api.sweet :refer [api GET]]
+            [matcher-combinators.test]
             [ring.util.request :as req]))
 
 (def gen-protocol
@@ -57,7 +59,7 @@
   (gen/fmap (fn [{:keys [protocol host port endpoint]}]
               (format "%s://%s:%s%s" protocol host port endpoint))
             (gen/hash-map :protocol gen-protocol
-                          :host     gen-host
+                          :app     gen-host
                           :port     gen-port
                           :endpoint gen-endpoint)))
 
@@ -72,7 +74,7 @@
   [request]
   (get-in request [:headers "host"]))
 
-(defspec virtual-host-regex-matching
+(defspec virtual-host-matching
   (prop/for-all [request gen-request]
     (is (vh/matching-url? request (-> request
                                       get-host
@@ -87,33 +89,51 @@
    :headers {"host" host}
    :uri uri})
 
-(deftest host-based-routing
-  (let [request-1    (request-map {:host "andrew.com"})
-        request-2    (request-map {:host "caheri.and.andrew.com"})
+(deftest select-app-test
+  (let [request-1    (request-map {:host "foo.com"})
+        request-2    (request-map {:host "bar.com"})
 
         host-1-regex (-> request-1 req/request-url re-pattern)
         host-2-regex (-> request-2 req/request-url re-pattern)]
 
-    (is (= [host-1-regex {:host 1}]
-           (vh/route request-1 {host-1-regex {:host 1}
-                                host-2-regex {:host 2}})))
-    (is (= [host-2-regex {:host 2}]
-           (vh/route request-2 {host-1-regex {:host 1}
-                                host-2-regex {:host 2}})))
-    (is (= [host-2-regex {:host 2 :priority 10}]
-           (vh/route request-2 {#".*"        {:host     1
-                                              :priority 100}
-                                host-2-regex {:host     2
-                                              :priority 10}})))))
+    (is (= 1 (vh/select-app request-1 {host-1-regex {:app 1}
+                                       host-2-regex {:app 2}})))
 
-(comment
-  (def echo-app
-    (api
-     (GET "/" []
-       {:status 200 :body "echo"})))
+    (is (= 2 (vh/select-app request-2 {host-1-regex {:app 1}
+                                       host-2-regex {:app 2}})))
 
-  (def app-2
-    (api
-     (GET "/" []
-       {:status 200 :body "route-2"})))
-  )
+    (is (= 2 (vh/select-app request-1 {#".*"        {:app 1 :priority 100}
+                                       host-1-regex {:app 2 :priority 10}})))
+
+    (is (= 1 (vh/select-app request-1 {#".*"        {:app 1 :priority 10}
+                                       host-1-regex {:app 2 :priority 100}})))))
+
+(defn dummy-app
+  [response]
+  (GET "/" []
+    {:status 200 :body response}))
+
+(deftest routing-test
+  (let [apps {#"foo.com"     {:priority 100 :app (dummy-app :foo)}
+              #"baz.foo.com" {:priority  10 :app (dummy-app :baz.foo)}
+              #"bar.com"     {:priority   0 :app (dummy-app :bar)}}]
+
+    (are [method host expected]
+      (is (match? expected
+                  ((vh/host-based-routing apps) {:scheme         "https"
+                                                 :request-method method
+                                                 :uri            "/"
+                                                 :headers        {"host" host}})))
+
+      :get  "foo.com"     {:status 200 :body :foo}
+      :get  "baz.foo.com" {:status 200 :body :baz.foo}
+      :post "baz.foo.com" nil)))
+
+(deftest routing-failure-test
+  (let [app (vh/host-based-routing
+             {#"foo.com" {:priority 100 :app (dummy-app :foo)}})]
+
+    (is (thrown? IllegalArgumentException (app {:scheme         "https"
+                                                :request-method :get
+                                                :uri            "/"
+                                                :headers        {"host" "bad"}})))))

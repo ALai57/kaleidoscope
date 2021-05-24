@@ -42,11 +42,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn log-request! [handler]
   (fn [{:keys [request-method uri request-id body headers] :as request}]
-    (handler (do (log/info "Request received: " {:method     request-method
-                                                 :uri        uri
-                                                 :body       body
-                                                 ;;:headers    headers
-                                                 :request-id request-id})
+    (handler (do (log/with-config (:logging (mw/get-components request))
+                   (log/info "Request received: " {:method     request-method
+                                                   :uri        uri
+                                                   :body       body
+                                                   ;;:headers    headers
+                                                   :request-id request-id}))
                  request))))
 
 (defn wrap-request-identifier [handler]
