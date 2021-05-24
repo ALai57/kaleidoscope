@@ -1,7 +1,6 @@
 (ns andrewslai.clj.routes.wedding
   (:require [amazonica.core :as amazon]
             [amazonica.aws.s3 :as s3]
-            [amazonica.aws.s3transfer :as s3t]
             [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.persistence.s3 :as fs]
             [andrewslai.clj.routes.admin :as admin]

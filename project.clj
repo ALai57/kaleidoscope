@@ -1,7 +1,8 @@
 (defproject andrewslai "0.0.32-SNAPSHOT"
   :description "Template for full stack development in Clojure"
   :dependencies [[aleph "0.4.7-alpha7"]
-                 [amazonica "0.3.156"]
+                 [amazonica "0.3.156" :exclusions [com.amazonaws/aws-java-sdk]]
+                 [com.amazonaws/aws-java-sdk-s3 "1.11.850"]
                  [buddy/buddy-auth "2.2.0"]
                  [cheshire "5.10.0"]
                  [clj-commons/secretary "1.2.4"]

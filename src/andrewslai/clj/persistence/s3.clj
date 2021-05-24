@@ -1,7 +1,6 @@
 (ns andrewslai.clj.persistence.s3
   (:require [amazonica.core :as amazon]
             [amazonica.aws.s3 :as s3]
-            [amazonica.aws.s3transfer :as s3t]
             [clojure.string :as string]
             [ring.util.http-response :refer [content-type not-found ok
                                              internal-server-error
