@@ -126,18 +126,17 @@
     (println "Hello! Starting andrewslai on port" port)
     (http/start-server
      (vh/host-based-routing
-      {#"andrewslai.com"
-       {:priority 100
-        :app      (andrewslai-app {:database (pg/->Database (util/pg-conn))
-                                   :logging  (merge log/*config* {:level :info})
-                                   :auth     auth-backend})}
-
-       #"caheriaguilar.and.andrewslai.com"
+      {#"caheriaguilar.and.andrewslai.com"
        {:priority 0
         :app      (wedding-app {:wedding-storage (fs/make-s3 {:bucket-name "andrewslai-wedding"
                                                               :credentials fs/CustomAWSCredentialsProviderChain})
                                 :logging         (merge log/*config* {:level :info})
-                                :auth            auth-backend})}})
+                                :auth            auth-backend})}
+       #".*"
+       {:priority 100
+        :app      (andrewslai-app {:database (pg/->Database (util/pg-conn))
+                                   :logging  (merge log/*config* {:level :info})
+                                   :auth     auth-backend})}})
      {:port port})))
 
 (comment
