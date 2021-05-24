@@ -1,7 +1,61 @@
 @charset "UTF-8";
 /* CSS Document*/
 
+body {
+  background: url("/images/rings.jpg") 33% 50% no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
+}
+
 .wedding-image {
     max-width: 500px;
     max-height: 500px;
+}
+
+.coverimage {
+    max-width: 50%;
+}
+
+.horizontalbar {
+    width: 100%;
+    height: 50px;
+
+}
+
+.fixed-top-left {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+}
+
+.fixed-bottom-right {
+    position: fixed;
+    bottom: 0px;
+    right: 0px;
+}
+
+.rotate90 {
+    -webkit-transform: rotate(90deg);
+    -moz-transform: rotate(90deg);
+    -o-transform: rotate(90deg);
+    -ms-transform: rotate(90deg);
+    transform: rotate(90deg);
+}
+
+.flip-horizontal {
+        -moz-transform: scaleX(-1);
+        -o-transform: scaleX(-1);
+        -webkit-transform: scaleX(-1);
+        transform: scaleX(-1);
+        filter: FlipH;
+        -ms-filter: "FlipH";
+}
+
+.thumb1 {
+  background: url(/images/CaheriAndrewCover.jpg) 50% 50% no-repeat; /* 50% 50% centers image in div */
+  width: 250px;
+  height: 400px;
+  background-size: 375px;
+  background-position-y: -10px;
+  background-position-x: -75px
 }
