@@ -1,4 +1,4 @@
-(defproject org.clojars.alai57/andrewslai "0.0.33"
+(defproject org.clojars.alai57/andrewslai "0.0.33-SNAPSHOT"
   :url "https://github.com/ALai57/andrewslai"
   :license {:name         "Eclipse Public License - v 1.0"
             :url          "http://www.eclipse.org/legal/epl-v10.html"
@@ -41,7 +41,7 @@
 
   :plugins [[lein-shell "0.5.0"]]
 
-  :repositories [["releases" {:url   "https://clojars.org"
+  :repositories [["releases" {:url   "https://repo.clojars.org"
                               :creds :gpg}]]
 
   ;; Used to make this compatible with Java 11
@@ -53,7 +53,10 @@
    [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
 
   :aot :all
+
   :uberjar-name "andrewslai.jar"
+  :uberjar-exclusions [#"public/.*"]
+
   :main andrewslai.clj.handler
 
   ;; Speeds up Docker builds, see https://docs.docker.com/develop/develop-images/build_enhancements/
@@ -70,7 +73,7 @@
                   ["vcs" "commit"]
                   ["clean"]
                   ["uberjar"]
-                  ["deploy"]
+                  ["deploy" "clojars"]
                   ["shell" "docker" "build" "-t" "andrewslai" "."]
                   ["shell" "docker" "tag" "andrewslai:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
                   ["shell" "docker" "push" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
