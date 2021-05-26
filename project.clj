@@ -1,4 +1,4 @@
-(defproject org.clojars.alai57/andrewslai "0.0.33"
+(defproject org.clojars.alai57/andrewslai "0.0.34"
   :url "https://github.com/ALai57/andrewslai"
   :license {:name         "Eclipse Public License - v 1.0"
             :url          "http://www.eclipse.org/legal/epl-v10.html"
@@ -6,20 +6,25 @@
             :comments     "same as Clojure"}
   :description "The backend for alai57's blogging app"
   :dependencies [[aleph "0.4.7-alpha7"]
-                 [amazonica "0.3.156" :exclusions [com.amazonaws/aws-java-sdk]]
-                 [com.amazonaws/aws-java-sdk-s3 "1.11.850"]
+                 [amazonica "0.3.156" :exclusions [org.apache.commons/commons-lang3
+                                                   commons-logging
+                                                   com.taoensso/encore
+                                                   org.apache.httpcomponents/httpclient
+                                                   com.amazonaws/aws-java-sdk]]
+                 [com.amazonaws/aws-java-sdk-s3 "1.11.850" :exclusions [commons-logging
+                                                                        org.apache.httpcomponents/httpclient]]
                  [buddy/buddy-auth "2.2.0" :exclusions [com.google.code.gson/gson
                                                         org.clojure/clojurescript]]
                  [cheshire "5.10.0"]
-                 [clj-http "3.10.0"]
+                 [clj-http "3.10.0" :exclusions [commons-logging]]
                  [org.slf4j/slf4j-nop "1.7.30"]
                  [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
-                 [day8.re-frame/http-fx "0.2.3"]
                  [honeysql "0.9.10"]
-                 [metosin/compojure-api "2.0.0-alpha31"]
+                 [metosin/compojure-api "2.0.0-alpha31" :exclusions [ring/ring-codec joda-time]]
                  [metosin/spec-tools "0.10.3"]
                  [migratus "1.2.8" :scope "test"]
-                 [nubank/matcher-combinators "3.1.4" :scope "test"]
+                 [nubank/matcher-combinators "3.1.4" :exclusions [io.aviso/pretty
+                                                                  joda-time] :scope "test"]
                  [org.clojure/clojure "1.10.1"]
                  [org.clojure/core.async "1.0.567"
                   :exclusions [org.clojure/tools.reader]]
@@ -29,12 +34,13 @@
                  [org.keycloak/keycloak-adapter-core "12.0.3"]
                  [org.keycloak/keycloak-adapter-spi "12.0.3"]
                  [org.keycloak/keycloak-admin-client "12.0.3"]
-                 [org.keycloak/keycloak-core "12.0.3"]
+                 [org.keycloak/keycloak-core "12.0.3" :exclusions [com.fasterxml.jackson.core/jackson-annotations
+                                                                   com.fasterxml.jackson.core/jackson-core]]
                  [org.keycloak/keycloak-common "12.0.3"]
                  [org.postgresql/postgresql "42.2.11"]
-                 [ring "1.8.0" :exclusions [ring/ring-jetty-adapter]]
+                 [ring "1.8.0" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
                  [ring/ring-mock "0.4.0" :scope "test"]
-                 [ring/ring-json "0.5.0"]
+                 [ring/ring-json "0.5.0" :exclusions [joda-time]]
                  [seancorfield/next.jdbc "1.1.613"]
                  [slingshot "0.12.2"]
                  [com.taoensso/timbre "4.10.0"]]
@@ -55,7 +61,7 @@
   :aot :all
 
   :uberjar-name "andrewslai.jar"
-  :uberjar-exclusions [#"public/.*"]
+  :uberjar-exclusions [#"public/.*" #".txz"]
 
   :main andrewslai.clj.main
 
