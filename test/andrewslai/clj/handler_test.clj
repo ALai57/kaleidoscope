@@ -28,10 +28,10 @@
               (tu/http-request :get "/ping" {}))))
 
 (deftest home-test
-  (is (match? {:status 200
+  (is (match? {:status  200
                :headers {"Content-Type" string?}
-               :body seq?}
-              (tu/http-request :get "/" {} {:parser (comp tu/->hiccup slurp)}))))
+               :body    tu/file?}
+              (tu/http-request :get "/" {} {:parser identity}))))
 
 (deftest swagger-test
   (is (match? {:status 200 :body map?}

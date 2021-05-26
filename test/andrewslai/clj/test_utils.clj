@@ -9,7 +9,6 @@
             [clojure.java.jdbc :as jdbc]
             [clojure.string :as string]
             [clojure.test :refer [deftest]]
-            [hickory.core :as hkry]
             [migratus.core :as migratus]
             [ring.middleware.session.memory :as mem]
             [taoensso.timbre :as log]
@@ -30,9 +29,6 @@
                          :fn (fn [data]
                                (let [{:keys [output_]} data]
                                  (swap! logging-atom conj (force output_))))}}})
-
-(defn ->hiccup [s]
-  (hkry/as-hiccup (hkry/parse s)))
 
 (defn unauthorized-backend
   []
