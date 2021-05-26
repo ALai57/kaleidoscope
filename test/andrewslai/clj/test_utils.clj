@@ -3,6 +3,7 @@
             [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres2 :as pg]
+            [compojure.api.sweet :refer [GET]]
             [andrewslai.clj.utils :as util]
             [cheshire.core :as json]
             [clojure.java.jdbc :as jdbc]
@@ -13,7 +14,12 @@
             [ring.middleware.session.memory :as mem]
             [taoensso.timbre :as log]
             [slingshot.slingshot :refer [throw+]])
-  (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
+  (:import [io.zonky.test.db.postgres.embedded EmbeddedPostgres]
+           [java.io File]
+           [java.net URL URLClassLoader]
+           [java.nio.file Files]
+           [java.nio.file.attribute PosixFilePermissions]
+           [java.nio.file.attribute FileAttribute]))
 
 (defn captured-logging [logging-atom]
   {:level :debug
@@ -66,3 +72,56 @@
   (str "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
        "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ."
        "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"))
+
+
+
+(defn dummy-app
+  [response]
+  (GET "/" []
+    {:status 200 :body response}))
+
+(defn mktmpdir
+  ([]
+   (mktmpdir "" (into-array FileAttribute [])))
+  ([root]
+   (mktmpdir root (into-array FileAttribute [])))
+  ([root attrs]
+   (let [fname (.toFile (Files/createTempDirectory root attrs))]
+     (.deleteOnExit fname)
+     fname)))
+
+(defn mktmp
+  [s dir]
+  (when-not (string/includes? s ".")
+    (throw (IllegalArgumentException. "Temporary file names must include an extension")))
+  (let [[fname ext] (string/split s #"\.")]
+    (let [f (File/createTempFile fname (str "." ext) dir)]
+      (.deleteOnExit f)
+      f)))
+
+(defn- url-array
+  [urls]
+  (let [urls (if (coll? urls) urls [urls])
+        arr (make-array java.net.URL (count urls))]
+    (loop [[url & remain] urls
+           n              0]
+      (if-not url
+        arr
+        (do (aset arr n url)
+            (recur remain (inc n)))))))
+
+(defn file
+  [& paths]
+  (format "file:%s" (string/join "/" paths)))
+
+(defn ->url
+  [url]
+  (URL. url))
+
+(defn url-classloader
+  [urls]
+  (URLClassLoader. (url-array urls)))
+
+(def tmp-loader
+  "A Classloader that loads from the system's temporary directory (usually `/tmp`)"
+  (url-classloader (->url (format "file:%s/" (System/getProperty "java.io.tmpdir")))))

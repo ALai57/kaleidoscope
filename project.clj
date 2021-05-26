@@ -57,7 +57,7 @@
   :uberjar-name "andrewslai.jar"
   :uberjar-exclusions [#"public/.*"]
 
-  :main andrewslai.clj.handler
+  :main andrewslai.clj.main
 
   ;; Speeds up Docker builds, see https://docs.docker.com/develop/develop-images/build_enhancements/
   :shell {:env {"DOCKER_BUILDKIT" "1"}}

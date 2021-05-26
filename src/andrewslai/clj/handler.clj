@@ -1,35 +1,23 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [aleph.http :as http]
-            [andrewslai.clj.auth.core :as auth]
-            [andrewslai.clj.auth.keycloak :as keycloak]
-            [andrewslai.clj.persistence.postgres2 :as pg]
-            [andrewslai.clj.persistence.s3 :as fs]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.ping :refer [ping-routes]]
             [andrewslai.clj.routes.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.routes.swagger :refer [swagger-ui-routes]]
             [andrewslai.clj.routes.wedding :as wedding]
-            [andrewslai.clj.utils :as util]
             [andrewslai.clj.virtual-hosting :as vh]
             [buddy.auth.accessrules :refer [wrap-access-rules]]
-            [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.middleware :as ba]
-            [clojure.spec.alpha :as s]
             [compojure.api.middleware :as mw]
-            [compojure.api.routes :as r]
-            [compojure.api.sweet :refer [api defroutes GET routes]]
+            [compojure.api.sweet :refer [api defroutes GET]]
             [ring.middleware.content-type :refer [wrap-content-type]]
-            [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
-            [ring.middleware.resource :refer [wrap-resource]]
-            [ring.middleware.session :refer [wrap-session]]
-            [ring.middleware.session.memory :as mem]
+            [ring.middleware.json :refer [wrap-json-response]]
             [ring.util.http-response :refer [content-type resource-response]]
-            [ring.util.request :as req]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders])
-  (:import [com.amazonaws.auth ContainerCredentialsProvider]))
+  (:import com.amazonaws.auth.ContainerCredentialsProvider))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global settings (Yuck!)
@@ -64,16 +52,16 @@
         (content-type "text/html"))))
 
 (defn andrewslai-app
-  [components]
+  [{:keys [auth logging static-content] :as components}]
   (log/with-config (:logging components)
     (api {:components components
           :middleware [wrap-request-identifier
                        log-request!
                        wrap-content-type
                        wrap-json-response
-                       #(wrap-resource % "public")
-                       #(ba/wrap-authorization % (:auth components))
-                       #(ba/wrap-authentication % (:auth components))
+                       (or static-content identity)
+                       #(ba/wrap-authorization % auth)
+                       #(ba/wrap-authentication % auth)
                        #(wrap-access-rules % {:rules wedding/access-rules})
                        ]}
          index-routes
@@ -88,56 +76,42 @@
 ;; or else it tries to look up something it can't find
 ;; using the EC2 instance metadata endpoints
 (defn wedding-app
-  [components]
-  (log/with-config (:logging components)
-    (api {:components components
+  [{:keys [auth logging static-content] :as components}]
+  (log/with-config logging
+    (api {:components (dissoc components :static-content)
           :middleware [wrap-request-identifier
                        log-request!
                        wrap-content-type
                        wrap-json-response
-                       #(wrap-resource % "public")
-                       #(ba/wrap-authorization % (:auth components))
-                       #(ba/wrap-authentication % (:auth components))
+                       (or static-content identity)
+                       #(ba/wrap-authorization % auth)
+                       #(ba/wrap-authentication % auth)
                        #(wrap-access-rules % {:rules wedding/access-rules})
                        ]}
          wedding/index-routes
          wedding/routes)))
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn -main
-  "Start a server and run the application"
-  [& {:keys [port]}]
-  (let [port         (or port
-                         (some-> (System/getenv "ANDREWSLAI_PORT")
-                                 int)
-                         5000)
-        auth-backend (auth/oauth-backend
-                      (keycloak/make-keycloak
-                       {:realm             (System/getenv "ANDREWSLAI_AUTH_REALM")
-                        :ssl-required      "external"
-                        :auth-server-url   (System/getenv "ANDREWSLAI_AUTH_URL")
-                        :client-id         (System/getenv "ANDREWSLAI_AUTH_CLIENT")
-                        :client-secret     (System/getenv "ANDREWSLAI_AUTH_SECRET")
-                        :confidential-port 0}))
-        ]
-    (println "Hello! Starting andrewslai on port" port)
-    (http/start-server
-     (vh/host-based-routing
-      {#"caheriaguilar.and.andrewslai.com"
-       {:priority 0
-        :app      (wedding-app {:wedding-storage (fs/make-s3 {:bucket-name "andrewslai-wedding"
-                                                              :credentials fs/CustomAWSCredentialsProviderChain})
-                                :logging         (merge log/*config* {:level :info})
-                                :auth            auth-backend})}
-       #".*"
-       {:priority 100
-        :app      (andrewslai-app {:database (pg/->Database (util/pg-conn))
-                                   :logging  (merge log/*config* {:level :info})
-                                   :auth     auth-backend})}})
-     {:port port})))
+(defn start-app
+  [{:keys [auth database logging port static-content wedding-storage] :as configuration}]
+  (http/start-server
+   (vh/host-based-routing
+    {#"caheriaguilar.and.andrewslai.com"
+     {:priority 0
+      :app      (wedding-app {:wedding-storage wedding-storage
+                              :logging         logging
+                              :auth            auth})}
+     #".*"
+     {:priority 100
+      :app      (andrewslai-app {:database       database
+                                 :logging        logging
+                                 :auth           auth
+                                 :static-content static-content})}})
+   {:port port}))
 
 (comment
   ;;(import [com.amazonaws.auth AWSCredentialsProvider])

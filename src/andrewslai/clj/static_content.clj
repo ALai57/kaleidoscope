@@ -23,24 +23,3 @@
   [content-service-type root-path options]
   (make-wrapper "classpath" root-path options))
 
-(defn get-wrapper-type
-  "Where is the static content served from?
-  Currently supported - `#{'classpath' 'filesystem'}`"
-  [env]
-  (get env "ANDREWSLAI_STATIC_CONTENT"))
-
-(defn get-root-path
-  [env]
-  (get env "ANDREWSLAI_STATIC_CONTENT_BASE_URL" ""))
-
-(defn configure-wrapper
-  ([env]
-   (configure-wrapper env {}))
-  ([env options]
-   (configure-wrapper (get-wrapper-type env)
-                      (get-root-path env)
-                      options))
-  ([wrapper-type root-path options]
-   (make-wrapper wrapper-type
-                 root-path
-                 options)))

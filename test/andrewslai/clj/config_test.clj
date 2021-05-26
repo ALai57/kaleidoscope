@@ -1,6 +1,7 @@
-(ns andrewslai.clj.static-content-test
+(ns andrewslai.clj.config-test
   (:require [andrewslai.clj.handler :as h]
             [andrewslai.clj.static-content :as sc]
+            [andrewslai.clj.config :as cfg]
             [andrewslai.clj.test-utils :as tu]
             [clojure.java.io :as io]
             [clojure.spec.alpha :as s]
@@ -26,30 +27,19 @@
     (log/with-log-level :fatal
       (f))))
 
-(deftest load-from-classpath-test
-  "The Thread's default classloader should be unable to load a resource from a
-  location that is not on the classpath. We can make a custom classloader, and
-  using that, we can customize the Classpath to load arbitrary files."
+(deftest static-content-wrapper--from-classpath
   (let [tmpdir  (tu/mktmpdir "andrewslai-test")
         tmpfile (tu/mktmp "delete.txt" tmpdir)
-        path    (str (.getName tmpdir) "/" (.getName tmpfile))]
 
-    (is (nil? (.getResource (.getContextClassLoader (Thread/currentThread)) path)))
-    (is (some? (.getResource tu/tmp-loader path)))))
+        path    (str "/" (.getName tmpfile))
 
-(deftest resources-from-classpath-test
-  "The Thread's default classloader should be unable to load a resource from a
-  location that is not on the classpath. We can make a custom classloader, and
-  using that, we can customize the Classpath to load arbitrary files."
-  (let [tmpdir  (tu/mktmpdir "andrewslai-test")
-        tmpfile (tu/mktmp "delete.txt" tmpdir)
-        path    (str (.getName tmpdir) "/" (.getName tmpfile))]
+        wrapper (cfg/configure-static-content
+                 {"ANDREWSLAI_STATIC_CONTENT" "classpath"
+                  "ANDREWSLAI_STATIC_CONTENT_BASE_URL" (.getName tmpdir)}
+                 {:loader tu/tmp-loader})]
 
-    (are [pred loader]
-      (pred (response/resource-response path {:loader loader}))
-
-      nil? (.getContextClassLoader (Thread/currentThread))
-      map? tu/tmp-loader)))
+    (is (some? ((wrapper (tu/dummy-app :hello)) {:request-method :get
+                                                 :uri            path})))))
 
 (comment
   (def tmpdir
