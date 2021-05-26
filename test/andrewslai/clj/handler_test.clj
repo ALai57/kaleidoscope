@@ -22,9 +22,9 @@
       (f))))
 
 (deftest ping-test
-  (is (match? {:status 200
+  (is (match? {:status  200
                :headers {"Content-Type" #"application/json"}
-               :body {:revision string?}}
+               :body    {:revision string?}}
               (tu/http-request :get "/ping" {}))))
 
 (deftest home-test
@@ -34,9 +34,9 @@
               (tu/http-request :get "/" {} {:parser identity}))))
 
 (deftest swagger-test
-  (is (match? {:status 200
+  (is (match? {:status  200
                :headers {"Content-Type" #"application/json"}
-               :body map?}
+               :body    map?}
               (tu/http-request :get "/swagger.json" {}))))
 
 (deftest logging-test

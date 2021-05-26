@@ -43,20 +43,20 @@
   (fn [request]
     (handler (assoc request :request-id (str (java.util.UUID/randomUUID))))))
 
+(defn wrap-index [handler]
+  (fn [request]
+    (handler (update request :uri #(if (= "/" %) "/index.html" %)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Compojure Routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defroutes index-routes
-  (GET "/" []
-    (-> (resource-response "index.html" {:root "public"})
-        (content-type "text/html"))))
-
 (defn andrewslai-app
   [{:keys [auth logging static-content] :as components}]
   (log/with-config (:logging components)
-    (api {:components components
+    (api {:components (dissoc components :static-content)
           :middleware [wrap-request-identifier
                        log-request!
+                       wrap-index
                        wrap-content-type
                        wrap-json-response
                        (or static-content identity)
@@ -64,7 +64,6 @@
                        #(ba/wrap-authentication % auth)
                        #(wrap-access-rules % {:rules wedding/access-rules})
                        ]}
-         index-routes
          ping-routes
          articles-routes
          portfolio-routes

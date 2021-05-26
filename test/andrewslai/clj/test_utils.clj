@@ -3,6 +3,7 @@
             [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres2 :as pg]
+            [andrewslai.clj.static-content :as sc]
             [compojure.api.sweet :refer [GET]]
             [andrewslai.clj.utils :as util]
             [cheshire.core :as json]
@@ -48,7 +49,10 @@
        :or   {parser #(json/parse-string % keyword)
               app    h/andrewslai-app}
        :as   options}]]
-  (let [defaults {:auth    (unauthorized-backend)}
+  (let [defaults {:auth           (unauthorized-backend)
+                  :static-content (sc/make-wrapper "classpath"
+                                                   "public"
+                                                   {})}
         app      (app (util/deep-merge defaults components))]
     (when-let [result (app (reduce conj
                                    {:request-method method :uri endpoint}
