@@ -1,25 +1,8 @@
 (ns andrewslai.clj.static-content-test
-  (:require [andrewslai.clj.handler :as h]
-            [andrewslai.clj.static-content :as sc]
-            [andrewslai.clj.test-utils :as tu]
-            [clojure.java.io :as io]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as string]
+  (:require [andrewslai.clj.test-utils :as tu]
             [clojure.test :refer [are deftest is use-fixtures]]
-            [clojure.test.check.clojure-test :refer [defspec]]
-            [clojure.test.check.generators :as gen]
-            [clojure.test.check.properties :as prop]
-            [clojure.test.check.properties :as prop]
-            [compojure.api.sweet :refer [api defroutes GET routes]]
-            [matcher-combinators.test]
-            [ring.util.request :as req]
             [ring.util.response :as response]
-            [taoensso.timbre :as log])
-  (:import [java.io File]
-           [java.net URL URLClassLoader]
-           [java.nio.file Files]
-           [java.nio.file.attribute PosixFilePermissions]
-           [java.nio.file.attribute FileAttribute]))
+            [taoensso.timbre :as log]))
 
 (use-fixtures :once
   (fn [f]
