@@ -7,7 +7,6 @@
 
 
 ;; (or root-path "public/")
-
 (defmethod make-wrapper "classpath"
   [content-service-type root-path options]
   (fn [handler]

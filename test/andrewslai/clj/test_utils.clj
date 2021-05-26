@@ -110,10 +110,6 @@
         (do (aset arr n url)
             (recur remain (inc n)))))))
 
-(defn file
-  [& paths]
-  (format "file:%s" (string/join "/" paths)))
-
 (defn ->url
   [url]
   (URL. url))
@@ -121,6 +117,10 @@
 (defn url-classloader
   [urls]
   (URLClassLoader. (url-array urls)))
+
+(defn file?
+  [o]
+  (= java.io.File (class o)))
 
 (def tmp-loader
   "A Classloader that loads from the system's temporary directory (usually `/tmp`)"

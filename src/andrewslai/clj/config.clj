@@ -11,8 +11,8 @@
   "classpath")
 
 (def DEFAULT-STATIC-CONTENT-LOCATION
-  {"classpath" ""
-   "filesystem" ""})
+  {"classpath" "public/"
+   "filesystem" "assets/public/"})
 
 (defn configure-port
   [env]
