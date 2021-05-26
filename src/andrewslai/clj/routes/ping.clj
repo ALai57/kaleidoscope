@@ -5,7 +5,7 @@
             [ring.util.http-response :refer [ok]]))
 
 (def pom-path
-  "META-INF/maven/andrewslai/andrewslai/pom.properties")
+  "META-INF/maven/org.clojars.andrewslai/andrewslai/pom.properties")
 
 (defn parse-pom
   [pom-path]
