@@ -41,6 +41,14 @@ variable "ANDREWSLAI_AUTH_SECRET" {
   description = "Keycloak client secret"
 }
 
+variable "ANDREWSLAI_STATIC_CONTENT" {
+  description = "How to serve static content"
+}
+
+variable "ANDREWSLAI_STATIC_CONTENT_BASE_URL" {
+  description = "How to serve static content"
+}
+
 # Necessary because it seems like the DefaultRegionProviderChain walks down a chain of
 # providers to find its region. If it cannot find the AWS region in environment, etc
 # then it calls EC2MetadataUtils
@@ -346,12 +354,17 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
         "value": "${var.ANDREWSLAI_AUTH_SECRET}"
       },
       {
+        "name": "ANDREWSLAI_STATIC_CONTENT",
+        "value": "${var.ANDREWSLAI_STATIC_CONTENT}"
+      },
+      {
+        "name": "ANDREWSLAI_STATIC_CONTENT_BASE_URL",
+        "value": "${var.ANDREWSLAI_STATIC_CONTENT_BASE_URL}"
+      },
+      {
         "name": "AWS_DEFAULT_REGION",
         "value": "${var.AWS_DEFAULT_REGION}"
       }
-
-
-
     ],
     "logConfiguration": {
       "logDriver": "awslogs",
