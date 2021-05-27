@@ -1,7 +1,9 @@
 (ns andrewslai.clj.wedding-routes-test
   (:require [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.handler :as h]
-            [andrewslai.clj.persistence.s3 :as fs]
+            [andrewslai.clj.persistence.filesystem :as fs]
+            [andrewslai.clj.protocols.mem :as memp]
+            [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [clojure.string :as string]
             [clojure.test :refer [deftest is use-fixtures]]
@@ -49,18 +51,28 @@
                      "media/"))))
 
 (deftest authorized-user-test
-  (is (match? {:status 200 :body [{:key "media/a.txt" :etag "abcdef" :size 100}
-                                  {:key "media/b.txt" :etag "bcdefg" :size 200}]}
-              (wedding-route {:auth (tu/authorized-backend)
-                              :wedding-storage (mock-fs mock-files)}
-                             {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}}))))
+  (reset! memp/in-mem-fs {"mem:/wedding/media" :HELLO})
+  (is (match? {:status 200 :body :HELLO}
+              (wedding-route
+               {:auth (tu/authorized-backend)
+                :wedding-storage (sc/make-wrapper "mem"
+                                                  ""
+                                                  {:loader          (memp/loader)
+                                                   :prefer-handler? true})}
+               {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
+                :parser identity}))))
 
 (deftest unauthorized-user-test
+  (reset! memp/in-mem-fs {"mem:/wedding/media" :HELLO})
   (is (match? {:status 400 :body #"Unauthorized for role"}
-              (wedding-route {:auth (tu/unauthorized-backend)
-                              :wedding-storage (mock-fs mock-files)}
-                             {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
-                              :parser identity}))))
+              (wedding-route
+               {:auth (tu/unauthorized-backend)
+                :wedding-storage (sc/make-wrapper "mem"
+                                                  ""
+                                                  {:loader          (memp/loader)
+                                                   :prefer-handler? true})}
+               {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
+                :parser identity}))))
 
 (comment
   (wedding-route {:auth (tu/authorized-backend)}

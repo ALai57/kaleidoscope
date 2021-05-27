@@ -2,7 +2,7 @@
   (:require [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres2 :as pg]
-            [andrewslai.clj.persistence.s3 :as fs]
+            [andrewslai.clj.persistence.s3 :as s3p]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.utils :as util]
             [taoensso.timbre :as log]))
@@ -57,17 +57,15 @@
                   :password (get env "ANDREWSLAI_DB_PASSWORD")
                   :dbtype   "postgresql"}))
 
-(defn configure-filesystem
-  [env]
-  (fs/make-s3 {:bucket-name (get env "ANDREWSLAI_WEDDING_FOLDER" "andrewslai-wedding")
-               :credentials fs/CustomAWSCredentialsProviderChain}))
-
 (defn configure-from-env
   [env]
   {:port (configure-port env)
    :auth (configure-keycloak env)
 
    :database        (configure-database env)
-   :wedding-storage (configure-filesystem env)
+   :wedding-storage (sc/make-wrapper "s3"
+                                     ""
+                                     {:loader (s3p/s3-loader "andrewslai-wedding")
+                                      :prefer-handler? true})
    :logging         (configure-logging env)
    :static-content  (configure-static-content env)})

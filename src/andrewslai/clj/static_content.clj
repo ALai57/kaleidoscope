@@ -21,7 +21,12 @@
 (defmethod make-wrapper "s3"
   [content-service-type root-path options]
   (fn [handler]
-    (wrap-file handler root-path options)))
+    (wrap-resource handler root-path options)))
+
+(defmethod make-wrapper "mem"
+  [content-service-type root-path options]
+  (fn [handler]
+    (wrap-resource handler root-path options)))
 
 (defmethod make-wrapper :DEFAULT
   [content-service-type root-path options]
