@@ -96,7 +96,8 @@
                        #(ba/wrap-authorization % auth)
                        #(ba/wrap-authentication % auth)
                        #(wrap-access-rules % {:rules wedding/access-rules
-                                              :reject-handler unauthorized})
+                                              :reject-handler (fn [& args]
+                                                                (unauthorized))})
                        ]}
          (route/not-found "No matching route"))))
 

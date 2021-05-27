@@ -64,7 +64,7 @@
 
 (deftest unauthorized-user-test
   (reset! memp/in-mem-fs {"mem:/media" :HELLO})
-  (is (match? {:status 400 :body #"Unauthorized for role"}
+  (is (match? {:status 401}
               (wedding-route
                {:auth (tu/unauthorized-backend)
                 :wedding-storage (sc/make-wrapper "mem"
@@ -72,7 +72,7 @@
                                                   {:loader          (memp/loader)
                                                    :prefer-handler? true})}
                {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
-                :parser identity}))))
+                :parser  identity}))))
 
 (comment
   (wedding-route {:auth (tu/authorized-backend)}
