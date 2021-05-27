@@ -285,6 +285,43 @@ resource "aws_lb_listener" "https_listener" {
   }
 }
 
+# Moving to using api.andrewslai.com
+# Manually issued via AWS Console
+data "aws_acm_certificate" "api_andrewslai_issued" {
+  domain   = "api.andrewslai.com"
+  statuses = ["ISSUED"]
+}
+
+
+data "aws_lb_listener" "main" {
+  load_balancer_arn = "${aws_alb.main.arn}"
+  port              = 443
+}
+
+# Add SSL Cert for keycloak.andrewslai.com to existing LB
+resource "aws_lb_listener_certificate" "api_andrewslai_cert" {
+  listener_arn    = "${data.aws_lb_listener.main.arn}"
+  certificate_arn = "${data.aws_acm_certificate.api_andrewslai_issued.arn}"
+}
+
+# Add a rule to the existing load balancer for my app
+resource "aws_lb_listener_rule" "host_based_routing" {
+  listener_arn = "${data.aws_lb_listener.main.arn}"
+  priority     = 50
+
+  action {
+    type = "forward"
+    target_group_arn  = "${aws_alb_target_group.main.arn}"
+  }
+
+  condition {
+    host_header {
+      values = ["api.andrewslai.com"]
+    }
+  }
+}
+
+
 ##############################################################
 # ECS
 ##############################################################
