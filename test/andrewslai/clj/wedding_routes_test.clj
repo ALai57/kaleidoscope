@@ -17,7 +17,7 @@
 
 (defn wedding-route
   [components options]
-  (tu/http-request :get "/wedding/media" components (assoc options
+  (tu/http-request :get "/media" components (assoc options
                                                            :app h/wedding-app)))
 
 (defn mock-fs
@@ -51,7 +51,7 @@
                      "media/"))))
 
 (deftest authorized-user-test
-  (reset! memp/in-mem-fs {"mem:/wedding/media" :HELLO})
+  (reset! memp/in-mem-fs {"mem:/media" :HELLO})
   (is (match? {:status 200 :body :HELLO}
               (wedding-route
                {:auth (tu/authorized-backend)
@@ -63,7 +63,7 @@
                 :parser identity}))))
 
 (deftest unauthorized-user-test
-  (reset! memp/in-mem-fs {"mem:/wedding/media" :HELLO})
+  (reset! memp/in-mem-fs {"mem:/media" :HELLO})
   (is (match? {:status 400 :body #"Unauthorized for role"}
               (wedding-route
                {:auth (tu/unauthorized-backend)

@@ -19,7 +19,8 @@
             [compojure.route :as route]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.json :refer [wrap-json-response]]
-            [ring.util.http-response :refer [content-type resource-response]]
+            [ring.util.http-response :refer [content-type resource-response
+                                             unauthorized]]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders])
   (:import com.amazonaws.auth.ContainerCredentialsProvider))
@@ -70,7 +71,6 @@
                        (or static-content identity)
                        #(ba/wrap-authorization % auth)
                        #(ba/wrap-authentication % auth)
-                       #(wrap-access-rules % {:rules wedding/access-rules})
                        ]}
          ping-routes
          articles-routes
@@ -95,7 +95,8 @@
                        (or wedding-storage identity)
                        #(ba/wrap-authorization % auth)
                        #(ba/wrap-authentication % auth)
-                       #(wrap-access-rules % {:rules wedding/access-rules})
+                       #(wrap-access-rules % {:rules wedding/access-rules
+                                              :reject-handler unauthorized})
                        ]}
          (route/not-found "No matching route"))))
 

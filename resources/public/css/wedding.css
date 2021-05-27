@@ -2,7 +2,7 @@
 /* CSS Document*/
 
 body {
-  background: url("/images/rings.jpg") 33% 50% no-repeat;
+  background: url("/public/assets/rings.jpg") 33% 50% no-repeat;
   background-attachment: fixed;
   background-size: cover;
 }
@@ -52,7 +52,7 @@ body {
 }
 
 .thumb1 {
-  background: url(/images/CaheriAndrewCover.jpg) 50% 50% no-repeat; /* 50% 50% centers image in div */
+  background: url(/public/assets/CaheriAndrewCover.jpg) 50% 50% no-repeat; /* 50% 50% centers image in div */
   width: 250px;
   height: 400px;
   background-size: 375px;
