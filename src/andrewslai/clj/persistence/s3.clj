@@ -42,7 +42,8 @@
                                 :prefix      path})
            :object-summaries
            (drop 1)
-           (map (fn [m] (select-keys m [:key :size :etag])))))
+           (map (fn [m] (select-keys m [:key :size :etag])))
+           seq))
     (get-file [_ path]
       (log/info "Get object in S3: " path)
       (try
@@ -64,7 +65,10 @@
       "media/")
 
   (get-file (make-s3 {:bucket-name "andrewslai-wedding"})
-            "index.html")
+            "wedding-index.html")
+
+  (get-file (make-s3 {:bucket-name "andrewslai-wedding"})
+            "media")
 
   (spit "myindex.html" "<h1>HELLO</h1>")
 
