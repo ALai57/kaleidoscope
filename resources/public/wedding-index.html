@@ -21,7 +21,8 @@
 <script>
 
   function is_dev() {
-      return window.location.hostname == 'localhost'
+      var host = window.location.hostname
+      return host.endsWith('localhost')
   }
 
   IS_DEV = is_dev();
@@ -77,13 +78,15 @@
   function load_images() {
   $.ajax({
     type: 'get',
-      url: window.location.protocol + '//' + window.location.host + '/wedding/media',
+      url: window.location.protocol + '//' + window.location.host + '/media/',
       headers: {"Authorization": "Bearer " + signinResponse.access_token},
       success:function(images){
           var id = 'wedding-media';
+          console.log('IMAGES:');
           console.log(images);
-          $.each(JSON.parse(images), function(){
-  $('<img src="wedding/' + this.key + '" class="wedding-image" />').appendTo('#wedding-media');})}})
+          $.each(images.slice(0, 20), function(){
+              var img_tag = '<img src="/' + this.key + '" class="wedding-image" />'
+              $(img_tag).appendTo('#wedding-media');})}})
   }
 
   document.getElementById("load-images").addEventListener("click", load_images, false);

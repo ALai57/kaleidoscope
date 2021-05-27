@@ -99,6 +99,7 @@
                                               :reject-handler (fn [& args]
                                                                 (unauthorized))})
                        ]}
+         ping-routes
          (route/not-found "No matching route"))))
 
 

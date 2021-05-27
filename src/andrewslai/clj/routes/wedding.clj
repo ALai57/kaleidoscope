@@ -26,7 +26,7 @@
                       (auth/get-realm-roles identity)))))
 
 (def access-rules
-  [{:pattern #"^/media.*"
+  [{:pattern #"^/media/$"
     :handler (partial require-role "wedding")}])
 
 
