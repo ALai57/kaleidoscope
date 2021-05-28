@@ -29,32 +29,12 @@
     404 (not-found)
     (internal-server-error "Unknown exception")))
 
-(defn make-s3
-  [config]
-  (reify fs/FileSystem
-    (ls [_ path]
-      (log/info "List objects in S3: " path)
-      (->> (s3/list-objects-v2 (:credentials config)
-                               {:bucket-name (:bucket-name config)
-                                :prefix      path})
-           :object-summaries
-           (drop 1)
-           (map (fn [m] (select-keys m [:key :size :etag])))
-           seq))
-    (get-file [_ path]
-      (log/info "Get object in S3: " path)
-      (try
-        (-> (s3/get-object (:bucket-name config) path)
-            :input-stream)
-        (catch Exception e
-          (exception-response (amazon/ex->map e)))))))
-
-(defrecord S3 [config]
+(defrecord S3 [bucket creds]
   fs/FileSystem
   (ls [_ path]
     (log/info "List objects in S3: " path)
-    (->> (s3/list-objects-v2 (:credentials config)
-                             {:bucket-name (:bucket-name config)
+    (->> (s3/list-objects-v2 creds
+                             {:bucket-name bucket
                               :prefix      path})
          :object-summaries
          (drop 1)
@@ -63,61 +43,11 @@
   (get-file [_ path]
     (log/info "Get object in S3: " path)
     (try
-      (-> (s3/get-object (:credentials config) {:bucket-name (:bucket-name config)
-                                                :key path})
+      (-> (s3/get-object creds {:bucket-name bucket :key path})
           :input-stream)
       (catch Exception e
         (println e)
         (exception-response (amazon/ex->map e))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Configuration for s3-connections
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def s3-connections
-  (reduce (fn [m bucket]
-            (conj m {bucket (->S3 {:bucket-name bucket
-                                   :credentials CustomAWSCredentialsProviderChain})}))
-          {}
-          ["andrewslai-wedding"]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Creating a classloader that can load resources from S3
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn s3-loader
-  [bucket-name]
-  (proxy
-      [URLClassLoader]
-      [(make-array java.net.URL 0)]
-    (getResource [s]
-      (URL. (format "s3p:/%s/%s" bucket-name s)))))
-
-(defmethod ring.util.response/resource-data :s3p
-  [url]
-  (let [conn (.openConnection url)]
-    {:content (.getContent url)}))
-
-(comment
-  (string/split "s3p:/andrewslai-wedding/andrewlai" #"/")
-
-  (.getResource (s3-loader "andrewslai-wedding")
-                "media/")
-
-
-  (ring.util.response/resource-response "media/"
-                                        {:loader (s3-loader "andrewslai-wedding")})
-
-  (ring.util.response/resource-response "media/rings.jpg"
-                                        {:loader (s3-loader "andrewslai-wedding")})
-
-
-  (.getURL (.openConnection (URL. "s3p:/andrewslai-wedding/media/")))
-
-  (str (URL. "s3p:/media/"))
-
-  (get-file (get s3-connections "andrewslai-wedding")
-            "wedding-index.html")
-  )
 
 (comment
 
@@ -128,14 +58,14 @@
 
   (keys (bean (.getCredentials CustomAWSCredentialsProviderChain)))
 
-  (ls (make-s3 {:bucket-name "andrewslai-wedding"
+  (ls (map->S3 {:bucket "andrewslai-wedding"
                 :credentials CustomAWSCredentialsProviderChain})
       "media/")
 
-  (get-file (make-s3 {:bucket-name "andrewslai-wedding"})
+  (get-file (map->S3 {:bucket "andrewslai-wedding"})
             "wedding-index.html")
 
-  (get-file (make-s3 {:bucket-name "andrewslai-wedding"})
+  (get-file (map->S3 {:bucket "andrewslai-wedding"})
             "media")
 
   (spit "myindex.html" "<h1>HELLO</h1>")

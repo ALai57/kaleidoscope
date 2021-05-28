@@ -1,6 +1,6 @@
 (ns andrewslai.clj.static-content-test
   (:require [amazonica.aws.s3 :as s3]
-            [andrewslai.clj.persistence.s3 :as s3p]
+            [andrewslai.clj.protocols.s3 :as s3p]
             [andrewslai.clj.test-utils :as tu]
             [biiwide.sandboxica.alpha :as sandbox]
             [clojure.test :refer [are deftest is use-fixtures]]
@@ -66,7 +66,9 @@
                                                          {:loader loader})))
 
         nil? (.getContextClassLoader (Thread/currentThread))
-        {:status 200 :body nil} (s3p/s3-loader bucket)))))
+        {:status 200 :body nil} (->> (s3p/s3-connections [bucket] {:profile "none"})
+                                     (s3p/stream-handler)
+                                     (s3p/s3-loader bucket))))))
 
 (comment
   (def tmpdir
@@ -75,10 +77,6 @@
   (defn pwd
     []
     (System/getProperty "user.dir"))
-
-  (def s3-loader
-    "A Classloader that loads from s3"
-    (url-classloader (->url (format "file:%s/" (System/getProperty "java.io.tmpdir")))))
 
   (let [tmpdir  (tu/mktmpdir "andrewslai-test")
         tmpfile (tu/mktmp "delete.txt" tmpdir)

@@ -18,19 +18,16 @@
     (openConnection [url]
       (connection mem-filesystem url))))
 
-(defonce in-mem-fs
-  (atom {"mem:/wedding/media" :HELLO}))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Creating a classloader that can load resources from an in-memory filesystem atom
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn loader
-  []
+  [stream-handler]
   (proxy
       [URLClassLoader]
       [(make-array java.net.URL 0)]
     (getResource [s]
-      (URL. (format "mem:/%s" s)))))
+      (URL. "mem" "" -1 (str "/" s) stream-handler))))
 
 (defmethod ring.util.response/resource-data :mem
   [url]

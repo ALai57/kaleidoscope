@@ -54,30 +54,32 @@
 ;;        to determine authorization. Should test authorization instead of
 ;;        relying on that configuration
 (deftest authorized-user-test
-  (reset! memp/in-mem-fs {"mem:/media/" :HELLO})
-  (is (match? {:status 200
-               :headers {"Cache-Control" sc/no-cache}
-               :body :HELLO}
-              (wedding-route
-               {:auth (tu/authorized-backend)
-                :wedding-storage (sc/make-wrapper "mem"
-                                                  ""
-                                                  {:loader          (memp/loader)
-                                                   :prefer-handler? true})}
-               {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
-                :parser identity}))))
+  (let [in-mem-fs (atom {"mem:/media/" :HELLO})]
+    (is (match? {:status 200
+                 :headers {"Cache-Control" sc/no-cache}
+                 :body :HELLO}
+                (wedding-route
+                 {:auth (tu/authorized-backend)
+                  :wedding-storage
+                  (sc/make-wrapper "mem"
+                                   ""
+                                   {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                                    :prefer-handler? true})}
+                 {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
+                  :parser identity})))))
 
 (deftest unauthorized-user-test
-  (reset! memp/in-mem-fs {"mem:/media/" :HELLO})
-  (is (match? {:status 401}
-              (wedding-route
-               {:auth (tu/unauthorized-backend)
-                :wedding-storage (sc/make-wrapper "mem"
-                                                  ""
-                                                  {:loader          (memp/loader)
-                                                   :prefer-handler? true})}
-               {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
-                :parser  identity}))))
+  (let [in-mem-fs (atom {"mem:/media/" :HELLO})]
+    (is (match? {:status 401}
+                (wedding-route
+                 {:auth (tu/unauthorized-backend)
+                  :wedding-storage
+                  (sc/make-wrapper "mem"
+                                   ""
+                                   {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                                    :prefer-handler? true})}
+                 {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
+                  :parser  identity})))))
 
 (comment
   (wedding-route {:auth (tu/authorized-backend)}

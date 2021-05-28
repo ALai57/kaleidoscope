@@ -2,9 +2,9 @@
   (:require [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres2 :as pg]
-            [andrewslai.clj.persistence.s3 :as s3p]
+            [andrewslai.clj.persistence.s3 :as s3-storage]
+            [andrewslai.clj.protocols.s3 :as s3p]
             [andrewslai.clj.static-content :as sc]
-            [andrewslai.clj.utils :as util]
             [taoensso.timbre :as log]))
 
 (def DEFAULT-STATIC-CONTENT
@@ -57,15 +57,21 @@
                   :password (get env "ANDREWSLAI_DB_PASSWORD")
                   :dbtype   "postgresql"}))
 
+(defn configure-s3
+  [env]
+  (let [bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")]
+    (sc/make-wrapper "s3"
+                     ""
+                     {:loader (->> (s3p/s3-connections [bucket] s3-storage/CustomAWSCredentialsProviderChain)
+                                   (s3p/stream-handler)
+                                   (s3p/s3-loader bucket))
+                      :prefer-handler? true})))
+
 (defn configure-from-env
   [env]
-  {:port (configure-port env)
-   :auth (configure-keycloak env)
-
+  {:port            (configure-port env)
+   :auth            (configure-keycloak env)
    :database        (configure-database env)
-   :wedding-storage (sc/make-wrapper "s3"
-                                     ""
-                                     {:loader (s3p/s3-loader "andrewslai-wedding")
-                                      :prefer-handler? true})
+   :wedding-storage (configure-s3 env)
    :logging         (configure-logging env)
    :static-content  (configure-static-content env)})

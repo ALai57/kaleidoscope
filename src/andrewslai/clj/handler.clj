@@ -1,10 +1,8 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [aleph.http :as http]
-            [andrewslai.clj.protocols.config :as pcfg]
             [andrewslai.clj.protocols.s3 :as s3p]
             [andrewslai.clj.protocols.mem :as memp]
-            [andrewslai.clj.persistence.s3 :refer [s3-connections]]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.ping :refer [ping-routes]]
@@ -31,9 +29,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (log/merge-config!
  {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}})
-
-(pcfg/install-protocols! {"s3p" (s3p/stream-handler s3-connections)
-                          "mem" (memp/stream-handler memp/in-mem-fs)})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Middleware
