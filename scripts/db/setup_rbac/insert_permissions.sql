@@ -1,1 +1,0 @@
-INSERT INTO permissions (title, description, active) VALUES ('read:articles', 'Can read all articles', true), ('write:articles', 'Can write articles', true),('edit:articles', 'Can access editing GUI', true);
