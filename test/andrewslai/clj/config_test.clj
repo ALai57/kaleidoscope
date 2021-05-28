@@ -16,15 +16,16 @@
   (let [tmpdir  (tu/mktmpdir "andrewslai-test")
         tmpfile (tu/mktmp "delete.txt" tmpdir)
 
-        path    (str "/" (.getName tmpfile))
+        path (str "/" (.getName tmpfile))
 
         wrapper (cfg/configure-static-content
-                 {"ANDREWSLAI_STATIC_CONTENT" "classpath"
+                 {"ANDREWSLAI_STATIC_CONTENT"          "classpath"
                   "ANDREWSLAI_STATIC_CONTENT_BASE_URL" (.getName tmpdir)}
                  {:loader tu/tmp-loader})]
 
-    (is (match? {:status 200
-                 :body   tu/file?}
+    (is (match? {:status  200
+                 :headers {"Cache-Control" sc/cache-30d}
+                 :body    tu/file?}
                 ((wrapper (tu/dummy-app :hello)) {:request-method :get
                                                   :uri            path})))))
 
@@ -38,8 +39,9 @@
                  {"ANDREWSLAI_STATIC_CONTENT"          "filesystem"
                   "ANDREWSLAI_STATIC_CONTENT_BASE_URL" (.getAbsolutePath tmpdir)})]
 
-    (is (match? {:status 200
-                 :body   tu/file?}
+    (is (match? {:status  200
+                 :headers {"Cache-Control" sc/cache-30d}
+                 :body    tu/file?}
                 ((wrapper (tu/dummy-app :hello)) {:request-method :get
                                                   :uri            path})))))
 

@@ -17,8 +17,8 @@
 
 (defn wedding-route
   [components options]
-  (tu/http-request :get "/media" components (assoc options
-                                                           :app h/wedding-app)))
+  (tu/http-request :get "/media/" components (assoc options
+                                                    :app h/wedding-app)))
 
 (defn mock-fs
   [m]
@@ -50,9 +50,14 @@
               (fs/ls (mock-fs mock-files)
                      "media/"))))
 
+;; TODO: This is relying on the access control list and `wedding/access-rules`
+;;        to determine authorization. Should test authorization instead of
+;;        relying on that configuration
 (deftest authorized-user-test
-  (reset! memp/in-mem-fs {"mem:/media" :HELLO})
-  (is (match? {:status 200 :body :HELLO}
+  (reset! memp/in-mem-fs {"mem:/media/" :HELLO})
+  (is (match? {:status 200
+               :headers {"Cache-Control" sc/no-cache}
+               :body :HELLO}
               (wedding-route
                {:auth (tu/authorized-backend)
                 :wedding-storage (sc/make-wrapper "mem"
@@ -63,7 +68,7 @@
                 :parser identity}))))
 
 (deftest unauthorized-user-test
-  (reset! memp/in-mem-fs {"mem:/media" :HELLO})
+  (reset! memp/in-mem-fs {"mem:/media/" :HELLO})
   (is (match? {:status 401}
               (wedding-route
                {:auth (tu/unauthorized-backend)

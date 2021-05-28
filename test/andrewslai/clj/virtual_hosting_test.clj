@@ -30,10 +30,21 @@
   (and (not (string/ends-with? s "-"))
        (not (string/starts-with? s "-"))))
 
+(defn append
+  [s c]
+  (str s c))
+
+(defn prepend
+  [s c]
+  (str c s))
+
 (def gen-domain
-  (gen/such-that valid-domain?
-                 (gen/fmap (partial apply str)
-                           (gen/vector gen-domain-char 1 10))))
+  (gen/fmap (fn [xs]
+              (let [s (apply str xs)]
+                (cond-> s
+                  (string/starts-with? s "-") (prepend (gen/generate gen/char-alphanumeric))
+                  (string/ends-with? s "-")   (append (gen/generate gen/char-alphanumeric)))))
+            (gen/vector gen-domain-char 1 10)))
 
 (def gen-host
   (gen/fmap (fn [xs] (string/join "." xs))
