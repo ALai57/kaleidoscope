@@ -62,9 +62,10 @@
   (let [bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")]
     (sc/make-wrapper "s3"
                      ""
-                     {:loader (->> (s3p/s3-connections [bucket] s3-storage/CustomAWSCredentialsProviderChain)
-                                   (s3p/stream-handler)
-                                   (s3p/s3-loader bucket))
+                     {:loader (-> {:bucket bucket
+                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
+                                  s3-storage/map->S3
+                                  s3p/s3-loader)
                       :prefer-handler? true})))
 
 (defn configure-from-env

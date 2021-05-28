@@ -1,8 +1,6 @@
 (ns andrewslai.clj.handler
   (:gen-class)
   (:require [aleph.http :as http]
-            [andrewslai.clj.protocols.s3 :as s3p]
-            [andrewslai.clj.protocols.mem :as memp]
             [andrewslai.clj.routes.admin :refer [admin-routes]]
             [andrewslai.clj.routes.articles :refer [articles-routes]]
             [andrewslai.clj.routes.ping :refer [ping-routes]]
@@ -13,16 +11,14 @@
             [buddy.auth.accessrules :refer [wrap-access-rules]]
             [buddy.auth.middleware :as ba]
             [compojure.api.middleware :as mw]
-            [compojure.api.sweet :refer [api defroutes GET]]
+            [compojure.api.sweet :refer [api]]
             [compojure.route :as route]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.json :refer [wrap-json-response]]
-            [ring.util.http-response :refer [content-type resource-response
-                                             unauthorized]]
+            [ring.util.http-response :refer [unauthorized]]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders])
   (:import com.amazonaws.auth.ContainerCredentialsProvider))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global settings (Yuck!)

@@ -1,6 +1,7 @@
 (ns andrewslai.clj.static-content-test
   (:require [amazonica.aws.s3 :as s3]
             [andrewslai.clj.protocols.s3 :as s3p]
+            [andrewslai.clj.persistence.s3 :as s3-storage]
             [andrewslai.clj.test-utils :as tu]
             [biiwide.sandboxica.alpha :as sandbox]
             [clojure.test :refer [are deftest is use-fixtures]]
@@ -66,9 +67,10 @@
                                                          {:loader loader})))
 
         nil? (.getContextClassLoader (Thread/currentThread))
-        {:status 200 :body nil} (->> (s3p/s3-connections [bucket] {:profile "none"})
-                                     (s3p/stream-handler)
-                                     (s3p/s3-loader bucket))))))
+        {:status 200 :body nil} (-> {:bucket bucket
+                                     :creds  {:profile "none"}}
+                                    s3-storage/map->S3
+                                    s3p/s3-loader)))))
 
 (comment
   (def tmpdir
