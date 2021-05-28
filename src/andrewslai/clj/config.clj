@@ -11,8 +11,9 @@
   "classpath")
 
 (def DEFAULT-STATIC-CONTENT-LOCATION
-  {"classpath" "public/"
-   "filesystem" "assets/public/"})
+  {"classpath"  "public/"
+   "filesystem" "assets/public/"
+   "s3"         ""})
 
 (defn configure-port
   [env]
@@ -57,7 +58,18 @@
                   :password (get env "ANDREWSLAI_DB_PASSWORD")
                   :dbtype   "postgresql"}))
 
-(defn configure-s3
+(defn configure-frontend-bucket
+  [env]
+  (let [bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")]
+    (sc/make-wrapper "s3"
+                     ""
+                     {:loader (-> {:bucket bucket
+                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
+                                  s3-storage/map->S3
+                                  s3p/s3-loader)
+                      :prefer-handler? true})))
+
+(defn configure-wedding-bucket
   [env]
   (let [bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")]
     (sc/make-wrapper "s3"
@@ -73,6 +85,6 @@
   {:port            (configure-port env)
    :auth            (configure-keycloak env)
    :database        (configure-database env)
-   :wedding-storage (configure-s3 env)
+   :wedding-storage (configure-wedding-bucket env)
    :logging         (configure-logging env)
-   :static-content  (configure-static-content env)})
+   :static-content  (configure-frontend-bucket env)})

@@ -1,4 +1,4 @@
-(defproject org.clojars.alai57/andrewslai "0.0.38"
+(defproject org.clojars.alai57/andrewslai "0.0.39"
   :url "https://github.com/ALai57/andrewslai"
   :license {:name         "Eclipse Public License - v 1.0"
             :url          "http://www.eclipse.org/legal/epl-v10.html"

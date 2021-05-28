@@ -84,8 +84,8 @@
           var id = 'wedding-media';
           console.log('IMAGES:');
           console.log(images);
-          $.each(images.slice(0, 20), function(){
-              var img_tag = '<img src="/' + this.key + '" class="wedding-image" />'
+          $.each(images.slice(0, 100), function(){
+              var img_tag = '<img src="/' + this.key + '" class="wedding-image" loading="lazy" width="500px" height="500px"/>'
               $(img_tag).appendTo('#wedding-media');})}})
   }
 
