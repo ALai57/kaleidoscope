@@ -3,4 +3,4 @@
 (defprotocol FileSystem
   (ls [_ path] "Like the unix `ls` command")
   (get-file [_ path] "Retrieve a single file")
-  (put-file [_ path]))
+  (put-file [_ path input-stream metadata] "Put a file"))

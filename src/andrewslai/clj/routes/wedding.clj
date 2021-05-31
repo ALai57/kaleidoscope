@@ -27,6 +27,9 @@
 
 (def access-rules
   [{:pattern #"^/media/$"
+    :handler (partial require-role "wedding")}
+   {:pattern #"^/media.*"
+    :request-method :post
     :handler (partial require-role "wedding")}])
 
 

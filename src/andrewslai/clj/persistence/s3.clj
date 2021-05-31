@@ -1,27 +1,17 @@
 (ns andrewslai.clj.persistence.s3
-  (:require [amazonica.core :as amazon]
-            [amazonica.aws.s3 :as s3]
+  (:require [amazonica.aws.s3 :as s3]
+            [amazonica.core :as amazon]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [clojure.string :as string]
-            [ring.util.http-response :refer [content-type not-found ok
-                                             internal-server-error
-                                             resource-response]]
+            [ring.util.http-response :refer [internal-server-error not-found]]
             [taoensso.timbre :as log])
-  (:import [com.amazonaws.auth
-            AWSCredentialsProviderChain
-            EnvironmentVariableCredentialsProvider
-            ContainerCredentialsProvider
-            EC2ContainerCredentialsProviderWrapper]
-           [com.amazonaws.auth.profile ProfileCredentialsProvider]
-           [java.net URL URLStreamHandler URLConnection URLStreamHandlerFactory URLClassLoader]))
+  (:import [com.amazonaws.auth AWSCredentialsProviderChain ContainerCredentialsProvider EnvironmentVariableCredentialsProvider]
+           com.amazonaws.auth.profile.ProfileCredentialsProvider))
 
 (def CustomAWSCredentialsProviderChain
   (AWSCredentialsProviderChain.
    [^AWSCredentialsProvider (new EnvironmentVariableCredentialsProvider)
     ^AWSCredentialsProvider (new ProfileCredentialsProvider)
     ^AWSCredentialsProvider (new ContainerCredentialsProvider)]))
-
-#_(bean (.getCredentials CustomAWSCredentialsProviderChain))
 
 (defn exception-response
   [{:keys [status-code] :as exception-map}]
@@ -47,42 +37,70 @@
           :input-stream)
       (catch Exception e
         (println e)
+        (exception-response (amazon/ex->map e)))))
+  (put-file [_ path input-stream metadata]
+    (log/info "Put object in S3: " path)
+    (try
+
+      (s3/put-object creds
+                     {:bucket-name  bucket
+                      :key          path
+                      :input-stream input-stream
+                      :metadata     metadata})
+      (catch Exception e
+        (println e)
         (exception-response (amazon/ex->map e))))))
 
-(comment
 
-  (import '[com.amazonaws.auth DefaultAWSCredentialsProviderChain])
+(comment ;; Playing with S3
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;  PUT file
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (def b
+    (-> (clojure.java.io/resource "public/images/lock.svg")
+        clojure.java.io/input-stream
+        slurp
+        (.getBytes)))
+
+  (fs/put-file (map->S3 {:bucket "andrewslai"
+                         :creds CustomAWSCredentialsProviderChain})
+               "lock.svg"
+               (java.io.ByteArrayInputStream. b)
+               {:content-type "image/svg"
+                :content-length (count b)
+                :user-metadata {:something "some"}})
+
+  (s3/put-object CustomAWSCredentialsProviderChain
+                 {:bucket-name  "andrewslai"
+                  :key          "lock.svg"
+                  :input-stream (java.io.ByteArrayInputStream. b)
+                  :metadata     {:content-type "image/svg"
+                                 :content-length (count b)
+                                 :user-metadata {:something "some-value"}}})
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;  Just basic play
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (s3/list-buckets)
 
   (amazon/get-credentials nil)
 
   (keys (bean (.getCredentials CustomAWSCredentialsProviderChain)))
 
-  (ls (map->S3 {:bucket "andrewslai-wedding"
-                :credentials CustomAWSCredentialsProviderChain})
-      "media/")
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;  LIST files
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (fs/ls (map->S3 {:bucket "andrewslai-wedding"
+                   :creds CustomAWSCredentialsProviderChain})
+         "media/")
 
-  (get-file (map->S3 {:bucket "andrewslai-wedding"})
-            "wedding-index.html")
 
-  (get-file (map->S3 {:bucket "andrewslai-wedding"})
-            "media")
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;  GET file
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (fs/get-file (map->S3 {:bucket "andrewslai-wedding"
+                         :creds CustomAWSCredentialsProviderChain})
+               "index.html")
 
-  (spit "myindex.html" "<h1>HELLO</h1>")
-
-  (s3/put-object :bucket-name "andrewslai-wedding"
-                 :key "index.html"
-                 :file (clojure.java.io/file "myindex.html"))
-
-  (let [img    "clojure-logo.png"
-        home   "/home/andrew/dev/andrewslai/resources/public/images/"]
-    (s3/put-object :bucket-name "andrewslai-wedding"
-                   :key         (str "media/" img)
-                   :file        (clojure.java.io/file (str home img))))
-
-  (slurp (clojure.java.io/resource "public/images/clojure-logo.png"))
-  (slurp (clojure.java.io/file "/home/andrew/dev/andrewslai/resources/public/images/clojure-logo.png"))
-  (s3/get-object "andrewslai-wedding" "wedding-index.html")
-  (s3/get-object CustomAWSCredentialsProviderChain {:bucket-name "andrewslai-wedding"
-                                                    :key "wedding-index.html"})
   )
