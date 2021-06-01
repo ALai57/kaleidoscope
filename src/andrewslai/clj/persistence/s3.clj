@@ -19,6 +19,13 @@
     404 (not-found)
     (internal-server-error "Unknown exception")))
 
+(defn prepare-metadata
+  "Format a map of file metadata for upload to S3"
+  [{:keys [content-length content-type] :as metadata}]
+  {:content-length content-length
+   :content-type   content-type
+   :user-metadata  (dissoc metadata :content-length :content-type)})
+
 (defrecord S3 [bucket creds]
   fs/FileSystem
   (ls [_ path]
@@ -41,12 +48,11 @@
   (put-file [_ path input-stream metadata]
     (log/info "Put object in S3: " path)
     (try
-
       (s3/put-object creds
                      {:bucket-name  bucket
                       :key          path
                       :input-stream input-stream
-                      :metadata     metadata})
+                      :metadata     (prepare-metadata metadata)})
       (catch Exception e
         (println e)
         (exception-response (amazon/ex->map e))))))
@@ -69,7 +75,18 @@
                (java.io.ByteArrayInputStream. b)
                {:content-type "image/svg"
                 :content-length (count b)
-                :user-metadata {:something "some"}})
+                :something "some"})
+
+  (def c
+    (clojure.java.io/file "resources/public/images/lock.svg"))
+
+  (fs/put-file (map->S3 {:bucket "andrewslai"
+                         :creds CustomAWSCredentialsProviderChain})
+               "lock.svg"
+               (clojure.java.io/input-stream c)
+               {:content-type "image/svg"
+                :content-length (.length c)
+                :something "some"})
 
   (s3/put-object CustomAWSCredentialsProviderChain
                  {:bucket-name  "andrewslai"

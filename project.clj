@@ -18,6 +18,8 @@
                  [clj-http "3.10.0" :exclusions [commons-logging]]
                  [com.amazonaws/aws-java-sdk-s3 "1.11.850" :exclusions [commons-logging
                                                                         org.apache.httpcomponents/httpclient]]
+                 [com.twelvemonkeys.imageio/imageio-batik "3.7.0"]
+                 [com.twelvemonkeys.servlet/servlet "3.7.0"]
                  [com.taoensso/timbre "4.10.0"]
                  [honeysql "0.9.10"]
                  [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
@@ -27,6 +29,7 @@
                  [migratus "1.2.8" :scope "test"]
                  [nubank/matcher-combinators "3.1.4" :exclusions [io.aviso/pretty
                                                                   joda-time] :scope "test"]
+                 [org.apache.xmlgraphics/batik-transcoder "1.14"]
                  [org.clojure/clojure "1.10.1"]
                  [org.clojure/core.async "1.0.567"
                   :exclusions [org.clojure/tools.reader]]

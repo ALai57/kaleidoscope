@@ -11,16 +11,24 @@
       (ImageIO/read)
       bean))
 
-(defmethod fc/extract-meta java.io.File
-  [file]
-  (let [m (file-meta file)]
-    {:content-type   (mt/ext-mime-type (str file))
-     :content-length (.length file)
-     :image-metadata  (select-keys m [:width :height :transparency :type])}))
+(defmethod fc/extract-meta 'file/image
+  [path file]
+  (-> (file-meta file)
+      (select-keys [:width :height :transparency :type])
+      (assoc :content-type    (mt/ext-mime-type (str file))
+             :content-length  (.length file))))
 
 (comment
   ;; https://stackoverflow.com/questions/17189129/extract-images-width-height-color-and-type-from-byte-array/26122845
-  (fc/extract-meta (io/file "resources/public/images/earthrise.png"))
+
+  (require '[andrewslai.clj.files.core :as fc])
+  (fc/extract-meta "resources/public/images/earthrise.png"
+                   (io/file "resources/public/images/earthrise.png"))
+
+  (fc/extract-meta "resources/public/images/lock.svg"
+                   (io/file "resources/public/images/lock.svg"))
+
+  (file-meta "resources/public/images/lock.svg")
 
   (-> (clojure.java.io/resource "public/images/earthrise.png")
       clojure.java.io/input-stream
@@ -37,12 +45,11 @@
             (javax.imageio.ImageIO/createImageInputStream)
             (javax.imageio.ImageIO/read)))
 
-  (-> (clojure.java.io/file "resources/public/images/earthrise.png")
+  (-> (clojure.java.io/file "resources/public/images/lock.svg")
       clojure.java.io/input-stream
       (javax.imageio.ImageIO/createImageInputStream)
       (javax.imageio.ImageIO/read)
-      bean
-      :data
-      bean)
+      #_bean
+      )
 
   )
