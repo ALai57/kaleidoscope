@@ -47,10 +47,6 @@
   (marshall [obj]
     (coerce-to-map obj)))
 
-(defn byte-array-input-stream?
-  [obj]
-  (= (class obj) java.io.ByteArrayInputStream))
-
 (deftest put-object-test
   (let [bucket       "andrewslai-wedding"
         input-stream (java.io.ByteArrayInputStream. (.getBytes "<h1>HELLO</h1>"))
