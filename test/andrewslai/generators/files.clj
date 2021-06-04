@@ -1,5 +1,6 @@
 (ns andrewslai.generators.files
-  (:require [clojure.test.check.generators :as gen]))
+  (:require [clojure.test.check.generators :as gen]
+            [clojure.spec.alpha :as s]))
 
 (def gen-content-type
   (s/gen :s3.metadata/content-type))

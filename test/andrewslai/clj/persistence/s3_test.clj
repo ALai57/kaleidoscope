@@ -1,64 +1,27 @@
 (ns andrewslai.clj.persistence.s3-test
   (:require [amazonica.aws.s3 :as s3]
-            [amazonica.aws.s3transfer :as s3t]
-            [amazonica.core :as aws]
-            [andrewslai.clj.persistence.s3 :refer :all]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.protocols.s3 :as s3p]
-            [andrewslai.generators.s3 :as gen-s3]
+            [andrewslai.clj.persistence.s3 :refer :all]
             [andrewslai.generators.files :as gen-file]
+            [andrewslai.generators.s3 :as gen-s3]
             [biiwide.sandboxica.alpha :as sandbox]
-            [clojure.test :refer [are deftest is]]
-            [ring.util.response :as response]
-            [matcher-combinators.test]
-            [clojure.test.check.properties :as prop]
+            [clojure.test :refer [is use-fixtures]]
+            [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
-            [clojure.test.check.clojure-test :refer [defspec]])
-  (:import [com.amazonaws.services.s3.model PutObjectRequest]))
+            [clojure.test.check.properties :as prop]
+            [taoensso.timbre :as log]))
 
-(defn prop->name
-  "Convert java object property of form `isXXX` to be more clojure-y `XXX?`"
-  [prop]
-  (if (.startsWith prop "is")
-    (str (.substring prop 2) "?")
-    prop))
+(use-fixtures :once
+  (fn [f]
+    (log/with-log-level :fatal
+      (f))))
 
-(defn aws-coerceable?
-  "Does amazonica know how to coerce this data type?"
-  [x]
-  (satisfies? aws/IMarshall x)
-  #_(get @@#'aws/coercions (class x)))
-
-(defn coerce-to-map
-  "Coerce java object to clojure map.
-  Used for data types that amazonica doesn't know how to coerce."
-  [obj]
-  (reduce-kv (fn [m k v]
-               (conj m {(#'aws/camel->keyword (prop->name (name k)))
-                        (#'aws/marshall v)}))
-             {}
-             (bean obj)))
-
-(defn default-marshall
-  [method args]
-  (map (fn [x]
-         (if (not (aws-coerceable? x))
-           (coerce-to-map x)
-           x))
-       (aws/marshall (#'aws/prepare-args method args))))
-
-(extend-protocol aws/IMarshall
-  PutObjectRequest
-  (marshall [obj]
-    (coerce-to-map obj)))
-
-(deftest put-object-test
-  (let [bucket       "andrewslai-wedding"
-        input-stream (java.io.ByteArrayInputStream. (.getBytes "<h1>HELLO</h1>"))
-        metadata     {:content-type   "image/svg"
-                      :content-length 110
-                      :something      "some"}
-        s3-key       "something"]
+(defspec put-object-spec
+  (prop/for-all [bucket       gen-s3/gen-bucket-name
+                 a-string     gen/string
+                 metadata     gen-file/gen-metadata ;; Needs to come from another NS spec, because it's not S3 metadata we're generating
+                 user-meta    gen-s3/gen-user-metadata
+                 s3-key       gen-s3/gen-key]
     (sandbox/with (comp (sandbox/just
                          (s3/put-object
                           ([req]
@@ -75,5 +38,5 @@
       (fs/put-file (map->S3 {:bucket bucket
                              :creds  {:profile "dummy"}})
                    s3-key
-                   input-stream
-                   metadata))))
+                   (java.io.ByteArrayInputStream. (.getBytes a-string))
+                   (merge metadata user-meta)))))

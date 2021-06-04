@@ -13,7 +13,7 @@
   (s/gen :s3/key))
 
 (def gen-user-metadata
-  (gen/map gen/simple-type-printable gen/simple-type-printable))
+  (gen/map gen/string gen/simple-type-printable))
 
 (def gen-metadata
   (gen/hash-map :content-type gen-file/gen-content-type

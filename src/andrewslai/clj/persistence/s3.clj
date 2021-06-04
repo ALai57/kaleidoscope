@@ -46,7 +46,7 @@
 
 (s/def :s3.metadata/content-length int?)
 (s/def :s3.metadata/content-type (set (vals mt/default-mime-types)))
-(s/def :s3.metadata/user-metadata map?)
+(s/def :s3.metadata/user-metadata (s/map-of string? any?))
 (s/def :s3.metadata/metadata
   (s/keys :opt-un [:s3.metadata/content-length
                    :s3.metadata/content-type
@@ -55,9 +55,10 @@
 (defn prepare-metadata
   "Format a map of file metadata for upload to S3"
   [{:keys [content-length content-type] :as metadata}]
-  {:content-length content-length
-   :content-type   content-type
-   :user-metadata  (dissoc metadata :content-length :content-type)})
+  (let [user-meta (dissoc metadata :content-length :content-type)]
+    (merge {:content-length content-length
+            :content-type   content-type}
+           (when-not (empty? user-meta) {:user-metadata user-meta}))))
 
 (defrecord S3 [bucket creds]
   fs/FileSystem
