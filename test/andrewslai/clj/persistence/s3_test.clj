@@ -5,10 +5,15 @@
             [andrewslai.clj.persistence.s3 :refer :all]
             [andrewslai.clj.persistence.filesystem :as fs]
             [andrewslai.clj.protocols.s3 :as s3p]
+            [andrewslai.generators.s3 :as gen-s3]
+            [andrewslai.generators.files :as gen-file]
             [biiwide.sandboxica.alpha :as sandbox]
             [clojure.test :refer [are deftest is]]
             [ring.util.response :as response]
-            [matcher-combinators.test])
+            [matcher-combinators.test]
+            [clojure.test.check.properties :as prop]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.clojure-test :refer [defspec]])
   (:import [com.amazonaws.services.s3.model PutObjectRequest]))
 
 (defn prop->name
