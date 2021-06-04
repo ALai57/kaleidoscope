@@ -3,6 +3,7 @@
             [amazonica.core :as amazon]
             [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.spec.alpha :as s]
+            [clojure.string :as string]
             [ring.util.http-response :refer [internal-server-error not-found]]
             [ring.util.mime-type :as mt]
             [taoensso.timbre :as log])
@@ -60,17 +61,49 @@
             :content-type   content-type}
            (when-not (empty? user-meta) {:user-metadata user-meta}))))
 
+(def FOLDER-DELIMITER "/")
+
+(defn folder?
+  ([s]
+   (folder? s FOLDER-DELIMITER))
+  ([s delim]
+   (= delim (str (last s)))))
+
+(defn extract-name
+  [path s]
+  (let [x (last (string/split s (re-pattern FOLDER-DELIMITER)))]
+    (cond
+      (= path s)  ""
+      (folder? s) (str x FOLDER-DELIMITER)
+      :else       x)))
+
+(defn summary->file
+  [path {:keys [key] :as summary}]
+  (assoc summary
+         :name (extract-name path key)
+         :path key
+         :type (if (folder? key)
+                 :directory
+                 :file)))
+
+(defn prefix->file
+  [path prefix]
+  {:name (extract-name path prefix)
+   :path prefix
+   :type :directory})
+
+;; Add wrapper functions that are spec'ed out
 (defrecord S3 [bucket creds]
   fs/FileSystem
   (ls [_ path]
     (log/info "List objects in S3: " path)
-    (->> (s3/list-objects-v2 creds
-                             {:bucket-name bucket
-                              :prefix      path})
-         :object-summaries
-         (drop 1)
-         (map (fn [m] (select-keys m [:key :size :etag])))
-         seq))
+    (let [result (s3/list-objects-v2 creds
+                                     {:bucket-name bucket
+                                      :prefix      path
+                                      :delimiter   FOLDER-DELIMITER})]
+      (:object-summaries result)
+      (concat (map (partial summary->file path) (:object-summaries result))
+              (map (partial prefix->file path) (:common-prefixes result)))))
   (get-file [_ path]
     (log/info "Get object in S3: " path)
     (try
@@ -144,8 +177,25 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (fs/ls (map->S3 {:bucket "andrewslai-wedding"
                    :creds CustomAWSCredentialsProviderChain})
-         "media/")
-
+         "public/")
+  ;; => ({:path "public/css/",
+  ;;      :key "public/css/",
+  ;;      :storage-class "STANDARD",
+  ;;      :name "",
+  ;;      :type :directory,
+  ;;      :etag "d41d8cd98f00b204e9800998ecf8427e",
+  ;;      :last-modified #clj-time/date-time "2021-05-27T18:30:39.000Z",
+  ;;      :size 0,
+  ;;      :bucket-name "andrewslai-wedding"}
+  ;;     {:path "public/css/wedding.css",
+  ;;      :key "public/css/wedding.css",
+  ;;      :storage-class "STANDARD",
+  ;;      :name "wedding.css",
+  ;;      :type :file,
+  ;;      :etag "71bd22a749b50d4a5b90a8f538b72a60",
+  ;;      :last-modified #clj-time/date-time "2021-05-27T18:33:10.000Z",
+  ;;      :size 1121,
+  ;;      :bucket-name "andrewslai-wedding"})
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;  GET file

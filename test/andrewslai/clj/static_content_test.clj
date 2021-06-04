@@ -67,10 +67,10 @@
                                                          {:loader loader})))
 
         nil? (.getContextClassLoader (Thread/currentThread))
-        {:status 200 :body nil} (-> {:bucket bucket
-                                     :creds  {:profile "none"}}
-                                    s3-storage/map->S3
-                                    s3p/s3-loader)))))
+        {:status 200 :body ()} (-> {:bucket bucket
+                                    :creds  {:profile "none"}}
+                                   s3-storage/map->S3
+                                   s3p/s3-loader)))))
 
 (comment
   (def tmpdir
