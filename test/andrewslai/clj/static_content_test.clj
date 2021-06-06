@@ -7,7 +7,8 @@
             [clojure.test :refer [are deftest is use-fixtures]]
             [matcher-combinators.test]
             [ring.util.response :as response]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [andrewslai.clj.protocols.core :as protocols]))
 
 (use-fixtures :once
   (fn [f]
@@ -58,7 +59,30 @@
                                                          {:loader loader})))
 
         nil?                   (.getContextClassLoader (Thread/currentThread))
-        {:status 200 :body ()} (-> {:bucket bucket
-                                    :creds  {:profile "none"}}
-                                   s3-storage/map->S3
-                                   s3p/s3-loader)))))
+        {:status 200 :body ()} (->> {:bucket bucket
+                                     :creds  {:profile "none"}}
+                                    (s3-storage/map->S3)
+                                    (protocols/s3-loader))))))
+
+(comment
+  (let [bucket   "andrewslai-wedding"
+        endpoint "media/index.html"]
+    (sandbox/with (comp (sandbox/just
+                         (s3/list-objects-v2
+                          ([req]
+                           (or (is (match? {:prefix      endpoint
+                                            :bucket-name bucket}
+                                           req))
+                               (throw (Exception. "Invalid inputs")))
+                           {:bucket-name     bucket
+                            :common-prefixes []
+                            :key-count       1}
+                           )))
+                        sandbox/always-fail)
+      (response/resource-response endpoint
+                                  {:loader (-> {:bucket bucket
+                                                :creds  {:profile "none"}}
+                                               s3-storage/map->S3
+                                               protocols/filesystem-loader)})))
+
+  )

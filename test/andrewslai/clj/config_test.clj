@@ -48,7 +48,7 @@
 ;; Makes a network call
 #_(deftest static-content-wrapper--from-s3
     (let [wrapper (sc/classpath-static-content-wrapper
-                   {:loader (s3p/s3-loader "andrewslai-wedding")
+                   {:loader (protocols/filesystem-loader "andrewslai-wedding")
                     :prefer-handler? true})]
 
       ((wrapper (tu/dummy-app :hello)) {:request-method :get

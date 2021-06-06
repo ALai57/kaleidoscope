@@ -3,7 +3,7 @@
             [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.persistence.s3 :as s3-storage]
-            [andrewslai.clj.protocols.s3 :as s3p]
+            [andrewslai.clj.protocols.core :as protocols]
             [andrewslai.clj.static-content :as sc]
             [taoensso.timbre :as log]))
 
@@ -67,7 +67,7 @@
      {:loader (-> {:bucket bucket
                    :creds  s3-storage/CustomAWSCredentialsProviderChain}
                   s3-storage/map->S3
-                  s3p/s3-loader)
+                  protocols/filesystem-loader)
       :prefer-handler? true})))
 
 (defn configure-wedding-bucket
@@ -77,7 +77,7 @@
      {:loader (-> {:bucket bucket
                    :creds  s3-storage/CustomAWSCredentialsProviderChain}
                   s3-storage/map->S3
-                  s3p/s3-loader)
+                  protocols/filesystem-loader)
       :prefer-handler? true})))
 
 (defn configure-from-env

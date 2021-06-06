@@ -8,7 +8,8 @@
             [clojure.string :as string]
             [clojure.test :refer [deftest is use-fixtures]]
             [matcher-combinators.test]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [clj-http.client :as http]))
 
 (use-fixtures :once
   (fn [f]
@@ -78,6 +79,119 @@
                     :prefer-handler? true})}
                  {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
                   :parser  identity})))))
+
+
+(comment
+  (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/something"
+            {:multipart [{:name "title" :content "Something good"}
+                         {:name "Content/type" :content "image/jpeg"}
+                         {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
+                         {:name "lock.svg" :content (clojure.java.io/input-stream (clojure.java.io/resource "public/images/lock.svg"))}]})
+  )
+
+
+;; Create an object that reifies the filesystem protocol to use with the loader
+(deftest multipart-upload-test
+  (let [tmpdir    (tu/mktmpdir "andrewslai-test")
+        tmpfile   (tu/mktmp "multipart.txt" tmpdir)
+        in-mem-fs (atom {})
+        path      (str (.getName tmpdir) "/" (.getName tmpfile))
+
+        wedding-app (h/wedding-app
+                     {:auth (tu/authorized-backend)
+                      :wedding-storage
+                      (sc/classpath-static-content-wrapper
+                       {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                        :prefer-handler? true})})]
+    #_(is (match? {:status  200
+                   :headers {"Cache-Control" sc/no-cache}
+                   :body    :HELLO}
+                  ))
+    (wedding-app
+     {:headers        {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
+      :request-method :put
+      :params         {"title"        "Something good"
+                       "Content-Type" "image/jpeg"
+                       "eggplan"      "Eggplants"
+                       "file.txt"     {:filename     "lock.svg"
+                                       :content-type "image/svg"
+                                       :tempfile     (clojure.java.io/input-stream (clojure.java.io/resource "public/images/lock.svg"))
+                                       :size         1034}}
+      :parser         identity})
+
+    )
+
+  )
+
+
+
+(defn tmpfile
+  ([]
+   (tmpfile "andrewslai-test" "test.txt"))
+  ([fname]
+   (tmpfile "andrewslai-test" fname))
+  ([dir fname]
+   (let [tmpdir    (tu/mktmpdir dir)
+         tmpfile   (tu/mktmp fname tmpdir)]
+     (str (.getAbsolutePath tmpdir) "/" (.getName tmpfile)))))
+
+
+(-> (let [path      (tmpfile "multipart.txt")
+          in-mem-fs (atom {"mem:/media/" :HELLO})
+
+          request {"title"        "Something good"
+                   "Content-Type" "image/jpeg"
+                   "eggplan"      "Eggplants"
+                   "file.txt"     {:filename     "lock.svg"
+                                   :content-type "image/svg"
+                                   :tempfile     (clojure.java.io/input-stream (clojure.java.io/file path))
+                                   :size         1034}}
+
+          wedding-app (h/wedding-app
+                       {:auth        (tu/authorized-backend)
+                        :persistence ()
+                        :wedding-storage
+                        (sc/classpath-static-content-wrapper
+                         {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                          :prefer-handler? true})})]
+      #_(is (match? {:status  200
+                     :headers {"Cache-Control" sc/no-cache}
+                     :body    :HELLO}
+                    ))
+      (wedding-app
+       {:headers        {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
+        :request-method :put
+        :uri            "/media/something"
+        :params         {"title"        "Something good"
+                         "Content-Type" "image/jpeg"
+                         "eggplan"      "Eggplants"
+                         "file.txt"     {:filename     "lock.svg"
+                                         :content-type "image/svg"
+                                         :tempfile     (clojure.java.io/input-stream (clojure.java.io/resource "public/images/lock.svg"))
+                                         :size         1034}}
+        :parser         identity})
+
+      )
+    #_#_:body
+    slurp
+    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (comment
   (wedding-route {:auth (tu/authorized-backend)}
