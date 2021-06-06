@@ -2,13 +2,13 @@
   (:require [amazonica.aws.s3 :as s3]
             [andrewslai.clj.protocols.s3 :as s3p]
             [andrewslai.clj.persistence.s3 :as s3-storage]
+            [andrewslai.clj.protocols.mem :as memp]
             [andrewslai.clj.test-utils :as tu]
             [biiwide.sandboxica.alpha :as sandbox]
             [clojure.test :refer [are deftest is use-fixtures]]
             [matcher-combinators.test]
             [ring.util.response :as response]
-            [taoensso.timbre :as log]
-            [andrewslai.clj.protocols.core :as protocols]))
+            [taoensso.timbre :as log]))
 
 (use-fixtures :once
   (fn [f]
@@ -62,7 +62,7 @@
         {:status 200 :body ()} (->> {:bucket bucket
                                      :creds  {:profile "none"}}
                                     (s3-storage/map->S3)
-                                    (protocols/s3-loader))))))
+                                    (s3p/loader))))))
 
 (comment
   (let [bucket   "andrewslai-wedding"
@@ -82,7 +82,7 @@
       (response/resource-response endpoint
                                   {:loader (-> {:bucket bucket
                                                 :creds  {:profile "none"}}
-                                               s3-storage/map->S3
-                                               protocols/filesystem-loader)})))
+                                               (s3-storage/map->S3)
+                                               (memp/loader))})))
 
   )

@@ -10,6 +10,14 @@
   [x]
   (= 'file (type x)))
 
+(defn file
+  [{:keys [name content metadata]}]
+  (tag-as {:name name
+           :content content
+           :metadata metadata
+           :type :file}
+          'file))
+
 (defrecord MemFS [store-atom]
   fs/FileSystem
   (ls [_ path]

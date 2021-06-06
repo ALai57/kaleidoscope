@@ -2,6 +2,7 @@
   (:require [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.filesystem :as fs]
+            [andrewslai.clj.persistence.memory :as memory]
             [andrewslai.clj.protocols.mem :as memp]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
@@ -54,28 +55,37 @@
 ;; TODO: This is relying on the access control list and `wedding/access-rules`
 ;;        to determine authorization. Should test authorization instead of
 ;;        relying on that configuration
+;;
+
+(def example-fs
+  {"media" {"afile" (memory/file {:name     "afile"
+                                  :content  {:qux :quz}
+                                  :metadata {}})
+            "adir"  {"anotherfile" (memory/file {:name     "afile"
+                                                 :content  {:qux :quz}
+                                                 :metadata {}})}}})
+
 (deftest authorized-user-test
-  (let [in-mem-fs (atom {"mem:/media/" :HELLO})]
-    (is (match? {:status 200
+  (let [in-mem-fs (atom example-fs)]
+    (is (match? {:status  200
                  :headers {"Cache-Control" sc/no-cache}
-                 :body :HELLO}
+                 :body    [{:name "afile"} {:name "adir" :type "directory"}]}
                 (wedding-route
                  {:auth (tu/authorized-backend)
                   :wedding-storage
                   (sc/classpath-static-content-wrapper
-                   {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                   {:loader          (memp/loader (memory/->MemFS in-mem-fs))
                     :prefer-handler? true})}
-                 {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
-                  :parser identity})))))
+                 {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}})))))
 
 (deftest unauthorized-user-test
-  (let [in-mem-fs (atom {"mem:/media/" :HELLO})]
+  (let [in-mem-fs (atom example-fs)]
     (is (match? {:status 401}
                 (wedding-route
                  {:auth (tu/unauthorized-backend)
                   :wedding-storage
                   (sc/classpath-static-content-wrapper
-                   {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                   {:loader          (memp/loader (memory/->MemFS in-mem-fs))
                     :prefer-handler? true})}
                  {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
                   :parser  identity})))))
@@ -101,7 +111,7 @@
                      {:auth (tu/authorized-backend)
                       :wedding-storage
                       (sc/classpath-static-content-wrapper
-                       {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                       {:loader          (memp/loader (memory/->MemFS in-mem-fs))
                         :prefer-handler? true})})]
     #_(is (match? {:status  200
                    :headers {"Cache-Control" sc/no-cache}
@@ -152,7 +162,7 @@
                         :persistence ()
                         :wedding-storage
                         (sc/classpath-static-content-wrapper
-                         {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                         {:loader          (memp/loader (memory/->MemFS in-mem-fs) )
                           :prefer-handler? true})})]
       #_(is (match? {:status  200
                      :headers {"Cache-Control" sc/no-cache}
