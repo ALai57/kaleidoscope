@@ -61,10 +61,9 @@
                 (wedding-route
                  {:auth (tu/authorized-backend)
                   :wedding-storage
-                  (sc/make-wrapper "mem"
-                                   ""
-                                   {:loader          (memp/loader (memp/stream-handler in-mem-fs))
-                                    :prefer-handler? true})}
+                  (sc/classpath-static-content-wrapper
+                   {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                    :prefer-handler? true})}
                  {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
                   :parser identity})))))
 
@@ -74,10 +73,9 @@
                 (wedding-route
                  {:auth (tu/unauthorized-backend)
                   :wedding-storage
-                  (sc/make-wrapper "mem"
-                                   ""
-                                   {:loader          (memp/loader (memp/stream-handler in-mem-fs))
-                                    :prefer-handler? true})}
+                  (sc/classpath-static-content-wrapper
+                   {:loader          (memp/loader (memp/stream-handler in-mem-fs))
+                    :prefer-handler? true})}
                  {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
                   :parser  identity})))))
 
