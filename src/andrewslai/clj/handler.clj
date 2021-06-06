@@ -44,8 +44,10 @@
     (handler (assoc request :request-id (str (java.util.UUID/randomUUID))))))
 
 (defn wrap-index [handler]
-  (fn [request]
-    (handler (update request :uri #(if (= "/" %) "/index.html" %)))))
+  (fn [{:keys [request-method] :as request}]
+    (handler (if (= :get request-method)
+               (update request :uri #(if (= "/" %) "/index.html" %))
+               request))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Compojure Routes
@@ -91,6 +93,7 @@
                                                                 (unauthorized))})
                        ]}
          ping-routes
+         wedding/upload-routes
          (route/not-found "No matching route"))))
 
 

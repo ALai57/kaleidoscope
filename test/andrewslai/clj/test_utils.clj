@@ -117,3 +117,9 @@
 (def tmp-loader
   "A Classloader that loads from the system's temporary directory (usually `/tmp`)"
   (url-classloader (->url (format "file:%s/" (System/getProperty "java.io.tmpdir")))))
+
+
+(defn make-loader
+  "A Classloader that loads from a particular directory"
+  [dir]
+  (url-classloader (->url (format "file:%s/" dir))))

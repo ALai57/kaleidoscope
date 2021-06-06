@@ -11,7 +11,7 @@
                                                    com.taoensso/encore
                                                    org.apache.httpcomponents/httpclient
                                                    com.amazonaws/aws-java-sdk]]
-                 [biiwide/sandboxica "0.2.2-SNAPSHOT"]
+                 [biiwide/sandboxica "0.3.0"]
                  [buddy/buddy-auth "2.2.0" :exclusions [com.google.code.gson/gson
                                                         org.clojure/clojurescript]]
                  [cheshire "5.10.0"]

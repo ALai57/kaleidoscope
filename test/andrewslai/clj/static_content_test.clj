@@ -21,12 +21,11 @@
   (let [tmpdir  (tu/mktmpdir "andrewslai-test")
         tmpfile (tu/mktmp "delete.txt" tmpdir)
         path    (str (.getName tmpdir) "/" (.getName tmpfile))]
-
     (are [pred loader]
       (pred (response/resource-response path {:loader loader}))
 
       nil? (.getContextClassLoader (Thread/currentThread))
-      map? tu/tmp-loader)))
+      map? (tu/make-loader (System/getProperty "java.io.tmpdir")))))
 
 (deftest files-response-test
   (let [tmpdir  (tu/mktmpdir "andrewslai-test")

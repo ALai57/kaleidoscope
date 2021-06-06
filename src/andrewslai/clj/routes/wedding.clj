@@ -1,18 +1,11 @@
 (ns andrewslai.clj.routes.wedding
-  (:require [amazonica.core :as amazon]
-            [amazonica.aws.s3 :as s3]
+  (:require [amazonica.aws.s3 :as s3]
+            [amazonica.core :as amazon]
             [andrewslai.clj.auth.core :as auth]
-            [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.routes.admin :as admin]
             [buddy.auth.accessrules :as ar]
-            [clojure.string :as string]
-            [compojure.api.sweet :refer [context defroutes GET]]
-            [ring.util.http-response :refer [content-type not-found ok
-                                             bad-gateway
-                                             internal-server-error
-                                             resource-response]]
-            [spec-tools.swagger.core :as swagger]
-            [taoensso.timbre :as log]))
+            [compojure.api.sweet :refer [context defroutes PUT]]
+            [ring.util.http-response :refer [ok]]
+            [andrewslai.clj.persistence.filesystem :as fs]))
 
 (def MEDIA-FOLDER
   "media")
@@ -32,6 +25,15 @@
     :request-method :post
     :handler (partial require-role "wedding")}])
 
+(defroutes upload-routes
+  (context (format "/%s" MEDIA-FOLDER) []
+    :components [wedding-storage]
+    (PUT "/:path" [path req]
+      (fs/put-file wedding-storage
+                   path
+                   (:params req)
+                   (:params req))
+      (ok (str "GOT TO PUT" path)))))
 
 (comment
   (s3-path [MEDIA-FOLDER "something.ptg"])
