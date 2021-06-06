@@ -42,9 +42,7 @@
               app    h/andrewslai-app}
        :as   options}]]
   (let [defaults {:auth           (unauthorized-backend)
-                  :static-content (sc/make-wrapper "classpath"
-                                                   "public"
-                                                   {})}
+                  :static-content (sc/classpath-static-content-wrapper "public" {})}
         app      (app (util/deep-merge defaults components))]
     (when-let [result (app (reduce conj
                                    {:request-method method :uri endpoint}

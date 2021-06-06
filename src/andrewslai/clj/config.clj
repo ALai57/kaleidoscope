@@ -41,9 +41,11 @@
                                    (throw (IllegalArgumentException. "Invalid static content url")))
                                options)))
   ([wrapper-type root-path options]
-   (sc/make-wrapper wrapper-type
-                    root-path
-                    options)))
+   (if (= "filesystem" wrapper-type)
+     (sc/file-static-content-wrapper root-path
+                                     options)
+     (sc/classpath-static-content-wrapper root-path
+                                          options))))
 
 (defn configure-logging
   [env]
@@ -61,24 +63,22 @@
 (defn configure-frontend-bucket
   [env]
   (let [bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")]
-    (sc/make-wrapper "s3"
-                     ""
-                     {:loader (-> {:bucket bucket
-                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
-                                  s3-storage/map->S3
-                                  s3p/s3-loader)
-                      :prefer-handler? true})))
+    (sc/classpath-static-content-wrapper
+     {:loader (-> {:bucket bucket
+                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
+                  s3-storage/map->S3
+                  s3p/s3-loader)
+      :prefer-handler? true})))
 
 (defn configure-wedding-bucket
   [env]
   (let [bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")]
-    (sc/make-wrapper "s3"
-                     ""
-                     {:loader (-> {:bucket bucket
-                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
-                                  s3-storage/map->S3
-                                  s3p/s3-loader)
-                      :prefer-handler? true})))
+    (sc/classpath-static-content-wrapper
+     {:loader (-> {:bucket bucket
+                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
+                  s3-storage/map->S3
+                  s3p/s3-loader)
+      :prefer-handler? true})))
 
 (defn configure-from-env
   [env]

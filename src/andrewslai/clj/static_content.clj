@@ -13,41 +13,18 @@
     (string/ends-with? url "/")     (assoc-in response [:headers "Cache-Control"] no-cache)
     :else                           (assoc-in response [:headers "Cache-Control"] cache-30d)))
 
-(defmulti make-wrapper (fn [content-service-type root-path options]
-                         content-service-type))
+(defn classpath-static-content-wrapper
+  ([options]
+   (classpath-static-content-wrapper "" options))
+  ([root-path options]
+   (fn [handler]
+     (fn [request]
+       (cache-control (:uri request)
+                      ((wrap-resource handler root-path options) request))))))
 
-
-;; (or root-path "public/")
-(defmethod make-wrapper "classpath"
-  [content-service-type root-path options]
-  (fn [handler]
-    (fn [request]
-      (cache-control (:uri request)
-                     ((wrap-resource handler root-path options) request)))))
-
-;; (or root-path "resources/public")
-(defmethod make-wrapper "filesystem"
-  [content-service-type root-path options]
+(defn file-static-content-wrapper
+  [root-path options]
   (fn [handler]
     (fn [request]
       (cache-control (:uri request)
                      ((wrap-file handler root-path options) request)))))
-
-(defmethod make-wrapper "s3"
-  [content-service-type root-path options]
-  (fn [handler]
-    (fn [request]
-      (cache-control (:uri request)
-                     ((wrap-resource handler root-path options) request)))))
-
-(defmethod make-wrapper "mem"
-  [content-service-type root-path options]
-  (fn [handler]
-    (fn [request]
-      (cache-control (:uri request)
-                     ((wrap-resource handler root-path options) request)))))
-
-(defmethod make-wrapper :DEFAULT
-  [content-service-type root-path options]
-  (make-wrapper "classpath" root-path options))
-

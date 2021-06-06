@@ -15,6 +15,8 @@
             [compojure.route :as route]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.json :refer [wrap-json-response]]
+            [ring.middleware.multipart-params :refer [wrap-multipart-params]]
+            [ring.middleware.params :refer [wrap-params]]
             [ring.util.http-response :refer [unauthorized]]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders])
@@ -30,11 +32,13 @@
 ;; Middleware
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn log-request! [handler]
-  (fn [{:keys [request-method uri request-id body headers] :as request}]
+  (fn [{:keys [request-method uri request-id body headers params multipart-params] :as request}]
     (handler (do (log/with-config (:logging (mw/get-components request))
                    (log/info "Request received: " {:method     request-method
                                                    :uri        uri
                                                    :body       body
+                                                   :params     params
+                                                   :multipart-params multipart-params
                                                    ;;:headers    headers
                                                    :request-id request-id}))
                  request))))
@@ -85,6 +89,8 @@
                        wrap-index
                        wrap-content-type
                        wrap-json-response
+                       wrap-multipart-params
+                       wrap-params
                        (or wedding-storage identity)
                        #(ba/wrap-authorization % auth)
                        #(ba/wrap-authentication % auth)

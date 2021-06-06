@@ -1,6 +1,6 @@
 (ns andrewslai.clj.config-test
   (:require [andrewslai.clj.config :as cfg]
-            [andrewslai.clj.persistence.s3 :as s3p]
+            [andrewslai.clj.protocols.s3 :as s3p]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [clojure.test :refer [deftest is use-fixtures]]
@@ -47,12 +47,12 @@
 
 ;; Makes a network call
 #_(deftest static-content-wrapper--from-s3
-    (let [wrapper (sc/make-wrapper "s3" ""
-                                   {:loader (s3p/s3-loader "andrewslai-wedding")
-                                    :prefer-handler? true})]
+    (let [wrapper (sc/classpath-static-content-wrapper
+                   {:loader (s3p/s3-loader "andrewslai-wedding")
+                    :prefer-handler? true})]
 
       ((wrapper (tu/dummy-app :hello)) {:request-method :get
-                                        :uri            "/wedding-index.html"})))
+                                        :uri            "/media/index.html"})))
 
 
 (comment

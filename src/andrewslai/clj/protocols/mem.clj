@@ -11,12 +11,12 @@
       (get @mem-filesystem (str url)))))
 
 (defn stream-handler
-  [mem-filesystem]
+  [filesystem]
   (proxy
       [URLStreamHandler]
       []
     (openConnection [url]
-      (connection mem-filesystem url))))
+      (connection filesystem url))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Creating a classloader that can load resources from an in-memory filesystem atom
