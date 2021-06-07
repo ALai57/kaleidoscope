@@ -6,16 +6,33 @@
             [andrewslai.clj.protocols.core :as protocols]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
+            [clj-http.client :as http]
             [clojure.string :as string]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.test]
-            [taoensso.timbre :as log]
-            [clj-http.client :as http]))
+            [peridot.multipart :as mp]
+            [taoensso.timbre :as log])
+  (:require [clojure.java.io :as io]
+            [ring.util.codec :as codec]
+            [ring.util.mime-type :as mime-type])
+  (:import (java.io ByteArrayOutputStream InputStream)
+           (java.nio.charset Charset)
+           (org.apache.http.entity ContentType)
+           (org.apache.http.entity.mime MultipartEntity)
+           (org.apache.http.entity.mime.content InputStreamBody))
+
+  )
 
 (use-fixtures :once
   (fn [f]
     (log/with-log-level :fatal
       (f))))
+
+(defmethod mp/add-part InputStream [^MultipartEntity m k ^InputStream f]
+  (.addPart m
+            (mp/ensure-string k)
+            (InputStreamBody. f (ContentType/create
+                                 (mime-type/ext-mime-type (mp/ensure-string k))))))
 
 (defn wedding-route
   [components options]
@@ -59,47 +76,6 @@
     (tu/unauthorized-backend)
     {:status 401}))
 
-(comment
-  (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/something"
-            {:multipart [{:name "title" :content "Something good"}
-                         {:name "Content/type" :content "image/jpeg"}
-                         {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
-                         {:name "lock.svg" :content (clojure.java.io/input-stream (clojure.java.io/resource "public/images/lock.svg"))}]})
-  )
-
-
-;; Create an object that reifies the filesystem protocol to use with the loader
-(deftest multipart-upload-test
-  (let [tmpdir    (tu/mktmpdir "andrewslai-test")
-        tmpfile   (tu/mktmp "multipart.txt" tmpdir)
-        in-mem-fs (atom {})
-        path      (str (.getName tmpdir) "/" (.getName tmpfile))
-
-        wedding-app (h/wedding-app
-                     {:auth (tu/authorized-backend)
-                      :wedding-storage (sc/static-content (memory/map->MemFS {:store in-mem-fs}))})]
-    #_(is (match? {:status  200
-                   :headers {"Cache-Control" sc/no-cache}
-                   :body    :HELLO}
-                  ))
-    (wedding-app
-     {:headers        {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
-      :request-method :put
-      :params         {"title"        "Something good"
-                       "Content-Type" "image/jpeg"
-                       "eggplan"      "Eggplants"
-                       "file.txt"     {:filename     "lock.svg"
-                                       :content-type "image/svg"
-                                       :tempfile     (clojure.java.io/input-stream (clojure.java.io/resource "public/images/lock.svg"))
-                                       :size         1034}}
-      :parser         identity})
-
-    )
-
-  )
-
-
-
 (defn tmpfile
   ([]
    (tmpfile "andrewslai-test" "test.txt"))
@@ -111,61 +87,53 @@
      (str (.getAbsolutePath tmpdir) "/" (.getName tmpfile)))))
 
 
-(-> (let [path      (tmpfile "multipart.txt")
-          in-mem-fs (atom {"mem:/media/" :HELLO})
+;; Create an object that reifies the filesystem protocol to use with the loader
+(deftest multipart-upload-test
+  (let [tmpfile     (tmpfile "multipart.txt")
+        request     {"title"        "Something good"
+                     "Content-Type" "image/svg"
+                     "name"         "lock.svg"
+                     "lock.svg"     (-> "public/images/lock.svg"
+                                        clojure.java.io/resource
+                                        clojure.java.io/input-stream)}
+        in-mem-fs   (atom {})
+        storage     (memory/map->MemFS {:store in-mem-fs})
+        wedding-app (h/wedding-app {:auth    (tu/authorized-backend)
+                                    :storage storage
+                                    :static  (sc/static-content storage)})]
+    (is (match? {:status 200}
+                (wedding-app
+                 (merge {:headers        (tu/auth-header ["wedding"])
+                         :request-method :put
+                         :uri            "/media/something"}
+                        (mp/build request)))))
+    (is (match? {"media" {"something" {:name "something"
+                                       :path "/media/something"
+                                       :content tu/buffered-input-stream?
+                                       :metadata map?}}}
+                @in-mem-fs))))
 
-          request {"title"        "Something good"
-                   "Content-Type" "image/jpeg"
-                   "eggplan"      "Eggplants"
-                   "file.txt"     {:filename     "lock.svg"
-                                   :content-type "image/svg"
-                                   :tempfile     (clojure.java.io/input-stream (clojure.java.io/file path))
-                                   :size         1034}}
+(comment
+  (-> (mp/build {"title"        "Something good"
+                 "Content-Type" "image/jpeg"
+                 "eggplan"      "Eggplants"
+                 "file.txt"     (-> "public/images/lock.svg"
+                                    clojure.java.io/resource
+                                    clojure.java.io/input-stream)})
+      :body
+      slurp)
+  )
 
-          wedding-app (h/wedding-app
-                       {:auth        (tu/authorized-backend)
-                        :persistence ()
-                        :wedding-storage
-                        (sc/classpath-static-content-wrapper
-                         {:loader          (protocols/filesystem-loader (memory/map->MemFS {:store in-mem-fs}) )
-                          :prefer-handler? true})})]
-      #_(is (match? {:status  200
-                     :headers {"Cache-Control" sc/no-cache}
-                     :body    :HELLO}
-                    ))
-      (wedding-app
-       {:headers        {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
-        :request-method :put
-        :uri            "/media/something"
-        :params         {"title"        "Something good"
-                         "Content-Type" "image/jpeg"
-                         "eggplan"      "Eggplants"
-                         "file.txt"     {:filename     "lock.svg"
-                                         :content-type "image/svg"
-                                         :tempfile     (clojure.java.io/input-stream (clojure.java.io/resource "public/images/lock.svg"))
-                                         :size         1034}}
-        :parser         identity})
-
-      )
-    #_#_:body
-    slurp
-    )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+(comment
+  (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/something"
+            {:multipart [{:name "title" :content "Something good"}
+                         {:name "Content/type" :content "image/jpeg"}
+                         {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
+                         {:name "lock.svg" :content (-> "public/images/lock.svg"
+                                                        clojure.java.io/resource
+                                                        clojure.java.io/input-stream)}]}
+            )
+  )
 
 
 (comment

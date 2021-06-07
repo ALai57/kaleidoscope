@@ -13,6 +13,10 @@
            [java.nio.file.attribute FileAttribute]
            [java.nio.file Files]))
 
+(defn buffered-input-stream?
+  [obj]
+  (= (class obj) java.io.BufferedInputStream))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; App related things
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

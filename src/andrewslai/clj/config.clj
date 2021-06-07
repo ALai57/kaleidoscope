@@ -63,20 +63,14 @@
 (defn configure-frontend-bucket
   [env]
   (let [bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")]
-    (sc/classpath-static-content-wrapper
-     {:loader (-> (s3-storage/map->S3 {:bucket bucket
-                                       :creds  s3-storage/CustomAWSCredentialsProviderChain})
-                  (protocols/filesystem-loader))
-      :prefer-handler? true})))
+    (sc/static-content (s3-storage/map->S3 {:bucket bucket
+                                            :creds  s3-storage/CustomAWSCredentialsProviderChain}))))
 
 (defn configure-wedding-bucket
   [env]
   (let [bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")]
-    (sc/classpath-static-content-wrapper
-     {:loader (-> (s3-storage/map->S3 {:bucket bucket
-                                       :creds  s3-storage/CustomAWSCredentialsProviderChain})
-                  (protocols/filesystem-loader))
-      :prefer-handler? true})))
+    (sc/static-content (s3-storage/map->S3 {:bucket bucket
+                                            :creds  s3-storage/CustomAWSCredentialsProviderChain}))))
 
 (defn configure-from-env
   [env]

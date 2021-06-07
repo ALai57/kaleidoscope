@@ -39,7 +39,7 @@
       (when (file? x)
         x)))
   (put-file [_ path input-stream metadata]
-    (let [p    (string/split path #"/")
+    (let [p    (remove empty? (string/split path #"/+"))
           file (tag-as {:name     (last p)
                         :path     path
                         :content  input-stream

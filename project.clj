@@ -45,6 +45,7 @@
                                                                    com.fasterxml.jackson.core/jackson-core]]
                  [org.postgresql/postgresql "42.2.11"]
                  [org.slf4j/slf4j-nop "1.7.30"]
+                 [peridot "0.5.3" :scope "test"]
                  [ring "1.8.0" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
                  [ring/ring-json "0.5.0" :exclusions [joda-time]]
                  [ring/ring-mock "0.4.0" :scope "test"]

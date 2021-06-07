@@ -5,7 +5,8 @@
             [buddy.auth.accessrules :as ar]
             [compojure.api.sweet :refer [context defroutes PUT]]
             [ring.util.http-response :refer [ok]]
-            [andrewslai.clj.persistence.filesystem :as fs]))
+            [andrewslai.clj.persistence.filesystem :as fs]
+            [clojure.java.io :as io]))
 
 (def MEDIA-FOLDER
   "media")
@@ -25,15 +26,19 @@
     :request-method :post
     :handler (partial require-role "wedding")}])
 
+(defn get-content
+  [params]
+  (get params (get params "name")))
+
 (defroutes upload-routes
   (context (format "/%s" MEDIA-FOLDER) []
-    :components [wedding-storage]
-    (PUT "/:path" [path req]
-      (fs/put-file wedding-storage
-                   path
-                   (:params req)
-                   (:params req))
-      (ok (str "GOT TO PUT" path)))))
+    :components [storage]
+    (PUT "/:path" {:keys [uri params] :as req}
+      (fs/put-file storage
+                   uri
+                   (io/input-stream (.getBytes (get-content params)))
+                   params)
+      (ok (str "GOT TO PUT" uri)))))
 
 (comment
   (s3-path [MEDIA-FOLDER "something.ptg"])
