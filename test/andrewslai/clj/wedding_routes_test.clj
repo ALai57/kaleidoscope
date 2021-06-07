@@ -49,7 +49,7 @@
                       :headers        (tu/auth-header ["wedding"])}
                      {:auth           auth-backend
                       :wedding-storage (sc/classpath-static-content-wrapper
-                                        {:loader          (memp/loader (memory/->MemFS in-mem-fs))
+                                        {:loader          (memp/loader (memory/map->MemFS {:store in-mem-fs}))
                                          :prefer-handler? true})})))))
     "Authorized request returns 200"
     (tu/authorized-backend)
@@ -81,7 +81,7 @@
                      {:auth (tu/authorized-backend)
                       :wedding-storage
                       (sc/classpath-static-content-wrapper
-                       {:loader          (memp/loader (memory/->MemFS in-mem-fs))
+                       {:loader          (memp/loader (memory/map->MemFS {:store in-mem-fs}))
                         :prefer-handler? true})})]
     #_(is (match? {:status  200
                    :headers {"Cache-Control" sc/no-cache}
@@ -132,7 +132,7 @@
                         :persistence ()
                         :wedding-storage
                         (sc/classpath-static-content-wrapper
-                         {:loader          (memp/loader (memory/->MemFS in-mem-fs) )
+                         {:loader          (memp/loader (memory/map->MemFS {:store in-mem-fs}) )
                           :prefer-handler? true})})]
       #_(is (match? {:status  200
                      :headers {"Cache-Control" sc/no-cache}

@@ -1,5 +1,6 @@
 (ns andrewslai.clj.persistence.memory
   (:require [andrewslai.clj.persistence.filesystem :as fs]
+            [andrewslai.clj.protocols.mem :as memp]
             [clojure.string :as string]))
 
 (defn tag-as
@@ -19,7 +20,9 @@
           'file))
 
 ;; Should persistence depend on teh protocols? i.e. should persistence need to know about URLs.. etc?
-(defrecord MemFS [store-atom]
+;; Add protocol as the first argument to the FilesysteM?
+;; Configuration map as first argument and extract other args from there?
+(defrecord MemFS [store protocol]
   fs/FileSystem
   (ls [_ path]
     (seq (reduce-kv (fn [xs entry v]
@@ -29,10 +32,10 @@
                                   :path (str path "/" entry)
                                   :type :directory})))
                     []
-                    (get-in @store-atom (string/split path #"/")))))
+                    (get-in @store (string/split path #"/")))))
 
   (get-file [_ path]
-    (let [x (get-in @store-atom (string/split path #"/"))]
+    (let [x (get-in @store (string/split path #"/"))]
       (when (file? x)
         x)))
   (put-file [_ path input-stream metadata]
@@ -43,8 +46,10 @@
                         :metadata metadata
                         :type     :file}
                        'file)]
-      (swap! store-atom assoc-in p file)
-      file)))
+      (swap! store assoc-in p file)
+      file))
+  (get-protocol [_]
+    (or protocol memp/MEM-PROTOCOL)))
 
 (comment
   (def db (atom {"var" {"afile" (tag-as {:name "afile"
@@ -61,7 +66,7 @@
                                                        'file)}}}))
 
   (def memfs
-    (->MemFS db))
+    (map->MemFS {:store db}))
 
   (fs/ls memfs "var")
 

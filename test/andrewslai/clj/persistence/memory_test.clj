@@ -18,7 +18,7 @@
 
 (deftest memfs-test
   (let [db    (atom {})
-        memfs (->MemFS db)]
+        memfs (map->MemFS {:store db})]
     (is (nil? (fs/ls memfs "var")))
     (is (match? {:name "afile.txt"
                  :path "var/afile.txt"
@@ -40,7 +40,7 @@
                  content  gen/any
                  metadata (gen/map gen/simple-type gen/simple-type)]
     (let [db    (atom {})
-          memfs (->MemFS db)
+          memfs (map->MemFS {:store db})
 
           fullpath (str path "/" fname)
           file     {:name     fname
