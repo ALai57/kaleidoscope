@@ -66,8 +66,8 @@
     (sc/classpath-static-content-wrapper
      {:loader (-> {:bucket bucket
                    :creds  s3-storage/CustomAWSCredentialsProviderChain}
-                  s3-storage/map->S3
-                  protocols/filesystem-loader)
+                  (s3-storage/map->S3)
+                  (protocols/filesystem-loader))
       :prefer-handler? true})))
 
 (defn configure-wedding-bucket
@@ -76,8 +76,8 @@
     (sc/classpath-static-content-wrapper
      {:loader (-> {:bucket bucket
                    :creds  s3-storage/CustomAWSCredentialsProviderChain}
-                  s3-storage/map->S3
-                  protocols/filesystem-loader)
+                  (s3-storage/map->S3)
+                  (protocols/filesystem-loader))
       :prefer-handler? true})))
 
 (defn configure-from-env

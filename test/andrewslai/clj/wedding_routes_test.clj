@@ -7,7 +7,7 @@
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [clojure.string :as string]
-            [clojure.test :refer [deftest is use-fixtures]]
+            [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.test]
             [taoensso.timbre :as log]
             [clj-http.client :as http]))
@@ -22,35 +22,6 @@
   (tu/http-request :get "/media/" components (assoc options
                                                     :app h/wedding-app)))
 
-(defn mock-fs
-  [m]
-  (reify fs/FileSystem
-    (ls [_ path]
-      (when-let [dir (get-in m (filter (complement empty?)
-                                       (string/split path #"/")))]
-        (map (fn [[k entry]]
-               (-> entry
-                   (assoc :key (str path k))
-                   (dissoc :val)))
-             dir)))
-    (get-file [_ path]
-      (if-let [obj (get-in m (filter (complement empty?)
-                                     (string/split path #"/")))]
-        (assoc obj :key path)))))
-
-(def mock-files
-  {"media" {"a.txt" {:size 100
-                     :etag "abcdef"
-                     :val "SOMETHING"}
-            "b.txt" {:size 200
-                     :etag "bcdefg"
-                     :val "SOMETHING"}}})
-
-(deftest mock-fs-test
-  (is (match? [{:key "media/a.txt" :etag "abcdef" :size 100}
-               {:key "media/b.txt" :etag "bcdefg" :size 200}]
-              (fs/ls (mock-fs mock-files)
-                     "media/"))))
 
 ;; TODO: This is relying on the access control list and `wedding/access-rules`
 ;;        to determine authorization. Should test authorization instead of
@@ -58,6 +29,7 @@
 ;;
 
 (def example-fs
+  "An in-memory filesystem used for testing"
   {"media" {"afile" (memory/file {:name     "afile"
                                   :content  {:qux :quz}
                                   :metadata {}})
@@ -66,30 +38,28 @@
                                                  :metadata {}})}}})
 
 (deftest authorized-user-test
-  (let [in-mem-fs (atom example-fs)]
-    (is (match? {:status  200
-                 :headers {"Cache-Control" sc/no-cache}
-                 :body    [{:name "afile"} {:name "adir" :type "directory"}]}
-                (wedding-route
-                 {:auth (tu/authorized-backend)
-                  :wedding-storage
-                  (sc/classpath-static-content-wrapper
-                   {:loader          (memp/loader (memory/->MemFS in-mem-fs))
-                    :prefer-handler? true})}
-                 {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}})))))
+  (are [description auth-backend expected]
+    (testing description
+      (let [in-mem-fs (atom example-fs)]
+        (is (match? expected
+                    (tu/app-request
+                     h/wedding-app
+                     {:request-method :get
+                      :uri            "/media/"
+                      :headers        (tu/auth-header ["wedding"])}
+                     {:auth           auth-backend
+                      :wedding-storage (sc/classpath-static-content-wrapper
+                                        {:loader          (memp/loader (memory/->MemFS in-mem-fs))
+                                         :prefer-handler? true})})))))
+    "Authorized request returns 200"
+    (tu/authorized-backend)
+    {:status  200
+     :headers {"Cache-Control" sc/no-cache}
+     :body    [{:name "afile"} {:name "adir" :type "directory"}]}
 
-(deftest unauthorized-user-test
-  (let [in-mem-fs (atom example-fs)]
-    (is (match? {:status 401}
-                (wedding-route
-                 {:auth (tu/unauthorized-backend)
-                  :wedding-storage
-                  (sc/classpath-static-content-wrapper
-                   {:loader          (memp/loader (memory/->MemFS in-mem-fs))
-                    :prefer-handler? true})}
-                 {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}
-                  :parser  identity})))))
-
+    "Unauthorized request returns 401"
+    (tu/unauthorized-backend)
+    {:status 401}))
 
 (comment
   (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/something"

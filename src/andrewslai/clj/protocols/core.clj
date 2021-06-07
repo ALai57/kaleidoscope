@@ -41,6 +41,7 @@
   [protocol host port path stream-handler]
   (URL. protocol "" -1 (str "/" path) stream-handler))
 
+;; Don't pass protocol - create a method on FileSystem to describe protocol
 (defn filesystem-loader
   [protocol filesystem]
   (proxy

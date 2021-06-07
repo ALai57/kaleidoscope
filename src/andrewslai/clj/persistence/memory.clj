@@ -18,6 +18,7 @@
            :type :file}
           'file))
 
+;; Should persistence depend on teh protocols? i.e. should persistence need to know about URLs.. etc?
 (defrecord MemFS [store-atom]
   fs/FileSystem
   (ls [_ path]

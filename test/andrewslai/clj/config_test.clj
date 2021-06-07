@@ -21,7 +21,7 @@
         wrapper (cfg/configure-static-content
                  {"ANDREWSLAI_STATIC_CONTENT"          "classpath"
                   "ANDREWSLAI_STATIC_CONTENT_BASE_URL" (.getName tmpdir)}
-                 {:loader tu/tmp-loader})]
+                 {:loader (tu/make-loader (System/getProperty "java.io.tmpdir"))})]
 
     (is (match? {:status  200
                  :headers {"Cache-Control" sc/cache-30d}

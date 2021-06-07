@@ -13,6 +13,9 @@
            [java.nio.file.attribute FileAttribute]
            [java.nio.file Files]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; App related things
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn captured-logging [logging-atom]
   {:level :debug
    :appenders {:println {:enabled? true,
@@ -35,6 +38,16 @@
                         (auth/valid? [_ token]
                           true))))
 
+
+
+(defn app-request
+  [app request components & [{:keys [body parser]
+                              :or   {parser #(json/parse-string % keyword)}}]]
+  (let [defaults {:auth (unauthorized-backend)}
+        app      (app (util/deep-merge defaults components))]
+    (when-let [result (app request)]
+      (update result :body parser))))
+
 (defn http-request
   [method endpoint components
    & [{:keys [body parser app]
@@ -49,6 +62,16 @@
                                    options))]
       (update result :body parser))))
 
+(defn dummy-app
+  [response]
+  (routes
+    (GET "/" []
+      {:status 200 :body response})
+    (route/not-found "No matching route")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Token-related things
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn make-jwt
   [{:keys [hdr body sig]
     :or {hdr "" sig ""}}]
@@ -63,13 +86,13 @@
        "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ."
        "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"))
 
-(defn dummy-app
-  [response]
-  (routes
-    (GET "/" []
-      {:status 200 :body response})
-    (route/not-found "No matching route")))
+(defn auth-header
+  [roles]
+  {"Authorization" (bearer-token {:realm_access {:roles roles}})})
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Temporary directory
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn mktmpdir
   ([]
    (mktmpdir "" (into-array FileAttribute [])))
