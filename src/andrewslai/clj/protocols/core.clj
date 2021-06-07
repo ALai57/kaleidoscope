@@ -43,9 +43,9 @@
 
 ;; Don't pass protocol - create a method on FileSystem to describe protocol
 (defn filesystem-loader
-  [protocol filesystem]
+  [filesystem]
   (proxy
       [URLClassLoader]
       [(make-array java.net.URL 0)]
     (getResource [path]
-      (make-url protocol "" -1 (str "/" path) (url-stream-handler filesystem)))))
+      (make-url (fs/get-protocol filesystem) "" -1 (str "/" path) (url-stream-handler filesystem)))))

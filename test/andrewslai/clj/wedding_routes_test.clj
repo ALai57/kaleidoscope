@@ -3,7 +3,7 @@
             [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.filesystem :as fs]
             [andrewslai.clj.persistence.memory :as memory]
-            [andrewslai.clj.protocols.mem :as memp]
+            [andrewslai.clj.protocols.core :as protocols]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [clojure.string :as string]
@@ -49,7 +49,8 @@
                       :headers        (tu/auth-header ["wedding"])}
                      {:auth           auth-backend
                       :wedding-storage (sc/classpath-static-content-wrapper
-                                        {:loader          (memp/loader (memory/map->MemFS {:store in-mem-fs}))
+                                        {:loader          (protocols/filesystem-loader
+                                                           (memory/map->MemFS {:store in-mem-fs}))
                                          :prefer-handler? true})})))))
     "Authorized request returns 200"
     (tu/authorized-backend)
@@ -81,7 +82,8 @@
                      {:auth (tu/authorized-backend)
                       :wedding-storage
                       (sc/classpath-static-content-wrapper
-                       {:loader          (memp/loader (memory/map->MemFS {:store in-mem-fs}))
+                       {:loader          (protocols/filesystem-loader
+                                          (memory/map->MemFS {:store in-mem-fs}))
                         :prefer-handler? true})})]
     #_(is (match? {:status  200
                    :headers {"Cache-Control" sc/no-cache}
@@ -132,7 +134,7 @@
                         :persistence ()
                         :wedding-storage
                         (sc/classpath-static-content-wrapper
-                         {:loader          (memp/loader (memory/map->MemFS {:store in-mem-fs}) )
+                         {:loader          (protocols/filesystem-loader (memory/map->MemFS {:store in-mem-fs}) )
                           :prefer-handler? true})})]
       #_(is (match? {:status  200
                      :headers {"Cache-Control" sc/no-cache}

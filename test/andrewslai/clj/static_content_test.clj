@@ -1,6 +1,6 @@
 (ns andrewslai.clj.static-content-test
   (:require [amazonica.aws.s3 :as s3]
-            [andrewslai.clj.protocols.s3 :as s3p]
+            [andrewslai.clj.protocols.core :as protocols]
             [andrewslai.clj.persistence.s3 :as s3-storage]
             [andrewslai.clj.protocols.mem :as memp]
             [andrewslai.clj.test-utils :as tu]
@@ -59,10 +59,9 @@
                                                          {:loader loader})))
 
         nil?                   (.getContextClassLoader (Thread/currentThread))
-        {:status 200 :body ()} (->> {:bucket bucket
-                                     :creds  {:profile "none"}}
-                                    (s3-storage/map->S3)
-                                    (s3p/loader))))))
+        {:status 200 :body ()} (->> (s3-storage/map->S3 {:bucket bucket
+                                                         :creds  {:profile "none"}})
+                                    (protocols/filesystem-loader))))))
 
 (comment
   (let [bucket   "andrewslai-wedding"
@@ -80,9 +79,8 @@
                            )))
                         sandbox/always-fail)
       (response/resource-response endpoint
-                                  {:loader (-> {:bucket bucket
-                                                :creds  {:profile "none"}}
-                                               (s3-storage/map->S3)
-                                               (memp/loader))})))
+                                  {:loader (-> (s3-storage/map->S3 {:bucket bucket
+                                                                    :creds  {:profile "none"}})
+                                               (protocols/filesystem-loader))})))
 
   )

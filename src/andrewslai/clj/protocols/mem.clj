@@ -9,9 +9,6 @@
   "In memory protocol"
   "mem")
 
-(def loader
-  (partial protocols/filesystem-loader MEM-PROTOCOL))
-
 (defmethod ring-response/resource-data (keyword MEM-PROTOCOL)
   [url]
   (let [conn (.openConnection url)]

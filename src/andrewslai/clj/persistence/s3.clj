@@ -2,6 +2,7 @@
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
             [andrewslai.clj.persistence.filesystem :as fs]
+            [andrewslai.clj.protocols.s3 :as s3p]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [ring.util.http-response :refer [internal-server-error not-found]]
@@ -93,7 +94,7 @@
    :type :directory})
 
 ;; Add wrapper functions that are spec'ed out
-(defrecord S3 [bucket creds]
+(defrecord S3 [bucket creds protocol]
   fs/FileSystem
   (ls [_ path]
     (log/infof "List objects in S3 (%s): %s" bucket path)
@@ -122,7 +123,9 @@
                       :metadata     (prepare-metadata metadata)})
       (catch Exception e
         (println e)
-        (exception-response (amazon/ex->map e))))))
+        (exception-response (amazon/ex->map e)))))
+  (get-protocol [_]
+    (or protocol s3p/S3-PROTOCOL)))
 
 
 (comment ;; Playing with S3
