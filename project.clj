@@ -33,6 +33,7 @@
                  [org.clojure/clojure "1.10.1"]
                  [org.clojure/core.async "1.0.567"
                   :exclusions [org.clojure/tools.reader]]
+                 [org.clojure/test.check "0.10.0"]
                  [org.clojure/data.codec "0.1.1"]
                  [org.clojure/data.csv "1.0.0" :scope "dev"]
                  [org.clojure/java.jdbc "0.7.8"]

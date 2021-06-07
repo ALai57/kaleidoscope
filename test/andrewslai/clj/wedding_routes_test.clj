@@ -48,10 +48,7 @@
                       :uri            "/media/"
                       :headers        (tu/auth-header ["wedding"])}
                      {:auth           auth-backend
-                      :wedding-storage (sc/classpath-static-content-wrapper
-                                        {:loader          (protocols/filesystem-loader
-                                                           (memory/map->MemFS {:store in-mem-fs}))
-                                         :prefer-handler? true})})))))
+                      :wedding-storage (sc/static-content (memory/map->MemFS {:store in-mem-fs}))})))))
     "Authorized request returns 200"
     (tu/authorized-backend)
     {:status  200
@@ -80,11 +77,7 @@
 
         wedding-app (h/wedding-app
                      {:auth (tu/authorized-backend)
-                      :wedding-storage
-                      (sc/classpath-static-content-wrapper
-                       {:loader          (protocols/filesystem-loader
-                                          (memory/map->MemFS {:store in-mem-fs}))
-                        :prefer-handler? true})})]
+                      :wedding-storage (sc/static-content (memory/map->MemFS {:store in-mem-fs}))})]
     #_(is (match? {:status  200
                    :headers {"Cache-Control" sc/no-cache}
                    :body    :HELLO}

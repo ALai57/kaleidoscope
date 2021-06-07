@@ -38,7 +38,8 @@
   (prop/for-all [path     gen-file/gen-path
                  fname    gen-file/gen-filename
                  content  gen/any
-                 metadata (gen/map gen/simple-type gen/simple-type)]
+                 metadata (gen/map gen/simple-type-printable-equatable
+                                   gen/simple-type-printable-equatable)]
     (let [db    (atom {})
           memfs (map->MemFS {:store db})
 
