@@ -30,23 +30,6 @@
       keycloak/make-keycloak
       auth/oauth-backend))
 
-(defn configure-static-content
-  ([env]
-   (configure-static-content env {}))
-  ([env options]
-   (let [content-service-type (get env "ANDREWSLAI_STATIC_CONTENT" DEFAULT-STATIC-CONTENT)]
-     (configure-static-content content-service-type
-                               (or (get env "ANDREWSLAI_STATIC_CONTENT_BASE_URL")
-                                   (get DEFAULT-STATIC-CONTENT-LOCATION content-service-type)
-                                   (throw (IllegalArgumentException. "Invalid static content url")))
-                               options)))
-  ([wrapper-type root-path options]
-   (if (= "filesystem" wrapper-type)
-     (sc/file-static-content-wrapper root-path
-                                     options)
-     (sc/classpath-static-content-wrapper root-path
-                                          options))))
-
 (defn configure-logging
   [env]
   (merge log/*config* {:level (keyword (get env "ANDREWSLAI_LOG_LEVEL" "info"))}))
@@ -66,17 +49,19 @@
     (sc/static-content (s3-storage/map->S3 {:bucket bucket
                                             :creds  s3-storage/CustomAWSCredentialsProviderChain}))))
 
-(defn configure-wedding-bucket
+(defn configure-wedding-storage
   [env]
   (let [bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")]
-    (sc/static-content (s3-storage/map->S3 {:bucket bucket
-                                            :creds  s3-storage/CustomAWSCredentialsProviderChain}))))
+    (s3-storage/map->S3 {:bucket bucket
+                         :creds  s3-storage/CustomAWSCredentialsProviderChain})))
 
 (defn configure-from-env
   [env]
-  {:port            (configure-port env)
-   :auth            (configure-keycloak env)
-   :database        (configure-database env)
-   :wedding-storage (configure-wedding-bucket env)
-   :logging         (configure-logging env)
-   :static-content  (configure-frontend-bucket env)})
+  {:port           (configure-port env)
+   :andrewslai     {:auth           (configure-keycloak env)
+                    :database       (configure-database env)
+                    :logging        (configure-logging env)
+                    :static-content (configure-frontend-bucket env)}
+   :wedding        {:auth           (configure-keycloak env)
+                    :storage        (configure-wedding-storage env)
+                    :logging        (configure-logging env)}})

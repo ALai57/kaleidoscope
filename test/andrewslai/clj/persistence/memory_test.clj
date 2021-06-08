@@ -1,13 +1,13 @@
 (ns andrewslai.clj.persistence.memory-test
   (:require [andrewslai.clj.persistence.filesystem :as fs]
             [andrewslai.clj.persistence.memory :refer :all]
+            [andrewslai.generators.files :as gen-file]
             [clojure.java.io :as io]
             [clojure.test :refer [is deftest]]
-            [matcher-combinators.test]
-            [clojure.test.check.properties :as prop]
             [clojure.test.check.clojure-test :refer [defspec]]
-            [andrewslai.generators.files :as gen-file]
-            [clojure.test.check.generators :as gen]))
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
+            [matcher-combinators.test]))
 
 (defn buffered-input-stream?
   [obj]

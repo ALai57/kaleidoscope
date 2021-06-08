@@ -26,18 +26,30 @@
     :request-method :post
     :handler (partial require-role "wedding")}])
 
-(defn get-content
+(defn get-filename
   [params]
-  (get params (get params "name")))
+  (get params "name"))
+
+(defn get-upload-map
+  [params]
+  (get params (get-filename params)))
+
+(defn get-file
+  [params]
+  (get-in params [(get-filename params) :tempfile]))
 
 (defroutes upload-routes
   (context (format "/%s" MEDIA-FOLDER) []
     :components [storage]
     (PUT "/:path" {:keys [uri params] :as req}
-      (fs/put-file storage
-                   uri
-                   (io/input-stream (.getBytes (get-content params)))
-                   params)
+      (let [content (get-file params)]
+        (fs/put-file storage
+                     (subs uri 1) ;; Trim leading /
+                     (java.io.FileInputStream. ^java.io.File content)
+                     (-> params
+                         (dissoc (get-filename params))
+                         (assoc :content-length (:size (get-upload-map params)))
+                         (assoc :content-type (get params "content-type")))))
       (ok (str "GOT TO PUT" uri)))))
 
 (comment

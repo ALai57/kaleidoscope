@@ -55,5 +55,5 @@
     (is (= m (jwt-body valid-token)))))
 
 (deftest get-full-name-test
-  (is (= "a BBBB")
-      (get-full-name example-claims)))
+  (is (= "a BBBBB"
+         (get-full-name example-claims))))

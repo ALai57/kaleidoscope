@@ -7,6 +7,7 @@
             [andrewslai.clj.routes.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.routes.swagger :refer [swagger-ui-routes]]
             [andrewslai.clj.routes.wedding :as wedding]
+            [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.virtual-hosting :as vh]
             [buddy.auth.accessrules :refer [wrap-access-rules]]
             [buddy.auth.middleware :as ba]
@@ -85,7 +86,7 @@
 ;; or else it tries to look up something it can't find
 ;; using the EC2 instance metadata endpoints
 (defn wedding-app
-  [{:keys [auth logging wedding-storage] :as components}]
+  [{:keys [auth logging storage] :as components}]
   (log/with-config logging
     (api {:components (select-keys components [:storage])
           :middleware [wrap-request-identifier
@@ -96,7 +97,7 @@
                        wrap-multipart-params
                        wrap-params
                        ;; Use storage in here -> create wrapper at this place
-                       (or wedding-storage identity)
+                       (sc/static-content storage)
                        #(ba/wrap-authorization % auth)
                        #(ba/wrap-authentication % auth)
                        #(wrap-access-rules % {:rules wedding/access-rules
@@ -112,20 +113,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn start-app
-  [{:keys [auth database logging port static-content wedding-storage] :as configuration}]
+  [{:keys [port andrewslai wedding] :as configuration}]
   (http/start-server
    (vh/host-based-routing
     {#"caheriaguilar.and.andrewslai.com"
      {:priority 0
-      :app      (wedding-app {:wedding-storage wedding-storage
-                              :logging         logging
-                              :auth            auth})}
+      :app      (wedding-app wedding)}
      #".*"
      {:priority 100
-      :app      (andrewslai-app {:database       database
-                                 :logging        logging
-                                 :auth           auth
-                                 :static-content static-content})}})
+      :app      (andrewslai-app andrewslai)}})
    {:port port}))
 
 (comment

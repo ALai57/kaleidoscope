@@ -53,9 +53,8 @@
   (are [description auth-backend expected]
     (testing description
       (let [in-mem-fs (atom example-fs)
-            app       (h/wedding-app {:auth            auth-backend
-                                      :storage         nil
-                                      :wedding-storage (sc/static-content (memory/map->MemFS {:store in-mem-fs}))})]
+            app       (h/wedding-app {:auth    auth-backend
+                                      :storage (memory/map->MemFS {:store in-mem-fs})})]
         (is (match? expected
                     (tu/app-request app
                                     {:request-method :get
@@ -81,8 +80,6 @@
          tmpfile   (tu/mktmp fname tmpdir)]
      (str (.getAbsolutePath tmpdir) "/" (.getName tmpfile)))))
 
-
-;; Create an object that reifies the filesystem protocol to use with the loader
 (deftest multipart-upload-test
   (let [request   {"title"        "Something good"
                    "Content-Type" "image/svg"
@@ -93,8 +90,7 @@
         in-mem-fs (atom {})
         storage   (memory/map->MemFS {:store in-mem-fs})
         app       (h/wedding-app {:auth    (tu/authorized-backend)
-                                  :storage storage
-                                  :static  (sc/static-content storage)})]
+                                  :storage storage})]
     (is (match? {:status 200}
                 (app (merge {:headers        (tu/auth-header ["wedding"])
                              :request-method :put
@@ -119,8 +115,8 @@
 
 (comment
   (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/something"
-            {:multipart [{:name "title" :content "Something good"}
-                         {:name "Content/type" :content "image/jpeg"}
+            {:multipart [{:name "name" :content "lock.svg"}
+                         {:name "content-type" :content "image/svg+xml"}
                          {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
                          {:name "lock.svg" :content (-> "public/images/lock.svg"
                                                         clojure.java.io/resource
