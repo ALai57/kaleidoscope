@@ -34,11 +34,6 @@
             (InputStreamBody. f (ContentType/create
                                  (mime-type/ext-mime-type (mp/ensure-string k))))))
 
-(defn wedding-route
-  [components options]
-  (tu/http-request :get "/media/" components (assoc options
-                                                    :app h/wedding-app)))
-
 
 ;; TODO: This is relying on the access control list and `wedding/access-rules`
 ;;        to determine authorization. Should test authorization instead of
@@ -57,15 +52,15 @@
 (deftest authorized-user-test
   (are [description auth-backend expected]
     (testing description
-      (let [in-mem-fs (atom example-fs)]
+      (let [in-mem-fs (atom example-fs)
+            app       (h/wedding-app {:auth            auth-backend
+                                      :storage         nil
+                                      :wedding-storage (sc/static-content (memory/map->MemFS {:store in-mem-fs}))})]
         (is (match? expected
-                    (tu/app-request
-                     h/wedding-app
-                     {:request-method :get
-                      :uri            "/media/"
-                      :headers        (tu/auth-header ["wedding"])}
-                     {:auth           auth-backend
-                      :wedding-storage (sc/static-content (memory/map->MemFS {:store in-mem-fs}))})))))
+                    (tu/app-request app
+                                    {:request-method :get
+                                     :uri            "/media/"
+                                     :headers        (tu/auth-header ["wedding"])})))))
     "Authorized request returns 200"
     (tu/authorized-backend)
     {:status  200
@@ -89,27 +84,25 @@
 
 ;; Create an object that reifies the filesystem protocol to use with the loader
 (deftest multipart-upload-test
-  (let [tmpfile     (tmpfile "multipart.txt")
-        request     {"title"        "Something good"
-                     "Content-Type" "image/svg"
-                     "name"         "lock.svg"
-                     "lock.svg"     (-> "public/images/lock.svg"
-                                        clojure.java.io/resource
-                                        clojure.java.io/input-stream)}
-        in-mem-fs   (atom {})
-        storage     (memory/map->MemFS {:store in-mem-fs})
-        wedding-app (h/wedding-app {:auth    (tu/authorized-backend)
-                                    :storage storage
-                                    :static  (sc/static-content storage)})]
+  (let [request   {"title"        "Something good"
+                   "Content-Type" "image/svg"
+                   "name"         "lock.svg"
+                   "lock.svg"     (-> "public/images/lock.svg"
+                                      clojure.java.io/resource
+                                      clojure.java.io/input-stream)}
+        in-mem-fs (atom {})
+        storage   (memory/map->MemFS {:store in-mem-fs})
+        app       (h/wedding-app {:auth    (tu/authorized-backend)
+                                  :storage storage
+                                  :static  (sc/static-content storage)})]
     (is (match? {:status 200}
-                (wedding-app
-                 (merge {:headers        (tu/auth-header ["wedding"])
-                         :request-method :put
-                         :uri            "/media/something"}
-                        (mp/build request)))))
-    (is (match? {"media" {"something" {:name "something"
-                                       :path "/media/something"
-                                       :content tu/buffered-input-stream?
+                (app (merge {:headers        (tu/auth-header ["wedding"])
+                             :request-method :put
+                             :uri            "/media/something"}
+                            (mp/build request)))))
+    (is (match? {"media" {"something" {:name     "something"
+                                       :path     "/media/something"
+                                       :content  tu/buffered-input-stream?
                                        :metadata map?}}}
                 @in-mem-fs))))
 
@@ -137,9 +130,6 @@
 
 
 (comment
-  (wedding-route {:auth (tu/authorized-backend)}
-                 {:headers {"Authorization" (tu/bearer-token {:realm_access {:roles ["wedding"]}})}})
-
   (auth/jwt-body (make-jwt {:hdr ""
                             :body (auth/clj->b64 {:realm_access {:roles ["wedding"]}})
                             :sig ""}))

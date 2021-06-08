@@ -56,6 +56,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Compojure Routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; (require '[ring.middleware.stacktrace :refer [wrap-stacktrace]])
+
+;; TODO: App won't start properly if all component keys are not specified
+;;       Difficult to trace down why this happens, so need better error handling
 (defn andrewslai-app
   [{:keys [auth logging static-content] :as components}]
   (log/with-config (:logging components)
@@ -83,7 +87,7 @@
 (defn wedding-app
   [{:keys [auth logging wedding-storage] :as components}]
   (log/with-config logging
-    (api {:components (dissoc components :static-content)
+    (api {:components (select-keys components [:storage])
           :middleware [wrap-request-identifier
                        log-request!
                        wrap-index
@@ -91,6 +95,7 @@
                        wrap-json-response
                        wrap-multipart-params
                        wrap-params
+                       ;; Use storage in here -> create wrapper at this place
                        (or wedding-storage identity)
                        #(ba/wrap-authorization % auth)
                        #(ba/wrap-authentication % auth)
@@ -101,7 +106,6 @@
          ping-routes
          wedding/upload-routes
          (route/not-found "No matching route"))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server

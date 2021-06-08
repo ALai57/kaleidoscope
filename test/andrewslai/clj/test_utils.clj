@@ -42,29 +42,11 @@
                         (auth/valid? [_ token]
                           true))))
 
-
-
 (defn app-request
-  [app request components & [{:keys [body parser]
-                              :or   {parser #(json/parse-string % keyword)}}]]
-  (let [defaults {:auth (unauthorized-backend)}
-        app      (app (util/deep-merge defaults components))]
-    (when-let [result (app request)]
-      (update result :body parser))))
-
-(defn http-request
-  [method endpoint components
-   & [{:keys [body parser app]
-       :or   {parser #(json/parse-string % keyword)
-              app    h/andrewslai-app}
-       :as   options}]]
-  (let [defaults {:auth           (unauthorized-backend)
-                  :static-content (sc/classpath-static-content-wrapper "public" {})}
-        app      (app (util/deep-merge defaults components))]
-    (when-let [result (app (reduce conj
-                                   {:request-method method :uri endpoint}
-                                   options))]
-      (update result :body parser))))
+  [app request & [{:keys [parser]
+                   :or   {parser #(json/parse-string % keyword)}}]]
+  (when-let [result (app request)]
+    (update result :body parser)))
 
 (defn dummy-app
   [response]

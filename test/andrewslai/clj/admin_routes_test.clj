@@ -1,8 +1,9 @@
 (ns andrewslai.clj.admin-routes-test
   (:require [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
+            [andrewslai.clj.handler :as h]
             [andrewslai.clj.test-utils :as tu]
-            [clojure.test :refer [deftest is use-fixtures]]
+            [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.test]
             [taoensso.timbre :as log]))
 
@@ -11,16 +12,20 @@
     (log/with-log-level :fatal
       (f))))
 
-(defn admin-route
-  [components options]
-  (tu/http-request :get "/admin/" components options))
-
 (deftest authorized-user-test
-  (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
-              (admin-route {:auth (tu/authorized-backend)}
-                           {:headers {"Authorization" (str "Bearer " tu/valid-token)}}))))
+  (are [description auth-backend expected]
+    (testing description
+      (is (match? expected
+                  (tu/app-request (h/andrewslai-app {:auth auth-backend})
+                                  {:request-method :get
+                                   :uri            "/admin/"
+                                   :headers        {"Authorization" (str "Bearer " tu/valid-token)}}))))
 
-(deftest unauthorized-user-test
-  (is (match? {:status 401 :body {:reason "Not authorized"}}
-              (admin-route {:auth (tu/unauthorized-backend)}
-                           {:headers {"Authorization" (str "Bearer " tu/valid-token)}}))))
+    "Authorized user can access admin route"
+    (tu/authorized-backend)
+    {:status 200 :body {:message "Got to the admin-route!"}}
+
+    "Unauthorized user cannot access admin route"
+    (tu/unauthorized-backend)
+    {:status 401 :body {:reason "Not authorized"}}
+    ))
