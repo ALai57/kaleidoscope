@@ -88,7 +88,7 @@
 (defn wedding-app
   [{:keys [auth logging storage] :as components}]
   (log/with-config logging
-    (api {:components (select-keys components [:storage])
+    (api {:components (select-keys components [:storage :logging])
           :middleware [wrap-request-identifier
                        log-request!
                        wrap-index

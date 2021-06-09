@@ -17,6 +17,9 @@
   [obj]
   (= (class obj) java.io.BufferedInputStream))
 
+(defn file-input-stream?
+  [obj]
+  (= (class obj) java.io.FileInputStream))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; App related things
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

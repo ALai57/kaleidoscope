@@ -37,7 +37,7 @@
 (defspec memfs-spec
   (prop/for-all [path     gen-file/gen-path
                  fname    gen-file/gen-filename
-                 content  gen/any
+                 content  gen/any-printable-equatable
                  metadata (gen/map gen/simple-type-printable-equatable
                                    gen/simple-type-printable-equatable)]
     (let [db    (atom {})

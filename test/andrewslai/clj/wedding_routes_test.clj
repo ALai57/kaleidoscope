@@ -31,8 +31,10 @@
 (defmethod mp/add-part InputStream [^MultipartEntity m k ^InputStream f]
   (.addPart m
             (mp/ensure-string k)
-            (InputStreamBody. f (ContentType/create
-                                 (mime-type/ext-mime-type (mp/ensure-string k))))))
+            (InputStreamBody. f
+                              (ContentType/create
+                               (mime-type/ext-mime-type (mp/ensure-string k)))
+                              (mp/ensure-string k))))
 
 
 ;; TODO: This is relying on the access control list and `wedding/access-rules`
@@ -80,9 +82,12 @@
          tmpfile   (tu/mktmp fname tmpdir)]
      (str (.getAbsolutePath tmpdir) "/" (.getName tmpfile)))))
 
+;; The org.apache.commons.fileupload implementation checks if there is a "filename"
+;; header inside the content disposition to figure out if something is a file or not
+;;  that determines whether the part is added as a file, or as a string
 (deftest multipart-upload-test
   (let [request   {"title"        "Something good"
-                   "Content-Type" "image/svg"
+                   "Content-Type" "image/svg+html"
                    "name"         "lock.svg"
                    "lock.svg"     (-> "public/images/lock.svg"
                                       clojure.java.io/resource
@@ -97,20 +102,21 @@
                              :uri            "/media/something"}
                             (mp/build request)))))
     (is (match? {"media" {"something" {:name     "something"
-                                       :path     "/media/something"
-                                       :content  tu/buffered-input-stream?
+                                       :path     "media/something"
+                                       :content  tu/file-input-stream?
                                        :metadata map?}}}
                 @in-mem-fs))))
 
 (comment
   (-> (mp/build {"title"        "Something good"
-                 "Content-Type" "image/jpeg"
-                 "eggplan"      "Eggplants"
-                 "file.txt"     (-> "public/images/lock.svg"
+                 "Content-Type" "image/svg"
+                 "name"         "lock.svg"
+                 "lock.svg"     (-> "public/images/lock.svg"
                                     clojure.java.io/resource
                                     clojure.java.io/input-stream)})
       :body
       slurp)
+
   )
 
 (comment
