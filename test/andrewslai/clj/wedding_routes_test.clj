@@ -28,6 +28,18 @@
     (log/with-log-level :fatal
       (f))))
 
+;; The org.apache.commons.fileupload implementation checks if there is a "filename"
+;; header inside the content disposition to figure out if something is a file or not
+;;  that determines whether the part is added as a file, or as a string
+
+;; EXAMPLE GOOD ENCODING HEADERS
+;;--9EYWD7pwVXEMJgxYsfUaKm_PNY6Frhl84Gp-ur2_
+;;Content-Disposition: form-data; name="lock.svg"; filename="lock.svg"
+;;Content-Type: application/octet-stream
+;;Content-Transfer-Encoding: binary
+;;
+;;<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
 (defmethod mp/add-part InputStream [^MultipartEntity m k ^InputStream f]
   (.addPart m
             (mp/ensure-string k)
@@ -82,9 +94,7 @@
          tmpfile   (tu/mktmp fname tmpdir)]
      (str (.getAbsolutePath tmpdir) "/" (.getName tmpfile)))))
 
-;; The org.apache.commons.fileupload implementation checks if there is a "filename"
-;; header inside the content disposition to figure out if something is a file or not
-;;  that determines whether the part is added as a file, or as a string
+
 (deftest multipart-upload-test
   (let [request   {"title"        "Something good"
                    "Content-Type" "image/svg+html"
@@ -117,22 +127,14 @@
       :body
       slurp)
 
-  )
-
-(comment
+  ;; Working PUT request to the app
   (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/something"
-            {:multipart [{:name "name" :content "lock.svg"}
-                         {:name "content-type" :content "image/svg+xml"}
-                         {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
-                         {:name "lock.svg" :content (-> "public/images/lock.svg"
-                                                        clojure.java.io/resource
-                                                        clojure.java.io/input-stream)}]}
-            )
-  )
+            {:multipart
+             [{:name "name" :content "lock.svg"}
+              {:name "content-type" :content "image/svg+xml"}
+              {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
+              {:name "lock.svg" :content (-> "public/images/lock.svg"
+                                             clojure.java.io/resource
+                                             clojure.java.io/input-stream)}]})
 
-
-(comment
-  (auth/jwt-body (make-jwt {:hdr ""
-                            :body (auth/clj->b64 {:realm_access {:roles ["wedding"]}})
-                            :sig ""}))
   )
