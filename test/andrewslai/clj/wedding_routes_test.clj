@@ -4,6 +4,8 @@
             [andrewslai.clj.persistence.filesystem :as fs]
             [andrewslai.clj.persistence.memory :as memory]
             [andrewslai.clj.protocols.core :as protocols]
+            [andrewslai.clj.routes.wedding :as wedding]
+            [andrewslai.clj.routes.wedding :as wedding]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [clj-http.client :as http]
@@ -67,8 +69,9 @@
   (are [description auth-backend expected]
     (testing description
       (let [in-mem-fs (atom example-fs)
-            app       (h/wedding-app {:auth    auth-backend
-                                      :storage (memory/map->MemFS {:store in-mem-fs})})]
+            app       (h/wedding-app {:auth         auth-backend
+                                      :access-rules wedding/access-rules
+                                      :storage      (memory/map->MemFS {:store in-mem-fs})})]
         (is (match? expected
                     (tu/app-request app
                                     {:request-method :get
@@ -105,6 +108,7 @@
         in-mem-fs (atom {})
         storage   (memory/map->MemFS {:store in-mem-fs})
         app       (h/wedding-app {:auth    (tu/authorized-backend)
+                                  :access-rules wedding/access-rules
                                   :storage storage})]
     (is (match? {:status 200}
                 (app (merge {:headers        (tu/auth-header ["wedding"])
@@ -128,7 +132,7 @@
       slurp)
 
   ;; Working PUT request to the app
-  (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/something"
+  (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/lock.svg"
             {:multipart
              [{:name "name" :content "lock.svg"}
               {:name "content-type" :content "image/svg+xml"}

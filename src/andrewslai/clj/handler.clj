@@ -35,13 +35,13 @@
 (defn log-request! [handler]
   (fn [{:keys [request-method uri request-id body headers params multipart-params] :as request}]
     (handler (do (log/with-config (:logging (mw/get-components request))
-                   (log/info "Request received: " {:method     request-method
-                                                   :uri        uri
-                                                   :body       body
-                                                   :params     params
-                                                   :multipart-params multipart-params
-                                                   ;;:headers    headers
-                                                   :request-id request-id}))
+                   (log/info "Request received: " (-> request
+                                                      (select-keys [:request-method
+                                                                    :uri
+                                                                    :body
+                                                                    :params
+                                                                    :multipart-params
+                                                                    :request-id]))))
                  request))))
 
 (defn wrap-request-identifier [handler]
@@ -86,7 +86,7 @@
 ;; or else it tries to look up something it can't find
 ;; using the EC2 instance metadata endpoints
 (defn wedding-app
-  [{:keys [auth logging storage] :as components}]
+  [{:keys [auth logging storage access-rules] :as components}]
   (log/with-config logging
     (api {:components (select-keys components [:storage :logging])
           :middleware [wrap-request-identifier
@@ -100,7 +100,7 @@
                        (sc/static-content storage)
                        #(ba/wrap-authorization % auth)
                        #(ba/wrap-authentication % auth)
-                       #(wrap-access-rules % {:rules wedding/access-rules
+                       #(wrap-access-rules % {:rules access-rules
                                               :reject-handler (fn [& args]
                                                                 (unauthorized))})
                        ]}

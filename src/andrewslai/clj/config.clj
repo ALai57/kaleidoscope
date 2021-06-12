@@ -4,6 +4,7 @@
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.persistence.s3 :as s3-storage]
             [andrewslai.clj.protocols.core :as protocols]
+            [andrewslai.clj.routes.wedding :as wedding]
             [andrewslai.clj.static-content :as sc]
             [taoensso.timbre :as log]))
 
@@ -55,13 +56,18 @@
     (s3-storage/map->S3 {:bucket bucket
                          :creds  s3-storage/CustomAWSCredentialsProviderChain})))
 
+(defn configure-wedding-access
+  [env]
+  wedding/access-rules)
+
 (defn configure-from-env
   [env]
-  {:port           (configure-port env)
-   :andrewslai     {:auth           (configure-keycloak env)
-                    :database       (configure-database env)
-                    :logging        (configure-logging env)
-                    :static-content (configure-frontend-bucket env)}
-   :wedding        {:auth           (configure-keycloak env)
-                    :storage        (configure-wedding-storage env)
-                    :logging        (configure-logging env)}})
+  {:port       (configure-port env)
+   :andrewslai {:auth           (configure-keycloak env)
+                :database       (configure-database env)
+                :logging        (configure-logging env)
+                :static-content (configure-frontend-bucket env)}
+   :wedding    {:auth         (configure-keycloak env)
+                :access-rules (configure-wedding-access env)
+                :storage      (configure-wedding-storage env)
+                :logging      (configure-logging env)}})
