@@ -23,7 +23,7 @@
   [{:pattern #"^/media/$"
     :handler (partial require-role "wedding")}
    {:pattern #"^/media.*"
-    :request-method :post
+    :request-method :put
     :handler (partial require-role "wedding")}])
 
 (defn get-filename

@@ -33,13 +33,13 @@
                                (let [{:keys [output_]} data]
                                  (swap! logging-atom conj (force output_))))}}})
 
-(defn unauthorized-backend
+(defn unauthenticated-backend
   []
   (auth/oauth-backend (reify auth/TokenAuthenticator
                         (auth/valid? [_ token]
                           (throw+ {:type :Unauthorized})))))
 
-(defn authorized-backend
+(defn authenticated-backend
   []
   (auth/oauth-backend (reify auth/TokenAuthenticator
                         (auth/valid? [_ token]
@@ -77,7 +77,7 @@
 
 (defn auth-header
   [roles]
-  {"Authorization" (bearer-token {:realm_access {:roles roles}})})
+  {"authorization" (bearer-token {:realm_access {:roles roles}})})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Temporary directory

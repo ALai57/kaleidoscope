@@ -8,6 +8,7 @@
             [andrewslai.clj.routes.wedding :as wedding]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
+            [andrewslai.clj.utils :as u]
             [clj-http.client :as http]
             [clojure.string :as string]
             [clojure.test :refer [are deftest is testing use-fixtures]]
@@ -77,14 +78,14 @@
                                     {:request-method :get
                                      :uri            "/media/"
                                      :headers        (tu/auth-header ["wedding"])})))))
-    "Authorized request returns 200"
-    (tu/authorized-backend)
+    "Authenticated request returns 200"
+    (tu/authenticated-backend)
     {:status  200
      :headers {"Cache-Control" sc/no-cache}
      :body    [{:name "afile"} {:name "adir" :type "directory"}]}
 
-    "Unauthorized request returns 401"
-    (tu/unauthorized-backend)
+    "Unauthenticated request returns 401"
+    (tu/unauthenticated-backend)
     {:status 401}))
 
 (defn tmpfile
@@ -97,24 +98,32 @@
          tmpfile   (tu/mktmp fname tmpdir)]
      (str (.getAbsolutePath tmpdir) "/" (.getName tmpfile)))))
 
+(defn fresh-request
+  [m]
+  (update m (get m "name") (fn [path]
+                             (-> path
+                                 clojure.java.io/resource
+                                 clojure.java.io/input-stream))))
 
-(deftest multipart-upload-test
+(deftest upload-test
   (let [request   {"title"        "Something good"
                    "Content-Type" "image/svg+html"
                    "name"         "lock.svg"
-                   "lock.svg"     (-> "public/images/lock.svg"
-                                      clojure.java.io/resource
-                                      clojure.java.io/input-stream)}
+                   "lock.svg"     "public/images/lock.svg"}
         in-mem-fs (atom {})
         storage   (memory/map->MemFS {:store in-mem-fs})
-        app       (h/wedding-app {:auth    (tu/authorized-backend)
+        app       (h/wedding-app {:auth         (tu/authenticated-backend)
                                   :access-rules wedding/access-rules
-                                  :storage storage})]
+                                  :storage      storage})]
+    (is (match? {:status 401}
+                (app (u/deep-merge {:request-method :put
+                                    :uri            "/media/something"}
+                                   (mp/build (fresh-request request))))))
     (is (match? {:status 200}
-                (app (merge {:headers        (tu/auth-header ["wedding"])
-                             :request-method :put
-                             :uri            "/media/something"}
-                            (mp/build request)))))
+                (app (u/deep-merge {:headers        (tu/auth-header ["wedding"])
+                                    :request-method :put
+                                    :uri            "/media/something"}
+                                   (mp/build (fresh-request request))))))
     (is (match? {"media" {"something" {:name     "something"
                                        :path     "media/something"
                                        :content  tu/file-input-stream?
@@ -133,6 +142,16 @@
 
   ;; Working PUT request to the app
   (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/lock.svg"
+            {:multipart
+             [{:name "name" :content "lock.svg"}
+              {:name "content-type" :content "image/svg+xml"}
+              {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
+              {:name "lock.svg" :content (-> "public/images/lock.svg"
+                                             clojure.java.io/resource
+                                             clojure.java.io/input-stream)}]})
+  (require '[clj-http.client :as http])
+
+  (http/put "https://caheriaguilar.and.andrewslai.com/media/lock.svg"
             {:multipart
              [{:name "name" :content "lock.svg"}
               {:name "content-type" :content "image/svg+xml"}

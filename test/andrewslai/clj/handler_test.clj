@@ -45,12 +45,12 @@
     (is (= 1 (count @logging-atom)))))
 
 (deftest authentication-middleware-test
-  (let [app (wrap-authentication identity (tu/authorized-backend))]
+  (let [app (wrap-authentication identity (tu/authenticated-backend))]
     (is (match? {:identity {:foo "bar"}}
                 (app {:headers {"Authorization" (tu/bearer-token {:foo :bar})}})))))
 
 (deftest authentication-middleware-failure-test
-  (let [app  (wrap-authentication identity (tu/unauthorized-backend))
+  (let [app  (wrap-authentication identity (tu/unauthenticated-backend))
         resp (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})]
     (is (nil? (:identity resp)))))
 

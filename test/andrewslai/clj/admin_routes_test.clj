@@ -12,20 +12,20 @@
     (log/with-log-level :fatal
       (f))))
 
-(deftest authorized-user-test
+(deftest authenticated-user-test
   (are [description auth-backend expected]
     (testing description
       (is (match? expected
                   (tu/app-request (h/andrewslai-app {:auth auth-backend})
                                   {:request-method :get
                                    :uri            "/admin/"
-                                   :headers        {"Authorization" (str "Bearer " tu/valid-token)}}))))
+                                   :headers        (tu/auth-header [])}))))
 
-    "Authorized user can access admin route"
-    (tu/authorized-backend)
+    "Authenticated user can access admin route"
+    (tu/authenticated-backend)
     {:status 200 :body {:message "Got to the admin-route!"}}
 
-    "Unauthorized user cannot access admin route"
-    (tu/unauthorized-backend)
+    "Unauthenticated user cannot access admin route"
+    (tu/unauthenticated-backend)
     {:status 401 :body {:reason "Not authorized"}}
     ))

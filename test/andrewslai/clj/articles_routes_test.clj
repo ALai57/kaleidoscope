@@ -38,7 +38,7 @@
 (deftest create-article-happy-path
   (with-embedded-postgres database
     (let [app (h/andrewslai-app {:database database
-                                 :auth     (tu/authorized-backend)})
+                                 :auth     (tu/authenticated-backend)})
           url (str "/articles/" (:article_url a/example-article))]
 
       (testing "404 when article not yet created"
@@ -64,9 +64,9 @@
                                     {:request-method :get
                                      :uri            url})))))))
 
-(deftest cannot-create-article-with-unauthorized-user
+(deftest cannot-create-article-with-unauthenticated-user
   (let [app (h/andrewslai-app {:database nil
-                               :auth     (tu/unauthorized-backend)})
+                               :auth     (tu/unauthenticated-backend)})
         url (str "/articles/" (:article_url a/example-article))]
     (is (match? {:status 401
                  :body   {:reason "Not authorized"}}
