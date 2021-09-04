@@ -1,3 +1,5 @@
+#!/bin/bash
+
 aws ecs update-service \
   --cluster andrewslai \
   --service andrewslai-service \
