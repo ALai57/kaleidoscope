@@ -1,9 +1,13 @@
 # Local development
 
-For local development, you'll need to:  
+For local development against locally running services:  
 1) [Set up Postgres](#postgres)  
 2) [Set up Keycloak](#keycloak)  
-3) [Run the app locally](#run-the-app-locally).
+3) [Start the app](#locally-running-app-connected-to-locally-running-services).
+
+
+For local development against cloud services:  
+1) [Start the app](#locally-running-app-connected-to-cloud-services).
 
 ## Postgres
 If you want to set up a locally running Postgres to connect to.  
@@ -100,7 +104,30 @@ There is also an `add-user-keycloak.sh` script that seems to add users
 specifically to Keycloak, and not to the Application Server
 
 
-## Run the app locally
+## Locally running app connected to locally running services
+
+**_Setup steps_**  
+Create an uberjar and build the docker container. Start keycloak
+```bash
+lein do clean, uberjar
+docker build -t andrewslai .
+docker run --network host \
+            -e DB_USER=keycloak  \
+            -e DB_PASSWORD=keycloak \
+            -e DB_DATABASE=keycloak \
+            -e DB_VENDOR=POSTGRES \
+            -e DB_ADDR=""  \
+            jboss/keycloak -Djgroups.bind_addr=127.0.0.1
+```
+
+**_Startup_**  
+Edit the `.env.local` file to provide env vars.
+```bash
+docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai
+```
+There is a template for what the `.env.local` in `env.local.example`
+
+## Locally running app connected to cloud services
 
 **_Setup steps_**  
 Create an uberjar and build the docker container.
@@ -109,25 +136,8 @@ lein do clean, uberjar
 docker build -t andrewslai .
 ```
 
-**_Locally running app connected to locally running services_**  
-Start keycloak and edit the `.env.local` file to provide env vars.
-```bash
-docker run --network host \
-            -e DB_USER=keycloak  \
-            -e DB_PASSWORD=keycloak \
-            -e DB_DATABASE=keycloak \
-            -e DB_VENDOR=POSTGRES \
-            -e DB_ADDR=""  \
-            jboss/keycloak -Djgroups.bind_addr=127.0.0.1
-docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai
-```
-There is a template for what the `.env.local` in `env.local.example`
-
-**_Locally running app connected to cloud services_**  
+**_Startup_**  
 Edit the `.env.aws` file to provide the correct environment variables.
 ```bash
 docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai
 ```
-
-
-
