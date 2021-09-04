@@ -1,12 +1,12 @@
 # Local development
 
-For local development, you'll need to set up the following:  
-1) [Postgres](#postgres)  
-2) [Keycloak](#keycloak)  
-
-then you'll be able to [run the app]().
+For local development, you'll need to:  
+1) [Set up Postgres](#postgres)  
+2) [Set up Keycloak](#keycloak)  
+3) [Run the app locally](#run-the-app-locally).
 
 ## Postgres
+If you want to set up a locally running Postgres to connect to.  
 
 #### Install
 Install postgres (on Ubuntu, `sudo apt get install postgresql`)
@@ -48,6 +48,7 @@ ANDREWSLAI_DB_PORT=5432
 ```
 
 ## Keycloak
+If you want to set up a locally running Keycloak (IDP) instance to connect to.  
 
 #### Installation
 The keycloak IDP can be run from a docker image [jboss/keycloak](https://hub.docker.com/r/jboss/keycloak/)
@@ -99,7 +100,7 @@ There is also an `add-user-keycloak.sh` script that seems to add users
 specifically to Keycloak, and not to the Application Server
 
 
-## Run the app in Docker
+## Run the app locally
 
 **_Setup steps_**  
 Create an uberjar and build the docker container.
@@ -108,7 +109,7 @@ lein do clean, uberjar
 docker build -t andrewslai .
 ```
 
-**_Run the app connected to a locally running services_**  
+**_Locally running app connected to locally running services_**  
 Start keycloak and edit the `.env.local` file to provide env vars.
 ```bash
 docker run --network host \
@@ -122,7 +123,7 @@ docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai
 ```
 There is a template for what the `.env.local` in `env.local.example`
 
-**_Run the app connected to a cloud services_**  
+**_Locally running app connected to cloud services_**  
 Edit the `.env.aws` file to provide the correct environment variables.
 ```bash
 docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai
