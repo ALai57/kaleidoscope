@@ -1,6 +1,7 @@
 (ns andrewslai.clj.articles-routes-test
   (:require [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
             [andrewslai.clj.auth.keycloak :as keycloak]
+            [andrewslai.clj.handler :as h]
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]
@@ -13,56 +14,65 @@
     (log/with-log-level :fatal
       (f))))
 
-(deftest article-retrieval-happy-path
+(defn article?
+  [x]
+  (s/valid? :andrewslai.article/article x))
+
+(defn articles?
+  [x]
+  (s/valid? :andrewslai.article/articles x))
+
+(deftest article-retrieval-test
   (with-embedded-postgres database
-    (are [endpoint status spec]
-      (testing (format "%s returns %s, matching schema %s" endpoint status spec)
-        (is (match? {:status status :body #(s/valid? spec %)}
-                    (tu/http-request :get endpoint {:database database}))))
+    (are [endpoint expected]
+      (testing (format "%s returns %s" endpoint expected)
+        (is (match? expected
+                    (tu/app-request (h/andrewslai-app {:database database})
+                                    {:request-method :get
+                                     :uri            endpoint}))))
 
-      "/articles"                  200 :andrewslai.article/articles
-      "/articles/my-first-article" 200 :andrewslai.article/article)))
-
-(deftest article-does-not-exist
-  (with-embedded-postgres database
-    (is (match? {:status 404}
-                (tu/http-request :get "/articles/does-not-exist"
-                                 {:database database})))))
-
-(defn create-article!
-  [components url options]
-  (tu/http-request :put (str "/articles/" url)
-                   components options))
-
-(defn get-article
-  [components article-url]
-  (tu/http-request :get article-url components))
+      "/articles"                  {:status 200 :body articles?}
+      "/articles/my-first-article" {:status 200 :body article?}
+      "/articles/does-not-exist"   {:status 404})))
 
 (deftest create-article-happy-path
   (with-embedded-postgres database
-    (let [components {:database database
-                      :auth     (tu/authorized-backend)}]
+    (let [app (h/andrewslai-app {:database database
+                                 :auth     (tu/authenticated-backend)})
+          url (str "/articles/" (:article_url a/example-article))]
 
-      (testing "Article retrieval fails"
+      (testing "404 when article not yet created"
         (is (match? {:status 404}
-                    (get-article components (str "/articles/" (:article_url a/example-article))))))
+                    (tu/app-request app
+                                    {:request-method :get
+                                     :uri            url}))))
 
       (testing "Article creation succeeds"
         (is (match? {:status 200
-                     :body   #(s/valid? :andrewslai.article/article %)}
-                    (create-article! components
-                                     (:article_url a/example-article)
-                                     {:body-params a/example-article
-                                      :headers     {"Authorization"
-                                                    (str "Bearer " tu/valid-token)}}))))
+                     :body   article?}
+                    (tu/app-request app
+                                    {:request-method :put
+                                     :uri            url
+                                     :body-params    a/example-article
+                                     :headers        {"Authorization"
+                                                      (str "Bearer " tu/valid-token)}}))))
+
       (testing "Article retrieval succeeds"
         (is (match? {:status 200
-                     :body   #(s/valid? :andrewslai.article/article %)}
-                    (get-article components (str "/articles/" (:article_url a/example-article)))))))))
+                     :body   article?}
+                    (tu/app-request app
+                                    {:request-method :get
+                                     :uri            url})))))))
 
-(deftest cannot-create-article-with-unauthorized-user
-  (is (match? {:status 401
-               :body   {:reason "Not authorized"}}
-              (create-article! {:database nil}
-                               (:article_url a/example-article)
-                               {:body-params a/example-article}))))
+(deftest cannot-create-article-with-unauthenticated-user
+  (let [app (h/andrewslai-app {:database nil
+                               :auth     (tu/unauthenticated-backend)})
+        url (str "/articles/" (:article_url a/example-article))]
+    (is (match? {:status 401
+                 :body   {:reason "Not authorized"}}
+                (tu/app-request app
+                                {:request-method :put
+                                 :uri            url
+                                 :body-params    a/example-article
+                                 :headers        {"Authorization"
+                                                  (str "Bearer " tu/valid-token)}})))))

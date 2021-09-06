@@ -1,19 +1,15 @@
 (ns andrewslai.clj.persistence.s3
-  (:require [amazonica.core :as amazon]
-            [amazonica.aws.s3 :as s3]
+  (:require [amazonica.aws.s3 :as s3]
+            [amazonica.core :as amazon]
             [andrewslai.clj.persistence.filesystem :as fs]
+            [andrewslai.clj.protocols.s3 :as s3p]
+            [clojure.spec.alpha :as s]
             [clojure.string :as string]
-            [ring.util.http-response :refer [content-type not-found ok
-                                             internal-server-error
-                                             resource-response]]
+            [ring.util.http-response :refer [internal-server-error not-found]]
+            [ring.util.mime-type :as mt]
             [taoensso.timbre :as log])
-  (:import [com.amazonaws.auth
-            AWSCredentialsProviderChain
-            EnvironmentVariableCredentialsProvider
-            ContainerCredentialsProvider
-            EC2ContainerCredentialsProviderWrapper]
-           [com.amazonaws.auth.profile ProfileCredentialsProvider]
-           [java.net URL URLStreamHandler URLConnection URLStreamHandlerFactory URLClassLoader]))
+  (:import [com.amazonaws.auth AWSCredentialsProviderChain ContainerCredentialsProvider EnvironmentVariableCredentialsProvider]
+           com.amazonaws.auth.profile.ProfileCredentialsProvider))
 
 (def CustomAWSCredentialsProviderChain
   (AWSCredentialsProviderChain.
@@ -21,68 +17,194 @@
     ^AWSCredentialsProvider (new ProfileCredentialsProvider)
     ^AWSCredentialsProvider (new ContainerCredentialsProvider)]))
 
-#_(bean (.getCredentials CustomAWSCredentialsProviderChain))
-
 (defn exception-response
   [{:keys [status-code] :as exception-map}]
   (case status-code
     404 (not-found)
     (internal-server-error "Unknown exception")))
 
-(defrecord S3 [bucket creds]
+(defn valid-key?
+  [s]
+  (re-matches #"[0-9a-zA-Z/!-_.*'()]+" s))
+
+(defn byte-array-input-stream?
+  [obj]
+  (= (class obj) java.io.ByteArrayInputStream))
+
+(s/def :s3/bucket-name string?)
+(s/def :s3/prefix (s/and string? valid-key?))
+(s/def :s3/key (s/and string? valid-key?))
+(s/def :s3/input-stream byte-array-input-stream?)
+
+(s/def :s3.summary/size int?)
+(s/def :s3.summary/key :s3/key)
+(s/def :s3.summary/etag string?)
+(s/def :s3.summary/summary
+  (s/keys :req-un [:s3.summary/size
+                   :s3.summary/key
+                   :s3.summary/etag]))
+(s/def :s3.summary/summaries
+  (s/coll-of :s3.summary/summary))
+
+(s/def :s3.metadata/content-length int?)
+(s/def :s3.metadata/content-type (set (vals mt/default-mime-types)))
+(s/def :s3.metadata/user-metadata (s/map-of string? any?))
+(s/def :s3.metadata/metadata
+  (s/keys :opt-un [:s3.metadata/content-length
+                   :s3.metadata/content-type
+                   :s3.metadata/user-metadata]))
+
+(defn prepare-metadata
+  "Format a map of file metadata for upload to S3"
+  [{:keys [content-length content-type] :as metadata}]
+  (let [user-meta (dissoc metadata :content-length :content-type)]
+    (merge {:content-length content-length
+            :content-type   content-type}
+           (when-not (empty? user-meta) {:user-metadata user-meta}))))
+
+(def FOLDER-DELIMITER "/")
+
+(defn folder?
+  ([s]
+   (folder? s FOLDER-DELIMITER))
+  ([s delim]
+   (= delim (str (last s)))))
+
+(defn extract-name
+  [path s]
+  (let [x (last (string/split s (re-pattern FOLDER-DELIMITER)))]
+    (cond
+      (= path s)  ""
+      (folder? s) (str x FOLDER-DELIMITER)
+      :else       x)))
+
+(defn summary->file
+  [path {:keys [key] :as summary}]
+  (assoc summary
+         :name (extract-name path key)
+         :path key
+         :type (if (folder? key)
+                 :directory
+                 :file)))
+
+(defn prefix->file
+  [path prefix]
+  {:name (extract-name path prefix)
+   :path prefix
+   :type :directory})
+
+;; Add wrapper functions that are spec'ed out
+(defrecord S3 [bucket creds protocol]
   fs/FileSystem
   (ls [_ path]
-    (log/info "List objects in S3: " path)
-    (->> (s3/list-objects-v2 creds
-                             {:bucket-name bucket
-                              :prefix      path})
-         :object-summaries
-         (drop 1)
-         (map (fn [m] (select-keys m [:key :size :etag])))
-         seq))
+    (log/infof "List objects in S3 (%s): %s" bucket path)
+    (let [result (s3/list-objects-v2 creds
+                                     {:bucket-name bucket
+                                      :prefix      path
+                                      :delimiter   FOLDER-DELIMITER})]
+      (:object-summaries result)
+      (concat (map (partial summary->file path) (:object-summaries result))
+              (map (partial prefix->file path) (:common-prefixes result)))))
   (get-file [_ path]
-    (log/info "Get object in S3: " path)
+    (log/infof "Get object in S3 (%s): %s" bucket path)
     (try
       (-> (s3/get-object creds {:bucket-name bucket :key path})
           :input-stream)
       (catch Exception e
         (println e)
-        (exception-response (amazon/ex->map e))))))
+        (exception-response (amazon/ex->map e)))))
+  (put-file [_ path input-stream metadata]
+    (log/infof "Put object in S3 (%s): %s" bucket path)
+    (try
+      (s3/put-object creds
+                     {:bucket-name  bucket
+                      :key          path
+                      :input-stream input-stream
+                      :metadata     (prepare-metadata metadata)})
+      (catch Exception e
+        (println e)
+        (exception-response (amazon/ex->map e)))))
+  (get-protocol [_]
+    (or protocol s3p/S3-PROTOCOL)))
 
-(comment
 
-  (import '[com.amazonaws.auth DefaultAWSCredentialsProviderChain])
+(comment ;; Playing with S3
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;  PUT file
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (def b
+    (-> (clojure.java.io/resource "public/images/lock.svg")
+        clojure.java.io/input-stream
+        slurp
+        (.getBytes)))
+
+  (fs/put-file (map->S3 {:bucket "andrewslai"
+                         :creds CustomAWSCredentialsProviderChain})
+               "lock.svg"
+               (java.io.ByteArrayInputStream. b)
+               {:content-type "image/svg"
+                :content-length (count b)
+                :something "some"})
+
+  (def c
+    (clojure.java.io/file "resources/public/images/lock.svg"))
+
+  (fs/put-file (map->S3 {:bucket "andrewslai"
+                         :creds CustomAWSCredentialsProviderChain})
+               "lock.svg"
+               (clojure.java.io/input-stream c)
+               {:content-type "image/svg"
+                :content-length (.length c)
+                :something "some"})
+
+  (s3/put-object CustomAWSCredentialsProviderChain
+                 {:bucket-name  "andrewslai"
+                  :key          "lock.svg"
+                  :input-stream (java.io.ByteArrayInputStream. b)
+                  :metadata     {:content-type "image/svg"
+                                 :content-length (count b)
+                                 :user-metadata {:something "some-value"}}})
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;  Just basic play
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (s3/list-buckets)
 
   (amazon/get-credentials nil)
 
   (keys (bean (.getCredentials CustomAWSCredentialsProviderChain)))
 
-  (ls (map->S3 {:bucket "andrewslai-wedding"
-                :credentials CustomAWSCredentialsProviderChain})
-      "media/")
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;  LIST files
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (fs/ls (map->S3 {:bucket "andrewslai-wedding"
+                   :creds CustomAWSCredentialsProviderChain})
+         "public/")
+  ;; => ({:path "public/css/",
+  ;;      :key "public/css/",
+  ;;      :storage-class "STANDARD",
+  ;;      :name "",
+  ;;      :type :directory,
+  ;;      :etag "d41d8cd98f00b204e9800998ecf8427e",
+  ;;      :last-modified #clj-time/date-time "2021-05-27T18:30:39.000Z",
+  ;;      :size 0,
+  ;;      :bucket-name "andrewslai-wedding"}
+  ;;     {:path "public/css/wedding.css",
+  ;;      :key "public/css/wedding.css",
+  ;;      :storage-class "STANDARD",
+  ;;      :name "wedding.css",
+  ;;      :type :file,
+  ;;      :etag "71bd22a749b50d4a5b90a8f538b72a60",
+  ;;      :last-modified #clj-time/date-time "2021-05-27T18:33:10.000Z",
+  ;;      :size 1121,
+  ;;      :bucket-name "andrewslai-wedding"})
 
-  (get-file (map->S3 {:bucket "andrewslai-wedding"})
-            "wedding-index.html")
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;  GET file
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (fs/get-file (map->S3 {:bucket "andrewslai-wedding"
+                         :creds CustomAWSCredentialsProviderChain})
+               "index.html")
 
-  (get-file (map->S3 {:bucket "andrewslai-wedding"})
-            "media")
-
-  (spit "myindex.html" "<h1>HELLO</h1>")
-
-  (s3/put-object :bucket-name "andrewslai-wedding"
-                 :key "index.html"
-                 :file (clojure.java.io/file "myindex.html"))
-
-  (let [img    "clojure-logo.png"
-        home   "/home/andrew/dev/andrewslai/resources/public/images/"]
-    (s3/put-object :bucket-name "andrewslai-wedding"
-                   :key         (str "media/" img)
-                   :file        (clojure.java.io/file (str home img))))
-
-  (slurp (clojure.java.io/resource "public/images/clojure-logo.png"))
-  (slurp (clojure.java.io/file "/home/andrew/dev/andrewslai/resources/public/images/clojure-logo.png"))
-  (s3/get-object "andrewslai-wedding" "wedding-index.html")
-  (s3/get-object CustomAWSCredentialsProviderChain {:bucket-name "andrewslai-wedding"
-                                                    :key "wedding-index.html"})
   )

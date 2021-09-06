@@ -13,6 +13,16 @@
            [java.nio.file.attribute FileAttribute]
            [java.nio.file Files]))
 
+(defn buffered-input-stream?
+  [obj]
+  (= (class obj) java.io.BufferedInputStream))
+
+(defn file-input-stream?
+  [obj]
+  (= (class obj) java.io.FileInputStream))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; App related things
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn captured-logging [logging-atom]
   {:level :debug
    :appenders {:println {:enabled? true,
@@ -23,34 +33,34 @@
                                (let [{:keys [output_]} data]
                                  (swap! logging-atom conj (force output_))))}}})
 
-(defn unauthorized-backend
+(defn unauthenticated-backend
   []
   (auth/oauth-backend (reify auth/TokenAuthenticator
                         (auth/valid? [_ token]
                           (throw+ {:type :Unauthorized})))))
 
-(defn authorized-backend
+(defn authenticated-backend
   []
   (auth/oauth-backend (reify auth/TokenAuthenticator
                         (auth/valid? [_ token]
                           true))))
 
-(defn http-request
-  [method endpoint components
-   & [{:keys [body parser app]
-       :or   {parser #(json/parse-string % keyword)
-              app    h/andrewslai-app}
-       :as   options}]]
-  (let [defaults {:auth           (unauthorized-backend)
-                  :static-content (sc/make-wrapper "classpath"
-                                                   "public"
-                                                   {})}
-        app      (app (util/deep-merge defaults components))]
-    (when-let [result (app (reduce conj
-                                   {:request-method method :uri endpoint}
-                                   options))]
-      (update result :body parser))))
+(defn app-request
+  [app request & [{:keys [parser]
+                   :or   {parser #(json/parse-string % keyword)}}]]
+  (when-let [result (app request)]
+    (update result :body parser)))
 
+(defn dummy-app
+  [response]
+  (routes
+    (GET "/" []
+      {:status 200 :body response})
+    (route/not-found "No matching route")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Token-related things
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn make-jwt
   [{:keys [hdr body sig]
     :or {hdr "" sig ""}}]
@@ -65,13 +75,13 @@
        "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ."
        "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"))
 
-(defn dummy-app
-  [response]
-  (routes
-    (GET "/" []
-      {:status 200 :body response})
-    (route/not-found "No matching route")))
+(defn auth-header
+  [roles]
+  {"authorization" (bearer-token {:realm_access {:roles roles}})})
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Temporary directory
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn mktmpdir
   ([]
    (mktmpdir "" (into-array FileAttribute [])))
@@ -117,3 +127,9 @@
 (def tmp-loader
   "A Classloader that loads from the system's temporary directory (usually `/tmp`)"
   (url-classloader (->url (format "file:%s/" (System/getProperty "java.io.tmpdir")))))
+
+
+(defn make-loader
+  "A Classloader that loads from a particular directory"
+  [dir]
+  (url-classloader (->url (format "file:%s/" dir))))

@@ -1,58 +1,31 @@
 (ns andrewslai.clj.config-test
   (:require [andrewslai.clj.config :as cfg]
-            [andrewslai.clj.persistence.s3 :as s3p]
+            [andrewslai.clj.protocols.s3 :as s3p]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [clojure.test :refer [deftest is use-fixtures]]
             [matcher-combinators.test]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [andrewslai.clj.routes.wedding :as wedding]))
 
 (use-fixtures :once
   (fn [f]
     (log/with-log-level :fatal
       (f))))
 
-(deftest static-content-wrapper--from-classpath
-  (let [tmpdir  (tu/mktmpdir "andrewslai-test")
-        tmpfile (tu/mktmp "delete.txt" tmpdir)
-
-        path (str "/" (.getName tmpfile))
-
-        wrapper (cfg/configure-static-content
-                 {"ANDREWSLAI_STATIC_CONTENT"          "classpath"
-                  "ANDREWSLAI_STATIC_CONTENT_BASE_URL" (.getName tmpdir)}
-                 {:loader tu/tmp-loader})]
-
-    (is (match? {:status  200
-                 :headers {"Cache-Control" sc/cache-30d}
-                 :body    tu/file?}
-                ((wrapper (tu/dummy-app :hello)) {:request-method :get
-                                                  :uri            path})))))
-
-(deftest static-content-wrapper--from-filesystem
-  (let [tmpdir  (tu/mktmpdir "andrewslai-test")
-        tmpfile (tu/mktmp "delete.txt" tmpdir)
-
-        path (str "/" (.getName tmpfile))
-
-        wrapper (cfg/configure-static-content
-                 {"ANDREWSLAI_STATIC_CONTENT"          "filesystem"
-                  "ANDREWSLAI_STATIC_CONTENT_BASE_URL" (.getAbsolutePath tmpdir)})]
-
-    (is (match? {:status  200
-                 :headers {"Cache-Control" sc/cache-30d}
-                 :body    tu/file?}
-                ((wrapper (tu/dummy-app :hello)) {:request-method :get
-                                                  :uri            path})))))
+(deftest config-from-env-test
+  (is (= wedding/access-rules
+         (get-in (cfg/configure-from-env {})
+                 [:wedding :access-rules]))))
 
 ;; Makes a network call
 #_(deftest static-content-wrapper--from-s3
-    (let [wrapper (sc/make-wrapper "s3" ""
-                                   {:loader (s3p/s3-loader "andrewslai-wedding")
-                                    :prefer-handler? true})]
+    (let [wrapper (sc/classpath-static-content-wrapper
+                   {:loader (protocols/filesystem-loader "andrewslai-wedding")
+                    :prefer-handler? true})]
 
       ((wrapper (tu/dummy-app :hello)) {:request-method :get
-                                        :uri            "/wedding-index.html"})))
+                                        :uri            "/media/index.html"})))
 
 
 (comment

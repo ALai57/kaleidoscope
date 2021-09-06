@@ -1,17 +1,13 @@
 (ns andrewslai.clj.routes.wedding
-  (:require [amazonica.core :as amazon]
-            [amazonica.aws.s3 :as s3]
+  (:require [amazonica.aws.s3 :as s3]
+            [amazonica.core :as amazon]
             [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.routes.admin :as admin]
             [buddy.auth.accessrules :as ar]
-            [clojure.string :as string]
-            [compojure.api.sweet :refer [context defroutes GET]]
-            [ring.util.http-response :refer [content-type not-found ok
-                                             bad-gateway
-                                             internal-server-error
-                                             resource-response]]
-            [spec-tools.swagger.core :as swagger]
+            [clojure.java.io :as io]
+            [compojure.api.sweet :refer [context defroutes GET POST PUT]]
+            [ring.util.http-response :refer [ok created]]
+            [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
 
 (def MEDIA-FOLDER
@@ -27,8 +23,43 @@
 
 (def access-rules
   [{:pattern #"^/media/$"
+    :handler (partial require-role "wedding")}
+   {:pattern #"^/media.*"
+    :request-method :put
     :handler (partial require-role "wedding")}])
 
+(defn ->file-input-stream
+  [file]
+  (java.io.FileInputStream. ^java.io.File file))
+
+(defroutes index
+  (GET "/index.html" []
+    (-> (ring-resp/resource-response "wedding-index.html" {:root "public"})
+        (ring-resp/content-type "text/html"))))
+
+(defroutes upload-routes
+  (context (format "/%s" MEDIA-FOLDER) []
+    :components [storage]
+
+    (POST "/" {:keys [uri params] :as req}
+      (let [{:keys [filename tempfile] :as file-contents} (get params "file-contents")
+            file-path                                     (format "%s/%s" (if (clojure.string/ends-with? uri "/")
+                                                                            (subs uri 1 (dec (count uri)))
+                                                                            (subs uri 1))
+                                                                  filename)
+            metadata                                      (dissoc file-contents :tempfile)]
+        (log/infof "Processing upload request with params:\n %s" (-> params
+                                                                     clojure.pprint/pprint
+                                                                     with-out-str))
+        (log/infof "Creating file `%s` with metadata:\n %s" file-path (-> metadata
+                                                                          clojure.pprint/pprint
+                                                                          with-out-str))
+        (fs/put-file storage
+                     file-path
+                     (->file-input-stream tempfile)
+                     metadata)
+        (created (format "/%s" file-path)
+                 "Created file")))))
 
 (comment
   (s3-path [MEDIA-FOLDER "something.ptg"])

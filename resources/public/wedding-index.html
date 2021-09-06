@@ -15,31 +15,38 @@
     <br>
     <button id="login">Login</button>
     <button id="logout">Logout</button>
+
+    <form id="uploadForm" enctype="multipart/form-data" action="/media" method="post">
+      <label for="fname">File name:</label>
+      <input id="file-contents" type="file" name="file-contents">
+      <input type="submit" value="Submit">
+    </form>
+
     <button id="load-images">Load images</button>
   </center>
   <div id='wedding-media'></div>
 <script>
 
   function is_dev() {
-      var host = window.location.hostname
-      return host.endsWith('localhost')
+      var host = window.location.hostname;
+      return host.endsWith('localhost');
   }
 
   IS_DEV = is_dev();
 
   function get_auth_url() {
       if (IS_DEV) {
-          return "http://172.17.0.1:8080/auth/realms/test"
+          return "http://172.17.0.1:8080/auth/realms/test";
       } else {
-          return "https://keycloak.andrewslai.com/auth/realms/andrewslai"
+          return "https://keycloak.andrewslai.com/auth/realms/andrewslai";
       };
   }
 
   function get_client_id() {
       if (IS_DEV) {
-          return "test-login"
+          return "test-login";
       } else {
-          return "andrewslai-frontend"
+          return "andrewslai-frontend";
       };
   }
 
@@ -86,10 +93,11 @@
           console.log(images);
           $.each(images.slice(0, 100), function(){
               var img_tag = '<img src="/' + this.key + '" class="wedding-image" loading="lazy" width="500px" height="500px"/>'
-              $(img_tag).appendTo('#wedding-media');})}})
+              $(img_tag).appendTo('#wedding-media');})}});
   }
 
   document.getElementById("load-images").addEventListener("click", load_images, false);
+
 </script>
 <script>
 </script>

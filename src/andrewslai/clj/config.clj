@@ -3,7 +3,8 @@
             [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.persistence.s3 :as s3-storage]
-            [andrewslai.clj.protocols.s3 :as s3p]
+            [andrewslai.clj.protocols.core :as protocols]
+            [andrewslai.clj.routes.wedding :as wedding]
             [andrewslai.clj.static-content :as sc]
             [taoensso.timbre :as log]))
 
@@ -30,20 +31,12 @@
       keycloak/make-keycloak
       auth/oauth-backend))
 
-(defn configure-static-content
-  ([env]
-   (configure-static-content env {}))
-  ([env options]
-   (let [content-service-type (get env "ANDREWSLAI_STATIC_CONTENT" DEFAULT-STATIC-CONTENT)]
-     (configure-static-content content-service-type
-                               (or (get env "ANDREWSLAI_STATIC_CONTENT_BASE_URL")
-                                   (get DEFAULT-STATIC-CONTENT-LOCATION content-service-type)
-                                   (throw (IllegalArgumentException. "Invalid static content url")))
-                               options)))
-  ([wrapper-type root-path options]
-   (sc/make-wrapper wrapper-type
-                    root-path
-                    options)))
+(defn configure-auth
+  "Is OAUTH is disabled, always authenticate as a user with `wedding` access"
+  [env]
+  (if (Boolean/parseBoolean (get env "ANDREWSLAI_OAUTH_DISABLED"))
+    (auth/always-authenticated-backend {:realm_access {:roles ["wedding"]}})
+    (configure-keycloak env)))
 
 (defn configure-logging
   [env]
@@ -61,30 +54,27 @@
 (defn configure-frontend-bucket
   [env]
   (let [bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")]
-    (sc/make-wrapper "s3"
-                     ""
-                     {:loader (-> {:bucket bucket
-                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
-                                  s3-storage/map->S3
-                                  s3p/s3-loader)
-                      :prefer-handler? true})))
+    (sc/static-content (s3-storage/map->S3 {:bucket bucket
+                                            :creds  s3-storage/CustomAWSCredentialsProviderChain}))))
 
-(defn configure-wedding-bucket
+(defn configure-wedding-storage
   [env]
   (let [bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")]
-    (sc/make-wrapper "s3"
-                     ""
-                     {:loader (-> {:bucket bucket
-                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
-                                  s3-storage/map->S3
-                                  s3p/s3-loader)
-                      :prefer-handler? true})))
+    (s3-storage/map->S3 {:bucket bucket
+                         :creds  s3-storage/CustomAWSCredentialsProviderChain})))
+
+(defn configure-wedding-access
+  [env]
+  wedding/access-rules)
 
 (defn configure-from-env
   [env]
-  {:port            (configure-port env)
-   :auth            (configure-keycloak env)
-   :database        (configure-database env)
-   :wedding-storage (configure-wedding-bucket env)
-   :logging         (configure-logging env)
-   :static-content  (configure-frontend-bucket env)})
+  {:port       (configure-port env)
+   :andrewslai {:auth           (configure-auth env)
+                :database       (configure-database env)
+                :logging        (configure-logging env)
+                :static-content (configure-frontend-bucket env)}
+   :wedding    {:auth         (configure-auth env)
+                :access-rules (configure-wedding-access env)
+                :storage      (configure-wedding-storage env)
+                :logging      (configure-logging env)}})
