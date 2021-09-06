@@ -32,7 +32,7 @@
   [file]
   (java.io.FileInputStream. ^java.io.File file))
 
-;; For local development
+;; Useful for local development so you don't have to set up a connection to S3
 (defroutes index
   (GET "/index.html" []
     (log/info "Fetching `wedding-index.html` locally")

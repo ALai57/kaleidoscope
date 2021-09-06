@@ -7,8 +7,8 @@
             [ring.middleware.resource :refer [wrap-resource]]
             [taoensso.timbre :as log]))
 
-(def no-cache     "max-age=0,no-cache,no-store")
-(def cache-30d    "public,max-age=2592000,s-maxage=2592000")
+(def no-cache  "max-age=0,no-cache,no-store")
+(def cache-30d "public,max-age=2592000,s-maxage=2592000")
 
 (defn cache-control
   "Add Cache Control Headers for successful responses"

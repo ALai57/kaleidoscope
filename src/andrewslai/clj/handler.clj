@@ -46,7 +46,9 @@
                                                           with-out-str)))
                  request))))
 
-(defn debug-log-request! [msg handler]
+(defn debug-log-request!
+  "A logging tool that is useful for debugging"
+  [msg handler]
   (fn [request]
     (handler (do (log/with-config (:logging (mw/get-components request))
                    (log/infof "Debug log: %s" msg)
@@ -58,7 +60,7 @@
   (fn [request]
     (handler (assoc request :request-id (str (java.util.UUID/randomUUID))))))
 
-(defn wrap-index [handler]
+(defn wrap-redirect-to-index [handler]
   (fn [{:keys [request-method] :as request}]
     (handler (if (= :get request-method)
                (update request :uri #(if (= "/" %) "/index.html" %))
@@ -77,7 +79,7 @@
     (api {:components (dissoc components :static-content)
           :middleware [wrap-request-identifier
                        log-request!
-                       wrap-index
+                       wrap-redirect-to-index
                        wrap-content-type
                        wrap-json-response
                        (or static-content identity)
@@ -91,7 +93,7 @@
          swagger-ui-routes
          (route/not-found "No matching route"))))
 
-(defn my-logging-handler
+(defn exception-handler
   [e data request]
   (log/errorf "Error: %s, %s"
               (ex-message e)
@@ -105,9 +107,9 @@
   [{:keys [auth logging storage access-rules] :as components}]
   (log/with-config logging
     (api {:components (select-keys components [:storage :logging])
-          :exceptions {:handlers {:compojure.api.exception/default my-logging-handler}}
+          :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
           :middleware [wrap-request-identifier
-                       wrap-index
+                       wrap-redirect-to-index
                        wrap-content-type
                        wrap-json-response
                        wrap-multipart-params
@@ -140,8 +142,3 @@
      #".*"                               {:priority 100
                                           :app      (andrewslai-app andrewslai)}})
    {:port port}))
-
-(comment
-  ;;(import [com.amazonaws.auth AWSCredentialsProvider])
-  (instance? AWSCredentialsProvider (ContainerCredentialsProvider.))
-  )
