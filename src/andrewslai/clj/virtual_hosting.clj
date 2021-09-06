@@ -1,7 +1,8 @@
 (ns andrewslai.clj.virtual-hosting
   (:gen-class)
   (:require [clojure.spec.alpha :as s]
-            [ring.util.request :as req]))
+            [ring.util.request :as req]
+            [taoensso.timbre :as log]))
 
 (defn regex?
   [x]
@@ -39,27 +40,25 @@
 (defn select-app
   "Select an app to route the request to"
   [request virtual-hosts]
-  (->> virtual-hosts
-       (filter (fn [virtual-host]
-                 (matching-url? request (get-host-url virtual-host))))
-       (sort-by get-priority)
-       (first)
-       (get-app)))
+  (let [[url {:keys [app]}] (->> virtual-hosts
+                                 (filter (fn [virtual-host]
+                                           (matching-url? request (get-host-url virtual-host))))
+                                 (sort-by get-priority)
+                                 (first))]
+    (log/infof "Virtual hosting: routing to `%s`" url)
+    app))
 
 (defn host-based-routing
   "Route a request to one of the supplied apps"
   [virtual-hosts]
   (fn
-    ([request]
-     (if-let [app (select-app request virtual-hosts)]
-       (app request)
-       (throw (IllegalArgumentException. (str "Unrecognized host. "
-                                              (req/request-url request))))))
-    ([request respond raise]
-     (if-let [app (select-app request virtual-hosts)]
-       ((select-app request virtual-hosts) request respond raise)
-       (throw (IllegalArgumentException. (str "Unrecognized host. "
-                                              (req/request-url request))))))))
+    [request]
+    (log/infof "Virtual hosting: routing request for `%s`" (req/request-url request))
+    (if-let [app (select-app request virtual-hosts)]
+      (app request)
+      (let [msg (format "Unrecognized host %s." (req/request-url request))]
+        (log/errorf msg)
+        (throw (IllegalArgumentException. msg))))))
 
 (s/def :network/protocol #{"http" "https"})
 (s/def :network/domain string?)

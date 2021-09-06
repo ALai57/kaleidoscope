@@ -58,15 +58,15 @@
   (reify
     proto/IAuthentication
     (-parse [_ request]
-      (log/info "Always authenticated backend: Parsing request")
+      (log/info "Auth: Parsing request using `Always authenticated backend`")
       true)
     (-authenticate [_ request token]
-      (log/info "Always authenticated backend: Authenticated as %s" user-identity)
+      (log/infof "Auth: Authenticated as %s using `Always authenticated backend`" user-identity)
       user-identity)
 
     proto/IAuthorization
     (-handle-unauthorized [_ request metadata]
-      (println "HANDLING UNAUTHORIZED"))))
+      (log/info "Auth: Unauthorized request using `Always authenticated backend`"))))
 
 (comment
   (def valid-token

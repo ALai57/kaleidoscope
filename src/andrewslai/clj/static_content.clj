@@ -26,9 +26,8 @@
   [handler]
   (fn [request]
     (let [resp (handler request)]
-      (log/infof "Generating Cache control headers for request-id %s\nwith RESPONSE\n%s"
-                 (:request-id request)
-                 (with-out-str (clojure.pprint/pprint resp)))
+      (log/infof "Generating Cache control headers for request-id %s\n"
+                 (:request-id request))
       (cache-control (:uri request) resp))))
 
 (defn classpath-static-content-wrapper

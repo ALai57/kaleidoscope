@@ -97,7 +97,7 @@
 (defrecord S3 [bucket creds protocol]
   fs/FileSystem
   (ls [_ path]
-    (log/infof "List objects in S3 (%s): %s" bucket path)
+    (log/infof "S3 List Objects `%s/%s`" bucket path)
     (let [result (s3/list-objects-v2 creds
                                      {:bucket-name bucket
                                       :prefix      path
@@ -106,7 +106,7 @@
       (concat (map (partial summary->file path) (:object-summaries result))
               (map (partial prefix->file path) (:common-prefixes result)))))
   (get-file [_ path]
-    (log/infof "Get object in S3 (%s): %s" bucket path)
+    (log/infof "S3 Get Object `%s/%s`" bucket path)
     (try
       (-> (s3/get-object creds {:bucket-name bucket :key path})
           :input-stream)
@@ -114,7 +114,7 @@
         (println e)
         (exception-response (amazon/ex->map e)))))
   (put-file [_ path input-stream metadata]
-    (log/infof "Put object in S3 (%s): %s" bucket path)
+    (log/infof "S3 Put Object `%s/%s`" bucket path)
     (try
       (s3/put-object creds
                      {:bucket-name  bucket
