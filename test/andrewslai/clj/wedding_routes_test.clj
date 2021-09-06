@@ -22,35 +22,12 @@
            (java.nio.charset Charset)
            (org.apache.http.entity ContentType)
            (org.apache.http.entity.mime MultipartEntity)
-           (org.apache.http.entity.mime.content InputStreamBody))
-
-  )
+           (org.apache.http.entity.mime.content InputStreamBody)))
 
 (use-fixtures :once
   (fn [f]
     (log/with-log-level :fatal
       (f))))
-
-;; The org.apache.commons.fileupload implementation checks if there is a "filename"
-;; header inside the content disposition to figure out if something is a file or not
-;;  that determines whether the part is added as a file, or as a string
-
-;; EXAMPLE GOOD ENCODING HEADERS
-;;--9EYWD7pwVXEMJgxYsfUaKm_PNY6Frhl84Gp-ur2_
-;;Content-Disposition: form-data; name="lock.svg"; filename="lock.svg"
-;;Content-Type: application/octet-stream
-;;Content-Transfer-Encoding: binary
-;;
-;;<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-
-(defmethod mp/add-part InputStream [^MultipartEntity m k ^InputStream f]
-  (.addPart m
-            (mp/ensure-string k)
-            (InputStreamBody. f
-                              (ContentType/create
-                               (mime-type/ext-mime-type (mp/ensure-string k)))
-                              (mp/ensure-string k))))
-
 
 ;; TODO: This is relying on the access control list and `wedding/access-rules`
 ;;        to determine authorization. Should test authorization instead of
@@ -88,76 +65,90 @@
     (tu/unauthenticated-backend)
     {:status 401}))
 
-(defn tmpfile
-  ([]
-   (tmpfile "andrewslai-test" "test.txt"))
-  ([fname]
-   (tmpfile "andrewslai-test" fname))
-  ([dir fname]
-   (let [tmpdir    (tu/mktmpdir dir)
-         tmpfile   (tu/mktmp fname tmpdir)]
-     (str (.getAbsolutePath tmpdir) "/" (.getName tmpfile)))))
+(defn ->multipart
+  [{:keys [separator part-name file-name content-type content]}]
+  (format "%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\nContent-Type:%s\r\nContent-Transfer-Encoding: binary\r\n\r\n%s\r\n"
+          separator
+          part-name
+          file-name
+          content-type
+          content))
 
-(defn fresh-request
-  [m]
-  (update m (get m "name") (fn [path]
-                             (-> path
-                                 clojure.java.io/resource
-                                 clojure.java.io/input-stream))))
+(defn assemble-multipart
+  [separator parts]
+  (let [mp-parts (map (comp ->multipart #(assoc % :separator (str "--" separator)))
+                      parts)]
+
+    {:headers {"content-type" (format "multipart/form-data; boundary=%s;" separator)}
+     :body    (-> (format "%s--%s--" (apply str mp-parts) separator)
+                  (.getBytes)
+                  (clojure.java.io/input-stream))}))
 
 (deftest upload-test
-  (let [request   {"title"        "Something good"
-                   "Content-Type" "image/svg+html"
-                   "name"         "lock.svg"
-                   "lock.svg"     "public/images/lock.svg"}
-        in-mem-fs (atom {})
-        storage   (memory/map->MemFS {:store in-mem-fs})
-        app       (h/wedding-app {:auth         (tu/authenticated-backend)
-                                  :access-rules wedding/access-rules
-                                  :storage      storage})]
+  (let [in-mem-fs  (atom {})
+        app        (h/wedding-app {:auth         (tu/authenticated-backend)
+                                   :access-rules wedding/access-rules
+                                   :storage      (memory/map->MemFS {:store in-mem-fs})})
+        mp-request (fn []
+                     "Needs to be a fn so that the InputStream isn't consumed twice"
+                     (assemble-multipart "my boundary here"
+                                         [{:part-name    "file-contents"
+                                           :file-name    "lock.svg"
+                                           :content-type "image/svg+xml"
+                                           :content      (-> "public/images/lock.svg"
+                                                             clojure.java.io/resource
+                                                             slurp)}]))]
     (is (match? {:status 401}
-                (app (u/deep-merge {:request-method :put
-                                    :uri            "/media/something"}
-                                   (mp/build (fresh-request request))))))
-    (is (match? {:status 200}
+                (app (u/deep-merge {:request-method :post
+                                    :uri            "/media/"}
+                                   (mp-request)))))
+
+    (is (match? {:status 201}
                 (app (u/deep-merge {:headers        (tu/auth-header ["wedding"])
-                                    :request-method :put
-                                    :uri            "/media/something"}
-                                   (mp/build (fresh-request request))))))
-    (is (match? {"media" {"something" {:name     "something"
-                                       :path     "media/something"
-                                       :content  tu/file-input-stream?
-                                       :metadata map?}}}
+                                    :request-method :post
+                                    :uri            "/media/"}
+                                   (mp-request)))))
+
+    (is (match? {"media" {"lock.svg" {:name     "lock.svg"
+                                      :path     "media/lock.svg"
+                                      :content  tu/file-input-stream?
+                                      :metadata {:filename     "lock.svg"
+                                                 :content-type "image/svg+xml"}}}}
                 @in-mem-fs))))
 
-(comment
-  (-> (mp/build {"title"        "Something good"
-                 "Content-Type" "image/svg"
-                 "name"         "lock.svg"
-                 "lock.svg"     (-> "public/images/lock.svg"
-                                    clojure.java.io/resource
-                                    clojure.java.io/input-stream)})
-      :body
-      slurp)
 
-  ;; Working PUT request to the app
-  (http/put "http://caheriaguilar.and.andrewslai.com.localhost:5000/media/lock.svg"
-            {:multipart
-             [{:name "name" :content "lock.svg"}
-              {:name "content-type" :content "image/svg+xml"}
-              {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
-              {:name "lock.svg" :content (-> "public/images/lock.svg"
-                                             clojure.java.io/resource
-                                             clojure.java.io/input-stream)}]})
+(comment
   (require '[clj-http.client :as http])
 
-  (http/put "https://caheriaguilar.and.andrewslai.com/media/lock.svg"
-            {:multipart
-             [{:name "name" :content "lock.svg"}
-              {:name "content-type" :content "image/svg+xml"}
-              {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
-              {:name "lock.svg" :content (-> "public/images/lock.svg"
+  (println (:body (assemble-multipart "OZqYohSB93zIWImnnfy2ekkaK8I_BDbVmtiTi"
+                                      [{:part-name    "file-contents"
+                                        :file-name    "lock.svg"
+                                        :content-type "image/svg+xml"
+                                        :content      (-> "public/images/lock.svg"
+                                                          clojure.java.io/resource
+                                                          slurp)}
+                                       {:part-name    "file-contents"
+                                        :file-name    "lock.svg"
+                                        :content-type "image/svg+xml"
+                                        :content      (-> "public/images/lock.svg"
+                                                          clojure.java.io/resource
+                                                          slurp)}])))
+
+  ;; 2021-09-04: This is working - need to make sure the actual index.html can
+  ;; make the same request
+  (http/request {:scheme      "http"
+                 :server-name "caheriaguilar.and.andrewslai.com.localhost"
+                 :server-port "5000"
+                 :method      :put
+                 :uri         "/media/lock.svg"
+                 :multipart   [{:name "name" :content "lock.svg"}
+                               {:name "content-type" :content "image/svg+xml"}
+                               {:name "foo.txt" :part-name "eggplant" :content "Eggplants"}
+                               {:name    "lock.svg"
+                                :content (-> "public/images/lock.svg"
                                              clojure.java.io/resource
                                              clojure.java.io/input-stream)}]})
+
+
 
   )

@@ -1,5 +1,6 @@
 (ns andrewslai.clj.auth.core
   (:require [buddy.auth.backends.token :as token]
+            [buddy.auth.protocols :as proto]
             [buddy.core.codecs.base64 :as b64]
             [cheshire.core :as json]
             [taoensso.timbre :as log]
@@ -36,9 +37,11 @@
 (defn authenticate
   [authenticator {:keys [request-id] :as request} token]
   (try
-    (log/info "Validating token: " {:header     (jwt-header token)
-                                    :body       (jwt-body token)
-                                    :request-id request-id})
+    (log/infof "Validating jwt token:\n %s" (-> {:header     (jwt-header token)
+                                                 :body       (jwt-body token)
+                                                 :request-id request-id}
+                                                clojure.pprint/pprint
+                                                with-out-str))
     (when (valid? authenticator token)
       (jwt-body token))
     (catch Exception e
@@ -49,6 +52,21 @@
   (token/token-backend {:token-name "Bearer"
                         :authfn (partial authenticate authenticator)
                         :unauthorized-handler (fn [])}))
+
+(defn always-authenticated-backend
+  [user-identity]
+  (reify
+    proto/IAuthentication
+    (-parse [_ request]
+      (log/info "Always authenticated backend: Parsing request")
+      true)
+    (-authenticate [_ request token]
+      (log/info "Always authenticated backend: Authenticated as %s" user-identity)
+      user-identity)
+
+    proto/IAuthorization
+    (-handle-unauthorized [_ request metadata]
+      (println "HANDLING UNAUTHORIZED"))))
 
 (comment
   (def valid-token

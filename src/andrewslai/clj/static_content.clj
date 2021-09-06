@@ -4,7 +4,8 @@
             [clojure.string :as string]
             [ring.util.http-predicates :refer [success?]]
             [ring.middleware.file :refer [wrap-file]]
-            [ring.middleware.resource :refer [wrap-resource]]))
+            [ring.middleware.resource :refer [wrap-resource]]
+            [taoensso.timbre :as log]))
 
 (def no-cache     "max-age=0,no-cache,no-store")
 (def cache-30d    "public,max-age=2592000,s-maxage=2592000")
@@ -12,18 +13,23 @@
 (defn cache-control
   "Add Cache Control Headers for successful responses"
   [url response]
-  (if (success? response)
-    (cond
-      (string/ends-with? url ".html") (assoc-in response [:headers "Cache-Control"] no-cache)
-      (string/ends-with? url "/")     (assoc-in response [:headers "Cache-Control"] no-cache)
-      :else                           (assoc-in response [:headers "Cache-Control"] cache-30d))
-    response))
+  (cond
+    (nil? response)     (log/info "Cache control: No matched route for request!")
+    (success? response) (cond
+                          (string/ends-with? url ".html") (assoc-in response [:headers "Cache-Control"] no-cache)
+                          (string/ends-with? url "/")     (assoc-in response [:headers "Cache-Control"] no-cache)
+                          :else                           (assoc-in response [:headers "Cache-Control"] cache-30d))
+    :else               response))
 
 (defn wrap-cache-control
   "Wraps responses with a cache-control header"
   [handler]
   (fn [request]
-    (cache-control (:uri request) (handler request))))
+    (let [resp (handler request)]
+      (log/infof "Generating Cache control headers for request-id %s\nwith RESPONSE\n%s"
+                 (:request-id request)
+                 (with-out-str (clojure.pprint/pprint resp)))
+      (cache-control (:uri request) resp))))
 
 (defn classpath-static-content-wrapper
   ([options]

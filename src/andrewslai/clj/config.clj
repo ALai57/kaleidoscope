@@ -31,6 +31,13 @@
       keycloak/make-keycloak
       auth/oauth-backend))
 
+(defn configure-auth
+  "Is OAUTH is disabled, always authenticate as a user with `wedding` access"
+  [env]
+  (if (Boolean/parseBoolean (get env "ANDREWSLAI_OAUTH_DISABLED"))
+    (auth/always-authenticated-backend {:realm_access {:roles ["wedding"]}})
+    (configure-keycloak env)))
+
 (defn configure-logging
   [env]
   (merge log/*config* {:level (keyword (get env "ANDREWSLAI_LOG_LEVEL" "info"))}))
@@ -63,11 +70,11 @@
 (defn configure-from-env
   [env]
   {:port       (configure-port env)
-   :andrewslai {:auth           (configure-keycloak env)
+   :andrewslai {:auth           (configure-auth env)
                 :database       (configure-database env)
                 :logging        (configure-logging env)
                 :static-content (configure-frontend-bucket env)}
-   :wedding    {:auth         (configure-keycloak env)
+   :wedding    {:auth         (configure-auth env)
                 :access-rules (configure-wedding-access env)
                 :storage      (configure-wedding-storage env)
                 :logging      (configure-logging env)}})
