@@ -32,8 +32,10 @@
   [file]
   (java.io.FileInputStream. ^java.io.File file))
 
+;; For local development
 (defroutes index
   (GET "/index.html" []
+    (log/info "Fetching `wedding-index.html` locally")
     (-> (ring-resp/resource-response "wedding-index.html" {:root "public"})
         (ring-resp/content-type "text/html"))))
 

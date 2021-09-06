@@ -123,7 +123,8 @@
                        #_(partial debug-log-request! "Finished middleware processing")
                        ]}
          ping-routes
-         wedding/index
+         ;; Useful for local debugging until I set up something better
+         ;;wedding/index
          wedding/upload-routes
          (route/not-found "No matching route"))))
 

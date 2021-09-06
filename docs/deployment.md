@@ -12,8 +12,12 @@ docker build -t andrewslai .
 
 Against the cloud
 ```bash
-docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai
+docker run -v$HOME/.aws:/root/.aws:ro \
+           --env-file=.env.aws \
+           -p 5000:5000 andrewslai 
 ```
+
+(To start the container and )docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai
 
 Against local DB
 ```bash 
