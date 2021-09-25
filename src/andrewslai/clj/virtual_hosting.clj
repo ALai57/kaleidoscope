@@ -1,5 +1,4 @@
 (ns andrewslai.clj.virtual-hosting
-  (:gen-class)
   (:require [clojure.spec.alpha :as s]
             [ring.util.request :as req]
             [taoensso.timbre :as log]))

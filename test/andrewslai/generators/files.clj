@@ -1,6 +1,5 @@
 (ns andrewslai.generators.files
-  (:require [andrewslai.clj.persistence.s3]
-            [andrewslai.generators.networking :as gen-net]
+  (:require [andrewslai.generators.networking :as gen-net]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [clojure.test.check.generators :as gen]))

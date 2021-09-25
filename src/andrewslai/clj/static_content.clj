@@ -1,10 +1,9 @@
 (ns andrewslai.clj.static-content
-  (:require [andrewslai.clj.persistence.memory :as memory]
-            [andrewslai.clj.protocols.core :as protocols]
+  (:require [andrewslai.clj.protocols.core :as protocols]
             [clojure.string :as string]
-            [ring.util.http-predicates :refer [success?]]
             [ring.middleware.file :refer [wrap-file]]
             [ring.middleware.resource :refer [wrap-resource]]
+            [ring.util.http-predicates :refer [success?]]
             [taoensso.timbre :as log]))
 
 (def no-cache  "max-age=0,no-cache,no-store")
