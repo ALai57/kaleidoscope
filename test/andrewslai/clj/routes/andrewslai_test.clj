@@ -1,10 +1,12 @@
 (ns andrewslai.clj.routes.andrewslai-test
-  (:require [andrewslai.clj.routes.andrewslai :as andrewslai]
+  (:require [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
+            [andrewslai.clj.persistence.articles-test :as a]
+            [andrewslai.clj.routes.andrewslai :as andrewslai]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [buddy.auth.middleware :refer [wrap-authentication]]
-            [clojure.test :refer [deftest is testing use-fixtures]]
-            [matcher-combinators.test]
+            [clojure.spec.alpha :as s]
+            [clojure.test :refer [are deftest is testing use-fixtures]]
             [ring.mock.request :as mock]
             [taoensso.timbre :as log]))
 
@@ -12,6 +14,15 @@
   (fn [f]
     (log/with-log-level :fatal
       (f))))
+
+(defn article?
+  [x]
+  (s/valid? :andrewslai.article/article x))
+
+(defn articles?
+  [x]
+  (s/valid? :andrewslai.article/articles x))
+
 
 (deftest ping-test
   (let [handler (tu/wrap-clojure-response (andrewslai/andrewslai-app {}))]
@@ -40,6 +51,64 @@
     (handler (mock/request :get "/ping"))
     (is (= 1 (count @logging-atom)))))
 
+(deftest access-rule-configuration-test
+  (with-embedded-postgres database
+    (are [description expected request]
+      (testing description
+        (let [handler (andrewslai/andrewslai-app {:auth           (tu/unauthenticated-backend)
+                                                  :database       database
+                                                  :static-content (sc/classpath-static-content-wrapper "public" {})})]
+          (is (match? expected (handler request)))))
+
+      "GET `/ping` is publically accessible"
+      {:status 200} (mock/request :get "/ping")
+
+      "GET `/` is publically accessible"
+      {:status 200} (mock/request :get "/")
+
+      "POST `/swagger.json` is publically accessible"
+      {:status 200} (mock/request :get "/swagger.json")
+
+      "GET `/articles` is publically accessible"
+      {:status 200} (mock/request :get "/articles")
+
+      "GET `/articles/does-not-exist` is publically accessible"
+      {:status 404} (mock/request :get "/articles/does-not-exist")
+
+      "PUT `/articles/new-article` is not publically accessible"
+      {:status 401} (mock/request :put "/articles/new-article"))))
+
+(deftest article-retrieval-test
+  (with-embedded-postgres database
+    (are [endpoint expected]
+      (testing (format "%s returns %s" endpoint expected)
+        (is (match? expected
+                    (tu/app-request (andrewslai/andrewslai-app {:database database})
+                                    (mock/request :get endpoint)))))
+
+      "/articles"                  {:status 200 :body articles?}
+      "/articles/my-first-article" {:status 200 :body article?}
+      "/articles/does-not-exist"   {:status 404})))
+
+(deftest create-article-happy-path
+  (with-embedded-postgres database
+    (let [app (-> {:database database
+                   :auth     (tu/authenticated-backend)}
+                  andrewslai/andrewslai-app
+                  tu/wrap-clojure-response)
+          url (format "/articles/%s" (:article_url a/example-article))]
+
+      (testing "404 when article not yet created"
+        (is (match? {:status 404} (app (mock/request :get url)))))
+
+      (testing "Article creation succeeds"
+        (is (match? {:status 200 :body article?}
+                    (app (-> (mock/request :put url)
+                             (mock/json-body a/example-article)
+                             (mock/header "Authorization" (str "Bearer " tu/valid-token)))))))
+
+      (testing "Article retrieval succeeds"
+        (is (match? {:status 200 :body article?} (app (mock/request :get url))))))))
 
 (comment
   (deftest authentication-middleware-test
