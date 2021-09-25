@@ -13,44 +13,43 @@
       (f))))
 
 (deftest ping-test
-  (is (match? {:status  200
-               :headers {"Content-Type" #"application/json"}
-               :body    {:revision string?}}
-              (tu/app-request (h/andrewslai-app {})
-                              {:request-method :get
-                               :uri            "/ping"}))))
+  (let [handler (tu/wrap-clojure-response (h/andrewslai-app {}))]
+    (is (match? {:status  200
+                 :headers {"Content-Type" #"application/json"}
+                 :body    {:revision string?}}
+                (handler {:request-method :get
+                          :uri            "/ping"})))))
 
 (deftest home-test
-  (is (match? {:status  200
-               :headers {"Content-Type" #"text/html"}
-               :body    tu/file?}
-              (tu/app-request (h/andrewslai-app {:static-content (sc/classpath-static-content-wrapper "public" {})})
-                              {:request-method :get
-                               :uri            "/"}
-                              {:parser identity}))))
+  (let [handler (h/andrewslai-app {:static-content (sc/classpath-static-content-wrapper "public" {})})]
+    (is (match? {:status  200
+                 :headers {"Content-Type" #"text/html"}
+                 :body    tu/file?}
+                (handler {:request-method :get
+                          :uri            "/"})))))
 
 (deftest swagger-test
-  (is (match? {:status  200
-               :headers {"Content-Type" #"application/json"}
-               :body    map?}
-              (tu/app-request (h/andrewslai-app {})
-                              {:request-method :get
-                               :uri            "/swagger.json"}))))
+  (let [handler (tu/wrap-clojure-response (h/andrewslai-app {}))]
+    (is (match? {:status  200
+                 :headers {"Content-Type" #"application/json"}
+                 :body    map?}
+                (handler {:request-method :get
+                          :uri            "/swagger.json"})))))
 
 (deftest logging-test
-  (let [logging-atom (atom [])]
-    (tu/app-request (h/andrewslai-app {:logging (tu/captured-logging logging-atom)})
-                    {:request-method :get
-                     :uri            "/ping"})
+  (let [logging-atom (atom [])
+        handler      (h/andrewslai-app {:logging (tu/captured-logging logging-atom)})]
+    (handler {:request-method :get
+              :uri            "/ping"})
     (is (= 1 (count @logging-atom)))))
 
 (deftest authentication-middleware-test
-  (let [app (wrap-authentication identity (tu/authenticated-backend))]
+  (let [handler (wrap-authentication identity (tu/authenticated-backend))]
     (is (match? {:identity {:foo "bar"}}
-                (app {:headers {"Authorization" (tu/bearer-token {:foo :bar})}})))))
+                (handler {:headers {"Authorization" (tu/bearer-token {:foo :bar})}})))))
 
 (deftest authentication-middleware-failure-test
-  (let [app  (wrap-authentication identity (tu/unauthenticated-backend))
-        resp (app {:headers {"Authorization" (str "Bearer " tu/valid-token)}})]
-    (is (nil? (:identity resp)))))
-
+  (let [handler (wrap-authentication identity (tu/unauthenticated-backend))]
+    (is (not (-> {:headers {"Authorization" (str "Bearer " tu/valid-token)}}
+                 (handler)
+                 (:identity))))))

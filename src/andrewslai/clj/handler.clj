@@ -71,8 +71,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; (require '[ring.middleware.stacktrace :refer [wrap-stacktrace]])
 
-;; TODO: App won't start properly if all component keys are not specified
-;;       Difficult to trace down why this happens, so need better error handling
 (defn andrewslai-app
   [{:keys [auth logging static-content] :as components}]
   (log/with-config (:logging components)

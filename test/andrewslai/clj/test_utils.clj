@@ -45,6 +45,11 @@
                         (auth/valid? [_ token]
                           true))))
 
+(defn wrap-clojure-response
+  [handler]
+  (fn [request]
+    (update (handler request) :body #(json/parse-string % keyword))))
+
 (defn app-request
   [app request & [{:keys [parser]
                    :or   {parser #(json/parse-string % keyword)}}]]
