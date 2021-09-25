@@ -17,15 +17,16 @@
            (into {})
            clojure.walk/keywordize-keys))
 
+(defn short-sha
+  []
+  (-> (sh "git" "rev-parse" "--short" "HEAD")
+      :out
+      trim))
+
 (defn get-version-details []
   (or (parse-pom pom-path)
-      {:revision (-> (sh "git" "rev-parse" "--short" "HEAD")
-                     :out
-                     trim)}))
-
-(defn ping-handler []
-  (ok (get-version-details)))
+      {:revision (short-sha)}))
 
 (defroutes ping-routes
   (GET "/ping" []
-    (ping-handler)))
+    (ok (get-version-details))))

@@ -73,13 +73,13 @@
 
 (defn andrewslai-app
   [{:keys [auth logging static-content] :as components}]
-  (log/with-config (:logging components)
+  (log/with-config logging
     (api {:components (dissoc components :static-content)
           :middleware [wrap-request-identifier
-                       log-request!
                        wrap-redirect-to-index
                        wrap-content-type
                        wrap-json-response
+                       log-request!
                        (or static-content identity)
                        #(ba/wrap-authorization % auth)
                        #(ba/wrap-authentication % auth)

@@ -3,8 +3,9 @@
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [buddy.auth.middleware :refer [wrap-authentication]]
-            [clojure.test :refer [deftest is use-fixtures]]
+            [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test]
+            [ring.mock.request :as mock]
             [taoensso.timbre :as log]))
 
 (use-fixtures :once
@@ -17,30 +18,26 @@
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    {:revision string?}}
-                (handler {:request-method :get
-                          :uri            "/ping"})))))
+                (handler (mock/request :get "/ping"))))))
 
 (deftest home-test
   (let [handler (h/andrewslai-app {:static-content (sc/classpath-static-content-wrapper "public" {})})]
     (is (match? {:status  200
                  :headers {"Content-Type" #"text/html"}
                  :body    tu/file?}
-                (handler {:request-method :get
-                          :uri            "/"})))))
+                (handler (mock/request :get "/"))))))
 
 (deftest swagger-test
   (let [handler (tu/wrap-clojure-response (h/andrewslai-app {}))]
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    map?}
-                (handler {:request-method :get
-                          :uri            "/swagger.json"})))))
+                (handler (mock/request :get "/swagger.json"))))))
 
 (deftest logging-test
   (let [logging-atom (atom [])
         handler      (h/andrewslai-app {:logging (tu/captured-logging logging-atom)})]
-    (handler {:request-method :get
-              :uri            "/ping"})
+    (handler (mock/request :get "/ping"))
     (is (= 1 (count @logging-atom)))))
 
 (deftest authentication-middleware-test
