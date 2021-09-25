@@ -15,6 +15,10 @@
     (log/with-log-level :fatal
       (f))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Predicates
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn article?
   [x]
   (s/valid? :andrewslai.article/article x))
@@ -26,6 +30,10 @@
 (defn portfolio?
   [x]
   (s/valid? :andrewslai.portfolio/portfolio x))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Testing HTTP routes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest ping-test
   (let [handler (tu/wrap-clojure-response (andrewslai/andrewslai-app {}))]
@@ -47,6 +55,14 @@
                  :headers {"Content-Type" #"application/json"}
                  :body    map?}
                 (handler (mock/request :get "/swagger.json"))))))
+
+(deftest admin-routes-test
+  (let [app (-> {:auth (tu/authenticated-backend)}
+                (andrewslai/andrewslai-app)
+                (tu/wrap-clojure-response))]
+    (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
+                (app (-> (mock/request :get "/admin/")
+                         (mock/header "Authorization" (tu/bearer-token "an-authenticated-user"))))))))
 
 (deftest logging-test
   (let [logging-atom (atom [])
@@ -87,6 +103,12 @@
       "PUT `/articles/new-article` is not publically accessible"
       {:status 401} (mock/request :put "/articles/new-article"))))
 
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Test of Blogging API
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (deftest article-retrieval-test
   (with-embedded-postgres database
     (are [endpoint expected]
@@ -119,30 +141,14 @@
       (testing "Article retrieval succeeds"
         (is (match? {:status 200 :body article?} (app (mock/request :get url))))))))
 
-(deftest resume-info-test
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Test Resume API
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest portfolio-test
   (with-embedded-postgres database
     (let [app (-> {:database database}
                   (andrewslai/andrewslai-app)
                   (tu/wrap-clojure-response))]
       (is (match? {:status 200 :body portfolio?}
                   (app (mock/request :get "/projects-portfolio")))))))
-
-(deftest admin-routes-test
-  (let [app (-> {:auth (tu/authenticated-backend)}
-                (andrewslai/andrewslai-app)
-                (tu/wrap-clojure-response))]
-    (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
-                (app (-> (mock/request :get "/admin/")
-                         (mock/header "Authorization" (tu/bearer-token "an-authenticated-user"))))))))
-
-(comment
-  (deftest authentication-middleware-test
-    (let [handler (wrap-authentication identity (tu/authenticated-backend))]
-      (is (match? {:identity {:foo "bar"}}
-                  (handler {:headers {"Authorization" (tu/bearer-token {:foo :bar})}})))))
-
-  (deftest authentication-middleware-failure-test
-    (let [handler (wrap-authentication identity (tu/unauthenticated-backend))]
-      (is (not (-> {:headers {"Authorization" (str "Bearer " tu/valid-token)}}
-                   (handler)
-                   (:identity)))))))
