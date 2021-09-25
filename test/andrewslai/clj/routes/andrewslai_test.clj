@@ -72,6 +72,9 @@
       "POST `/swagger.json` is publically accessible"
       {:status 200} (mock/request :get "/swagger.json")
 
+      "GET `/admin` is not publically accessible"
+      {:status 401} (mock/request :get "/admin")
+
       "GET `/projects-portfolio` is publically accessible"
       {:status 200} (mock/request :get "/projects-portfolio")
 
@@ -123,6 +126,14 @@
                   (tu/wrap-clojure-response))]
       (is (match? {:status 200 :body portfolio?}
                   (app (mock/request :get "/projects-portfolio")))))))
+
+(deftest admin-routes-test
+  (let [app (-> {:auth (tu/authenticated-backend)}
+                (andrewslai/andrewslai-app)
+                (tu/wrap-clojure-response))]
+    (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
+                (app (-> (mock/request :get "/admin/")
+                         (mock/header "Authorization" (tu/bearer-token {:realm_access {:roles []}}))))))))
 
 (comment
   (deftest authentication-middleware-test
