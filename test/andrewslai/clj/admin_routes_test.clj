@@ -1,7 +1,7 @@
 (ns andrewslai.clj.admin-routes-test
   (:require [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
-            [andrewslai.clj.handler :as h]
+            [andrewslai.clj.routes.andrewslai :as andrewslai]
             [andrewslai.clj.test-utils :as tu]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.test]
@@ -16,7 +16,7 @@
   (are [description auth-backend expected]
     (testing description
       (is (match? expected
-                  (tu/app-request (h/andrewslai-app {:auth auth-backend})
+                  (tu/app-request (andrewslai/andrewslai-app {:auth auth-backend})
                                   {:request-method :get
                                    :uri            "/admin/"
                                    :headers        (tu/auth-header [])}))))

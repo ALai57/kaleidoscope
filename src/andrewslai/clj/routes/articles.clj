@@ -1,13 +1,12 @@
 (ns andrewslai.clj.routes.articles
   (:require [andrewslai.clj.api.articles :as articles-api]
-            [andrewslai.clj.routes.admin :as admin]
             [andrewslai.clj.auth.core :as auth]
+            [andrewslai.clj.routes.admin :as admin]
             [buddy.auth.accessrules :refer [restrict]]
             [clojure.spec.alpha :as s]
             [compojure.api.meta :as compojure-meta]
             [compojure.api.sweet :refer [context GET PUT]]
             [ring.util.http-response :refer [not-found ok]]
-            [spec-tools.swagger.core :as swagger]
             [taoensso.timbre :as log]))
 
 (s/def ::message string?)

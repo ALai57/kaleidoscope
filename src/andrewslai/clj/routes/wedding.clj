@@ -3,12 +3,26 @@
             [amazonica.core :as amazon]
             [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [buddy.auth.accessrules :as ar]
-            [clojure.java.io :as io]
-            [compojure.api.sweet :refer [context defroutes GET POST PUT]]
-            [ring.util.http-response :refer [ok created]]
+            [andrewslai.clj.routes.middleware :as mw]
+            [andrewslai.clj.routes.ping :refer [ping-routes]]
+            [andrewslai.clj.static-content :as sc]
+            [buddy.auth.accessrules :as ar :refer [wrap-access-rules]]
+            [buddy.auth.middleware :as ba]
+            [compojure.api.sweet :refer [api context defroutes GET POST]]
+            [compojure.route :as route]
+            [ring.middleware.content-type :refer [wrap-content-type]]
+            [ring.middleware.json :refer [wrap-json-response]]
+            [ring.middleware.multipart-params :refer [wrap-multipart-params]]
+            [ring.middleware.params :refer [wrap-params]]
+            [ring.util.http-response :refer [created unauthorized]]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
+
+(defn exception-handler
+  [e data request]
+  (log/errorf "Error: %s, %s"
+              (ex-message e)
+              (clojure.stacktrace/print-stack-trace e)))
 
 (def MEDIA-FOLDER
   "media")
@@ -62,6 +76,35 @@
                      metadata)
         (created (format "/%s" file-path)
                  "Created file")))))
+
+
+(defn wedding-app
+  [{:keys [auth logging storage access-rules] :as components}]
+  (log/with-config logging
+    (api {:components (select-keys components [:storage :logging])
+          :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
+          :middleware [mw/wrap-request-identifier
+                       mw/wrap-redirect-to-index
+                       wrap-content-type
+                       wrap-json-response
+                       wrap-multipart-params
+                       wrap-params
+                       mw/log-request!
+
+                       (sc/static-content storage)
+                       #(ba/wrap-authorization % auth)
+                       #(ba/wrap-authentication % auth)
+                       #(wrap-access-rules % {:rules access-rules
+                                              :reject-handler (fn [& args]
+                                                                (unauthorized))})
+                       #_(partial debug-log-request! "Finished middleware processing")
+                       ]}
+         ping-routes
+         ;; Useful for local debugging until I set up something better
+         ;;wedding/index
+         upload-routes
+         (route/not-found "No matching route"))))
+
 
 (comment
   (s3-path [MEDIA-FOLDER "something.ptg"])

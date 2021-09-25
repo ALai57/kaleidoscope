@@ -1,7 +1,7 @@
 (ns andrewslai.clj.articles-routes-test
   (:require [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
             [andrewslai.clj.auth.keycloak :as keycloak]
-            [andrewslai.clj.handler :as h]
+            [andrewslai.clj.routes.andrewslai :as andrewslai]
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]
@@ -27,7 +27,7 @@
     (are [endpoint expected]
       (testing (format "%s returns %s" endpoint expected)
         (is (match? expected
-                    (tu/app-request (h/andrewslai-app {:database database})
+                    (tu/app-request (andrewslai/andrewslai-app {:database database})
                                     {:request-method :get
                                      :uri            endpoint}))))
 
@@ -37,7 +37,7 @@
 
 (deftest create-article-happy-path
   (with-embedded-postgres database
-    (let [app (h/andrewslai-app {:database database
+    (let [app (andrewslai/andrewslai-app {:database database
                                  :auth     (tu/authenticated-backend)})
           url (str "/articles/" (:article_url a/example-article))]
 
@@ -65,7 +65,7 @@
                                      :uri            url})))))))
 
 (deftest cannot-create-article-with-unauthenticated-user
-  (let [app (h/andrewslai-app {:database nil
+  (let [app (andrewslai/andrewslai-app {:database nil
                                :auth     (tu/unauthenticated-backend)})
         url (str "/articles/" (:article_url a/example-article))]
     (is (match? {:status 401

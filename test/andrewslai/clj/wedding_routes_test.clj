@@ -1,6 +1,6 @@
 (ns andrewslai.clj.wedding-routes-test
   (:require [andrewslai.clj.auth.core :as auth]
-            [andrewslai.clj.handler :as h]
+            [andrewslai.clj.routes.wedding :as wedding]
             [andrewslai.clj.persistence.filesystem :as fs]
             [andrewslai.clj.persistence.memory :as memory]
             [andrewslai.clj.protocols.core :as protocols]
@@ -47,9 +47,9 @@
   (are [description auth-backend expected]
     (testing description
       (let [in-mem-fs (atom example-fs)
-            app       (h/wedding-app {:auth         auth-backend
-                                      :access-rules wedding/access-rules
-                                      :storage      (memory/map->MemFS {:store in-mem-fs})})]
+            app       (wedding/wedding-app {:auth         auth-backend
+                                            :access-rules wedding/access-rules
+                                            :storage      (memory/map->MemFS {:store in-mem-fs})})]
         (is (match? expected
                     (tu/app-request app
                                     {:request-method :get
@@ -86,9 +86,9 @@
 
 (deftest upload-test
   (let [in-mem-fs  (atom {})
-        app        (h/wedding-app {:auth         (tu/authenticated-backend)
-                                   :access-rules wedding/access-rules
-                                   :storage      (memory/map->MemFS {:store in-mem-fs})})
+        app        (wedding/wedding-app {:auth         (tu/authenticated-backend)
+                                         :access-rules wedding/access-rules
+                                         :storage      (memory/map->MemFS {:store in-mem-fs})})
         mp-request (fn []
                      "Needs to be a fn so that the InputStream isn't consumed twice"
                      (assemble-multipart "my boundary here"
