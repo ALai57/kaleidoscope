@@ -101,7 +101,7 @@
                        ]}
          ping-routes
          ;; Useful for local debugging until I set up something better
-         ;;wedding/index
+         ;;index
          upload-routes
          (route/not-found "No matching route"))))
 
