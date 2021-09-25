@@ -23,6 +23,9 @@
   [x]
   (s/valid? :andrewslai.article/articles x))
 
+(defn portfolio?
+  [x]
+  (s/valid? :andrewslai.portfolio/portfolio x))
 
 (deftest ping-test
   (let [handler (tu/wrap-clojure-response (andrewslai/andrewslai-app {}))]
@@ -69,6 +72,9 @@
       "POST `/swagger.json` is publically accessible"
       {:status 200} (mock/request :get "/swagger.json")
 
+      "GET `/projects-portfolio` is publically accessible"
+      {:status 200} (mock/request :get "/projects-portfolio")
+
       "GET `/articles` is publically accessible"
       {:status 200} (mock/request :get "/articles")
 
@@ -109,6 +115,14 @@
 
       (testing "Article retrieval succeeds"
         (is (match? {:status 200 :body article?} (app (mock/request :get url))))))))
+
+(deftest resume-info-test
+  (with-embedded-postgres database
+    (let [app (-> {:database database}
+                  (andrewslai/andrewslai-app)
+                  (tu/wrap-clojure-response))]
+      (is (match? {:status 200 :body portfolio?}
+                  (app (mock/request :get "/projects-portfolio")))))))
 
 (comment
   (deftest authentication-middleware-test
