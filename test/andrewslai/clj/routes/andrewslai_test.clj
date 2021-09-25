@@ -133,7 +133,7 @@
                 (tu/wrap-clojure-response))]
     (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
                 (app (-> (mock/request :get "/admin/")
-                         (mock/header "Authorization" (tu/bearer-token {:realm_access {:roles []}}))))))))
+                         (mock/header "Authorization" (tu/bearer-token "an-authenticated-user"))))))))
 
 (comment
   (deftest authentication-middleware-test
