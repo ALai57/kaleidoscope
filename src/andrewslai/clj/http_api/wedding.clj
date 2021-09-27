@@ -5,7 +5,7 @@
             [andrewslai.clj.persistence.filesystem :as fs]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
-            [andrewslai.clj.static-content :as sc]
+            [andrewslai.clj.http-api.static-content :as sc]
             [buddy.auth.accessrules :as ar :refer [wrap-access-rules]]
             [buddy.auth.middleware :as ba]
             [compojure.api.sweet :refer [api context defroutes GET POST]]

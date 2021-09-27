@@ -1,7 +1,7 @@
 (ns andrewslai.clj.http-api.wedding-test
   (:require [andrewslai.clj.persistence.memory :as memory]
             [andrewslai.clj.http-api.wedding :as wedding]
-            [andrewslai.clj.static-content :as sc]
+            [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.utils :as u]
             [clj-http.client :as http]

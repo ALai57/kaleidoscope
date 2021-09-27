@@ -1,7 +1,7 @@
 (ns andrewslai.clj.config-test
   (:require [andrewslai.clj.config :as cfg]
             [andrewslai.clj.protocols.s3 :as s3p]
-            [andrewslai.clj.static-content :as sc]
+            [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [clojure.test :refer [deftest is use-fixtures]]
             [matcher-combinators.test]
