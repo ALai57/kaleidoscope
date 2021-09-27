@@ -1,4 +1,4 @@
-(ns andrewslai.clj.routes.swagger
+(ns andrewslai.clj.http-api.swagger
   (:require [andrewslai.clj.utils :as utils]
             [compojure.api.middleware :as mw]
             [compojure.api.swagger :as swag]

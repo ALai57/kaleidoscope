@@ -4,7 +4,7 @@
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.persistence.s3 :as s3-storage]
             [andrewslai.clj.protocols.core :as protocols]
-            [andrewslai.clj.routes.wedding :as wedding]
+            [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.static-content :as sc]
             [taoensso.timbre :as log]))
 

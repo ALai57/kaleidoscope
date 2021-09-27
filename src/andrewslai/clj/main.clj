@@ -3,8 +3,8 @@
   (:require [aleph.http :as http]
             [andrewslai.clj.config :as cfg]
             [andrewslai.clj.handler :as h]
-            [andrewslai.clj.routes.andrewslai :as andrewslai]
-            [andrewslai.clj.routes.wedding :as wedding]
+            [andrewslai.clj.http-api.andrewslai :as andrewslai]
+            [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.virtual-hosting :as vh]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))

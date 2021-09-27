@@ -1,4 +1,4 @@
-(ns andrewslai.clj.routes.ping
+(ns andrewslai.clj.http-api.ping
   (:require [clojure.java.shell :refer [sh]]
             [clojure.string :refer [trim]]
             [compojure.api.sweet :refer [defroutes GET]]

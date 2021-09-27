@@ -1,4 +1,4 @@
-(ns andrewslai.clj.routes.admin
+(ns andrewslai.clj.http-api.admin
   (:require [buddy.auth.accessrules :refer [restrict]]
             [compojure.api.sweet :refer [context defroutes GET]]
             [ring.util.http-response :refer [ok]]

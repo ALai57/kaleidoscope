@@ -6,7 +6,7 @@
             [clojure.test :refer [deftest is use-fixtures]]
             [matcher-combinators.test]
             [taoensso.timbre :as log]
-            [andrewslai.clj.routes.wedding :as wedding]))
+            [andrewslai.clj.http-api.wedding :as wedding]))
 
 (use-fixtures :once
   (fn [f]

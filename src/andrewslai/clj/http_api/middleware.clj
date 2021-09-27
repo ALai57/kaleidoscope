@@ -1,4 +1,4 @@
-(ns andrewslai.clj.routes.middleware
+(ns andrewslai.clj.http-api.middleware
   (:gen-class)
   (:require [compojure.api.middleware :as mw]
             [taoensso.timbre :as log]))

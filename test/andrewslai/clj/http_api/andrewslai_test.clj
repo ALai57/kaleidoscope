@@ -1,7 +1,7 @@
-(ns andrewslai.clj.routes.andrewslai-test
+(ns andrewslai.clj.http-api.andrewslai-test
   (:require [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
             [andrewslai.clj.persistence.articles-test :as a]
-            [andrewslai.clj.routes.andrewslai :as andrewslai]
+            [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [buddy.auth.middleware :refer [wrap-authentication]]

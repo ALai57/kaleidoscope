@@ -1,6 +1,6 @@
 (ns andrewslai.clj.wedding-routes-test
   (:require [andrewslai.clj.persistence.memory :as memory]
-            [andrewslai.clj.routes.wedding :as wedding]
+            [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.utils :as u]

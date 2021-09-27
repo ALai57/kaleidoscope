@@ -1,5 +1,5 @@
-(ns andrewslai.clj.routes.ping-test
-  (:require [andrewslai.clj.routes.ping :as ping]
+(ns andrewslai.clj.http-api.ping-test
+  (:require [andrewslai.clj.http-api.ping :as ping]
             [clojure.test :refer [deftest is]]
             [ring.mock.request :as mock]))
 
