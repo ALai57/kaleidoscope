@@ -26,6 +26,18 @@ lein do clean, uberjar
 docker build -t andrewslai .
 ```
 
+#### Run without Docker
+``` clojure
+lein run
+```
+
+#### Run with Docker
+After docker build and setting up `.env.local` with correct environment
+
+``` clojure
+docker run --env-file=.env.local -p 5000:5000 andrewslai
+```
+
 ## Development
 For local development, see [local-development.md](./docs/local-development.md)
 
