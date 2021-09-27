@@ -1,8 +1,9 @@
-(ns andrewslai.clj.virtual-hosting
+(ns andrewslai.clj.http-api.virtual-hosting
   (:require [clojure.spec.alpha :as s]
             [ring.util.request :as req]
             [taoensso.timbre :as log]))
 
+;; Move specs to CLJC ns?
 (defn regex?
   [x]
   (= java.util.regex.Pattern (type x)))

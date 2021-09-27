@@ -5,7 +5,7 @@
             [andrewslai.clj.handler :as h]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.wedding :as wedding]
-            [andrewslai.clj.virtual-hosting :as vh]
+            [andrewslai.clj.http-api.virtual-hosting :as vh]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
