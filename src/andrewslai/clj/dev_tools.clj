@@ -1,6 +1,13 @@
 (ns andrewslai.clj.dev-tools
-  (:require [andrewslai.clj.persistence.postgres2 :as pg]
-            [andrewslai.clj.utils :as util]))
+  (:require [andrewslai.clj.http-api.andrewslai :as andrewslai]
+            [andrewslai.clj.persistence.postgres2 :as pg]
+            [andrewslai.clj.utils.core :as util]
+            [ring.middleware.session.memory :as mem]
+            [taoensso.timbre :as log]))
+
+(def figwheel-app
+  (andrewslai/andrewslai-app {:database (pg/->Database (util/pg-conn))
+                              :logging  (merge log/*config* {:level :info})}))
 
 (defn postgres-db
   ([]

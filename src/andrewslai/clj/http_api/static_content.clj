@@ -1,4 +1,4 @@
-(ns andrewslai.clj.static-content
+(ns andrewslai.clj.http-api.static-content
   (:require [andrewslai.clj.protocols.core :as protocols]
             [clojure.string :as string]
             [ring.middleware.file :refer [wrap-file]]

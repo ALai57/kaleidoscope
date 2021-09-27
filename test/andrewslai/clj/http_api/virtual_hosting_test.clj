@@ -1,6 +1,6 @@
-(ns andrewslai.clj.virtual-hosting-test
+(ns andrewslai.clj.http-api.virtual-hosting-test
   (:require [andrewslai.clj.test-utils :as tu]
-            [andrewslai.clj.virtual-hosting :as vh]
+            [andrewslai.clj.http-api.virtual-hosting :as vh]
             [andrewslai.generators.networking :as gen-net]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]

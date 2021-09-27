@@ -1,13 +1,15 @@
-(ns andrewslai.clj.routes.articles
+(ns andrewslai.clj.http-api.articles
   (:require [andrewslai.clj.api.articles :as articles-api]
             [andrewslai.clj.auth.core :as auth]
-            [andrewslai.clj.routes.admin :as admin]
+            [andrewslai.clj.http-api.admin :as admin]
             [buddy.auth.accessrules :refer [restrict]]
             [clojure.spec.alpha :as s]
             [compojure.api.meta :as compojure-meta]
             [compojure.api.sweet :refer [context GET PUT]]
             [ring.util.http-response :refer [not-found ok]]
             [taoensso.timbre :as log]))
+
+;; RENAME THIS TO ROUTES.BLOG
 
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))

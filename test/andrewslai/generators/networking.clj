@@ -1,5 +1,5 @@
 (ns andrewslai.generators.networking
-  (:require [andrewslai.clj.virtual-hosting]
+  (:require [andrewslai.clj.http-api.virtual-hosting]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [clojure.test.check.generators :as gen]))

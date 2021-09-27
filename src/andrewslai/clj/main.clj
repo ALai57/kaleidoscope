@@ -2,18 +2,19 @@
   (:gen-class)
   (:require [aleph.http :as http]
             [andrewslai.clj.config :as cfg]
-            [andrewslai.clj.handler :as h]
-            [andrewslai.clj.routes.andrewslai :as andrewslai]
-            [andrewslai.clj.routes.wedding :as wedding]
-            [andrewslai.clj.virtual-hosting :as vh]
+            [andrewslai.clj.http-api.andrewslai :as andrewslai]
+            [andrewslai.clj.http-api.virtual-hosting :as vh]
+            [andrewslai.clj.http-api.wedding :as wedding]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global settings (Yuck!)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(log/merge-config!
- {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}})
+(defn initialize!
+  []
+  (log/merge-config!
+   {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
@@ -33,4 +34,5 @@
   [& args]
   (let [{:keys [port] :as configuration} (cfg/configure-from-env (System/getenv))]
     (log/infof "Hello! Starting andrewslai on port %s" port)
-    (h/start-app configuration)))
+    (initialize!)
+    (start-app configuration)))

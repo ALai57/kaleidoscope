@@ -1,5 +1,5 @@
-(ns andrewslai.clj.files.images
-  (:require [andrewslai.clj.files.core :as fc]
+(ns andrewslai.clj.utils.files.images
+  (:require [andrewslai.clj.utils.files.core :as fc]
             [clojure.java.io :as io]
             [ring.util.mime-type :as mt])
   (:import [javax.imageio ImageIO]))
@@ -21,7 +21,7 @@
 (comment
   ;; https://stackoverflow.com/questions/17189129/extract-images-width-height-color-and-type-from-byte-array/26122845
 
-  (require '[andrewslai.clj.files.core :as fc])
+  (require '[andrewslai.clj.utils.files.core :as fc])
   (fc/extract-meta "resources/public/images/earthrise.png"
                    (io/file "resources/public/images/earthrise.png"))
 

@@ -1,4 +1,4 @@
-(ns andrewslai.clj.static-content-test
+(ns andrewslai.clj.http-api.static-content-test
   (:require [amazonica.aws.s3 :as s3]
             [andrewslai.clj.protocols.core :as protocols]
             [andrewslai.clj.persistence.s3 :as s3-storage]

@@ -1,11 +1,11 @@
-(ns andrewslai.clj.routes.wedding
+(ns andrewslai.clj.http-api.wedding
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
             [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.routes.middleware :as mw]
-            [andrewslai.clj.routes.ping :refer [ping-routes]]
-            [andrewslai.clj.static-content :as sc]
+            [andrewslai.clj.http-api.middleware :as mw]
+            [andrewslai.clj.http-api.ping :refer [ping-routes]]
+            [andrewslai.clj.http-api.static-content :as sc]
             [buddy.auth.accessrules :as ar :refer [wrap-access-rules]]
             [buddy.auth.middleware :as ba]
             [compojure.api.sweet :refer [api context defroutes GET POST]]

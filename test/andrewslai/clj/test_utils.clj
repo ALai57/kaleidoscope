@@ -1,6 +1,6 @@
 (ns andrewslai.clj.test-utils
   (:require [andrewslai.clj.auth.core :as auth]
-            [andrewslai.clj.routes.wedding :as wedding]
+            [andrewslai.clj.http-api.wedding :as wedding]
             [cheshire.core :as json]
             [clojure.java.io :as io]
             [clojure.string :as string]

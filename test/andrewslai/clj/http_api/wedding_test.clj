@@ -1,14 +1,15 @@
-(ns andrewslai.clj.wedding-routes-test
-  (:require [andrewslai.clj.persistence.memory :as memory]
-            [andrewslai.clj.routes.wedding :as wedding]
-            [andrewslai.clj.static-content :as sc]
+(ns andrewslai.clj.http-api.wedding-test
+  (:require [andrewslai.clj.auth.core :as auth]
+            [andrewslai.clj.http-api.static-content :as sc]
+            [andrewslai.clj.http-api.wedding :as wedding]
+            [andrewslai.clj.persistence.memory :as memory]
             [andrewslai.clj.test-utils :as tu]
-            [andrewslai.clj.utils :as u]
+            [andrewslai.clj.utils.core :as util]
             [clj-http.client :as http]
             [clojure.test :refer [are deftest is testing use-fixtures]]
-            [taoensso.timbre :as log]
+            [matcher-combinators.test :refer [match?]]
             [ring.mock.request :as mock]
-            [andrewslai.clj.auth.core :as auth]))
+            [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Fixtures and setup
@@ -94,16 +95,16 @@
                                          :storage      (memory/map->MemFS {:store in-mem-fs})})]
 
     (is (match? {:status 201}
-                (app (u/deep-merge {:headers        (tu/auth-header ["wedding"])
-                                    :request-method :post
-                                    :uri            "/media/"}
-                                   (tu/assemble-multipart "my boundary here"
-                                                          [{:part-name    "file-contents"
-                                                            :file-name    "lock.svg"
-                                                            :content-type "image/svg+xml"
-                                                            :content      (-> "public/images/lock.svg"
-                                                                              clojure.java.io/resource
-                                                                              slurp)}])))))
+                (app (util/deep-merge {:headers        (tu/auth-header ["wedding"])
+                                       :request-method :post
+                                       :uri            "/media/"}
+                                      (tu/assemble-multipart "my boundary here"
+                                                             [{:part-name    "file-contents"
+                                                               :file-name    "lock.svg"
+                                                               :content-type "image/svg+xml"
+                                                               :content      (-> "public/images/lock.svg"
+                                                                                 clojure.java.io/resource
+                                                                                 slurp)}])))))
 
     (is (match? {"media" {"lock.svg" {:name     "lock.svg"
                                       :path     "media/lock.svg"

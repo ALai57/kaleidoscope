@@ -1,10 +1,10 @@
-(ns andrewslai.clj.routes.andrewslai
-  (:require [andrewslai.clj.routes.admin :refer [admin-routes]]
-            [andrewslai.clj.routes.articles :refer [articles-routes]]
-            [andrewslai.clj.routes.middleware :as mw]
-            [andrewslai.clj.routes.ping :refer [ping-routes]]
-            [andrewslai.clj.routes.portfolio :refer [portfolio-routes]]
-            [andrewslai.clj.routes.swagger :refer [swagger-ui-routes]]
+(ns andrewslai.clj.http-api.andrewslai
+  (:require [andrewslai.clj.http-api.admin :refer [admin-routes]]
+            [andrewslai.clj.http-api.articles :refer [articles-routes]]
+            [andrewslai.clj.http-api.middleware :as mw]
+            [andrewslai.clj.http-api.ping :refer [ping-routes]]
+            [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
+            [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
             [buddy.auth.middleware :as ba]
             [compojure.api.sweet :refer [api]]
             [compojure.route :as route]
