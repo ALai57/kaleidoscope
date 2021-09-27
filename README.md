@@ -1,7 +1,8 @@
 # andrewslai
 
-Welcome to my personal website! This repository is the website backend. It
-contains:
+Welcome to my personal website! It is currently hosted at https://andrewslai.com.  
+
+This repository is the website backend. It contains:
 
 - **Backend**: Clojure web server on Java 11.  
 - **Infrastructure**: Terraform for AWS cloud infrastructure  
