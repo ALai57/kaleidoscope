@@ -1,5 +1,5 @@
-(ns andrewslai.clj.utils-test
-  (:require [andrewslai.clj.utils :refer :all]
+(ns andrewslai.clj.utils.core-test
+  (:require [andrewslai.clj.utils.core :refer :all]
             [clojure.test :refer [deftest is]]))
 
 

@@ -1,7 +1,7 @@
 (ns andrewslai.clj.dev-tools
   (:require [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.persistence.postgres2 :as pg]
-            [andrewslai.clj.utils :as util]
+            [andrewslai.clj.utils.core :as util]
             [ring.middleware.session.memory :as mem]
             [taoensso.timbre :as log]))
 

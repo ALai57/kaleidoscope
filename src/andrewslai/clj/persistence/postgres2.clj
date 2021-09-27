@@ -1,6 +1,6 @@
 (ns andrewslai.clj.persistence.postgres2
   (:require [andrewslai.clj.persistence.persistence :as p :refer [Persistence]]
-            [andrewslai.clj.utils :as util :refer [validate]]
+            [andrewslai.clj.utils.core :as util :refer [validate]]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [honeysql.core :as hsql]
@@ -75,7 +75,7 @@
                       {:subtype ex-subtype}))))))
 
 (comment
-  (require '[andrewslai.clj.utils :as util])
+  (require '[andrewslai.clj.utils.core :as util])
   (require '[honeysql.helpers :as hh])
 
   (def example-user

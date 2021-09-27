@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.migrations
-  (:require [andrewslai.clj.utils :as util]
+  (:require [andrewslai.clj.utils.core :as util]
             [clojure.java.jdbc :as sql]
             [migratus.core :as m]))
 

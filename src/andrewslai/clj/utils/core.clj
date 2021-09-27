@@ -1,4 +1,4 @@
-(ns andrewslai.clj.utils
+(ns andrewslai.clj.utils.core
   (:require [cheshire.core :as json]
             [clojure.data.codec.base64 :as b64]
             [clojure.spec.alpha :as s]
