@@ -1,4 +1,4 @@
-(ns andrewslai.clj.files.mime-types
+(ns andrewslai.clj.utils.files.mime-types
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as string]))
 

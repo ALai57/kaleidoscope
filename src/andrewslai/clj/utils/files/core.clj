@@ -1,6 +1,6 @@
-(ns andrewslai.clj.files.core
+(ns andrewslai.clj.utils.files.core
   (:require [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.files.mime-types :as mime]
+            [andrewslai.clj.utils.files.mime-types :as mime]
             [clojure.string :as string]
             [ring.util.mime-type :as mt]
             [clojure.spec.alpha :as s])
