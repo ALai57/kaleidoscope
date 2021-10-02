@@ -12,6 +12,7 @@ log.txt
 node_modules
 package-lock.json
 package.json
+resources/public/images/*
 resources/public/js/compiled/
 resources/public/js/test/
 *eb-default-vpc.json
