@@ -1,4 +1,4 @@
-(ns andrewslai.clj.protocols.s3
+(ns andrewslai.clj.utils.files.protocols.s3
   (:require [andrewslai.clj.utils.files.protocols.core :as protocols]
             [ring.util.response :as ring-response]))
 

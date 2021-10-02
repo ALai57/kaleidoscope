@@ -2,7 +2,7 @@
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.protocols.s3 :as s3p]
+            [andrewslai.clj.utils.files.protocols.s3 :as s3p]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [ring.util.http-response :refer [internal-server-error not-found]]
