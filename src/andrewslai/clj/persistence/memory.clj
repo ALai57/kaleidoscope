@@ -1,6 +1,6 @@
 (ns andrewslai.clj.persistence.memory
   (:require [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.protocols.mem :as memp]
+            [andrewslai.clj.utils.files.protocols.mem :as memp]
             [clojure.string :as string]))
 
 (defn tag-as

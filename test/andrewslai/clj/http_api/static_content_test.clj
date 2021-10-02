@@ -1,8 +1,8 @@
 (ns andrewslai.clj.http-api.static-content-test
   (:require [amazonica.aws.s3 :as s3]
-            [andrewslai.clj.protocols.core :as protocols]
+            [andrewslai.clj.utils.files.protocols.core :as protocols]
             [andrewslai.clj.persistence.s3 :as s3-storage]
-            [andrewslai.clj.protocols.mem :as memp]
+            [andrewslai.clj.utils.files.protocols.mem :as memp]
             [andrewslai.clj.test-utils :as tu]
             [biiwide.sandboxica.alpha :as sandbox]
             [clojure.test :refer [are deftest is use-fixtures]]

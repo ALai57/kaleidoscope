@@ -1,6 +1,6 @@
-(ns andrewslai.clj.protocols.core
+(ns andrewslai.clj.utils.files.protocols.core
   (:require [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.protocols.core :as protocols]
+            [andrewslai.clj.utils.files.protocols.core :as protocols]
             [clojure.string :as string]
             [ring.util.response :as ring-response])
   (:import [java.net URL URLClassLoader URLConnection URLStreamHandler]))

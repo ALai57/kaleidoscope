@@ -1,5 +1,5 @@
-(ns andrewslai.clj.protocols.mem
-  (:require [andrewslai.clj.protocols.core :as protocols]
+(ns andrewslai.clj.utils.files.protocols.mem
+  (:require [andrewslai.clj.utils.files.protocols.core :as protocols]
             [ring.util.response :as ring-response]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

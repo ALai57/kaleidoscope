@@ -3,7 +3,7 @@
             [andrewslai.clj.auth.keycloak :as keycloak]
             [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.persistence.s3 :as s3-storage]
-            [andrewslai.clj.protocols.core :as protocols]
+            [andrewslai.clj.utils.files.protocols.core :as protocols]
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.http-api.static-content :as sc]
             [taoensso.timbre :as log]))
