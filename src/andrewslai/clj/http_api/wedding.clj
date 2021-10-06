@@ -8,6 +8,7 @@
             [andrewslai.clj.http-api.static-content :as sc]
             [buddy.auth.accessrules :as ar :refer [wrap-access-rules]]
             [buddy.auth.middleware :as ba]
+            [clojure.stacktrace :as stacktrace]
             [compojure.api.sweet :refer [api context defroutes GET POST]]
             [compojure.route :as route]
             [ring.middleware.content-type :refer [wrap-content-type]]
@@ -22,7 +23,7 @@
   [e data request]
   (log/errorf "Error: %s, %s"
               (ex-message e)
-              (clojure.stacktrace/print-stack-trace e)))
+              (stacktrace/print-stack-trace e)))
 
 (def MEDIA-FOLDER
   "media")
