@@ -1,4 +1,4 @@
-(defproject org.clojars.alai57/andrewslai "0.0.44"
+(defproject org.clojars.alai57/andrewslai "0.0.45-SNAPSHOT"
   :url "https://github.com/ALai57/andrewslai"
   :license {:name         "Eclipse Public License - v 1.0"
             :url          "http://www.eclipse.org/legal/epl-v10.html"
@@ -20,7 +20,7 @@
                                                                         org.apache.httpcomponents/httpclient]]
                  [com.twelvemonkeys.imageio/imageio-batik "3.7.0"]
                  [com.twelvemonkeys.servlet/servlet "3.7.0"]
-                 [com.taoensso/timbre "4.10.0"]
+                 [com.taoensso/timbre "5.1.2"]
                  [honeysql "0.9.10"]
                  [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
                  [javax.servlet/servlet-api "2.5"]
