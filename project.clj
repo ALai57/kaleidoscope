@@ -43,6 +43,7 @@
                  [org.keycloak/keycloak-common "12.0.3"]
                  [org.keycloak/keycloak-core "12.0.3" :exclusions [com.fasterxml.jackson.core/jackson-annotations
                                                                    com.fasterxml.jackson.core/jackson-core]]
+                 [com.h2database/h2 "1.4.200"]
                  [org.postgresql/postgresql "42.2.11"]
                  [org.slf4j/slf4j-nop "1.7.30"]
                  [peridot "0.5.3" :scope "test"]
@@ -62,6 +63,7 @@
   [[metosin/ring-swagger-ui "3.25.3"]
    [org.clojure/core.rrb-vector "0.1.1"]
    [org.flatland/ordered "1.5.7"]
+   [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "10.6.0" :scope "test"]
    [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
    [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
 

@@ -1,22 +1,4 @@
 
-CREATE TABLE users (
-       id uuid not null primary key,
-       first_name varchar(32),
-       last_name varchar(32),
-       username varchar(32) not null unique,
-       avatar bytea,
-       email varchar not null unique
-);
-
---;;
-
-CREATE TABLE logins (
-       id uuid not null,
-       hashed_password text not null,
-       foreign key (id) references users(id)
-);
-
---;;
 
 CREATE TABLE permissions (
        id serial primary key,
@@ -29,7 +11,7 @@ CREATE TABLE permissions (
 
 CREATE TABLE roles (
        id serial primary key,
-       title text not null unique,
+       title text not null,
        description text not null,
        active boolean not null default true
 );
@@ -46,7 +28,24 @@ CREATE TABLE roles_permissions (
 
 --;;
 
-ALTER TABLE users ADD COLUMN role_id integer NOT NULL, ADD CONSTRAINT fk_user_role FOREIGN KEY (role_id) REFERENCES roles(id);
+CREATE TABLE users (
+       id uuid not null primary key,
+       first_name varchar(32),
+       last_name varchar(32),
+       username varchar(32) not null unique,
+       avatar bytea,
+       email varchar not null unique,
+       role_id integer not null,
+       CONSTRAINT fk_user_role FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+--;;
+
+CREATE TABLE logins (
+       id uuid not null,
+       hashed_password text not null,
+       foreign key (id) references users(id)
+);
 
 --;;
 
@@ -65,7 +64,7 @@ INSERT INTO roles (title, description, active) VALUES
 
 CREATE TABLE organizations(
        id integer,
-       name text,
+       name varchar unique,
        url text,
        image_url text,
        description text
@@ -73,38 +72,24 @@ CREATE TABLE organizations(
 
 --;;
 
-ALTER TABLE organizations ADD CONSTRAINT unique_organizations UNIQUE (name);
-
---;;
-
 CREATE TABLE projects(
        id integer,
-       name text,
-       url text,
-       image_url text,
-       description text,
-       organization_names text[],
-       skills_names JSONB[]
+       name varchar unique,
+       url varchar,
+       image_url varchar,
+       description varchar
 );
-
---;;
-
-ALTER TABLE projects ADD CONSTRAINT unique_projects UNIQUE (name);
 
 --;;
 
 CREATE TABLE skills(
        id integer,
-       name text,
+       name varchar unique,
        url text,
        image_url text,
        description text,
        skill_category text
 );
-
---;;
-
-ALTER TABLE skills ADD CONSTRAINT unique_skills UNIQUE (name);
 
 --;;
 
@@ -116,4 +101,19 @@ CREATE TABLE articles(
        article_url VARCHAR (100),
        content text,
        article_id SERIAL PRIMARY KEY
+);
+
+--;;
+
+CREATE TABLE projects_organizations(
+       project_id integer,
+       organization_id integer
+);
+
+--;;
+
+CREATE TABLE projects_skills(
+       project_id integer,
+       skills_id integer,
+       description varchar
 );
