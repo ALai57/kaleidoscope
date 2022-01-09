@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.migrations
-  (:require [andrewslai.clj.utils.core :as util]
+  (:require [andrewslai.clj.config :as config]
             [clojure.java.jdbc :as sql]
             [migratus.core :as m]))
 
@@ -12,18 +12,24 @@
                     :user        user
                     :password    password}})
 
-(defn -main [& [v & args]]
-  (let [ops {"migrate"  m/migrate
-             "pending"  m/pending-list
-             "rollback" m/rollback
-             "reset"    m/reset
-             "up"       m/up
-             "down"     m/down
-             "init"     m/init
-             "create"   m/create}
-        op  (or (ops v) m/migrate)]
-    (apply op (concat [(pg-db->migratus-config (util/pg-conn))]
-                args))))
+(def MIGRATUS-COMMANDS
+  {"migrate"  m/migrate
+   "pending"  m/pending-list
+   "rollback" m/rollback
+   "reset"    m/reset
+   "up"       m/up
+   "down"     m/down
+   "init"     m/init
+   "create"   m/create})
+
+(defn -main
+  "Entry point for running migrations.
+  Migratus commands take database `config` as their first argument and
+  additional args after that."
+  [& [v & args]]
+  (let [op  (get MIGRATUS-COMMANDS v m/migrate)]
+    (apply op (concat [(pg-db->migratus-config (config/pg-conn (System/getenv)))]
+                      args))))
 
 (comment
   ;; MIGHT HAVE TO REQUIRE SOME MODULES... THIS WAS FAILING UNTIL I EVALUATED
@@ -36,9 +42,18 @@
   (require '[migratus.database :as mig-db])
   (require '[migratus.protocols :as prot])
 
-  (def my-connection (atom (mig-db/connect* (:db (pg-db->migratus-config (util/pg-conn))))))
+  (def migratus-config
+    (pg-db->migratus-config (config/pg-conn (System/getenv))))
+
+  (def my-connection
+    (-> migratus-config
+        (:db)
+        (mig-db/connect*)
+        (atom)))
+
   (def mystore
-    (mig-db/->Database (:connection @my-connection) (pg-db->migratus-config (util/pg-conn))))
+    (mig-db/->Database (:connection @my-connection)
+                       migratus-config))
 
   @my-connection
 

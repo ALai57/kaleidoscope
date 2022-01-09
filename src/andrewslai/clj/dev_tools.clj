@@ -1,19 +1,13 @@
 (ns andrewslai.clj.dev-tools
-  (:require [andrewslai.clj.http-api.andrewslai :as andrewslai]
+  (:require [andrewslai.clj.config :as config]
+            [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.persistence.postgres2 :as pg]
-            [andrewslai.clj.utils.core :as util]
             [ring.middleware.session.memory :as mem]
             [taoensso.timbre :as log]))
 
 (def figwheel-app
-  (andrewslai/andrewslai-app {:database (pg/->Database (util/pg-conn))
+  (andrewslai/andrewslai-app {:database (config/configure-database (System/getenv))
                               :logging  (merge log/*config* {:level :info})}))
-
-(defn postgres-db
-  ([]
-   (postgres-db (util/pg-conn)))
-  ([conn]
-   (pg/->Database conn)))
 
 (comment
   (require '[clojure.data.csv :as csv])
@@ -37,10 +31,10 @@
       (sql/insert-multi! pg-db table rows)))
 
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/organizations.csv"
-                 :organizations)
+    :organizations)
 
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/skills.csv"
-                 :skills)
+    :skills)
   )
 
 (comment

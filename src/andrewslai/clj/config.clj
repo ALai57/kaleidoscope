@@ -42,14 +42,18 @@
   [env]
   (merge log/*config* {:level (keyword (get env "ANDREWSLAI_LOG_LEVEL" "info"))}))
 
+(defn pg-conn
+  [env]
+  {:dbname   (get env "ANDREWSLAI_DB_NAME")
+   :db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
+   :host     (get env "ANDREWSLAI_DB_HOST")
+   :user     (get env "ANDREWSLAI_DB_USER")
+   :password (get env "ANDREWSLAI_DB_PASSWORD")
+   :dbtype   "postgresql"})
+
 (defn configure-database
   [env]
-  (pg/->Database {:dbname   (get env "ANDREWSLAI_DB_NAME")
-                  :db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
-                  :host     (get env "ANDREWSLAI_DB_HOST")
-                  :user     (get env "ANDREWSLAI_DB_USER")
-                  :password (get env "ANDREWSLAI_DB_PASSWORD")
-                  :dbtype   "postgresql"}))
+  (pg/->Database (pg-conn env)))
 
 (defn configure-frontend-bucket
   [env]

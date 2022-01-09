@@ -36,31 +36,31 @@
   (when input-validation
     (validate input-validation m :IllegalArgumentException))
   (try+
-   (p/transact! database (-> (hh/insert-into table)
-                             (hh/values [m])
-                             hsql/format))
-   (catch org.postgresql.util.PSQLException e
-     (throw+ (merge {:type :PersistenceException
-                     :message {:data (select-keys m [:username :email])
-                               :reason (.getMessage e)}}
-                    (when ex-subtype
-                      {:subtype ex-subtype}))))))
+    (p/transact! database (-> (hh/insert-into table)
+                              (hh/values [m])
+                              hsql/format))
+    (catch org.postgresql.util.PSQLException e
+      (throw+ (merge {:type :PersistenceException
+                      :message {:data (select-keys m [:username :email])
+                                :reason (.getMessage e)}}
+                     (when ex-subtype
+                       {:subtype ex-subtype}))))))
 
 (defn update! [database table m username & {:keys [ex-subtype
                                                    input-validation]}]
   (when input-validation
     (validate input-validation m :IllegalArgumentException))
   (try+
-   (p/transact! database (-> (hh/update table)
-                             (hh/sset m)
-                             (hh/where [:= :username username])
-                             hsql/format))
-   (catch org.postgresql.util.PSQLException e
-     (throw+ (merge {:type :PersistenceException
-                     :message {:data (select-keys m [:username :email])
-                               :reason (.getMessage e)}}
-                    (when ex-subtype
-                      {:subtype ex-subtype}))))))
+    (p/transact! database (-> (hh/update table)
+                              (hh/sset m)
+                              (hh/where [:= :username username])
+                              hsql/format))
+    (catch org.postgresql.util.PSQLException e
+      (throw+ (merge {:type :PersistenceException
+                      :message {:data (select-keys m [:username :email])
+                                :reason (.getMessage e)}}
+                     (when ex-subtype
+                       {:subtype ex-subtype}))))))
 
 (defn delete! [database table user-id & {:keys [ex-subtype]}]
   (try+
@@ -75,7 +75,7 @@
                       {:subtype ex-subtype}))))))
 
 (comment
-  (require '[andrewslai.clj.utils.core :as util])
+  (require '[andrewslai.clj.config :as config])
   (require '[honeysql.helpers :as hh])
 
   (def example-user
@@ -87,18 +87,29 @@
      :email      "andrew@andrew.com"
      :role_id    2})
 
-  (p/select (->Database (util/pg-conn))
+  (def database
+    (config/configure-database (System/getenv)))
+
+  (select database
+          {:select [:*] :from [:users]})
+
+  (insert! database
+           :users
+           (hh/values [example-user]))
+
+  (p/select database
             {:select [:*] :from [:users]})
 
-  (p/transact! (->Database (util/pg-conn))
+
+  (p/transact! database
                (-> (hh/insert-into :users)
                    (hh/values [example-user])))
 
-  (p/transact! (->Database (util/pg-conn))
+  (p/transact! database
                (-> (hh/delete-from :users)
                    (hh/where [:= :users/username (:username example-user)])))
 
-  (p/transact! (->Database (util/pg-conn))
+  (p/transact! database
                (-> (hh/update :users)
                    (hh/sset {:first_name "FIRSTNAME"})
                    (hh/where [:= :username (:username example-user)])))

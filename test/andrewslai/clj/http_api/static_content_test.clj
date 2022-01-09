@@ -43,44 +43,46 @@
   (let [bucket   "andrewslai-wedding"
         endpoint "media/"]
     (sandbox/with (comp (sandbox/just
-                         (s3/list-objects-v2
-                          ([req]
-                           (or (is (match? {:prefix      endpoint
-                                            :bucket-name bucket}
-                                           req))
-                               (throw (Exception. "Invalid inputs")))
-                           {:bucket-name     bucket
-                            :common-prefixes []
-                            :key-count       1}
-                           )))
+                          (s3/list-objects-v2
+                            ([req]
+                             (or (is (match? {:prefix      endpoint
+                                              :bucket-name bucket}
+                                             req))
+                                 (throw (Exception. "Invalid inputs")))
+                             {:bucket-name     bucket
+                              :common-prefixes []
+                              :key-count       1}
+                             )))
                         sandbox/always-fail)
-      (are [expected loader]
-        (is (match? expected (response/resource-response endpoint
-                                                         {:loader loader})))
+                  (are [expected loader]
+                    (is (match? expected (response/resource-response endpoint
+                                                                     {:loader loader})))
 
-        nil?                   (.getContextClassLoader (Thread/currentThread))
-        {:status 200 :body ()} (->> (s3-storage/map->S3 {:bucket bucket
-                                                         :creds  {:profile "none"}})
-                                    (protocols/filesystem-loader))))))
+                    nil?                   (.getContextClassLoader (Thread/currentThread))
+                    {:status 200 :body ()} (->> (s3-storage/map->S3 {:bucket bucket
+                                                                     :creds  {:profile "none"
+                                                                              :endpoint "dummy"}})
+                                                (protocols/filesystem-loader))))))
 
 (comment
   (let [bucket   "andrewslai-wedding"
         endpoint "media/index.html"]
     (sandbox/with (comp (sandbox/just
-                         (s3/list-objects-v2
-                          ([req]
-                           (or (is (match? {:prefix      endpoint
-                                            :bucket-name bucket}
-                                           req))
-                               (throw (Exception. "Invalid inputs")))
-                           {:bucket-name     bucket
-                            :common-prefixes []
-                            :key-count       1}
-                           )))
+                          (s3/list-objects-v2
+                            ([req]
+                             (or (is (match? {:prefix      endpoint
+                                              :bucket-name bucket}
+                                             req))
+                                 (throw (Exception. "Invalid inputs")))
+                             {:bucket-name     bucket
+                              :common-prefixes []
+                              :key-count       1}
+                             )))
                         sandbox/always-fail)
-      (response/resource-response endpoint
-                                  {:loader (-> (s3-storage/map->S3 {:bucket bucket
-                                                                    :creds  {:profile "none"}})
-                                               (protocols/filesystem-loader))})))
+                  (response/resource-response endpoint
+                                              {:loader (-> (s3-storage/map->S3 {:bucket bucket
+                                                                                :creds  {:profile  "none"
+                                                                                         :endpoint "dummy"}})
+                                                           (protocols/filesystem-loader))})))
 
   )

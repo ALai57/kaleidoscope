@@ -1,7 +1,8 @@
 (ns andrewslai.clj.entities.article
   (:require [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.cljc.specs.articles]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [andrewslai.clj.config :as config]))
 
 (defn get-all-articles [database]
   (pg/select database {:select [:*]
@@ -25,17 +26,22 @@
 
 (comment
 
-  (require '[andrewslai.clj.dev-tools :as tools])
+  (require '[andrewslai.clj.config :as config])
 
-  (get-all-articles (tools/postgres-db))
-  (clojure.pprint/pprint (get-article (tools/postgres-db) "test-article"))
+  (def database
+    (config/configure-database (System/getenv)))
 
-  (create-article! (tools/postgres-db)
-                   {:title "My test article"
-                    :article_tags "thoughts"
-                    :article_url "my-test-article"
-                    :author "Andrew Lai"
-                    :content "<h1>Hello world!</h1>"
-                    :article_id 13
-                    :timestamp (java.time.LocalDateTime/now)})
+  (get-all-articles database)
+
+  (-> database
+    (get-article "test-article")
+    (clojure.pprint/pprint))
+
+  (create-article! database {:title        "My test article"
+                             :article_tags "thoughts"
+                             :article_url  "my-test-article"
+                             :author       "Andrew Lai"
+                             :content      "<h1>Hello world!</h1>"
+                             :article_id   13
+                             :timestamp    (java.time.LocalDateTime/now)})
   )
