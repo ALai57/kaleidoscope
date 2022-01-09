@@ -15,6 +15,8 @@ If you want to set up a locally running Postgres to connect to.
 #### Install
 Install postgres (on Ubuntu, `sudo apt get install postgresql`)
 
+On MacOS, if you get an error, you may need to create or modify your `/etc/sysctl.conf` file and allow more "shared memory". [An explanation can be found in this article.]( https://benscheirman.com/2011/04/increasing-shared-memory-for-postgres-on-os-x)
+
 #### Database setup
 Create a database 
 ```bash 
@@ -24,7 +26,7 @@ createdb <DATABASE-NAME>
 Create a superuser with permissions on the database
 ```sql
 CREATE USER <USER-GOES-HERE> WITH PASSWORD <PASSWORD-GOES-HERE>;
-GRANT ALL PRIVILEGES ON SCHEMA PUBLIC TO USER <USER-GOES-HERE>;
+GRANT ALL PRIVILEGES ON SCHEMA PUBLIC TO <USER-GOES-HERE>;
 ```
 
 #### Postgres notes

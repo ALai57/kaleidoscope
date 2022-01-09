@@ -5,33 +5,25 @@
 
 (defn pg-db->migratus-config [{:keys [host dbname user password]}]
   {:migration-dirs "migrations"
-   :store :database
-   :db {:classname "com.postgresql.jdbc.Driver"
-        :subprotocol "postgresql"
-        :subname (str "//" host "/" dbname)
-        :user user
-        :password password}})
-
-
-#_(pg-db->migratus-config (util/pg-conn))
-#_{:dbtype "postgresql"
-   , :dbname "andrewslai_db",
-   :host "localhost",
-   :user "andrewslai",
-   :password "andrewslai"}
+   :store          :database
+   :db             {:classname   "com.postgresql.jdbc.Driver"
+                    :subprotocol "postgresql"
+                    :subname     (str "//" host "/" dbname)
+                    :user        user
+                    :password    password}})
 
 (defn -main [& [v & args]]
-  (let [ops {"migrate" m/migrate
-             "pending" m/pending-list
+  (let [ops {"migrate"  m/migrate
+             "pending"  m/pending-list
              "rollback" m/rollback
-             "reset" m/reset
-             "up" m/up
-             "down" m/down
-             "init" m/init
-             "create" m/create}
-        op (or (ops v) m/migrate)]
+             "reset"    m/reset
+             "up"       m/up
+             "down"     m/down
+             "init"     m/init
+             "create"   m/create}
+        op  (or (ops v) m/migrate)]
     (apply op (concat [(pg-db->migratus-config (util/pg-conn))]
-                      args))))
+                args))))
 
 (comment
   ;; MIGHT HAVE TO REQUIRE SOME MODULES... THIS WAS FAILING UNTIL I EVALUATED
