@@ -19,14 +19,16 @@
 (defmacro with-embedded-h2
   "Starts a fresh, in-memory instance of H2
   All operations occur in a transaction and the database is shutdown at the end"
-  [connection & body]
+  [ds & body]
   `(try
      (let [db#         (fresh-db)
-           ds#         (rdbms/get-datasource db#)
-           ~connection (rdbms/fresh-connection ds#)]
-       (migratus/migrate (migrations/->migratus-config (rdbms/fresh-connection ds#)))
-       (println "Finished migrations")
-       ~@body)))
+           datasource# (rdbms/get-datasource db#)
+           connection# (rdbms/fresh-connection datasource#)]
+       (jdbc/with-transaction [~ds datasource# {:rollback-only true}]
+         ;; Need to create a new connection because Migratus seems to close them
+         (migratus/migrate (migrations/->migratus-config connection#))
+         (println "Finished migrations")
+         ~@body))))
 
 (comment
   ;; Some examples of how to use this namespace
@@ -54,8 +56,8 @@
   (jdbc/execute! conn ["select * from testing"])
 
   ;; Testing out the `with-embedded-db` macro
-  (with-embedded-h2 connection
+  (with-embedded-h2 datasource
     (println "HELLO")
-    (jdbc/execute! connection
+    (jdbc/execute! datasource
                    ["select * from schema_migrations"]))
   )

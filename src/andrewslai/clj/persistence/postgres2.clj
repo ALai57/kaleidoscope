@@ -3,6 +3,8 @@
             [andrewslai.clj.utils.core :as util :refer [validate]]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
+            [next.jdbc :as next]
+            [next.jdbc.result-set :as rs]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
             [slingshot.slingshot :refer [throw+ try+]])
@@ -27,6 +29,14 @@
     (sql/query conn stmt))
   (transact! [this stmt]
     (sql/execute! conn stmt {:return-keys true})))
+
+(defrecord NextDatabase [conn]
+  Persistence
+  (select [this stmt]
+    (next/execute! conn stmt {:builder-fn rs/as-unqualified-lower-maps}))
+  (transact! [this stmt]
+    (next/execute! conn stmt {:return-keys true
+                              :builder-fn rs/as-unqualified-lower-maps})))
 
 (defn select [database m]
   (p/select database (hsql/format m)))
