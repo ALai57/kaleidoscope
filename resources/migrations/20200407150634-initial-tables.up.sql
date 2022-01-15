@@ -1,34 +1,4 @@
 
-
-CREATE TABLE permissions (
-       id          SERIAL PRIMARY KEY,
-       title       VARCHAR NOT NULL,
-       description VARCHAR NOT NULL,
-       active      BOOLEAN NOT NULL DEFAULT TRUE
-);
-
---;;
-
-CREATE TABLE roles (
-       id          SERIAL PRIMARY KEY,
-       title       VARCHAR NOT NULL,
-       description VARCHAR NOT NULL,
-       active      BOOLEAN NOT NULL DEFAULT TRUE
-);
-
---;;
-
-CREATE TABLE roles_permissions (
-       role_id       INTEGER,
-       permission_id INTEGER,
-
-       PRIMARY KEY (role_id, permission_id),
-       CONSTRAINT fk_rp_role       FOREIGN KEY (role_id)       REFERENCES roles(id),
-       CONSTRAINT fk_rp_permission FOREIGN KEY (permission_id) REFERENCES permissions(id)
-);
-
---;;
-
 CREATE TABLE users (
        id uuid    NOT NULL PRIMARY KEY,
        first_name VARCHAR(32),
@@ -37,7 +7,6 @@ CREATE TABLE users (
        avatar     BYTEA,
        email      VARCHAR NOT NULL UNIQUE,
        role_id    INTEGER NOT NULL,
-       CONSTRAINT fk_user_role FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 
 --;;
@@ -48,19 +17,6 @@ CREATE TABLE logins (
 
        FOREIGN KEY (id) REFERENCES users(id)
 );
-
---;;
-
-INSERT INTO permissions (title, description, active) VALUES
-       ('read:articles', 'Can read all articles', true),
-       ('write:articles', 'Can write articles', true),
-       ('edit:articles', 'Can access editing GUI', true);
-
---;;
-
-INSERT INTO roles (title, description, active) VALUES
-       ('admin', 'Has all administrator privileges', true),
-       ('read_only', 'Does not have admin privileges', true);
 
 --;;
 
