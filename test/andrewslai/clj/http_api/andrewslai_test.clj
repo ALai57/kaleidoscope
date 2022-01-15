@@ -1,5 +1,6 @@
 (ns andrewslai.clj.http-api.andrewslai-test
   (:require [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
+            [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.static-content :as sc]
@@ -8,7 +9,8 @@
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [ring.mock.request :as mock]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [andrewslai.clj.persistence.postgres2 :as pg]))
 
 (use-fixtures :once
   (fn [f]
@@ -71,11 +73,11 @@
     (is (= 1 (count @logging-atom)))))
 
 (deftest access-rule-configuration-test
-  (with-embedded-postgres database
+  (with-embedded-h2 ds
     (are [description expected request]
       (testing description
         (let [handler (andrewslai/andrewslai-app {:auth           (tu/unauthenticated-backend)
-                                                  :database       database
+                                                  :database       (pg/->NextDatabase ds)
                                                   :static-content (sc/classpath-static-content-wrapper "public" {})})]
           (is (match? expected (handler request)))))
 

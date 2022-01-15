@@ -1,8 +1,8 @@
 (ns andrewslai.clj.embedded-h2
-  (:require [next.jdbc :as jdbc]
-            [andrewslai.clj.persistence.migrations :as migrations]
+  (:require [andrewslai.clj.persistence.migrations :as migrations]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [migratus.core :as migratus]
-            [andrewslai.clj.persistence.rdbms :as rdbms]))
+            [next.jdbc :as jdbc]))
 
 ;;
 ;; Creating the database
@@ -27,7 +27,7 @@
        (jdbc/with-transaction [~ds datasource# {:rollback-only true}]
          ;; Need to create a new connection because Migratus seems to close them
          (migratus/migrate (migrations/->migratus-config connection#))
-         (println "Finished migrations")
+         ;;(println "Finished migrations")
          ~@body))))
 
 (comment

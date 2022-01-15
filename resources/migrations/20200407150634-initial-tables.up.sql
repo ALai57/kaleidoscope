@@ -2,8 +2,8 @@
 
 CREATE TABLE permissions (
        id serial primary key,
-       title text not null,
-       description text not null,
+       title varchar not null,
+       description varchar not null,
        active boolean not null default true
 );
 
@@ -11,8 +11,8 @@ CREATE TABLE permissions (
 
 CREATE TABLE roles (
        id serial primary key,
-       title text not null,
-       description text not null,
+       title varchar not null,
+       description varchar not null,
        active boolean not null default true
 );
 
@@ -43,7 +43,7 @@ CREATE TABLE users (
 
 CREATE TABLE logins (
        id uuid not null,
-       hashed_password text not null,
+       hashed_password varchar not null,
        foreign key (id) references users(id)
 );
 
@@ -65,9 +65,9 @@ INSERT INTO roles (title, description, active) VALUES
 CREATE TABLE organizations(
        id integer,
        name varchar unique,
-       url text,
-       image_url text,
-       description text
+       url varchar,
+       image_url varchar,
+       description varchar
 );
 
 --;;
@@ -85,10 +85,10 @@ CREATE TABLE projects(
 CREATE TABLE skills(
        id integer,
        name varchar unique,
-       url text,
-       image_url text,
-       description text,
-       skill_category text
+       url varchar,
+       image_url varchar,
+       description varchar,
+       skill_category varchar
 );
 
 --;;
@@ -99,7 +99,7 @@ CREATE TABLE articles(
        timestamp TIMESTAMP,
        author VARCHAR (50),
        article_url VARCHAR (100),
-       content text,
+       content VARCHAR,
        article_id SERIAL PRIMARY KEY
 );
 

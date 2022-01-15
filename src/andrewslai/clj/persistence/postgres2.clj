@@ -39,6 +39,10 @@
                               :builder-fn rs/as-unqualified-lower-maps})))
 
 (defn select [database m]
+  (let [result (p/select database (hsql/format m))]
+    (if (= 1 (count result))
+      (first result)
+      result))
   (p/select database (hsql/format m)))
 
 (defn insert! [database table m & {:keys [ex-subtype
