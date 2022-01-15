@@ -112,45 +112,50 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest article-retrieval-test
-  (with-embedded-postgres database
-    (are [endpoint expected]
-      (testing (format "%s returns %s" endpoint expected)
-        (is (match? expected
-                    (tu/app-request (andrewslai/andrewslai-app {:database database})
-                                    (mock/request :get endpoint)))))
+  (with-embedded-h2 datasource
+    (let [database (pg/->NextDatabase datasource)]
+      (are [endpoint expected]
+        (testing (format "%s returns %s" endpoint expected)
+          (is (match? expected
+                      (tu/app-request (andrewslai/andrewslai-app {:database database})
+                                      (mock/request :get endpoint)))))
 
-      "/articles"                  {:status 200 :body articles?}
-      "/articles/my-first-article" {:status 200 :body article?}
-      "/articles/does-not-exist"   {:status 404})))
+        "/articles"                  {:status 200 :body articles?}
+        "/articles/my-first-article" {:status 200 :body article?}
+        "/articles/does-not-exist"   {:status 404}))))
 
 (deftest create-article-happy-path
-  (with-embedded-postgres database
-    (let [app (-> {:database database
+  (with-embedded-h2 datasource
+    (let [app (-> {:database (pg/->NextDatabase datasource)
                    :auth     (tu/authenticated-backend)}
                   andrewslai/andrewslai-app
                   tu/wrap-clojure-response)
           url (format "/articles/%s" (:article_url a/example-article))]
 
       (testing "404 when article not yet created"
-        (is (match? {:status 404} (app (mock/request :get url)))))
+        (is (match? {:status 404}
+                    (app (mock/request :get url)))))
 
       (testing "Article creation succeeds"
-        (is (match? {:status 200 :body article?}
+        (is (match? {:status 200}
                     (app (-> (mock/request :put url)
                              (mock/json-body a/example-article)
                              (mock/header "Authorization" (str "Bearer " tu/valid-token)))))))
 
       (testing "Article retrieval succeeds"
-        (is (match? {:status 200 :body article?} (app (mock/request :get url))))))))
+        (is (match? {:status 200 :body article?}
+                    (app (mock/request :get url))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Resume API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest portfolio-test
-  (with-embedded-postgres database
-    (let [app (-> {:database database}
-                  (andrewslai/andrewslai-app)
-                  (tu/wrap-clojure-response))]
+  (with-embedded-h2 datasource
+    (let [app      (-> {:database (pg/->NextDatabase datasource)}
+                       (andrewslai/andrewslai-app)
+                       (tu/wrap-clojure-response))
+          response (app (mock/request :get "/projects-portfolio"))]
       (is (match? {:status 200 :body portfolio?}
-                  (app (mock/request :get "/projects-portfolio")))))))
+                  response)
+          (s/explain-str :andrewslai.portfolio/portfolio (:body response))))))

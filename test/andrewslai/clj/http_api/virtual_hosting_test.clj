@@ -4,13 +4,19 @@
             [andrewslai.generators.networking :as gen-net]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
-            [clojure.test :refer [are deftest is]]
+            [clojure.test :refer [are deftest is use-fixtures]]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
             [compojure.api.sweet :refer [api GET]]
             [matcher-combinators.test]
-            [ring.util.request :as req]))
+            [ring.util.request :as req]
+            [taoensso.timbre :as log]))
+
+(use-fixtures :once
+  (fn [f]
+    (log/with-log-level :fatal
+      (f))))
 
 (defn get-host
   [request]
