@@ -1,50 +1,52 @@
 
 
 CREATE TABLE permissions (
-       id serial primary key,
-       title varchar not null,
-       description varchar not null,
-       active boolean not null default true
+       id          SERIAL PRIMARY KEY,
+       title       VARCHAR NOT NULL,
+       description VARCHAR NOT NULL,
+       active      BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 --;;
 
 CREATE TABLE roles (
-       id serial primary key,
-       title varchar not null,
-       description varchar not null,
-       active boolean not null default true
+       id          SERIAL PRIMARY KEY,
+       title       VARCHAR NOT NULL,
+       description VARCHAR NOT NULL,
+       active      BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 --;;
 
 CREATE TABLE roles_permissions (
-       role_id integer,
-       permission_id integer,
-       primary key (role_id, permission_id),
-       constraint fk_rp_role foreign key (role_id) references roles(id),
-       constraint fk_rp_permission foreign key (permission_id) references permissions(id)
+       role_id       INTEGER,
+       permission_id INTEGER,
+
+       PRIMARY KEY (role_id, permission_id),
+       CONSTRAINT fk_rp_role       FOREIGN KEY (role_id)       REFERENCES roles(id),
+       CONSTRAINT fk_rp_permission FOREIGN KEY (permission_id) REFERENCES permissions(id)
 );
 
 --;;
 
 CREATE TABLE users (
-       id uuid not null primary key,
-       first_name varchar(32),
-       last_name varchar(32),
-       username varchar(32) not null unique,
-       avatar bytea,
-       email varchar not null unique,
-       role_id integer not null,
+       id uuid    NOT NULL PRIMARY KEY,
+       first_name VARCHAR(32),
+       last_name  VARCHAR(32),
+       username   VARCHAR(32) NOT NULL UNIQUE,
+       avatar     BYTEA,
+       email      VARCHAR NOT NULL UNIQUE,
+       role_id    INTEGER NOT NULL,
        CONSTRAINT fk_user_role FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 
 --;;
 
 CREATE TABLE logins (
-       id uuid not null,
-       hashed_password varchar not null,
-       foreign key (id) references users(id)
+       id uuid         NOT NULL,
+       hashed_password VARCHAR NOT NULL,
+
+       FOREIGN KEY (id) REFERENCES users(id)
 );
 
 --;;
@@ -63,57 +65,57 @@ INSERT INTO roles (title, description, active) VALUES
 --;;
 
 CREATE TABLE organizations(
-       id integer,
-       name varchar unique,
-       url varchar,
-       image_url varchar,
-       description varchar
+       id          INTEGER,
+       name        VARCHAR UNIQUE,
+       url         VARCHAR,
+       image_url   VARCHAR,
+       description VARCHAR
 );
 
 --;;
 
 CREATE TABLE projects(
-       id integer,
-       name varchar unique,
-       url varchar,
-       image_url varchar,
-       description varchar
+       id          INTEGER,
+       name        VARCHAR UNIQUE,
+       url         VARCHAR,
+       image_url   VARCHAR,
+       description VARCHAR
 );
 
 --;;
 
 CREATE TABLE skills(
-       id integer,
-       name varchar unique,
-       url varchar,
-       image_url varchar,
-       description varchar,
-       skill_category varchar
+       id             INTEGER,
+       name           VARCHAR UNIQUE,
+       url            VARCHAR,
+       image_url      VARCHAR,
+       description    VARCHAR,
+       skill_category VARCHAR
 );
 
 --;;
 
 CREATE TABLE articles(
-       title VARCHAR (100),
+       title        VARCHAR (100),
        article_tags VARCHAR (32),
-       timestamp TIMESTAMP,
-       author VARCHAR (50),
-       article_url VARCHAR (100),
-       content VARCHAR,
-       article_id SERIAL PRIMARY KEY
+       timestamp    TIMESTAMP,
+       author       VARCHAR (50),
+       article_url  VARCHAR (100),
+       content      VARCHAR,
+       article_id   SERIAL PRIMARY KEY
 );
 
 --;;
 
 CREATE TABLE projects_organizations(
-       project_id integer,
-       organization_id integer
+       project_id      INTEGER,
+       organization_id INTEGER
 );
 
 --;;
 
 CREATE TABLE projects_skills(
-       project_id integer,
-       skills_id integer,
-       description varchar
+       project_id  INTEGER,
+       skills_id   INTEGER,
+       description VARCHAR
 );
