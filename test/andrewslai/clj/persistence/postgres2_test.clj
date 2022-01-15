@@ -21,8 +21,7 @@
                 :last_name gen-human-name
                 :username gen-human-name
                 :email gen/string-alpha-numeric
-                :avatar (gen/return nil)
-                :role_id (gen/choose 1 2)))
+                :avatar (gen/return nil)))
 
 (defn add-user [user]
   (-> (hh/insert-into :users)

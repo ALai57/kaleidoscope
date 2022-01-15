@@ -98,8 +98,7 @@
      :last_name  "Lai"
      :username   "alai"
      :avatar     nil
-     :email      "andrew@andrew.com"
-     :role_id    2})
+     :email      "andrew@andrew.com"})
 
   (def database
     (config/configure-database (System/getenv)))

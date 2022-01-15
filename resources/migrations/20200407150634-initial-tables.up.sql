@@ -1,27 +1,17 @@
 
 CREATE TABLE users (
-       id uuid    NOT NULL PRIMARY KEY,
+       id         UUID NOT NULL PRIMARY KEY,
        first_name VARCHAR(32),
        last_name  VARCHAR(32),
        username   VARCHAR(32) NOT NULL UNIQUE,
        avatar     BYTEA,
-       email      VARCHAR NOT NULL UNIQUE,
-       role_id    INTEGER NOT NULL
-);
-
---;;
-
-CREATE TABLE logins (
-       id uuid         NOT NULL,
-       hashed_password VARCHAR NOT NULL,
-
-       FOREIGN KEY (id) REFERENCES users(id)
+       email      VARCHAR NOT NULL UNIQUE
 );
 
 --;;
 
 CREATE TABLE organizations(
-       id          INTEGER,
+       id          BIGSERIAL PRIMARY KEY,
        name        VARCHAR UNIQUE,
        url         VARCHAR,
        image_url   VARCHAR,
@@ -31,7 +21,7 @@ CREATE TABLE organizations(
 --;;
 
 CREATE TABLE projects(
-       id          INTEGER,
+       id          BIGSERIAL PRIMARY KEY,
        name        VARCHAR UNIQUE,
        url         VARCHAR,
        image_url   VARCHAR,
@@ -41,7 +31,7 @@ CREATE TABLE projects(
 --;;
 
 CREATE TABLE skills(
-       id             INTEGER,
+       id             BIGSERIAL PRIMARY KEY,
        name           VARCHAR UNIQUE,
        url            VARCHAR,
        image_url      VARCHAR,
@@ -52,7 +42,7 @@ CREATE TABLE skills(
 --;;
 
 CREATE TABLE articles(
-       id           SERIAL PRIMARY KEY,
+       id           BIGSERIAL PRIMARY KEY,
        title        VARCHAR (100),
        article_tags VARCHAR (32),
        timestamp    TIMESTAMP,
@@ -64,7 +54,7 @@ CREATE TABLE articles(
 --;;
 
 CREATE TABLE projects_organizations(
-       id              SERIAL PRIMARY KEY,
+       id              BIGSERIAL PRIMARY KEY,
        project_id      INTEGER,
        organization_id INTEGER
 );
@@ -72,7 +62,7 @@ CREATE TABLE projects_organizations(
 --;;
 
 CREATE TABLE projects_skills(
-       id          SERIAL PRIMARY KEY,
+       id          BIGSERIAL PRIMARY KEY,
        project_id  INTEGER,
        skills_id   INTEGER,
        description VARCHAR
