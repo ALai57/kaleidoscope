@@ -13,13 +13,13 @@
 
 (def example-data-2
   {:andrewslai.article/article {:summary "An example article"
-                                :value {:article_id 10
-                                        :article_tags "thoughts"
-                                        :article_url "my-test-article"
-                                        :author "Andrew Lai"
-                                        :content "<h1>Hello world!</h1>"
-                                        :timestamp "2020-10-28T00:00:00"
-                                        :title "My test article"}}})
+                                :value   {:id           10
+                                          :article_tags "thoughts"
+                                          :article_url  "my-test-article"
+                                          :author       "Andrew Lai"
+                                          :content      "<h1>Hello world!</h1>"
+                                          :timestamp    "2020-10-28T00:00:00"
+                                          :title        "My test article"}}})
 
 (defn extract-specs [swagger]
   (reduce (fn [acc [_ {{schemas :schemas} :components :as x}]]

@@ -7,7 +7,7 @@
               [clojure.test.check.generators :as gen]
               [spec-tools.spec :as spec]])))
 
-(s/def :andrewslai.article/article_id spec/integer?)
+(s/def :andrewslai.article/id spec/integer?)
 (s/def :andrewslai.article/article_name spec/string?)
 (s/def :andrewslai.article/title spec/string?)
 (s/def :andrewslai.article/article_tags spec/string?)
@@ -22,14 +22,14 @@
                    :andrewslai.article/author
                    :andrewslai.article/timestamp
                    :andrewslai.article/article_url
-                   :andrewslai.article/article_id]
+                   :andrewslai.article/id]
           :opt-un [:andrewslai.article/content]))
 
 (s/def :andrewslai.article/articles
   (s/coll-of :andrewslai.article/article))
 
 (def example-article
-  {:article_id    4
+  {:id           4
    :article_tags "about",
    :article_url  "my-fourth-article",
    :author       "Andrew Lai",

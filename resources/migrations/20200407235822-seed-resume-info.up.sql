@@ -32,17 +32,17 @@ INSERT INTO projects VALUES
 
 
 INSERT INTO projects_organizations VALUES
-(1, 1),
-(2, 2),
-(3, 3),
-(4, 4);
+(DEFAULT, 1, 1),
+(DEFAULT, 2, 2),
+(DEFAULT, 3, 3),
+(DEFAULT, 4, 4);
 
 
 --;;
 
 
 INSERT INTO projects_skills VALUES
-(1, 3, 'For writing `the experiment that shocked the world`, I did something with Heap'),
-(2, 2, 'At project SOAR, I did something with Sumologic'),
-(3, 5, 'At VAI, I did something with Pandas'),
-(4, 5, 'At Chipy, I did something with Pandas');
+(DEFAULT, 1, 3, 'For writing `the experiment that shocked the world`, I did something with Heap'),
+(DEFAULT, 2, 2, 'At project SOAR, I did something with Sumologic'),
+(DEFAULT, 3, 5, 'At VAI, I did something with Pandas'),
+(DEFAULT, 4, 5, 'At Chipy, I did something with Pandas');

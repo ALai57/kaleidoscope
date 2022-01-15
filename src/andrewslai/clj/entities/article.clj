@@ -34,14 +34,14 @@
   (get-all-articles database)
 
   (-> database
-    (get-article "test-article")
-    (clojure.pprint/pprint))
+      (get-article "test-article")
+      (clojure.pprint/pprint))
 
-  (create-article! database {:title        "My test article"
+  (create-article! database {:id   13
+                             :title        "My test article"
                              :article_tags "thoughts"
                              :article_url  "my-test-article"
                              :author       "Andrew Lai"
                              :content      "<h1>Hello world!</h1>"
-                             :article_id   13
                              :timestamp    (java.time.LocalDateTime/now)})
   )

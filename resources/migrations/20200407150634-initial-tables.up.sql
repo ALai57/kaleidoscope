@@ -6,7 +6,7 @@ CREATE TABLE users (
        username   VARCHAR(32) NOT NULL UNIQUE,
        avatar     BYTEA,
        email      VARCHAR NOT NULL UNIQUE,
-       role_id    INTEGER NOT NULL,
+       role_id    INTEGER NOT NULL
 );
 
 --;;
@@ -52,18 +52,19 @@ CREATE TABLE skills(
 --;;
 
 CREATE TABLE articles(
+       id           SERIAL PRIMARY KEY,
        title        VARCHAR (100),
        article_tags VARCHAR (32),
        timestamp    TIMESTAMP,
        author       VARCHAR (50),
        article_url  VARCHAR (100),
-       content      VARCHAR,
-       article_id   SERIAL PRIMARY KEY
+       content      VARCHAR
 );
 
 --;;
 
 CREATE TABLE projects_organizations(
+       id              SERIAL PRIMARY KEY,
        project_id      INTEGER,
        organization_id INTEGER
 );
@@ -71,6 +72,7 @@ CREATE TABLE projects_organizations(
 --;;
 
 CREATE TABLE projects_skills(
+       id          SERIAL PRIMARY KEY,
        project_id  INTEGER,
        skills_id   INTEGER,
        description VARCHAR
