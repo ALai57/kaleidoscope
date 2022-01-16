@@ -1,8 +1,6 @@
 (ns andrewslai.clj.dev-tools
   (:require [andrewslai.clj.config :as config]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
-            [andrewslai.clj.persistence.postgres2 :as pg]
-            [ring.middleware.session.memory :as mem]
             [taoensso.timbre :as log]))
 
 (def figwheel-app
@@ -31,10 +29,10 @@
       (sql/insert-multi! pg-db table rows)))
 
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/organizations.csv"
-    :organizations)
+                 :organizations)
 
   (repopulate-db "/home/alai/dev/andrewslai/scripts/db/resume_cards/skills.csv"
-    :skills)
+                 :skills)
   )
 
 (comment

@@ -1,8 +1,7 @@
 (ns andrewslai.clj.entities.article
   (:require [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.cljc.specs.articles]
-            [clojure.spec.alpha :as s]
-            [andrewslai.clj.config :as config]))
+            [clojure.spec.alpha :as s]))
 
 (defn get-all-articles [database]
   (pg/select database {:select [:*]

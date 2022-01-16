@@ -31,14 +31,14 @@
 ;; App related things
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn captured-logging [logging-atom]
-  {:level :debug
-   :appenders {:println {:enabled? true,
-                         :level :debug
+  {:min-level :debug
+   :appenders {:println {:enabled?  true,
+                         :min-level :debug
                          :output-fn (fn [data]
                                       (force (:msg_ data)))
-                         :fn (fn [data]
-                               (let [{:keys [output_]} data]
-                                 (swap! logging-atom conj (force output_))))}}})
+                         :fn        (fn [data]
+                                      (let [{:keys [output_]} data]
+                                        (swap! logging-atom conj (force output_))))}}})
 
 (defn unauthenticated-backend
   []

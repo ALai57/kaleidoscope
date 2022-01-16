@@ -36,5 +36,4 @@
          articles-routes
          portfolio-routes
          admin-routes
-         swagger-ui-routes
-         (route/not-found "No matching route"))))
+         swagger-ui-routes)))

@@ -8,6 +8,8 @@
             [andrewslai.clj.http-api.static-content :as sc]
             [taoensso.timbre :as log]))
 
+(log/merge-config! {:min-level :info})
+
 (def DEFAULT-STATIC-CONTENT
   "classpath")
 

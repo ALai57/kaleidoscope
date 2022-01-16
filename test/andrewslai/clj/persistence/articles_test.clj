@@ -2,8 +2,14 @@
   (:require [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.entities.article :as article]
             [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
-            [clojure.test :refer [deftest is testing]]
-            [matcher-combinators.test :refer [match?]]))
+            [clojure.test :refer [deftest is testing use-fixtures]]
+            [matcher-combinators.test :refer [match?]]
+            [taoensso.timbre :as log]))
+
+(use-fixtures :once
+  (fn [f]
+    (log/with-log-level :fatal
+      (f))))
 
 (def example-article
   {:title        "My test article"

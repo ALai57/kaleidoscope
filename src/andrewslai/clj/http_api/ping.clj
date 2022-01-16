@@ -2,7 +2,8 @@
   (:require [clojure.java.shell :refer [sh]]
             [clojure.string :refer [trim]]
             [compojure.api.sweet :refer [defroutes GET]]
-            [ring.util.http-response :refer [ok]]))
+            [ring.util.http-response :refer [ok]]
+            [taoensso.timbre :as log]))
 
 (def pom-path
   "META-INF/maven/org.clojars.alai57/andrewslai/pom.properties")

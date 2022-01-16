@@ -1,3 +1,6 @@
+(def COMPILE-TIME-LOG-LEVEL
+  :error)
+
 (defproject org.clojars.alai57/andrewslai "0.0.46-SNAPSHOT"
   :url "https://github.com/ALai57/andrewslai"
   :license {:name         "Eclipse Public License - v 1.0"
@@ -11,7 +14,7 @@
                                                    com.taoensso/encore
                                                    org.apache.httpcomponents/httpclient
                                                    com.amazonaws/aws-java-sdk]]
-                 [biiwide/sandboxica "0.3.0"]
+                 [biiwide/sandboxica "0.3.0" :scope "test"]
                  [buddy/buddy-auth "2.2.0" :exclusions [com.google.code.gson/gson
                                                         org.clojure/clojurescript]]
                  [cheshire "5.10.0"]
@@ -31,8 +34,7 @@
                                                                   joda-time] :scope "test"]
                  [org.apache.xmlgraphics/batik-transcoder "1.14"]
                  [org.clojure/clojure "1.10.1"]
-                 [org.clojure/core.async "1.0.567"
-                  :exclusions [org.clojure/tools.reader]]
+                 [org.clojure/core.async "1.0.567" :exclusions [org.clojure/tools.reader]]
                  [org.clojure/test.check "0.10.0"]
                  [org.clojure/data.codec "0.1.1"]
                  [org.clojure/data.csv "1.0.0" :scope "dev"]
@@ -43,9 +45,16 @@
                  [org.keycloak/keycloak-common "12.0.3"]
                  [org.keycloak/keycloak-core "12.0.3" :exclusions [com.fasterxml.jackson.core/jackson-annotations
                                                                    com.fasterxml.jackson.core/jackson-core]]
+
+                 ;; Intercept logging to Apache Commons Logging (introduced by AWS SDK)
+                 [com.fzakaria/slf4j-timbre "0.3.21"]
+                 ;;[org.slf4j/slf4j-nop "1.7.30"] ;; For a no-op logger
+
+                 ;; Bridges between different logging libs and SLF4J
+                 [org.slf4j/log4j-over-slf4j "1.7.30"]
+
                  [com.h2database/h2 "1.4.200"]
                  [org.postgresql/postgresql "42.2.11"]
-                 [org.slf4j/slf4j-nop "1.7.30"]
                  [peridot "0.5.3" :scope "test"]
                  [ring "1.8.0" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
                  [ring/ring-json "0.5.0" :exclusions [joda-time]]
@@ -58,14 +67,16 @@
   :repositories [["releases" {:url   "https://repo.clojars.org"
                               :creds :gpg}]]
 
+  :jvm-opts [;;~(format "-Dtaoensso.timbre.min-level.edn=%s" COMPILE-TIME-LOG-LEVEL)
+             ~(format "-DTIMBRE_LEVEL=%s" COMPILE-TIME-LOG-LEVEL)]
+
   ;; Used to make this compatible with Java 11
-  :managed-dependencies
-  [[metosin/ring-swagger-ui "3.25.3"]
-   [org.clojure/core.rrb-vector "0.1.1"]
-   [org.flatland/ordered "1.5.7"]
-   [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "10.6.0" :scope "test"]
-   [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
-   [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
+  :managed-dependencies [[metosin/ring-swagger-ui "3.25.3"]
+                         [org.clojure/core.rrb-vector "0.1.1"]
+                         [org.flatland/ordered "1.5.7"]
+                         [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "10.6.0" :scope "test"]
+                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
+                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
 
   :aot :all
 
@@ -77,11 +88,10 @@
   ;; Speeds up Docker builds, see https://docs.docker.com/develop/develop-images/build_enhancements/
   :shell {:env {"DOCKER_BUILDKIT" "1"}}
 
-  :profiles
-  {:dev {:plugins [[lein-ancient "0.6.15"]
-                   [lein-kibit "0.1.8"]
-                   [lein-ring "0.12.5"]]
-         :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.migrations]}}}
+  :profiles {:dev {:plugins [[lein-ancient "0.6.15"]
+                             [lein-kibit "0.1.8"]
+                             [lein-ring "0.12.5"]]
+                   :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.migrations]}}}
 
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]
