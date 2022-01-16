@@ -1,15 +1,20 @@
 (ns andrewslai.clj.persistence.postgres2-test
-  (:require [andrewslai.clj.persistence.persistence :as persist]
+  (:require [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
+            [andrewslai.clj.persistence.persistence :as persist]
             [andrewslai.clj.persistence.postgres2 :as pg]
-            [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
-            [clojure.test :refer [is]]
+            [clojure.test :refer [is use-fixtures]]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
-            [matcher-combinators.test :refer [match?]]))
+            [matcher-combinators.test :refer [match?]]
+            [taoensso.timbre :as log]))
+
+(use-fixtures :once
+  (fn [f]
+    (log/with-log-level :fatal
+      (f))))
 
 (def gen-human-name
   (gen/let [ascii (gen/vector (gen/choose \a \z) 2 25)]
