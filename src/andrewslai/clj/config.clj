@@ -39,13 +39,13 @@
 (defn configure-auth
   "Is OAUTH is disabled, always authenticate as a user with `wedding` access"
   [env]
-  (if (Boolean/parseBoolean (get env "ANDREWSLAI_OAUTH_DISABLED"))
-    (auth/always-authenticated-backend {:realm_access {:roles ["wedding"]}})
-    (configure-keycloak env)))
+  (case (get env "ANDREWSLAI_AUTH_TYPE" "keycloak")
+    "keycloak" (configure-keycloak env)
+    "none"     (auth/always-authenticated-backend {:realm_access {:roles ["wedding"]}})))
 
 (defn configure-logging
   [env]
-  (merge log/*config* {:level (keyword (get env "ANDREWSLAI_LOG_LEVEL" "info"))}))
+  (merge log/*config* {:min-level (keyword (get env "ANDREWSLAI_LOG_LEVEL" "info"))}))
 
 (defn configure-database
   [env]
