@@ -60,8 +60,7 @@
 
 (defn get-links
   [database]
-  (concat (pg/select database {:select [:*] :from [:projects-organizations]})
-          (pg/select database {:select [:*] :from [:projects-skills]})))
+  (pg/select database {:select [:*] :from [:portfolio-links]}))
 
 
 (s/def :andrewslai/portfolio
