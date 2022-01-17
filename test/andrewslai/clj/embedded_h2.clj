@@ -1,17 +1,9 @@
 (ns andrewslai.clj.embedded-h2
   (:require [andrewslai.clj.persistence.migrations :as migrations]
             [andrewslai.clj.persistence.rdbms :as rdbms]
+            [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [migratus.core :as migratus]
             [next.jdbc :as jdbc]))
-
-;;
-;; Creating the database
-;;
-(defn fresh-db
-  ([]
-   (fresh-db (str (java.util.UUID/randomUUID))))
-  ([dbname]
-   {:jdbcUrl (format "jdbc:h2:mem:%s;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE" dbname)}))
 
 ;;
 ;; Database
@@ -21,13 +13,8 @@
   All operations occur in a transaction and the database is shutdown at the end"
   [ds & body]
   `(try
-     (let [db#         (fresh-db)
-           datasource# (rdbms/get-datasource db#)
-           connection# (rdbms/fresh-connection datasource#)]
-       (jdbc/with-transaction [~ds datasource# {:rollback-only true}]
-         ;; Need to create a new connection because Migratus seems to close them
-         (migratus/migrate (migrations/->migratus-config connection#))
-         ;;(println "Finished migrations")
+     (let [db# (embedded-h2/fresh-db!)]
+       (jdbc/with-transaction [~ds db# {:rollback-only true}]
          ~@body))))
 
 (comment
