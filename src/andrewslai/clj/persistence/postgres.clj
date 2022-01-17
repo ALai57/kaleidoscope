@@ -1,12 +1,12 @@
-(ns andrewslai.clj.persistence.postgres2
+(ns andrewslai.clj.persistence.postgres
   (:require [andrewslai.clj.persistence.persistence :as p :refer [Persistence]]
             [andrewslai.clj.utils.core :as util :refer [validate]]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
-            [next.jdbc :as next]
-            [next.jdbc.result-set :as rs]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
+            [next.jdbc :as next]
+            [next.jdbc.result-set :as rs]
             [slingshot.slingshot :refer [throw+ try+]])
   (:import org.postgresql.util.PGobject))
 
@@ -23,12 +23,14 @@
         "json" (json/parse-string value keyword)
         :else value))))
 
-(defrecord Database [conn]
-  Persistence
-  (select [this stmt]
-    (sql/query conn stmt))
-  (transact! [this stmt]
-    (sql/execute! conn stmt {:return-keys true})))
+(defn pg-conn
+  [env]
+  {:dbname   (get env "ANDREWSLAI_DB_NAME")
+   :db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
+   :host     (get env "ANDREWSLAI_DB_HOST")
+   :user     (get env "ANDREWSLAI_DB_USER")
+   :password (get env "ANDREWSLAI_DB_PASSWORD")
+   :dbtype   "postgresql"})
 
 (defrecord NextDatabase [conn]
   Persistence

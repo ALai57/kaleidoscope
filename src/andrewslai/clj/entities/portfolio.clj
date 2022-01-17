@@ -1,5 +1,5 @@
 (ns andrewslai.clj.entities.portfolio
-  (:require [andrewslai.clj.persistence.postgres2 :as pg]
+  (:require [andrewslai.clj.persistence.postgres :as pg]
             [clojure.spec.alpha :as s]))
 
 (s/def :andrewslai.portfolio/id int?)

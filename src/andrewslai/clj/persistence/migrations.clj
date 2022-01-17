@@ -1,6 +1,6 @@
 (ns andrewslai.clj.persistence.migrations
-  (:require [andrewslai.clj.config :as config]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
+            [andrewslai.clj.persistence.postgres :as pg]
             [migratus.core :as m]))
 
 (def MIGRATUS-COMMANDS
@@ -13,10 +13,11 @@
    "init"     m/init
    "create"   m/create})
 
-(defn ->migratus-config [conn]
+(defn ->migratus-config
+  [db]
   {:migration-dirs "migrations"
    :store          :database
-   :db             {:connection conn}})
+   :db             db})
 
 (defn -main
   "Entry point for running migrations.
@@ -24,9 +25,9 @@
   additional args after that."
   [& [v & args]]
   (let [op  (get MIGRATUS-COMMANDS v m/migrate)
-        pg  (config/pg-conn (System/getenv))]
+        pg  (pg/pg-conn (System/getenv))]
     (with-open [connection (rdbms/fresh-connection pg)]
-      (apply op (concat [(->migratus-config connection)]
+      (apply op (concat [(->migratus-config {:connection connection})]
                         args)))))
 
 (comment
@@ -40,7 +41,7 @@
   (require '[migratus.database :as mig-db])
 
   (def connection
-    (rdbms/fresh-connection (config/pg-conn (System/getenv))))
+    (rdbms/fresh-connection (pg/pg-conn (System/getenv))))
 
   (def migratus-config
     (->migratus-config connection))

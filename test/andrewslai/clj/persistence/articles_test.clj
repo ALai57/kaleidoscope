@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.articles-test
-  (:require [andrewslai.clj.persistence.postgres2 :as pg]
+  (:require [andrewslai.clj.persistence.postgres :as pg]
             [andrewslai.clj.entities.article :as article]
             [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
             [clojure.test :refer [deftest is testing use-fixtures]]

@@ -1,11 +1,14 @@
 (ns andrewslai.clj.config
   (:require [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.auth.keycloak :as keycloak]
-            [andrewslai.clj.persistence.postgres2 :as pg]
+            [andrewslai.clj.persistence.postgres :as pg]
             [andrewslai.clj.persistence.s3 :as s3-storage]
             [andrewslai.clj.utils.files.protocols.core :as protocols]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.http-api.static-content :as sc]
+            [andrewslai.clj.persistence.embedded-postgres :as embedded-pg]
+            [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [taoensso.timbre :as log]))
 
 (log/merge-config! {:min-level :info})
@@ -44,18 +47,12 @@
   [env]
   (merge log/*config* {:level (keyword (get env "ANDREWSLAI_LOG_LEVEL" "info"))}))
 
-(defn pg-conn
-  [env]
-  {:dbname   (get env "ANDREWSLAI_DB_NAME")
-   :db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
-   :host     (get env "ANDREWSLAI_DB_HOST")
-   :user     (get env "ANDREWSLAI_DB_USER")
-   :password (get env "ANDREWSLAI_DB_PASSWORD")
-   :dbtype   "postgresql"})
-
 (defn configure-database
   [env]
-  (pg/->Database (pg-conn env)))
+  (case (get env "ANDREWSLAI_DB_TYPE" "postgres")
+    "postgres"          (pg/->NextDatabase (rdbms/get-datasource (pg/pg-conn env)))
+    "embedded-postgres" (pg/->NextDatabase (embedded-pg/fresh-db!))
+    "embedded-h2"       (pg/->NextDatabase (embedded-h2/fresh-db!))))
 
 (defn configure-frontend-bucket
   [env]

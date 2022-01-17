@@ -1,7 +1,7 @@
-(ns andrewslai.clj.persistence.postgres2-test
+(ns andrewslai.clj.persistence.postgres-test
   (:require [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
             [andrewslai.clj.persistence.persistence :as persist]
-            [andrewslai.clj.persistence.postgres2 :as pg]
+            [andrewslai.clj.persistence.postgres :as pg]
             [clojure.test :refer [is use-fixtures]]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]

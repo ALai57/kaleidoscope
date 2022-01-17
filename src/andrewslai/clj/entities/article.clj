@@ -1,5 +1,5 @@
 (ns andrewslai.clj.entities.article
-  (:require [andrewslai.clj.persistence.postgres2 :as pg]
+  (:require [andrewslai.clj.persistence.postgres :as pg]
             [andrewslai.cljc.specs.articles]
             [clojure.spec.alpha :as s]))
 

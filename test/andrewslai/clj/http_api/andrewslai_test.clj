@@ -4,7 +4,7 @@
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.persistence.articles-test :as a]
-            [andrewslai.clj.persistence.postgres2 :as pg]
+            [andrewslai.clj.persistence.postgres :as pg]
             [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
