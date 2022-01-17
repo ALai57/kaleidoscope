@@ -23,7 +23,7 @@
 
 (defn configure-port
   [env]
-  (int (get env "ANDREWSLAI_PORT" 5000)))
+  (Integer/parseInt (get env "ANDREWSLAI_PORT" "5000")))
 
 (defn configure-keycloak
   [env]
