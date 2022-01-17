@@ -7,7 +7,7 @@
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
-            [matcher-combinators.test]))
+            [matcher-combinators.test :refer [match?]]))
 
 (defn buffered-input-stream?
   [obj]
