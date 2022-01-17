@@ -1,5 +1,5 @@
 (ns andrewslai.clj.http-api.andrewslai-test
-  (:require [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
+  (:require [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.static-content :as sc]
@@ -68,37 +68,36 @@
     (is (= 1 (count @logging-atom)))))
 
 (deftest access-rule-configuration-test
-  (with-embedded-h2 ds
-    (are [description expected request]
-      (testing description
-        (let [handler (andrewslai/andrewslai-app {:auth           (tu/unauthenticated-backend)
-                                                  :database       (pg/->NextDatabase ds)
-                                                  :static-content (sc/classpath-static-content-wrapper "public" {})})]
-          (is (match? expected (handler request)))))
+  (are [description expected request]
+    (testing description
+      (let [handler (andrewslai/andrewslai-app {:auth           (tu/unauthenticated-backend)
+                                                :database       (pg/->NextDatabase (embedded-h2/fresh-db!))
+                                                :static-content (sc/classpath-static-content-wrapper "public" {})})]
+        (is (match? expected (handler request)))))
 
-      "GET `/ping` is publicly accessible"
-      {:status 200} (mock/request :get "/ping")
+    "GET `/ping` is publicly accessible"
+    {:status 200} (mock/request :get "/ping")
 
-      "GET `/` is publicly accessible"
-      {:status 200} (mock/request :get "/")
+    "GET `/` is publicly accessible"
+    {:status 200} (mock/request :get "/")
 
-      "POST `/swagger.json` is publicly accessible"
-      {:status 200} (mock/request :get "/swagger.json")
+    "POST `/swagger.json` is publicly accessible"
+    {:status 200} (mock/request :get "/swagger.json")
 
-      "GET `/admin` is not publicly accessible"
-      {:status 401} (mock/request :get "/admin")
+    "GET `/admin` is not publicly accessible"
+    {:status 401} (mock/request :get "/admin")
 
-      "GET `/projects-portfolio` is publicly accessible"
-      {:status 200} (mock/request :get "/projects-portfolio")
+    "GET `/projects-portfolio` is publicly accessible"
+    {:status 200} (mock/request :get "/projects-portfolio")
 
-      "GET `/articles` is publicly accessible"
-      {:status 200} (mock/request :get "/articles")
+    "GET `/articles` is publicly accessible"
+    {:status 200} (mock/request :get "/articles")
 
-      "GET `/articles/does-not-exist` is publicly accessible"
-      {:status 404} (mock/request :get "/articles/does-not-exist")
+    "GET `/articles/does-not-exist` is publicly accessible"
+    {:status 404} (mock/request :get "/articles/does-not-exist")
 
-      "PUT `/articles/new-article` is not publicly accessible"
-      {:status 401} (mock/request :put "/articles/new-article"))))
+    "PUT `/articles/new-article` is not publicly accessible"
+    {:status 401} (mock/request :put "/articles/new-article")))
 
 
 
@@ -107,50 +106,47 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest article-retrieval-test
-  (with-embedded-h2 datasource
-    (let [database (pg/->NextDatabase datasource)]
-      (are [endpoint expected]
-        (testing (format "%s returns %s" endpoint expected)
-          (is (match? expected
-                      (tu/app-request (andrewslai/andrewslai-app {:database database})
-                                      (mock/request :get endpoint)))))
+  (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
+    (are [endpoint expected]
+      (testing (format "%s returns %s" endpoint expected)
+        (is (match? expected
+                    (tu/app-request (andrewslai/andrewslai-app {:database database})
+                                    (mock/request :get endpoint)))))
 
-        "/articles"                  {:status 200 :body articles?}
-        "/articles/my-first-article" {:status 200 :body article?}
-        "/articles/does-not-exist"   {:status 404}))))
+      "/articles"                  {:status 200 :body articles?}
+      "/articles/my-first-article" {:status 200 :body article?}
+      "/articles/does-not-exist"   {:status 404})))
 
 (deftest create-article-happy-path
-  (with-embedded-h2 datasource
-    (let [app (-> {:database (pg/->NextDatabase datasource)
-                   :auth     (tu/authenticated-backend)}
-                  andrewslai/andrewslai-app
-                  tu/wrap-clojure-response)
-          url (format "/articles/%s" (:article_url a/example-article))]
+  (let [app (-> {:database (pg/->NextDatabase (embedded-h2/fresh-db!))
+                 :auth     (tu/authenticated-backend)}
+                andrewslai/andrewslai-app
+                tu/wrap-clojure-response)
+        url (format "/articles/%s" (:article_url a/example-article))]
 
-      (testing "404 when article not yet created"
-        (is (match? {:status 404}
-                    (app (mock/request :get url)))))
+    (testing "404 when article not yet created"
+      (is (match? {:status 404}
+                  (app (mock/request :get url)))))
 
-      (testing "Article creation succeeds"
-        (is (match? {:status 200}
-                    (app (-> (mock/request :put url)
-                             (mock/json-body a/example-article)
-                             (mock/header "Authorization" (str "Bearer " tu/valid-token)))))))
+    (testing "Article creation succeeds"
+      (is (match? {:status 200}
+                  (app (-> (mock/request :put url)
+                           (mock/json-body a/example-article)
+                           (mock/header "Authorization" (str "Bearer " tu/valid-token)))))))
 
-      (testing "Article retrieval succeeds"
-        (is (match? {:status 200 :body article?}
-                    (app (mock/request :get url))))))))
+    (testing "Article retrieval succeeds"
+      (is (match? {:status 200 :body article?}
+                  (app (mock/request :get url)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Resume API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest portfolio-test
-  (with-embedded-h2 datasource
-    (let [app      (-> {:database (pg/->NextDatabase datasource)}
-                       (andrewslai/andrewslai-app)
-                       (tu/wrap-clojure-response))
-          response (app (mock/request :get "/projects-portfolio"))]
-      (is (match? {:status 200 :body portfolio/portfolio?}
-                  response)
-          (s/explain-str :andrewslai/portfolio (:body response))))))
+  (let [app      (-> {:database (pg/->NextDatabase (embedded-h2/fresh-db!))}
+                     (andrewslai/andrewslai-app)
+                     (tu/wrap-clojure-response))
+        response (app (mock/request :get "/projects-portfolio"))]
+    (is (match? {:status 200 :body portfolio/portfolio?}
+                response)
+        (s/explain-str :andrewslai/portfolio (:body response)))))

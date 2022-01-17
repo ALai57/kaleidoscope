@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.postgres-test
-  (:require [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
+  (:require [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [andrewslai.clj.persistence.persistence :as persist]
             [andrewslai.clj.persistence.postgres :as pg]
             [clojure.test :refer [is use-fixtures]]
@@ -45,10 +45,9 @@
 ;; https://clojurians.slack.com/archives/C1Q164V29/p1601667389036400
 (defspec insert-get-delete-test
   (prop/for-all [user gen-user]
-    (with-embedded-h2 ds
-      (let [database (pg/->NextDatabase ds)]
-        (and (is (empty?   (persist/select database all-users)))
-             (is (match?   (persist/transact! database (add-user user)) [user]))
-             (is (= [user] (persist/select database all-users)))
-             (is (= []     (persist/transact! database (del-user (:username user)))))
-             (is (empty?   (persist/select database all-users))))))))
+    (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
+      (and (is (empty?   (persist/select database all-users)))
+           (is (match?   (persist/transact! database (add-user user)) [user]))
+           (is (= [user] (persist/select database all-users)))
+           (is (= []     (persist/transact! database (del-user (:username user)))))
+           (is (empty?   (persist/select database all-users)))))))

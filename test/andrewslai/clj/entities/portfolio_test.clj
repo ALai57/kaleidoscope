@@ -1,5 +1,5 @@
 (ns andrewslai.clj.entities.portfolio-test
-  (:require [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
+  (:require [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.persistence.postgres :as pg]
             [clojure.test :refer [deftest is use-fixtures]]
@@ -11,6 +11,5 @@
       (f))))
 
 (deftest get-portfolio-test
-  (with-embedded-h2 datasource
-    (is (portfolio/portfolio?
-         (portfolio/get-portfolio (pg/->NextDatabase datasource))))))
+  (let [db (pg/->NextDatabase (embedded-h2/fresh-db!))]
+    (is (portfolio/portfolio? (portfolio/get-portfolio db)))))
