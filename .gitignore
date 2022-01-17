@@ -32,5 +32,5 @@ resources/public/js/test/
 *.tfstate.*
 crash.log
 *.tfvars
-
+.idea*
 pom.xml*
