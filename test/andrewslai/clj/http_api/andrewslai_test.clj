@@ -1,16 +1,15 @@
 (ns andrewslai.clj.http-api.andrewslai-test
-  (:require [andrewslai.clj.embedded-postgres :refer [with-embedded-postgres]]
-            [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
-            [andrewslai.clj.persistence.articles-test :as a]
+  (:require [andrewslai.clj.embedded-h2 :refer [with-embedded-h2]]
+            [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.static-content :as sc]
+            [andrewslai.clj.persistence.articles-test :as a]
+            [andrewslai.clj.persistence.postgres2 :as pg]
             [andrewslai.clj.test-utils :as tu]
-            [buddy.auth.middleware :refer [wrap-authentication]]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [ring.mock.request :as mock]
-            [taoensso.timbre :as log]
-            [andrewslai.clj.persistence.postgres2 :as pg]))
+            [taoensso.timbre :as log]))
 
 (use-fixtures :once
   (fn [f]
@@ -28,10 +27,6 @@
 (defn articles?
   [x]
   (s/valid? :andrewslai.article/articles x))
-
-(defn portfolio?
-  [x]
-  (s/valid? :andrewslai.portfolio/portfolio x))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing HTTP routes
@@ -81,28 +76,28 @@
                                                   :static-content (sc/classpath-static-content-wrapper "public" {})})]
           (is (match? expected (handler request)))))
 
-      "GET `/ping` is publically accessible"
+      "GET `/ping` is publicly accessible"
       {:status 200} (mock/request :get "/ping")
 
-      "GET `/` is publically accessible"
+      "GET `/` is publicly accessible"
       {:status 200} (mock/request :get "/")
 
-      "POST `/swagger.json` is publically accessible"
+      "POST `/swagger.json` is publicly accessible"
       {:status 200} (mock/request :get "/swagger.json")
 
-      "GET `/admin` is not publically accessible"
+      "GET `/admin` is not publicly accessible"
       {:status 401} (mock/request :get "/admin")
 
-      "GET `/projects-portfolio` is publically accessible"
+      "GET `/projects-portfolio` is publicly accessible"
       {:status 200} (mock/request :get "/projects-portfolio")
 
-      "GET `/articles` is publically accessible"
+      "GET `/articles` is publicly accessible"
       {:status 200} (mock/request :get "/articles")
 
-      "GET `/articles/does-not-exist` is publically accessible"
+      "GET `/articles/does-not-exist` is publicly accessible"
       {:status 404} (mock/request :get "/articles/does-not-exist")
 
-      "PUT `/articles/new-article` is not publically accessible"
+      "PUT `/articles/new-article` is not publicly accessible"
       {:status 401} (mock/request :put "/articles/new-article"))))
 
 
@@ -156,6 +151,6 @@
                        (andrewslai/andrewslai-app)
                        (tu/wrap-clojure-response))
           response (app (mock/request :get "/projects-portfolio"))]
-      (is (match? {:status 200 :body portfolio?}
+      (is (match? {:status 200 :body portfolio/portfolio?}
                   response)
-          (s/explain-str :andrewslai.portfolio/portfolio (:body response))))))
+          (s/explain-str :andrewslai/portfolio (:body response))))))

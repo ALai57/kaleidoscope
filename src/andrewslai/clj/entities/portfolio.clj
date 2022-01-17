@@ -7,62 +7,74 @@
 (s/def :andrewslai.portfolio/url string?)
 (s/def :andrewslai.portfolio/image_url string?)
 (s/def :andrewslai.portfolio/description string?)
+(s/def :andrewslai.portfolio/tags string?)
 
-(s/def :andrewslai.portfolio/organization
+(s/def :andrewslai.portfolio/entry
   (s/keys :req-un [:andrewslai.portfolio/id
                    :andrewslai.portfolio/name
                    :andrewslai.portfolio/url
                    :andrewslai.portfolio/image_url
+                   :andrewslai.portfolio/description
+                   :andrewslai.portfolio/tags]))
+
+(s/def :andrewslai.portfolio/entries
+  (s/coll-of :andrewslai.portfolio/entry))
+
+(s/def :andrewslai.portfolio/name_1 :andrewslai.portfolio/name)
+(s/def :andrewslai.portfolio/name_2 :andrewslai.portfolio/name)
+(s/def :andrewslai.portfolio/relation string?)
+
+(s/def :andrewslai.portfolio/link
+  (s/keys :req-un [:andrewslai.portfolio/id
+                   :andrewslai.portfolio/name_1
+                   :andrewslai.portfolio/relation
+                   :andrewslai.portfolio/name_2
                    :andrewslai.portfolio/description]))
 
-(s/def :andrewslai.portfolio/organizations
-  (s/coll-of :andrewslai.portfolio/organization))
+(s/def :andrewslai.portfolio/links
+  (s/coll-of :andrewslai.portfolio/link))
 
-(s/def :andrewslai.portfolio/organization_names
-  (s/coll-of :andrewslai.portfolio/name))
+(defn get-projects
+  [database]
+  (pg/select database {:select [:*]
+                       :from   [:portfolio-entries]
+                       :where  [:= :portfolio-entries/type "project"]}))
 
-(s/def :andrewslai.portfolio/skills-names
-  (s/coll-of :andrewslai.portfolio/name))
+(defn get-orgs
+  [database]
+  (pg/select database {:select [:*]
+                       :from   [:portfolio-entries]
+                       :where  [:= :portfolio-entries/type "organization"]}))
 
-(s/def :andrewslai.portfolio/project
-  (s/keys :req-un [:andrewslai.portfolio/id
-                   :andrewslai.portfolio/name
-                   :andrewslai.portfolio/url
-                   :andrewslai.portfolio/image_url
-                   :andrewslai.portfolio/description
-                   :andrewslai.portfolio/organization_names
-                   :andrewslai.portfolio/skills_names]))
+(defn get-skills
+  [database]
+  (pg/select database {:select [:*]
+                       :from   [:portfolio-entries]
+                       :where  [:= :portfolio-entries/type "skill"]}))
 
-(s/def :andrewslai.portfolio/projects (s/coll-of :andrewslai.portfolio/project))
 
-(s/def :andrewslai.portfolio/skill_category string?)
+(defn get-nodes
+  [database]
+  (pg/select database {:select [:*]
+                       :from   [:portfolio-entries]}))
 
-(s/def :andrewslai.portfolio/skill
-  (s/keys :req-un [:andrewslai.portfolio/id
-                   :andrewslai.portfolio/name
-                   :andrewslai.portfolio/url
-                   :andrewslai.portfolio/image_url
-                   :andrewslai.portfolio/description
-                   :andrewslai.portfolio/skill_category]))
+(defn get-links
+  [database]
+  (concat (pg/select database {:select [:*] :from [:projects-organizations]})
+          (pg/select database {:select [:*] :from [:projects-skills]})))
 
-(s/def :andrewslai.portfolio/skills
-  (s/coll-of :andrewslai.portfolio/skill))
 
-(s/def :andrewslai.portfolio/portfolio
-  (s/keys :req-un [:andrewslai.portfolio/organizations
-                   :andrewslai.portfolio/projects
-                   :andrewslai.portfolio/skills]))
+(s/def :andrewslai/portfolio
+  (s/keys :req-un [:andrewslai.portfolio/nodes
+                   :andrewslai.portfolio/links]))
+
+(defn portfolio?
+  [x]
+  (s/valid? :andrewslai/portfolio x))
 
 (defn get-portfolio [database]
-  (let [orgs     (pg/select database
-                            {:select [:*] :from [:organizations]})
-        projects (pg/select database
-                            {:select [:*] :from [:projects]})
-        skills   (pg/select database
-                            {:select [:*] :from [:skills]})]
-    {:organizations orgs
-     :projects      projects
-     :skills        skills}))
+  {:nodes (get-nodes database)
+   :links (get-links database)})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection

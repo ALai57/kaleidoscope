@@ -10,37 +10,6 @@ CREATE TABLE users (
 
 --;;
 
-CREATE TABLE organizations(
-       id          BIGSERIAL PRIMARY KEY,
-       name        VARCHAR UNIQUE,
-       url         VARCHAR,
-       image_url   VARCHAR,
-       description VARCHAR
-);
-
---;;
-
-CREATE TABLE projects(
-       id          BIGSERIAL PRIMARY KEY,
-       name        VARCHAR UNIQUE,
-       url         VARCHAR,
-       image_url   VARCHAR,
-       description VARCHAR
-);
-
---;;
-
-CREATE TABLE skills(
-       id             BIGSERIAL PRIMARY KEY,
-       name           VARCHAR UNIQUE,
-       url            VARCHAR,
-       image_url      VARCHAR,
-       description    VARCHAR,
-       skill_category VARCHAR
-);
-
---;;
-
 CREATE TABLE articles(
        id           BIGSERIAL PRIMARY KEY,
        title        VARCHAR (100),
@@ -53,17 +22,22 @@ CREATE TABLE articles(
 
 --;;
 
-CREATE TABLE projects_organizations(
-       id              BIGSERIAL PRIMARY KEY,
-       project_id      INTEGER,
-       organization_id INTEGER
+CREATE TABLE portfolio_entries(
+       id          BIGSERIAL PRIMARY KEY,
+       name        VARCHAR UNIQUE,
+       type        VARCHAR,
+       url         VARCHAR,
+       image_url   VARCHAR,
+       description VARCHAR,
+       tags        VARCHAR
 );
 
 --;;
 
-CREATE TABLE projects_skills(
+CREATE TABLE portfolio_links(
        id          BIGSERIAL PRIMARY KEY,
-       project_id  INTEGER,
-       skills_id   INTEGER,
+       name_1      VARCHAR,
+       relation    VARCHAR,
+       name_2      VARCHAR,
        description VARCHAR
 );

@@ -61,13 +61,13 @@
                                           :auth         (tu/unauthenticated-backend)})]
         (is (match? expected (handler request)))))
 
-    "GET `/ping` is publically accessible"
+    "GET `/ping` is publicly accessible"
     {:status 200} (mock/request :get "/ping")
 
-    "GET `/media/` is not publically accessible"
+    "GET `/media/` is not publicly accessible"
     {:status 401} (mock/request :get "/media/")
 
-    "POST `/media/` is not publically accessible"
+    "POST `/media/` is not publicly accessible"
     {:status 401} (mock/request :post "/media/")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
