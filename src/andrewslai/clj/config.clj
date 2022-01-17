@@ -54,17 +54,17 @@
     "embedded-postgres" (pg/->NextDatabase (embedded-pg/fresh-db!))
     "embedded-h2"       (pg/->NextDatabase (embedded-h2/fresh-db!))))
 
-(defn configure-frontend-bucket
+(defn configure-static-content
   [env]
-  (let [bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")]
-    (sc/static-content (s3-storage/map->S3 {:bucket bucket
-                                            :creds  s3-storage/CustomAWSCredentialsProviderChain}))))
+  (case (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "s3")
+    "s3"    (sc/static-content (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")
+                                                    :creds  s3-storage/CustomAWSCredentialsProviderChain}))
+    "local" (sc/file-static-content-wrapper (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {})))
 
 (defn configure-wedding-storage
   [env]
-  (let [bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")]
-    (s3-storage/map->S3 {:bucket bucket
-                         :creds  s3-storage/CustomAWSCredentialsProviderChain})))
+  (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")
+                       :creds  s3-storage/CustomAWSCredentialsProviderChain}))
 
 (defn configure-wedding-access
   [env]
@@ -76,7 +76,7 @@
    :andrewslai {:auth           (configure-auth env)
                 :database       (configure-database env)
                 :logging        (configure-logging env)
-                :static-content (configure-frontend-bucket env)}
+                :static-content (configure-static-content env)}
    :wedding    {:auth         (configure-auth env)
                 :access-rules (configure-wedding-access env)
                 :storage      (configure-wedding-storage env)

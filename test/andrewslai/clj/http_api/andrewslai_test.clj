@@ -106,16 +106,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest article-retrieval-test
-  (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
-    (are [endpoint expected]
-      (testing (format "%s returns %s" endpoint expected)
+  (are [endpoint expected]
+    (testing (format "%s returns %s" endpoint expected)
+      (let [app (andrewslai/andrewslai-app {:database (pg/->NextDatabase (embedded-h2/fresh-db!))})]
         (is (match? expected
-                    (tu/app-request (andrewslai/andrewslai-app {:database database})
-                                    (mock/request :get endpoint)))))
+                    (tu/app-request app (mock/request :get endpoint))))))
 
-      "/articles"                  {:status 200 :body articles?}
-      "/articles/my-first-article" {:status 200 :body article?}
-      "/articles/does-not-exist"   {:status 404})))
+    "/articles"                  {:status 200 :body articles?}
+    "/articles/my-first-article" {:status 200 :body article?}
+    "/articles/does-not-exist"   {:status 404}))
 
 (deftest create-article-happy-path
   (let [app (-> {:database (pg/->NextDatabase (embedded-h2/fresh-db!))

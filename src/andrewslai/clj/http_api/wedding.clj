@@ -92,6 +92,7 @@
                        wrap-params
                        mw/log-request!
 
+                       ;; TODO: Don't use this - pass in a wrapper
                        (sc/static-content storage)
                        #(ba/wrap-authorization % auth)
                        #(ba/wrap-authentication % auth)

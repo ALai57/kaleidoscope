@@ -11,8 +11,8 @@
   (first
    (pg/select database
               {:select [:*]
-               :from [:articles]
-               :where [:= :articles/article_url article_url]})))
+               :from   [:articles]
+               :where  [:= :articles/article_url article_url]})))
 
 (defn create-article! [database article]
   (pg/insert! database
