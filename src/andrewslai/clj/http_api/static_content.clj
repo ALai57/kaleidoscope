@@ -45,21 +45,30 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Perhaps change endings to `static-content-middleware`
 (defn classpath-static-content-wrapper
+  "Returns middleware that intercepts requests and serves files from the
+  ClassLoader's Classpath."
   ([options]
    (classpath-static-content-wrapper "" options))
   ([root-path options]
    (fn [handler]
-     (wrap-cache-control (wrap-resource handler root-path options)))))
+     (-> handler
+         (wrap-resource root-path options)
+         (wrap-cache-control)))))
 
 (defn file-static-content-wrapper
+  "Returns middleware that intercepts requests and serves files relative to
+  the root path."
   [root-path options]
   (fn [handler]
-    (wrap-cache-control (wrap-file handler root-path options))))
+    (-> handler
+        (wrap-file root-path options)
+        (wrap-cache-control))))
 
 (defn static-content
-  "Returns Middleware that serves static content from a filesystem"
+  "Returns Middleware that serves static content from a filesystem
+  implementing the FileSystem protocol"
   [filesystem]
-  (classpath-static-content-wrapper
-   {:loader          (protocols/filesystem-loader filesystem)
-    :prefer-handler? true}))
+  (classpath-static-content-wrapper {:loader          (protocols/filesystem-loader filesystem)
+                                     :prefer-handler? true}))
