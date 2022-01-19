@@ -27,3 +27,14 @@
                             m1
                             (mapcat keys [m1 m2]))
     :else m2))
+
+(defn find-first-match
+  "Searches through a collection of potential matches to find the first matching
+  regex and return the associated value."
+  [potential-matches s default-val]
+  (reduce (fn [default [regexp v]]
+            (if (re-find regexp s)
+              (reduced v)
+              default))
+          default-val
+          potential-matches))

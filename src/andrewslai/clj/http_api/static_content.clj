@@ -1,33 +1,49 @@
 (ns andrewslai.clj.http-api.static-content
   (:require [andrewslai.clj.utils.files.protocols.core :as protocols]
+            [andrewslai.clj.utils.core :as u]
             [clojure.string :as string]
             [ring.middleware.file :refer [wrap-file]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.util.http-predicates :refer [success?]]
             [taoensso.timbre :as log]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Cache control helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def no-cache  "max-age=0,no-cache,no-store")
 (def cache-30d "public,max-age=2592000,s-maxage=2592000")
+
+(def url-caching-policy
+  [[#"\.html$" no-cache]
+   [#"\/$"     no-cache]])
+
+(defn cache-control-header
+  "Find the correct cache control headers for a given URL.
+  Useful because we are serving static content from S3 - so some content should have
+  long caching (images) while others should not (actual site)."
+  [url]
+  (u/find-first-match url-caching-policy url cache-30d))
+
+(defn add-cache-control
+  [m v]
+  (assoc-in m [:headers "Cache-Control"] v))
 
 (defn cache-control
   "Add Cache Control Headers for successful responses"
   [url response]
-  (cond
-    (nil? response)     (log/info "Cache control: No matched route for request!")
-    (success? response) (cond
-                          (string/ends-with? url ".html") (assoc-in response [:headers "Cache-Control"] no-cache)
-                          (string/ends-with? url "/")     (assoc-in response [:headers "Cache-Control"] no-cache)
-                          :else                           (assoc-in response [:headers "Cache-Control"] cache-30d))
-    :else               response))
+  (if (success? response)
+    (add-cache-control response (cache-control-header url))
+    response))
 
 (defn wrap-cache-control
   "Wraps responses with a cache-control header"
   [handler]
-  (fn [request]
-    (let [resp (handler request)]
-      (log/infof "Generating Cache control headers for request-id %s\n"
-                 (:request-id request))
-      (cache-control (:uri request) resp))))
+  (fn [{:keys [request-id uri] :as request}]
+    (log/infof "Generating Cache control headers for request-id %s\n" request-id)
+    (cache-control uri (handler request))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn classpath-static-content-wrapper
   ([options]

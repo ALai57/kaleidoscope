@@ -12,6 +12,9 @@
            java.nio.file.attribute.FileAttribute
            java.nio.file.Files))
 
+(def TEMP-DIRECTORY
+  (System/getProperty "java.io.tmpdir"))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Predicates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
