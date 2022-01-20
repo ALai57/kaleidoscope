@@ -14,8 +14,8 @@
 (def cache-30d "public,max-age=2592000,s-maxage=2592000")
 
 (def url-caching-policy
-  [[#"\.html$" no-cache]
-   [#"\/$"     no-cache]])
+  [[#"\.png$" cache-30d]
+   [#"\.svg$" cache-30d]])
 
 (defn cache-control-header
   "Find the correct cache control headers for a given URL.
@@ -55,8 +55,8 @@
   ([root-path options]
    (fn [handler]
      (-> handler
-         (wrap-resource root-path options)
-         (wrap-cache-control)))))
+         (wrap-cache-control)
+         (wrap-resource root-path options)))))
 
 (defn file-static-content-wrapper
   "Returns middleware that intercepts requests and serves files relative to
@@ -64,12 +64,12 @@
   [root-path options]
   (fn [handler]
     (-> handler
-        (wrap-file root-path options)
-        (wrap-cache-control))))
+        (wrap-cache-control)
+        (wrap-file root-path options))))
 
 (defn static-content
   "Returns Middleware that serves static content from a filesystem
   implementing the FileSystem protocol"
   [filesystem]
   (classpath-static-content-wrapper {:loader          (protocols/filesystem-loader filesystem)
-                                     :prefer-handler? false}))
+                                     :prefer-handler? true}))

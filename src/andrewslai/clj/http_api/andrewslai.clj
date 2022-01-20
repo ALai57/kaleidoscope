@@ -6,7 +6,7 @@
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
             [buddy.auth.middleware :as ba]
-            [compojure.api.sweet :refer [api]]
+            [compojure.api.sweet :refer [api ANY]]
             [compojure.route :as route]
             [clojure.stacktrace :as stacktrace]
             [ring.middleware.content-type :refer [wrap-content-type]]
@@ -19,9 +19,13 @@
               (ex-message e)
               (stacktrace/print-stack-trace e)))
 
+(def default-handler
+  (ANY "*" []
+    {:status 404}))
+
 (defn andrewslai-app
   [{:keys [auth static-content] :as components}]
-  (api {:components (dissoc components :static-content)
+  (api {:components components
         :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
         :middleware [mw/wrap-request-identifier
                      mw/wrap-redirect-to-index
@@ -36,4 +40,12 @@
        articles-routes
        portfolio-routes
        admin-routes
-       swagger-ui-routes))
+       swagger-ui-routes
+       default-handler))
+
+
+(comment
+  ((andrewslai-app {:auth           identity
+                    :static-content nil})
+   {:request-method :get
+    :uri    "hi"}))

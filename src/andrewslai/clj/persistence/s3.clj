@@ -111,7 +111,7 @@
       (-> (s3/get-object creds {:bucket-name bucket :key path})
           :input-stream)
       (catch Exception e
-        (println e)
+        (log/warn "Could not retrieve object" (amazon/ex->map e))
         (exception-response (amazon/ex->map e)))))
   (put-file [_ path input-stream metadata]
     (log/infof "S3 Put Object `%s/%s`" bucket path)
@@ -122,7 +122,7 @@
                       :input-stream input-stream
                       :metadata     (prepare-metadata metadata)})
       (catch Exception e
-        (println e)
+        (log/error "Could not put object" e)
         (exception-response (amazon/ex->map e)))))
   (get-protocol [_]
     (or protocol s3p/S3-PROTOCOL)))
