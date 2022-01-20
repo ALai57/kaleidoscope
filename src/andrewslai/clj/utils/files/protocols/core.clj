@@ -2,7 +2,8 @@
   (:require [andrewslai.clj.persistence.filesystem :as fs]
             [andrewslai.clj.utils.files.protocols.core :as protocols]
             [clojure.string :as string]
-            [ring.util.response :as ring-response])
+            [ring.util.response :as ring-response]
+            [taoensso.timbre :as log])
   (:import [java.net URL URLClassLoader URLConnection URLStreamHandler]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -48,4 +49,5 @@
       [URLClassLoader]
       [(make-array java.net.URL 0)]
     (getResource [path]
+      (log/info "Getting resource from filesystem loader" path)
       (make-url (fs/get-protocol filesystem) "" -1 (str "/" path) (url-stream-handler filesystem)))))

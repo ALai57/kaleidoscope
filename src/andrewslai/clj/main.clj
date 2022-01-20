@@ -14,7 +14,8 @@
 (defn initialize!
   []
   (log/merge-config!
-   {:appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}))
+   {:min-level :info
+    :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server

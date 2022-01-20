@@ -39,8 +39,9 @@
   "Wraps responses with a cache-control header"
   [handler]
   (fn [{:keys [request-id uri] :as request}]
-    (log/infof "Generating Cache control headers for request-id %s\n" request-id)
-    (cache-control uri (handler request))))
+    (cache-control uri (let [response (handler request)]
+                         (log/infof "Generating Cache control headers for request-id %s\n" request-id)
+                         response))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -71,4 +72,4 @@
   implementing the FileSystem protocol"
   [filesystem]
   (classpath-static-content-wrapper {:loader          (protocols/filesystem-loader filesystem)
-                                     :prefer-handler? true}))
+                                     :prefer-handler? false}))

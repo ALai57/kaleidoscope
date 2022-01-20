@@ -11,8 +11,6 @@
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [taoensso.timbre :as log]))
 
-(log/merge-config! {:min-level :info})
-
 (def DEFAULT-STATIC-CONTENT
   "classpath")
 
@@ -75,7 +73,6 @@
   {:port       (configure-port env)
    :andrewslai {:auth           (configure-auth env)
                 :database       (configure-database env)
-                :logging        (configure-logging env)
                 :static-content (configure-static-content env)}
    :wedding    {:auth         (configure-auth env)
                 :access-rules (configure-wedding-access env)
