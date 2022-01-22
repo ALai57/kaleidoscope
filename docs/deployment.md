@@ -13,7 +13,7 @@ docker build -t andrewslai .
 Against the cloud
 ```bash
 docker run -v$HOME/.aws:/root/.aws:ro \
-           --env-file=.env.aws \
+           --env-file=.env.docker.aws \
            -p 5000:5000 andrewslai 
 ```
 
@@ -21,7 +21,7 @@ docker run -v$HOME/.aws:/root/.aws:ro \
 
 Against local DB
 ```bash 
-docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai
+docker run -d --rm --network host --env-file=.env.docker.local -p 5000:5000 andrewslai
 ```
 
 ### Step 3: Upload artifact
