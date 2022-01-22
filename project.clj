@@ -99,8 +99,11 @@
                   ["clean"]
                   ["deploy" "clojars"]
                   ["uberjar"]
+
+                  ;; Necessary for dockerizing on M1:
+                  ;; https://stackoverflow.com/questions/67361936/exec-user-process-caused-exec-format-error-in-aws-fargate-service
                   ["shell" "docker" "buildx" "build" "--platform=linux/amd64" "-t" "andrewslai" "."]
-                  ;;["shell" "docker" "tag" "andrewslai:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
+                  ["shell" "docker" "tag" "andrewslai:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
                   ["shell" "docker" "push" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
                   ["change" "version" "leiningen.release/bump-version"]
                   ["vcs" "commit"]
