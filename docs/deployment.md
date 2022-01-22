@@ -1,5 +1,7 @@
 # Deployment
 
+## Pre-deployment testing
+
 ### Step 1: Build Docker Image
 
 ```bash
@@ -29,4 +31,9 @@ docker run -d --rm --network host --env-file=.env.docker.local -p 5000:5000 andr
 ```bash
 ./scripts/deployment/push-to-ecr
 ./scripts/deployment/deploy-image
+```
+
+## Deployment
+```
+lein release
 ```
