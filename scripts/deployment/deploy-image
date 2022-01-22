@@ -3,4 +3,5 @@
 aws ecs update-service \
   --cluster andrewslai \
   --service andrewslai-service \
-  --force-new-deployment
+  --force-new-deployment &&
+watch -n 5 "curl https://andrewslai.com/ping | jq ."
