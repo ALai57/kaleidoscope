@@ -11,14 +11,6 @@
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [taoensso.timbre :as log]))
 
-(def DEFAULT-STATIC-CONTENT
-  "classpath")
-
-(def DEFAULT-STATIC-CONTENT-LOCATION
-  {"classpath"  "public/"
-   "filesystem" "assets/public/"
-   "s3"         ""})
-
 (defn configure-port
   [env]
   (Integer/parseInt (get env "ANDREWSLAI_PORT" "5000")))

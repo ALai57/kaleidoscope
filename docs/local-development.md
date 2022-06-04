@@ -65,9 +65,11 @@ Keycloak requires a persistence layer to keep track of users, permisisons, etc.
 **_In-memory H2 DB as the persistence layer_**  
 ```bash
 docker run -e KEYCLOAK_USER=<USERNAME> \
-           -e KEYCLOAK_PASSWORD=<PASSWORD> 
+           -e KEYCLOAK_PASSWORD=<PASSWORD> \
+           -p 8080:8080 \
            jboss/keycloak
 ```
+Then import `test-keycloak-realm.json` to set up the realm and test client
 
 **_Postgres as persistence layer_**  
 ```bash
