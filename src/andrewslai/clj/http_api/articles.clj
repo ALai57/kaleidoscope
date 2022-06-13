@@ -71,7 +71,7 @@
     (GET "/:article-name" [article-name]
       :swagger {:summary "Retrieve a single article"
                 :produces #{"application/json"}
-                :parameters {:path {:article-name :andrewslai.article/article_name}}
+                :parameters {:path {:article-name :andrewslai.article/article-name}}
                 :responses {200 {:description "A single article"
                                  :schema :andrewslai.article/article}}}
       (if-let [article (articles-api/get-article database article-name)]
