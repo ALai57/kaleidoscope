@@ -61,11 +61,11 @@
                 (app (-> (mock/request :get "/admin/")
                          (mock/header "Authorization" (tu/bearer-token "an-authenticated-user"))))))))
 
-(deftest logging-test
-  (let [logging-atom (atom [])
-        handler      (andrewslai/andrewslai-app {:logging (tu/captured-logging logging-atom)})]
-    (handler (mock/request :get "/ping"))
-    (is (= 1 (count @logging-atom)))))
+#_(deftest logging-test
+    (let [logging-atom (atom [])
+          handler      (andrewslai/andrewslai-app {:logging (tu/captured-logging logging-atom)})]
+      (handler (mock/request :get "/ping"))
+      (is (= 1 (count @logging-atom)))))
 
 (deftest access-rule-configuration-test
   (are [description expected request]

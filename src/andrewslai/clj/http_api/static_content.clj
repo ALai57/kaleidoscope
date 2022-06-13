@@ -15,6 +15,7 @@
 
 (def url-caching-policy
   [[#"\.png$" cache-30d]
+   [#"\.jpg$" cache-30d]
    [#"\.svg$" cache-30d]])
 
 (defn cache-control-header
