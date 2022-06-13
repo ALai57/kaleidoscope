@@ -22,7 +22,7 @@
   Useful because we are serving static content from S3 - so some content should have
   long caching (images) while others should not (actual site)."
   [url]
-  (u/find-first-match url-caching-policy url cache-30d))
+  (u/find-first-match url-caching-policy url no-cache))
 
 (defn add-cache-control
   [m v]
@@ -55,8 +55,8 @@
   ([root-path options]
    (fn [handler]
      (-> handler
-         (wrap-cache-control)
-         (wrap-resource root-path options)))))
+         (wrap-resource root-path options)
+         (wrap-cache-control)))))
 
 (defn file-static-content-wrapper
   "Returns middleware that intercepts requests and serves files relative to

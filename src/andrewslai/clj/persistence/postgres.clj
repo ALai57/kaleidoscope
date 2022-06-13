@@ -38,7 +38,7 @@
     (next/execute! conn stmt {:builder-fn rs/as-unqualified-kebab-maps}))
   (transact! [this stmt]
     (next/execute! conn stmt {:return-keys true
-                              :builder-fn rs/as-unqualified-kebab-maps})))
+                              :builder-fn  rs/as-unqualified-kebab-maps})))
 
 (defn select [database m]
   (let [result (p/select database (hsql/format m))]

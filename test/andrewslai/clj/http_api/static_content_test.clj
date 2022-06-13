@@ -17,10 +17,10 @@
       (f))))
 
 (deftest cache-control-header-test
-  (is (= sc/no-cache (sc/cache-control-header "Hello.html")))
-  (is (= sc/cache-30d (sc/cache-control-header "Hello.html.")))
-  (is (= sc/no-cache (sc/cache-control-header "hello/")))
-  (is (= sc/cache-30d (sc/cache-control-header "hello/htm"))))
+  (is (= sc/no-cache  (sc/cache-control-header "Hello.html")))
+  (is (= sc/no-cache  (sc/cache-control-header "hello/")))
+  (is (= sc/cache-30d (sc/cache-control-header "Hello.png")))
+  (is (= sc/cache-30d (sc/cache-control-header "hello.svg"))))
 
 (deftest cache-control-with-success-response-test
   (are [expected url]
@@ -30,7 +30,7 @@
 
     sc/no-cache  "hello.html"
     sc/no-cache  "hello/"
-    sc/cache-30d "hello/htm"
+    sc/cache-30d "hello.png"
     ))
 
 (deftest cache-control-with-non-200-test

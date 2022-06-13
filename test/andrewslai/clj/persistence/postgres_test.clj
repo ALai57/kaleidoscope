@@ -22,8 +22,8 @@
 
 (def gen-user
   (gen/hash-map :id gen/uuid
-                :first_name gen-human-name
-                :last_name gen-human-name
+                :first-name gen-human-name
+                :last-name gen-human-name
                 :username gen-human-name
                 :email gen/string-alpha-numeric
                 :avatar (gen/return nil)))

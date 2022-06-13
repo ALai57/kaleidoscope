@@ -16,8 +16,8 @@
 
 (defn ->article [article-url {:keys [body-params] :as request}]
   (-> body-params
-      (select-keys [:title :article_tags :article_name :content])
-      (assoc :article_url article-url)
+      (select-keys [:title :article-tags :article-name :content])
+      (assoc :article-url article-url)
       (assoc :author (auth/get-full-name (:identity request)))))
 
 (defn create-article-handler

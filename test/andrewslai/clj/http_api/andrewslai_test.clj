@@ -121,7 +121,7 @@
                  :auth     (tu/authenticated-backend)}
                 andrewslai/andrewslai-app
                 tu/wrap-clojure-response)
-        url (format "/articles/%s" (:article_url a/example-article))]
+        url (format "/articles/%s" (:article-url a/example-article))]
 
     (testing "404 when article not yet created"
       (is (match? {:status 404}

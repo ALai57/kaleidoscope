@@ -7,12 +7,12 @@
   (pg/select database {:select [:*]
                        :from [:articles]}))
 
-(defn get-article [database article_url]
+(defn get-article [database article-url]
   (first
    (pg/select database
               {:select [:*]
                :from   [:articles]
-               :where  [:= :articles/article_url article_url]})))
+               :where  [:= :articles/article-url article-url]})))
 
 (defn create-article! [database article]
   (pg/insert! database
