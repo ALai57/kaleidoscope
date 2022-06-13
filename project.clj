@@ -59,7 +59,7 @@
                  [ring "1.8.0" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
                  [ring/ring-json "0.5.0" :exclusions [joda-time]]
                  [ring/ring-mock "0.4.0" :scope "test"]
-                 [seancorfield/next.jdbc "1.1.613"]
+                 [com.github.seancorfield/next.jdbc "1.2.780"]
                  [slingshot "0.12.2"]]
 
   :plugins [[lein-shell "0.5.0"]]

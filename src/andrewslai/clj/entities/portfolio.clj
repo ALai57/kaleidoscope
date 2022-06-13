@@ -5,7 +5,7 @@
 (s/def :andrewslai.portfolio/id int?)
 (s/def :andrewslai.portfolio/name string?)
 (s/def :andrewslai.portfolio/url string?)
-(s/def :andrewslai.portfolio/image_url string?)
+(s/def :andrewslai.portfolio/image-url string?)
 (s/def :andrewslai.portfolio/description string?)
 (s/def :andrewslai.portfolio/tags string?)
 
@@ -13,22 +13,22 @@
   (s/keys :req-un [:andrewslai.portfolio/id
                    :andrewslai.portfolio/name
                    :andrewslai.portfolio/url
-                   :andrewslai.portfolio/image_url
+                   :andrewslai.portfolio/image-url
                    :andrewslai.portfolio/description
                    :andrewslai.portfolio/tags]))
 
 (s/def :andrewslai.portfolio/entries
   (s/coll-of :andrewslai.portfolio/entry))
 
-(s/def :andrewslai.portfolio/name_1 :andrewslai.portfolio/name)
-(s/def :andrewslai.portfolio/name_2 :andrewslai.portfolio/name)
+(s/def :andrewslai.portfolio/name-1 :andrewslai.portfolio/name)
+(s/def :andrewslai.portfolio/name-2 :andrewslai.portfolio/name)
 (s/def :andrewslai.portfolio/relation string?)
 
 (s/def :andrewslai.portfolio/link
   (s/keys :req-un [:andrewslai.portfolio/id
-                   :andrewslai.portfolio/name_1
+                   :andrewslai.portfolio/name-1
                    :andrewslai.portfolio/relation
-                   :andrewslai.portfolio/name_2
+                   :andrewslai.portfolio/name-2
                    :andrewslai.portfolio/description]))
 
 (s/def :andrewslai.portfolio/links

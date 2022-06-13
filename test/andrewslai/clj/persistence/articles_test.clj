@@ -13,18 +13,18 @@
 
 (def example-article
   {:title        "My test article"
-   :article_tags "thoughts"
-   :article_url  "my-test-article"
+   :article-tags "thoughts"
+   :article-url  "my-test-article"
    :author       "Andrew Lai"
    :content      "<h1>Hello world!</h1>"})
 
 (deftest create-and-retrieve-articles-test
   (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
     (testing "example-article doesn't exist in the database"
-      (is (nil? (article/get-article database (:article_url example-article)))))
+      (is (nil? (article/get-article database (:article-url example-article)))))
 
     (testing "Insert the example-article"
       (is (article/create-article! database example-article)))
 
     (testing "Can retrieve example-article from the DB"
-      (is (match? example-article (article/get-article database (:article_url example-article)))))))
+      (is (match? example-article (article/get-article database (:article-url example-article)))))))

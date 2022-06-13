@@ -133,6 +133,7 @@
                            (mock/json-body a/example-article)
                            (mock/header "Authorization" (str "Bearer " tu/valid-token)))))))
 
+    ;; FAILING
     (testing "Article retrieval succeeds"
       (is (match? {:status 200 :body article?}
                   (app (mock/request :get url)))))))

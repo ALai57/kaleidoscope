@@ -33,7 +33,9 @@
 (comment
   ;; MIGHT HAVE TO REQUIRE SOME MODULES... THIS WAS FAILING UNTIL I EVALUATED
   ;; THE BUFFER WITH THIS MODULE
-  (-main "create" "seed-articles-table")
+
+  (m/create {:migration-dirs "migrations"}
+            "add-image-metadata-table")
   (-main "init")
   (-main "migrate")
   (-main "up")

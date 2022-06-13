@@ -8,20 +8,20 @@
               [spec-tools.spec :as spec]])))
 
 (s/def :andrewslai.article/id spec/integer?)
-(s/def :andrewslai.article/article_name spec/string?)
+(s/def :andrewslai.article/article-name spec/string?)
 (s/def :andrewslai.article/title spec/string?)
-(s/def :andrewslai.article/article_tags spec/string?)
+(s/def :andrewslai.article/article-tags spec/string?)
 (s/def :andrewslai.article/timestamp (s/or :date spec/inst? :string spec/string?))
-(s/def :andrewslai.article/article_url spec/string?)
+(s/def :andrewslai.article/article-url spec/string?)
 (s/def :andrewslai.article/author spec/string?)
 (s/def :andrewslai.article/content spec/string?)
 
 (s/def :andrewslai.article/article
   (s/keys :req-un [:andrewslai.article/title
-                   :andrewslai.article/article_tags
+                   :andrewslai.article/article-tags
                    :andrewslai.article/author
                    :andrewslai.article/timestamp
-                   :andrewslai.article/article_url
+                   :andrewslai.article/article-url
                    :andrewslai.article/id]
           :opt-un [:andrewslai.article/content]))
 
@@ -30,8 +30,8 @@
 
 (def example-article
   {:id           4
-   :article_tags "about",
-   :article_url  "my-fourth-article",
+   :article-tags "about",
+   :article-url  "my-fourth-article",
    :author       "Andrew Lai",
    :content      "<p>Content from 4</p>"
    :timestamp    "2020-10-28T02:55:27Z",

@@ -35,10 +35,10 @@
 (defrecord NextDatabase [conn]
   Persistence
   (select [this stmt]
-    (next/execute! conn stmt {:builder-fn rs/as-unqualified-lower-maps}))
+    (next/execute! conn stmt {:builder-fn rs/as-unqualified-kebab-maps}))
   (transact! [this stmt]
     (next/execute! conn stmt {:return-keys true
-                              :builder-fn rs/as-unqualified-lower-maps})))
+                              :builder-fn rs/as-unqualified-kebab-maps})))
 
 (defn select [database m]
   (let [result (p/select database (hsql/format m))]
@@ -52,31 +52,31 @@
   (when input-validation
     (validate input-validation m :IllegalArgumentException))
   (try+
-    (p/transact! database (-> (hh/insert-into table)
-                              (hh/values [m])
-                              hsql/format))
-    (catch org.postgresql.util.PSQLException e
-      (throw+ (merge {:type :PersistenceException
-                      :message {:data (select-keys m [:username :email])
-                                :reason (.getMessage e)}}
-                     (when ex-subtype
-                       {:subtype ex-subtype}))))))
+   (p/transact! database (-> (hh/insert-into table)
+                             (hh/values [m])
+                             hsql/format))
+   (catch org.postgresql.util.PSQLException e
+     (throw+ (merge {:type :PersistenceException
+                     :message {:data (select-keys m [:username :email])
+                               :reason (.getMessage e)}}
+                    (when ex-subtype
+                      {:subtype ex-subtype}))))))
 
 (defn update! [database table m username & {:keys [ex-subtype
                                                    input-validation]}]
   (when input-validation
     (validate input-validation m :IllegalArgumentException))
   (try+
-    (p/transact! database (-> (hh/update table)
-                              (hh/sset m)
-                              (hh/where [:= :username username])
-                              hsql/format))
-    (catch org.postgresql.util.PSQLException e
-      (throw+ (merge {:type :PersistenceException
-                      :message {:data (select-keys m [:username :email])
-                                :reason (.getMessage e)}}
-                     (when ex-subtype
-                       {:subtype ex-subtype}))))))
+   (p/transact! database (-> (hh/update table)
+                             (hh/sset m)
+                             (hh/where [:= :username username])
+                             hsql/format))
+   (catch org.postgresql.util.PSQLException e
+     (throw+ (merge {:type :PersistenceException
+                     :message {:data (select-keys m [:username :email])
+                               :reason (.getMessage e)}}
+                    (when ex-subtype
+                      {:subtype ex-subtype}))))))
 
 (defn delete! [database table user-id & {:keys [ex-subtype]}]
   (try+
