@@ -37,10 +37,7 @@
                       (auth/get-realm-roles identity)))))
 
 (def access-rules
-  [{:pattern #"^/media/$"
-    :handler (partial require-role "wedding")}
-   {:pattern #"^/media.*"
-    :request-method :put
+  [{:pattern #"^/media.*"
     :handler (partial require-role "wedding")}])
 
 (defn ->file-input-stream
