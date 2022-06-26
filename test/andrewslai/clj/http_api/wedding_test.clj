@@ -134,7 +134,9 @@
                     result)))
 
       (testing "Retrieve newly created album"
-        (is (match? {:status 200 :body example-album}
+        (is (match? {:status 200 :body {:album-name  (:album-name example-album)
+                                        :modified-at string?
+                                        :created-at  string?}}
                     (app (mock/request :get (format "/albums/%s" (:id body)))))))
 
       (testing "Update album"

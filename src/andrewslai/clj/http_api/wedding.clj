@@ -77,7 +77,10 @@
                 :responses   {200 {:description "Success!"
                                    :schema      :andrewslai.albums/album}}}
       (log/info "Creating album" params)
-      (ok (album/create-album! database params)))
+      (let [now (java.time.LocalDateTime/now)]
+        (ok (album/create-album! database (assoc params
+                                                 :created-at now
+                                                 :modified-at now)))))
 
     (GET "/:id" [id]
       :swagger {:summary     "Retrieve an album"
