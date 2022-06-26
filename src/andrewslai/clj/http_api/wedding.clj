@@ -65,6 +65,7 @@
                 :produces    #{"application/json"}
                 :responses   {200 {:description "A collection of all albums"
                                    :schema      :andrewslai.albums/albums}}}
+      (log/info "Getting albums")
       (ok (album/get-all-albums database)))
 
     (POST "/" {params :params}
@@ -75,6 +76,7 @@
                 :request     :andrewslai.album/album
                 :responses   {200 {:description "Success!"
                                    :schema      :andrewslai.albums/album}}}
+      (log/info "Creating album" params)
       (ok (album/create-album! database params)))
 
     (GET "/:id" [id]
@@ -83,6 +85,7 @@
                 :produces    #{"application/json"}
                 :responses   {200 {:description "An album"
                                    :schema      :andrewslai.albums/album}}}
+      (log/info "Getting album" id)
       (ok (album/get-album-by-id database id)))
 
     (PUT "/:id" {params :params}
@@ -91,7 +94,7 @@
                 :produces    #{"application/json"}
                 :responses   {200 {:description "An album"
                                    :schema      :andrewslai.albums/album}}}
-      (println "REQ" params)
+      (log/info "Updating album" params)
       (ok (album/update-album! database params)))
     ))
 

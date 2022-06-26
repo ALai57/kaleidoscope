@@ -1,5 +1,5 @@
 (def COMPILE-TIME-LOG-LEVEL
-  :error)
+  :info)
 
 (defproject org.clojars.alai57/andrewslai "0.0.57-SNAPSHOT"
   :url "https://github.com/ALai57/andrewslai"

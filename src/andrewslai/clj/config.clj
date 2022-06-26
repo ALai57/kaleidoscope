@@ -68,5 +68,6 @@
                 :static-content (configure-static-content env)}
    :wedding    {:auth         (configure-auth env)
                 :access-rules (configure-wedding-access env)
+                :database     (configure-database env)
                 :storage      (configure-wedding-storage env)
                 :logging      (configure-logging env)}})
