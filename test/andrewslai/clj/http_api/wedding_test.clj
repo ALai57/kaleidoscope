@@ -2,9 +2,12 @@
   (:require [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.http-api.wedding :as wedding]
+            [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [andrewslai.clj.persistence.memory :as memory]
+            [andrewslai.clj.persistence.postgres :as pg]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.utils.core :as util]
+            [andrewslai.cljc.specs.albums :refer [example-album]]
             [clj-http.client :as http]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
@@ -113,6 +116,43 @@
                                                  :content-type "image/svg+xml"}}}}
                 @in-mem-fs))))
 
+(deftest albums-test
+  (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+                 :access-rules tu/public-access}
+                wedding/wedding-app
+                tu/wrap-clojure-response)]
+
+    (testing "No albums in DB to start"
+      (is (match? {:status 200 :body []}
+                  (app (mock/request :get "/albums")))))
+
+    (let [{:keys [body] :as result} (app (-> (mock/request :post "/albums")
+                                             (mock/json-body example-album)))]
+
+      (testing "Create new album"
+        (is (match? {:status 200 :body map?}
+                    result)))
+
+      (testing "Retrieve newly created album"
+        (is (match? {:status 200 :body example-album}
+                    (app (mock/request :get (format "/albums/%s" (:id body)))))))
+
+      (testing "Update album"
+        (is (match? {:status 200 :body {:id (:id body)}}
+                    (-> (mock/request :put (format "/albums/%s" (:id body)))
+                        (mock/json-body {:album-name "Updated name"})
+                        app)))
+        (is (match? {:status 200 :body {:album-name "Updated name"}}
+                    (app (mock/request :get (format "/albums/%s" (:id body))))))))))
+
+(deftest albums-auth-test
+  (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+                 :access-rules wedding/access-rules}
+                wedding/wedding-app)]
+
+    (testing "Default access rules restrict access"
+      (is (match? {:status 401}
+                  (app (mock/request :get "/albums")))))))
 
 (comment
   (require '[clj-http.client :as http])

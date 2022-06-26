@@ -62,30 +62,30 @@
                     (when ex-subtype
                       {:subtype ex-subtype}))))))
 
-(defn update! [database table m username & {:keys [ex-subtype
-                                                   input-validation]}]
+(defn update! [database table m where & {:keys [ex-subtype
+                                                input-validation]}]
   (when input-validation
     (validate input-validation m :IllegalArgumentException))
   (try+
    (p/transact! database (-> (hh/update table)
                              (hh/sset m)
-                             (hh/where [:= :username username])
+                             (hh/where where)
                              hsql/format))
    (catch org.postgresql.util.PSQLException e
-     (throw+ (merge {:type :PersistenceException
-                     :message {:data (select-keys m [:username :email])
+     (throw+ (merge {:type    :PersistenceException
+                     :message {:data   m
                                :reason (.getMessage e)}}
                     (when ex-subtype
                       {:subtype ex-subtype}))))))
 
-(defn delete! [database table user-id & {:keys [ex-subtype]}]
+(defn delete! [database table id & {:keys [ex-subtype]}]
   (try+
    (p/transact! database (-> (hh/delete-from table)
-                             (hh/where [:= :id user-id])
+                             (hh/where [:= :id id])
                              hsql/format))
    (catch org.postgresql.util.PSQLException e
-     (throw+ (merge {:type :PersistenceException
-                     :message {:data user-id
+     (throw+ (merge {:type    :PersistenceException
+                     :message {:data   id
                                :reason (.getMessage e)}}
                     (when ex-subtype
                       {:subtype ex-subtype}))))))

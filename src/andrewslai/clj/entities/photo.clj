@@ -15,4 +15,4 @@
 (defn get-photo [database photo-name]
   (first (pg/select database {:select [:*]
                               :from   [:photos]
-                              :where  [:= :photos/photo_name photo-name]})))
+                              :where  [:= :photos/photo-name photo-name]})))

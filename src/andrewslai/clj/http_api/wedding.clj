@@ -2,20 +2,21 @@
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
             [andrewslai.clj.auth.core :as auth]
-            [andrewslai.clj.persistence.filesystem :as fs]
+            [andrewslai.clj.entities.album :as album]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.static-content :as sc]
+            [andrewslai.clj.persistence.filesystem :as fs]
             [buddy.auth.accessrules :as ar :refer [wrap-access-rules]]
             [buddy.auth.middleware :as ba]
             [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [api context defroutes GET POST]]
+            [compojure.api.sweet :refer [api context defroutes GET POST PUT]]
             [compojure.route :as route]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.json :refer [wrap-json-response]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.middleware.params :refer [wrap-params]]
-            [ring.util.http-response :refer [created unauthorized]]
+            [ring.util.http-response :refer [created unauthorized ok]]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
 
@@ -38,6 +39,8 @@
 
 (def access-rules
   [{:pattern #"^/media.*"
+    :handler (partial require-role "wedding")}
+   {:pattern #"^/albums.*"
     :handler (partial require-role "wedding")}])
 
 (defn ->file-input-stream
@@ -50,6 +53,47 @@
     (log/info "Fetching `wedding-index.html` locally")
     (-> (ring-resp/resource-response "wedding-index.html" {:root "public"})
         (ring-resp/content-type "text/html"))))
+
+(defroutes album-routes
+  (context "/albums" []
+    :components [database]
+
+    (GET "/" []
+      :swagger {:summary     "Retrieve all albums"
+                :description (str "This endpoint retrieves all albums. "
+                                  "The endpoint is currently not paginated")
+                :produces    #{"application/json"}
+                :responses   {200 {:description "A collection of all albums"
+                                   :schema      :andrewslai.albums/albums}}}
+      (ok (album/get-all-albums database)))
+
+    (POST "/" {params :params}
+      :swagger {:summary     "Add an album"
+                :description "This endpoint inserts an album into the database"
+                :consumes    #{"application/json"}
+                :produces    #{"application/json"}
+                :request     :andrewslai.album/album
+                :responses   {200 {:description "Success!"
+                                   :schema      :andrewslai.albums/album}}}
+      (ok (album/create-album! database params)))
+
+    (GET "/:id" [id]
+      :swagger {:summary     "Retrieve an album"
+                :description "This endpoint retrieves an album by ID"
+                :produces    #{"application/json"}
+                :responses   {200 {:description "An album"
+                                   :schema      :andrewslai.albums/album}}}
+      (ok (album/get-album-by-id database id)))
+
+    (PUT "/:id" {params :params}
+      :swagger {:summary     "Update an album"
+                :description "This endpoint updates an album"
+                :produces    #{"application/json"}
+                :responses   {200 {:description "An album"
+                                   :schema      :andrewslai.albums/album}}}
+      (println "REQ" params)
+      (ok (album/update-album! database params)))
+    ))
 
 (defroutes upload-routes
   (context (format "/%s" MEDIA-FOLDER) []
@@ -79,7 +123,7 @@
 (defn wedding-app
   [{:keys [auth logging storage access-rules] :as components}]
   (log/with-config logging
-    (api {:components (select-keys components [:storage :logging])
+    (api {:components (select-keys components [:storage :logging :database])
           :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
           :middleware [mw/wrap-request-identifier
                        mw/wrap-redirect-to-index
@@ -99,6 +143,7 @@
                        #_(partial debug-log-request! "Finished middleware processing")
                        ]}
          ping-routes
+         album-routes
          ;; Useful for local debugging until I set up something better
          ;;index
          upload-routes
