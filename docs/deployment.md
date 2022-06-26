@@ -36,4 +36,5 @@ docker run -d --rm --network host --env-file=.env.docker.local -p 5000:5000 andr
 ## Deployment
 ```
 lein release
+./scripts/deployment/deploy-image
 ```
