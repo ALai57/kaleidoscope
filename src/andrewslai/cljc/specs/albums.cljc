@@ -22,9 +22,11 @@
   (s/coll-of :andrewslai.album/album))
 
 (def example-album
-  {:album-name  "hello"
-   :created-at  "2020-10-28T02:55:27Z",
-   :modified-at "2020-10-28T02:55:27Z",})
+  {:album-name     "hello"
+   :description    "first album"
+   :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"
+   :created-at     "2020-10-28T02:55:27Z",
+   :modified-at    "2020-10-28T02:55:27Z",})
 
 (comment
   ;; Example data for article spec

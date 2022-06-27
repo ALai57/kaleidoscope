@@ -13,9 +13,11 @@
       (f))))
 
 (def example-album
-  {:album-name  "My first album"
-   :created-at  #inst "2021-05-27T18:30:39.000Z"
-   :modified-at #inst "2021-05-27T18:30:39.000Z"})
+  {:album-name     "My first album"
+   :description    "My description"
+   :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"
+   :created-at     #inst "2021-05-27T18:30:39.000Z"
+   :modified-at    #inst "2021-05-27T18:30:39.000Z"})
 
 (deftest create-and-retrieve-album-test
   (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
