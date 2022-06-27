@@ -13,7 +13,7 @@
       (f))))
 
 (def example-album
-  {:album-name     "My first album"
+  {:album-name     "Test album"
    :description    "My description"
    :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"
    :created-at     #inst "2021-05-27T18:30:39.000Z"
@@ -22,7 +22,8 @@
 (deftest create-and-retrieve-album-test
   (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
     (testing "example-photo doesn't exist in the database"
-      (is (= [] (album/get-all-albums database))))
+      ;; Migrations seed db now for convenience
+      (is (= 3 (count (album/get-all-albums database)))))
 
     (let [{:keys [id]} (album/create-album! database example-album)]
       (testing "Insert the example-article"

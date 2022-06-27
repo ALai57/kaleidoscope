@@ -14,14 +14,15 @@
 
 (def example-photo
   {:id          #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"
-   :photo-name  "example/photo"
+   :photo-src  "example/photo"
    :created-at  #inst "2021-05-27T18:30:39.000Z"
    :modified-at #inst "2021-05-27T18:30:39.000Z"})
 
 (deftest create-and-retrieve-photo-test
   (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
     (testing "example-photo doesn't exist in the database"
-      (is (= [] (photo/get-all-photos database))))
+      ;; Migrations seed db now for convenience
+      (is (= 3 (count (photo/get-all-photos database)))))
 
     (testing "Insert the example-article"
       (is (match? [{:id uuid?}] (photo/create-photo! database example-photo))))

@@ -123,7 +123,7 @@
                 tu/wrap-clojure-response)]
 
     (testing "No albums in DB to start"
-      (is (match? {:status 200 :body []}
+      (is (match? {:status 200 :body (comp (partial = 3) count)}
                   (app (mock/request :get "/albums")))))
 
     (let [{:keys [body] :as result} (app (-> (mock/request :post "/albums")

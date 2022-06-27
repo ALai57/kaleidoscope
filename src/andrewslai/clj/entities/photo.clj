@@ -12,7 +12,7 @@
               :photos     photo
               :ex-subtype :UnableToCreatePhoto))
 
-(defn get-photo [database photo-name]
+(defn get-photo [database photo-src]
   (first (pg/select database {:select [:*]
                               :from   [:photos]
-                              :where  [:= :photos/photo-name photo-name]})))
+                              :where  [:= :photos/photo-src photo-src]})))

@@ -54,9 +54,7 @@ FROM photos_in_albums pia
 
 CREATE OR REPLACE VIEW enhanced_albums AS
 SELECT
-    a.album_name,
-    a.description AS album_description,
-    a.cover_photo_id,
+    a.*,
     p2.photo_src AS cover_photo_src,
     p2.photo_title AS cover_photo_title
 FROM albums a LEFT JOIN photos p2 ON p2.id = a.cover_photo_id;

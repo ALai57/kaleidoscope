@@ -6,7 +6,7 @@
 
 (defn get-all-albums [database]
   (pg/select database {:select [:*]
-                       :from   [:albums]}))
+                       :from   [:enhanced_albums]}))
 
 ;; TODO:
 ;; Don't allow user to specify ID
@@ -18,12 +18,12 @@
 
 (defn get-album-by-id [database album-id]
   (first (pg/select database {:select [:*]
-                              :from   [:albums]
+                              :from   [:enhanced_albums]
                               :where  [:= :albums/id album-id]})))
 
 (defn get-album [database album-name]
   (first (pg/select database {:select [:*]
-                              :from   [:albums]
+                              :from   [:enhanced_albums]
                               :where  [:= :albums/album-name album-name]})))
 
 (defn update-album! [database album]
