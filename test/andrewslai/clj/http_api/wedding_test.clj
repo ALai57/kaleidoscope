@@ -1,5 +1,6 @@
 (ns andrewslai.clj.http-api.wedding-test
   (:require [andrewslai.clj.auth.core :as auth]
+            [andrewslai.clj.entities.photo :as photo]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
@@ -92,10 +93,12 @@
                       :headers        (tu/auth-header ["wedding"])})))))
 
 (deftest upload-test
-  (let [in-mem-fs  (atom {})
-        app        (wedding/wedding-app {:auth         (tu/authenticated-backend)
-                                         :access-rules tu/public-access
-                                         :storage      (memory/map->MemFS {:store in-mem-fs})})]
+  (let [in-mem-fs (atom {})
+        database  (pg/->NextDatabase (embedded-h2/fresh-db!))
+        app       (wedding/wedding-app {:auth         (tu/authenticated-backend)
+                                        :access-rules tu/public-access
+                                        :database     database
+                                        :storage      (memory/map->MemFS {:store in-mem-fs})})]
 
     (is (match? {:status 201}
                 (app (util/deep-merge {:headers        (tu/auth-header ["wedding"])
@@ -108,6 +111,13 @@
                                                                :content      (-> "public/images/lock.svg"
                                                                                  clojure.java.io/resource
                                                                                  slurp)}])))))
+
+    (is (match? {:photo-src   "media/lock.svg"
+                 :photo-title nil
+                 :id          uuid?
+                 :created-at  inst?
+                 :modified-at inst?}
+                (photo/get-photo database "media/lock.svg")))
 
     (is (match? {"media" {"lock.svg" {:name     "lock.svg"
                                       :path     "media/lock.svg"

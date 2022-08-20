@@ -3,6 +3,7 @@
             [amazonica.core :as amazon]
             [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.entities.album :as album]
+            [andrewslai.clj.entities.photo :as photo]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.static-content :as sc]
@@ -54,6 +55,9 @@
     (-> (ring-resp/resource-response "wedding-index.html" {:root "public"})
         (ring-resp/content-type "text/html"))))
 
+(defn now []
+  (java.time.LocalDateTime/now))
+
 (defroutes album-routes
   (context "/albums" []
     :components [database]
@@ -103,7 +107,7 @@
 
 (defroutes upload-routes
   (context (format "/%s" MEDIA-FOLDER) []
-    :components [storage]
+    :components [storage database]
 
     (POST "/" {:keys [uri params] :as req}
       (let [{:keys [filename tempfile] :as file-contents} (get params "file-contents")
@@ -111,7 +115,8 @@
                                                                             (subs uri 1 (dec (count uri)))
                                                                             (subs uri 1))
                                                                   filename)
-            metadata                                      (dissoc file-contents :tempfile)]
+            metadata                                      (dissoc file-contents :tempfile)
+            now-time                                      (now)]
         (log/infof "Processing upload request with params:\n %s" (-> params
                                                                      clojure.pprint/pprint
                                                                      with-out-str))
@@ -122,6 +127,10 @@
                      file-path
                      (->file-input-stream tempfile)
                      metadata)
+        (photo/create-photo! database {:id          (java.util.UUID/randomUUID)
+                                       :photo-src   file-path
+                                       :created-at  now-time
+                                       :modified-at now-time})
         (created (format "/%s" file-path)
                  "Created file")))))
 

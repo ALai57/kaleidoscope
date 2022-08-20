@@ -20,12 +20,12 @@
 
 (deftest create-and-retrieve-photo-test
   (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
-    (testing "example-photo doesn't exist in the database"
+    (testing "example-photos were seeded into the DB"
       ;; Migrations seed db now for convenience
       (is (= 3 (count (photo/get-all-photos database)))))
 
-    (testing "Insert the example-article"
+    (testing "Insert the example-photo"
       (is (match? [{:id uuid?}] (photo/create-photo! database example-photo))))
 
-    (testing "Can retrieve example-article from the DB"
+    (testing "Can retrieve example-photo from the DB"
       (is (match? example-photo (photo/get-photo database "example/photo"))))))
