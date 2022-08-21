@@ -48,9 +48,9 @@
                      :ex-subtype :UnableToAddPhotoToAlbum))))
 
 (defn remove-content-from-album! [database album-id album-content-id]
-  (first (pg/delete! database
-                     :photos_in_albums album-content-id
-                     :ex-subtype :UnableToDeletePhotoFromAlbum)))
+  (pg/delete! database
+              :photos_in_albums album-content-id
+              :ex-subtype :UnableToDeletePhotoFromAlbum))
 
 (defn get-album-content [database album-id album-content-id]
   (first (pg/select database

@@ -80,14 +80,16 @@
                     (when ex-subtype
                       {:subtype ex-subtype}))))))
 
-(defn delete! [database table id & {:keys [ex-subtype]}]
+(defn delete! [database table ids & {:keys [ex-subtype]}]
   (try+
    (p/transact! database (-> (hh/delete-from table)
-                             (hh/where [:= :id id])
+                             (hh/where [:in :id (if (coll? ids)
+                                                  ids
+                                                  [ids])])
                              hsql/format))
    (catch org.postgresql.util.PSQLException e
      (throw+ (merge {:type    :PersistenceException
-                     :message {:data   id
+                     :message {:data   ids
                                :reason (.getMessage e)}}
                     (when ex-subtype
                       {:subtype ex-subtype}))))))

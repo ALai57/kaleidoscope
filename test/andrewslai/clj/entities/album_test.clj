@@ -53,5 +53,8 @@
         (let [album-content (album/add-photos-to-album! database album-id photo-ids)]
           (is (= 3 (count album-content)))
           (is (vector? album-content))
-          (is (= 3 (count (album/get-album-contents database album-id))))))
-      )))
+          (is (= 3 (count (album/get-album-contents database album-id))))
+
+          (testing "Content is deleted"
+            (album/remove-content-from-album! database album-id (map :id album-content))
+            (is (= 0 (count (album/get-album-contents database album-id))))))))))
