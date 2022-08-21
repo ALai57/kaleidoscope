@@ -97,6 +97,7 @@
   (let [in-mem-fs (atom example-fs)
         app       (-> {:auth         (tu/authenticated-backend)
                        :access-rules tu/public-access
+                       :database     (pg/->NextDatabase (embedded-h2/fresh-db!))
                        :storage      (memory/map->MemFS {:store in-mem-fs})}
                       (wedding/wedding-app)
                       (tu/wrap-clojure-response))]

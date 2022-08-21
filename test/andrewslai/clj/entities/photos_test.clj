@@ -25,7 +25,7 @@
       (is (= 3 (count (photo/get-all-photos database)))))
 
     (testing "Insert the example-photo"
-      (is (match? [{:id uuid?}] (photo/create-photo! database example-photo))))
+      (is (match? {:id uuid?} (photo/create-photo! database example-photo))))
 
     (testing "Can retrieve example-photo from the DB"
       (is (match? example-photo (photo/get-photo database "example/photo"))))))
