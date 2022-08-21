@@ -58,7 +58,7 @@
 (defn wrap-clojure-response
   [handler]
   (fn [request]
-    (update (handler request) :body #(json/parse-string % keyword))))
+    (update (handler request) :body #(json/parse-string-strict % keyword))))
 
 (defn app-request
   [app request & [{:keys [parser]

@@ -125,7 +125,6 @@
             (log/info "Removing from album" params)
             (ok (album/remove-content-from-album! database params)))
 
-        ;; TODO: Implement bulk insert
         ;; Must use body params because POST is accepting a JSON array
         (POST "/" {params :body-params :as req}
           :swagger {:summary     "Add contents to album"
@@ -133,9 +132,9 @@
                     :produces    #{"application/json"}
                     :responses   {200 {:description "An album"
                                        :schema      :andrewslai.albums/album}}}
-          (let [photo-id (:id (first params))]
-            (log/infof "Adding photo: %s to album: %s" photo-id id)
-            (ok (album/add-photo-to-album! database id photo-id))))
+          (let [photo-ids (map :id params)]
+            (log/infof "Adding photo: %s to album: %s" photo-ids id)
+            (ok (album/add-photos-to-album! database id photo-ids))))
 
         (context "/:content-id" [content-id]
           (GET "/" []

@@ -190,11 +190,10 @@
                     (app (-> (mock/request :get (format "/albums/%s/contents" album-id)))))))
 
       (let [result (app (-> (mock/request :post (format "/albums/%s/contents" album-id))
-                            (mock/json-body [{:id photo-id}
-                                             {:id "xxx"}])))
-            album-content-id (get-in result [:body :id])]
+                            (mock/json-body [{:id photo-id}])))
+            album-content-id (get-in result [:body 0 :id])]
         (testing "Successfully added photo to album"
-          (is (match? {:status 200 :body {:id string-uuid?}}
+          (is (match? {:status 200 :body [{:id string-uuid?}]}
                       result))
           (is (match? {:status 200 :body [{:album-id         album-id
                                            :photo-id         photo-id

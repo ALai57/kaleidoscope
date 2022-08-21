@@ -53,7 +53,9 @@
     (validate input-validation m :IllegalArgumentException))
   (try+
    (p/transact! database (-> (hh/insert-into table)
-                             (hh/values [m])
+                             (hh/values (if (map? m)
+                                          [m]
+                                          m))
                              hsql/format))
    (catch org.postgresql.util.PSQLException e
      (throw+ (merge {:type :PersistenceException

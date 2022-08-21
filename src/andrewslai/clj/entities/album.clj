@@ -35,15 +35,17 @@
                      [:= :id (:id album)]
                      :ex-subtype :UnableToUpdateAlbum)))
 
-(defn add-photo-to-album! [database album-id photo-id]
+;; Album contents
+(defn add-photos-to-album! [database album-id photo-ids]
   (let [now-time (now)]
-    (first (pg/insert! database
-                       :photos_in_albums {:id          (java.util.UUID/randomUUID)
-                                          :photo-id    photo-id
-                                          :album-id    album-id
-                                          :created-at  now-time
-                                          :modified-at now-time}
-                       :ex-subtype :UnableToAddPhotoToAlbum))))
+    (vec (pg/insert! database
+                     :photos_in_albums (vec (for [photo-id photo-ids]
+                                              {:id          (java.util.UUID/randomUUID)
+                                               :photo-id    photo-id
+                                               :album-id    album-id
+                                               :created-at  now-time
+                                               :modified-at now-time}))
+                     :ex-subtype :UnableToAddPhotoToAlbum))))
 
 (defn remove-content-from-album! [database album-id album-content-id]
   (first (pg/delete! database

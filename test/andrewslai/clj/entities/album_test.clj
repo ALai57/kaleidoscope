@@ -44,20 +44,14 @@
   (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
     ;; 3 example-albums seeded in DB
     (let [album-id      (:id (first (album/get-all-albums database)))
-          photo-id      (:id (first (photo/get-all-photos database)))]
+          photo-ids      (map :id (photo/get-all-photos database))]
 
       (testing "No contents in the album to start"
         (is (= [] (album/get-album-contents database album-id))))
 
       (testing "Content gets added to the album"
-        (let [album-content (album/add-photo-to-album! database album-id photo-id)]
-          (is (match? {:album-content-id  (:id album-content)
-                       :album-id          album-id
-                       :photo-id          photo-id
-                       :added-to-album-at inst?
-                       :photo-src         string?
-                       :photo-title       string?
-                       :album-name        string?
-                       :cover-photo-id    uuid?}
-                      (album/get-album-content database album-id (:id album-content))))
-          (is (= 1 (count (album/get-album-contents database album-id)))))))))
+        (let [album-content (album/add-photos-to-album! database album-id photo-ids)]
+          (is (= 3 (count album-content)))
+          (is (vector? album-content))
+          (is (= 3 (count (album/get-album-contents database album-id))))))
+      )))
