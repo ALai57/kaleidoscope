@@ -33,6 +33,21 @@
                                                  :content  {:qux :quz}
                                                  :metadata {}})}}})
 
+(defn make-example-file-upload-request
+  "A function because the body is an input stream, which is consumable and must
+  be regenerated each request"
+  []
+  (util/deep-merge {:headers        (tu/auth-header ["wedding"])
+                    :request-method :post
+                    :uri            "/media/"}
+                   (tu/assemble-multipart "my boundary here"
+                                          [{:part-name    "file-contents"
+                                            :file-name    "lock.svg"
+                                            :content-type "image/svg+xml"
+                                            :content      (-> "public/images/lock.svg"
+                                                              clojure.java.io/resource
+                                                              slurp)}])))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Access rules
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -100,17 +115,7 @@
                                         :database     database
                                         :storage      (memory/map->MemFS {:store in-mem-fs})})]
 
-    (is (match? {:status 201}
-                (app (util/deep-merge {:headers        (tu/auth-header ["wedding"])
-                                       :request-method :post
-                                       :uri            "/media/"}
-                                      (tu/assemble-multipart "my boundary here"
-                                                             [{:part-name    "file-contents"
-                                                               :file-name    "lock.svg"
-                                                               :content-type "image/svg+xml"
-                                                               :content      (-> "public/images/lock.svg"
-                                                                                 clojure.java.io/resource
-                                                                                 slurp)}])))))
+    (is (match? {:status 201} (app (make-example-file-upload-request))))
 
     (is (match? {:photo-src   "media/lock.svg"
                  :photo-title nil
@@ -157,6 +162,51 @@
                         app)))
         (is (match? {:status 200 :body {:album-name "Updated name"}}
                     (app (mock/request :get (format "/albums/%s" (:id body))))))))))
+
+(defn string-uuid?
+  [s]
+  (and (string? s)
+       (uuid? (java.util.UUID/fromString s))))
+
+(deftest album-contents-test
+  (let [database  (pg/->NextDatabase (embedded-h2/fresh-db!))
+        in-mem-fs (atom {})
+        app       (-> {:auth         (tu/authenticated-backend)
+                       :access-rules tu/public-access
+                       :database     database
+                       :storage      (memory/map->MemFS {:store in-mem-fs})}
+                      wedding/wedding-app
+                      tu/wrap-clojure-response)]
+
+    (let [photo-upload-result (:body (app (make-example-file-upload-request)))
+          album-create-result (:body (app (-> (mock/request :post "/albums")
+                                              (mock/json-body example-album))))
+          photo-id            (:id photo-upload-result)
+          album-id            (:id album-create-result)]
+
+      (testing "Album is empty to start"
+        (is (match? {:status 200 :body []}
+                    (app (-> (mock/request :get (format "/albums/%s/contents" album-id)))))))
+
+      (let [result (app (-> (mock/request :post (format "/albums/%s/contents" album-id))
+                            (mock/json-body [{:id photo-id}
+                                             {:id "xxx"}])))
+            album-content-id (get-in result [:body :id])]
+        (testing "Successfully added photo to album"
+          (is (match? {:status 200 :body {:id string-uuid?}}
+                      result))
+          (is (match? {:status 200 :body [{:album-id         album-id
+                                           :photo-id         photo-id
+                                           :album-content-id album-content-id}]}
+                      (app (-> (mock/request :get (format "/albums/%s/contents" album-id)))))))
+
+        (let [delete-result (app (mock/request :delete (format "/albums/%s/contents/%s" album-id album-content-id)))]
+          (testing "Successfully removed photo from album"
+            (is (match? {:status 204}
+                        delete-result))
+            (is (match? {:status 200 :body []}
+                        (app (-> (mock/request :get (format "/albums/%s/contents" album-id))))))))
+        ))))
 
 (deftest albums-auth-test
   (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))

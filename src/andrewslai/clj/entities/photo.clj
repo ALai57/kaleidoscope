@@ -8,9 +8,9 @@
                        :from   [:photos]}))
 
 (defn create-photo! [database photo]
-  (pg/insert! database
-              :photos     photo
-              :ex-subtype :UnableToCreatePhoto))
+  (first (pg/insert! database
+                     :photos     photo
+                     :ex-subtype :UnableToCreatePhoto)))
 
 (defn get-photo [database photo-src]
   (first (pg/select database {:select [:*]

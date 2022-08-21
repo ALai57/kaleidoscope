@@ -2,7 +2,7 @@ DROP VIEW IF EXISTS enhanced_albums;
 
 --;;
 
-DROP VIEW IF EXISTS photo_albums;
+DROP VIEW IF EXISTS album_contents;
 
 --;;
 

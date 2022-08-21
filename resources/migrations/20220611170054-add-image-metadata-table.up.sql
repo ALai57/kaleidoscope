@@ -36,8 +36,11 @@ CREATE TABLE photos_in_albums(
 
 --;;
 
-CREATE OR REPLACE VIEW photo_albums AS
+CREATE OR REPLACE VIEW album_contents AS
 SELECT
+    pia.id AS album_content_id,
+    a.id as album_id,
+    p.id AS photo_id,
     pia.modified_at AS added_to_album_at,
     p.photo_src,
     p.photo_title,

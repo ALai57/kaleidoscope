@@ -4,6 +4,9 @@
             [clojure.spec.alpha :as s])
   (:import [java.util UUID]))
 
+(defn now []
+  (java.time.LocalDateTime/now))
+
 (defn get-all-albums [database]
   (pg/select database {:select [:*]
                        :from   [:enhanced_albums]}))
@@ -31,3 +34,32 @@
                      :albums     album
                      [:= :id (:id album)]
                      :ex-subtype :UnableToUpdateAlbum)))
+
+(defn add-photo-to-album! [database album-id photo-id]
+  (let [now-time (now)]
+    (first (pg/insert! database
+                       :photos_in_albums {:id          (java.util.UUID/randomUUID)
+                                          :photo-id    photo-id
+                                          :album-id    album-id
+                                          :created-at  now-time
+                                          :modified-at now-time}
+                       :ex-subtype :UnableToAddPhotoToAlbum))))
+
+(defn remove-content-from-album! [database album-id album-content-id]
+  (first (pg/delete! database
+                     :photos_in_albums album-content-id
+                     :ex-subtype :UnableToDeletePhotoFromAlbum)))
+
+(defn get-album-content [database album-id album-content-id]
+  (first (pg/select database
+                    {:select [:*]
+                     :from   [:album_contents]
+                     :where  [:and
+                              [:= :album_contents/album-id album-id]
+                              [:= :album_contents/album-content-id album-content-id]]})))
+
+(defn get-album-contents [database album-id]
+  (pg/select database
+             {:select [:*]
+              :from   [:album_contents]
+              :where  [:= :album_contents/album-id album-id]}))

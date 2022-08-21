@@ -11,13 +11,13 @@
             [buddy.auth.accessrules :as ar :refer [wrap-access-rules]]
             [buddy.auth.middleware :as ba]
             [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [api context defroutes GET POST PUT]]
+            [compojure.api.sweet :refer [api context defroutes GET POST PUT DELETE]]
             [compojure.route :as route]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.json :refer [wrap-json-response]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.middleware.params :refer [wrap-params]]
-            [ring.util.http-response :refer [created unauthorized ok]]
+            [ring.util.http-response :refer [created unauthorized ok no-content]]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
 
@@ -86,30 +86,88 @@
                                                  :created-at now
                                                  :modified-at now)))))
 
-    (GET "/:id" [id]
-      :swagger {:summary     "Retrieve an album"
-                :description "This endpoint retrieves an album by ID"
-                :produces    #{"application/json"}
-                :responses   {200 {:description "An album"
-                                   :schema      :andrewslai.albums/album}}}
-      (log/info "Getting album" id)
-      (ok (album/get-album-by-id database id)))
+    (context "/:id" [id]
+      (GET "/" []
+        :swagger {:summary     "Retrieve an album"
+                  :description "This endpoint retrieves an album by ID"
+                  :produces    #{"application/json"}
+                  :responses   {200 {:description "An album"
+                                     :schema      :andrewslai.albums/album}}}
+        (log/infof "Getting album: %s" id)
+        (ok (album/get-album-by-id database id)))
 
-    (PUT "/:id" {params :params}
-      :swagger {:summary     "Update an album"
-                :description "This endpoint updates an album"
-                :produces    #{"application/json"}
-                :responses   {200 {:description "An album"
-                                   :schema      :andrewslai.albums/album}}}
-      (log/info "Updating album" params)
-      (ok (album/update-album! database params)))
-    ))
+      (PUT "/" {params :params}
+        :swagger {:summary     "Update an album"
+                  :description "This endpoint updates an album"
+                  :produces    #{"application/json"}
+                  :responses   {200 {:description "An album"
+                                     :schema      :andrewslai.albums/album}}}
+        (log/infof "Updating album: %s with: %s" id params)
+        (ok (album/update-album! database params)))
+
+      (context "/contents" []
+        (GET "/" []
+          :swagger {:summary     "Retrieve an album's contents"
+                    :description "This endpoint retrieves an album's contents"
+                    :produces    #{"application/json"}
+                    :responses   {200 {:description "An album"
+                                       :schema      :andrewslai.albums/album}}}
+          (log/infof "Getting album contents from album: %s" id)
+          (ok (album/get-album-contents database id)))
+
+        ;; TODO: Implement delete/bulk delete
+        #_(DELETE "/" {params :params}
+            :swagger {:summary     "Delete an album's contents"
+                      :description "This endpoint removes contents from an album"
+                      :produces    #{"application/json"}
+                      :responses   {200 {:description "An album"
+                                         :schema      :andrewslai.albums/album}}}
+            (log/info "Removing from album" params)
+            (ok (album/remove-content-from-album! database params)))
+
+        ;; TODO: Implement bulk insert
+        ;; Must use body params because POST is accepting a JSON array
+        (POST "/" {params :body-params :as req}
+          :swagger {:summary     "Add contents to album"
+                    :description "This endpoint adds to album's contents"
+                    :produces    #{"application/json"}
+                    :responses   {200 {:description "An album"
+                                       :schema      :andrewslai.albums/album}}}
+          (let [photo-id (:id (first params))]
+            (log/infof "Adding photo: %s to album: %s" photo-id id)
+            (ok (album/add-photo-to-album! database id photo-id))))
+
+        (context "/:content-id" [content-id]
+          (GET "/" []
+            :swagger {:summary     "Retrieve one of the album's contents"
+                      :description "This endpoint retrieves an single piece of the album's content"
+                      :produces    #{"application/json"}
+                      :responses   {200 {:description "An album"
+                                         :schema      :andrewslai.albums/album}}}
+            (log/infof "Getting album content for album: %s" id)
+            (ok (album/get-album-content database id content-id)))
+
+          (DELETE "/" []
+            :swagger {:summary     "Remove content from an album"
+                      :description "This endpoint removes something from an album"
+                      :produces    #{"application/json"}
+                      :responses   {200 {:description "An album"
+                                         :schema      :andrewslai.albums/album}}}
+            (log/infof "Removing content: %s from album: %s" content-id id)
+            (album/remove-content-from-album! database id content-id)
+            (no-content)))
+        ))))
 
 (defroutes upload-routes
   (context (format "/%s" MEDIA-FOLDER) []
     :components [storage database]
 
     (POST "/" {:keys [uri params] :as req}
+      :swagger {:summary     "Upload a new file"
+                :description "Add a new image"
+                :produces    #{"application/json"}
+                :responses   {200 {:description "An album"
+                                   :schema      :andrewslai.albums/album}}}
       (let [{:keys [filename tempfile] :as file-contents} (get params "file-contents")
             file-path                                     (format "%s/%s" (if (clojure.string/ends-with? uri "/")
                                                                             (subs uri 1 (dec (count uri)))
@@ -127,12 +185,12 @@
                      file-path
                      (->file-input-stream tempfile)
                      metadata)
-        (photo/create-photo! database {:id          (java.util.UUID/randomUUID)
-                                       :photo-src   file-path
-                                       :created-at  now-time
-                                       :modified-at now-time})
-        (created (format "/%s" file-path)
-                 "Created file")))))
+        (let [photo (photo/create-photo! database {:id          (java.util.UUID/randomUUID)
+                                                   :photo-src   file-path
+                                                   :created-at  now-time
+                                                   :modified-at now-time})]
+          (created (format "/%s" file-path)
+                   photo))))))
 
 
 (defn wedding-app
