@@ -115,20 +115,21 @@
           (log/infof "Getting album contents from album: %s" id)
           (ok (album/get-album-contents database id)))
 
-        ;; TODO: Implement delete/bulk delete
-        #_(DELETE "/" {params :params}
-            :swagger {:summary     "Delete an album's contents"
-                      :description "This endpoint removes contents from an album"
-                      :produces    #{"application/json"}
-                      :responses   {200 {:description "An album"
-                                         :schema      :andrewslai.albums/album}}}
-            (log/info "Removing from album" params)
-            (ok (album/remove-content-from-album! database params)))
+        (DELETE "/" {params :body-params}
+          :swagger {:summary     "Delete an album's contents"
+                    :description "This endpoint removes contents from an album. Supports bulk delete."
+                    :produces    #{"application/json"}
+                    :responses   {200 {:description "An album"
+                                       :schema      :andrewslai.albums/album}}}
+          (let [content-ids (map :id params)]
+            (log/infof "Removing contents %s from album %s" content-ids id)
+            (album/remove-content-from-album! database content-ids)
+            (no-content)))
 
         ;; Must use body params because POST is accepting a JSON array
         (POST "/" {params :body-params :as req}
           :swagger {:summary     "Add contents to album"
-                    :description "This endpoint adds to album's contents"
+                    :description "This endpoint adds to album's contents. Supports bulk insert."
                     :produces    #{"application/json"}
                     :responses   {200 {:description "An album"
                                        :schema      :andrewslai.albums/album}}}
