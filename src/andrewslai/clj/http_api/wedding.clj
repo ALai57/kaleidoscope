@@ -17,7 +17,7 @@
             [ring.middleware.json :refer [wrap-json-response]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.middleware.params :refer [wrap-params]]
-            [ring.util.http-response :refer [created unauthorized ok no-content]]
+            [ring.util.http-response :refer [created unauthorized ok no-content not-found!]]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
 
@@ -144,8 +144,10 @@
                       :produces    #{"application/json"}
                       :responses   {200 {:description "An album"
                                          :schema      :andrewslai.albums/album}}}
-            (log/infof "Getting album content for album: %s" id)
-            (ok (album/get-album-content database id content-id)))
+            (log/infof "Getting album content %s for album: %s" content-id id)
+            (if-let [result (album/get-album-content database id content-id)]
+              (ok result)
+              (not-found!)))
 
           (DELETE "/" []
             :swagger {:summary     "Remove content from an album"

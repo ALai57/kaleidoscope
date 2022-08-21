@@ -198,14 +198,21 @@
           (is (match? {:status 200 :body [{:album-id         album-id
                                            :photo-id         photo-id
                                            :album-content-id album-content-id}]}
-                      (app (-> (mock/request :get (format "/albums/%s/contents" album-id)))))))
+                      (app (-> (mock/request :get (format "/albums/%s/contents" album-id))))))
+          (is (match? {:status 200 :body {:album-id         album-id
+                                          :photo-id         photo-id
+                                          :album-content-id album-content-id}}
+                      (app (-> (mock/request :get (format "/albums/%s/contents/%s" album-id album-content-id)))))))
 
         (let [delete-result (app (mock/request :delete (format "/albums/%s/contents/%s" album-id album-content-id)))]
           (testing "Successfully removed photo from album"
             (is (match? {:status 204}
                         delete-result))
-            (is (match? {:status 200 :body []}
-                        (app (-> (mock/request :get (format "/albums/%s/contents" album-id))))))))
+            (is (match? {:status 200 :body empty?}
+                        (app (mock/request :get (format "/albums/%s/contents" album-id)))))
+            (is (match? {:status 404}
+                        (app (mock/request :get (format "/albums/%s/contents/%s" album-id album-content-id))))))
+          )
         ))))
 
 (deftest albums-auth-test
