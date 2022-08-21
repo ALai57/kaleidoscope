@@ -43,8 +43,8 @@
 (deftest album-contents-test
   (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
     ;; 3 example-albums seeded in DB
-    (let [album-id      (:id (first (album/get-all-albums database)))
-          photo-ids      (map :id (photo/get-all-photos database))]
+    (let [album-id  (:id (first (album/get-all-albums database)))
+          photo-ids (map :id (photo/get-all-photos database))]
 
       (testing "No contents in the album to start"
         (is (= [] (album/get-album-contents database album-id))))
@@ -58,3 +58,22 @@
           (testing "Content is deleted"
             (album/remove-content-from-album! database album-id (map :id album-content))
             (is (= 0 (count (album/get-album-contents database album-id))))))))))
+
+(deftest get-all-album-contents-test
+  (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
+    ;; 3 example-albums seeded in DB
+    (let [album-ids (map :id (album/get-all-albums database))
+          photo-ids (map :id (photo/get-all-photos database))]
+
+      (testing "No contents in the album to start"
+        (is (= [] (album/get-all-contents database))))
+
+      (testing "Content gets added to different albums"
+        (let [album-content (mapv (partial album/add-photos-to-album! database)
+                                  album-ids
+                                  photo-ids)]
+          (is (= 3 (count album-content)))))
+
+      (testing "Contents come from different albums"
+        (is (= 3 (count (set (map :album-name (album/get-all-contents database)))))))
+      )))

@@ -72,6 +72,16 @@
       (log/info "Getting albums")
       (ok (album/get-all-albums database)))
 
+    (GET "/-/contents" []
+      :swagger {:summary     "Retrieve contents from all albums"
+                :description (str "This endpoint retrieves the contents of all albums"
+                                  "The endpoint is currently not paginated")
+                :produces    #{"application/json"}
+                :responses   {200 {:description "A collection of all albums"
+                                   :schema      :andrewslai.albums/albums}}}
+      (log/info "Getting contents")
+      (ok (album/get-all-contents database)))
+
     (POST "/" {params :params}
       :swagger {:summary     "Add an album"
                 :description "This endpoint inserts an album into the database"

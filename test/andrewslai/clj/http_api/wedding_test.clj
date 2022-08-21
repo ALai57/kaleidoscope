@@ -8,7 +8,7 @@
             [andrewslai.clj.persistence.postgres :as pg]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.utils.core :as util]
-            [andrewslai.cljc.specs.albums :refer [example-album]]
+            [andrewslai.cljc.specs.albums :refer [example-album example-album-2]]
             [clj-http.client :as http]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
@@ -36,17 +36,19 @@
 (defn make-example-file-upload-request
   "A function because the body is an input stream, which is consumable and must
   be regenerated each request"
-  []
-  (util/deep-merge {:headers        (tu/auth-header ["wedding"])
-                    :request-method :post
-                    :uri            "/media/"}
-                   (tu/assemble-multipart "my boundary here"
-                                          [{:part-name    "file-contents"
-                                            :file-name    "lock.svg"
-                                            :content-type "image/svg+xml"
-                                            :content      (-> "public/images/lock.svg"
-                                                              clojure.java.io/resource
-                                                              slurp)}])))
+  ([]
+   (make-example-file-upload-request "lock.svg"))
+  ([fname]
+   (util/deep-merge {:headers        (tu/auth-header ["wedding"])
+                     :request-method :post
+                     :uri            "/media/"}
+                    (tu/assemble-multipart "my boundary here"
+                                           [{:part-name    "file-contents"
+                                             :file-name    fname
+                                             :content-type "image/svg+xml"
+                                             :content      (-> "public/images/lock.svg"
+                                                               clojure.java.io/resource
+                                                               slurp)}]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Access rules
@@ -214,6 +216,43 @@
                         (app (mock/request :get (format "/albums/%s/contents/%s" album-id album-content-id))))))
           )
         ))))
+
+(deftest contents-retrieval-test
+  (let [database  (pg/->NextDatabase (embedded-h2/fresh-db!))
+        in-mem-fs (atom {})
+        app       (-> {:auth         (tu/authenticated-backend)
+                       :access-rules tu/public-access
+                       :database     database
+                       :storage      (memory/map->MemFS {:store in-mem-fs})}
+                      wedding/wedding-app
+                      tu/wrap-clojure-response)]
+
+    ;; Add a photo to two separate albums
+    (let [{photo-1-id :id}    (:body (app (make-example-file-upload-request "foo.svg")))
+          {photo-2-id :id}    (:body (app (make-example-file-upload-request "bar.svg")))
+          {album-1-id :id}    (:body (app (-> (mock/request :post "/albums")
+                                              (mock/json-body example-album))))
+          {album-2-id :id}    (:body (app (-> (mock/request :post "/albums")
+                                              (mock/json-body example-album-2))))]
+
+      (testing "Contents are empty to start"
+        (is (match? {:status 200 :body []}
+                    (app (-> (mock/request :get "/albums/-/contents"))))))
+
+      (app (-> (mock/request :post (format "/albums/%s/contents" album-1-id))
+               (mock/json-body [{:id photo-1-id}
+                                {:id photo-2-id}])))
+      (app (-> (mock/request :post (format "/albums/%s/contents" album-2-id))
+               (mock/json-body [{:id photo-1-id}])))
+
+      (testing "Contents retrieved from multiple albums"
+        (is (match? {:status 200 :body [{:album-name (:album-name example-album)
+                                         :photo-id   photo-1-id}
+                                        {:album-name (:album-name example-album)
+                                         :photo-id   photo-2-id}
+                                        {:album-name (:album-name example-album-2)
+                                         :photo-id   photo-1-id}]}
+                    (app (-> (mock/request :get "/albums/-/contents"))))) ))))
 
 (deftest albums-auth-test
   (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))

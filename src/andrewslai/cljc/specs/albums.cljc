@@ -28,6 +28,13 @@
    :created-at     "2020-10-28T02:55:27Z",
    :modified-at    "2020-10-28T02:55:27Z",})
 
+(def example-album-2
+  {:album-name     "bye"
+   :description    "secondalbum"
+   :cover-photo-id #uuid "d947c6b0-679f-4067-9747-999999999999"
+   :created-at     "2022-10-01T02:55:27Z",
+   :modified-at    "2022-10-01T02:55:27Z",})
+
 (comment
   ;; Example data for article spec
 

@@ -39,7 +39,7 @@
 (defn add-photos-to-album! [database album-id photo-ids]
   (let [now-time (now)]
     (vec (pg/insert! database
-                     :photos_in_albums (vec (for [photo-id photo-ids]
+                     :photos_in_albums (vec (for [photo-id (if (seq? photo-ids) photo-ids [photo-ids])]
                                               {:id          (java.util.UUID/randomUUID)
                                                :photo-id    photo-id
                                                :album-id    album-id
@@ -59,6 +59,11 @@
                      :where  [:and
                               [:= :album_contents/album-id album-id]
                               [:= :album_contents/album-content-id album-content-id]]})))
+
+(defn get-all-contents [database]
+  (pg/select database
+             {:select [:*]
+              :from   [:album_contents]}))
 
 (defn get-album-contents [database album-id]
   (pg/select database
