@@ -24,8 +24,8 @@
        :client-secret     (get env "ANDREWSLAI_AUTH_SECRET")
        :ssl-required      "external"
        :confidential-port 0}
-      keycloak/make-keycloak-token-validator
-      bb/oidc-backend))
+      keycloak/make-keycloak-authenticator
+      bb/bearer-token-backend))
 
 (defn configure-auth
   "Is OAUTH is disabled, always authenticate as a user with `wedding` access"

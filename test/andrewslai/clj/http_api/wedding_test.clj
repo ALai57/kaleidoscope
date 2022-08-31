@@ -59,7 +59,8 @@
   (are [description expected components]
     (testing description
       (let [handler (wedding/wedding-app components)]
-        (is (match? expected (handler (mock/request :get "/ping"))))))
+        (is (match? expected (handler (-> (mock/request :get "/ping")
+                                          (mock/header "Authorization" "Bearer x")))))))
 
     "Public-access routes can be reached by unauthenticated user"
     {:status 200} {:access-rules tu/public-access}
@@ -74,13 +75,13 @@
 
     "Restricted-access routes cannot be reached by unauthenticated user"
     {:status 401} {:access-rules (tu/restricted-access "wedding")
-                   :auth         (bb/unauthenticated-backend)}))
+                   :auth         bb/unauthenticated-backend}))
 
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
       (let [handler (wedding/wedding-app {:access-rules (config/configure-wedding-access nil)
-                                          :auth         (bb/unauthenticated-backend)})]
+                                          :auth         bb/unauthenticated-backend})]
         (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"
