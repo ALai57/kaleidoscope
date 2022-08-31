@@ -1,6 +1,5 @@
 (ns andrewslai.clj.http-api.swagger
-  (:require [andrewslai.clj.utils.core :as utils]
-            [compojure.api.middleware :as mw]
+  (:require [compojure.api.middleware :as mw]
             [compojure.api.swagger :as swag]
             [compojure.api.sweet :refer [GET routes undocumented]]
             [ring.swagger.common :as rsc]

@@ -1,7 +1,6 @@
 (ns andrewslai.clj.http-api.wedding
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
-            [andrewslai.clj.auth.core :as auth]
             [andrewslai.clj.entities.album :as album]
             [andrewslai.clj.entities.photo :as photo]
             [andrewslai.clj.http-api.middleware :as mw]
@@ -29,20 +28,6 @@
 
 (def MEDIA-FOLDER
   "media")
-
-(defn require-role
-  [role {:keys [identity] :as request}]
-  (if (contains? (auth/get-realm-roles identity) role)
-    true
-    (ar/error (format "Unauthorized for role: %s (valid roles: %s)"
-                      role
-                      (auth/get-realm-roles identity)))))
-
-(def access-rules
-  [{:pattern #"^/media.*"
-    :handler (partial require-role "wedding")}
-   {:pattern #"^/albums.*"
-    :handler (partial require-role "wedding")}])
 
 (defn ->file-input-stream
   [file]

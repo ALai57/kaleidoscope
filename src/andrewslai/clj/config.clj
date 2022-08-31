@@ -1,14 +1,15 @@
 (ns andrewslai.clj.config
-  (:require [andrewslai.clj.auth.core :as auth]
+  (:require [andrewslai.clj.api.auth :as auth]
+            [andrewslai.clj.auth.buddy-backends :as bb]
             [andrewslai.clj.auth.keycloak :as keycloak]
+            [andrewslai.clj.http-api.static-content :as sc]
+            [andrewslai.clj.http-api.wedding :as wedding]
+            [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
+            [andrewslai.clj.persistence.embedded-postgres :as embedded-pg]
             [andrewslai.clj.persistence.postgres :as pg]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.s3 :as s3-storage]
             [andrewslai.clj.utils.files.protocols.core :as protocols]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.clj.http-api.wedding :as wedding]
-            [andrewslai.clj.http-api.static-content :as sc]
-            [andrewslai.clj.persistence.embedded-postgres :as embedded-pg]
-            [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [taoensso.timbre :as log]))
 
 (defn configure-port
@@ -23,15 +24,15 @@
        :client-secret     (get env "ANDREWSLAI_AUTH_SECRET")
        :ssl-required      "external"
        :confidential-port 0}
-      keycloak/make-keycloak
-      auth/oauth-backend))
+      keycloak/make-keycloak-token-validator
+      bb/oidc-backend))
 
 (defn configure-auth
   "Is OAUTH is disabled, always authenticate as a user with `wedding` access"
   [env]
   (case (get env "ANDREWSLAI_AUTH_TYPE" "keycloak")
     "keycloak" (configure-keycloak env)
-    "none"     (auth/always-authenticated-backend {:realm_access {:roles ["wedding"]}})))
+    "none"     (bb/authenticated-backend {:realm_access {:roles ["wedding"]}})))
 
 (defn configure-logging
   [env]
@@ -57,8 +58,11 @@
                        :creds  s3-storage/CustomAWSCredentialsProviderChain}))
 
 (defn configure-wedding-access
-  [env]
-  wedding/access-rules)
+  [_env]
+  [{:pattern #"^/media.*"
+    :handler (partial auth/require-role "wedding")}
+   {:pattern #"^/albums.*"
+    :handler (partial auth/require-role "wedding")}])
 
 (defn configure-from-env
   [env]

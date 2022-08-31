@@ -1,7 +1,6 @@
 (ns andrewslai.clj.http-api.articles
   (:require [andrewslai.clj.api.articles :as articles-api]
-            [andrewslai.clj.auth.core :as auth]
-            [andrewslai.clj.http-api.admin :as admin]
+            [andrewslai.clj.entities.oidc-id-token :as oidc]
             [buddy.auth.accessrules :refer [restrict]]
             [clojure.spec.alpha :as s]
             [compojure.api.meta :as compojure-meta]
@@ -18,7 +17,7 @@
   (-> body-params
       (select-keys [:title :article-tags :article-name :content])
       (assoc :article-url article-url)
-      (assoc :author (auth/get-full-name (:identity request)))))
+      (assoc :author (oidc/get-full-name (:identity request)))))
 
 (defn create-article-handler
   [database article-url request]
@@ -87,6 +86,4 @@
                                  :schema :andrewslai.article/article}
                             401 {:description "Unauthorized"
                                  :schema ::error-message}}}
-      (restrict (partial create-article-handler database article-url)
-                {:handler admin/is-authenticated?
-                 :on-error admin/access-error}))))
+      (partial create-article-handler database article-url))))

@@ -1,6 +1,7 @@
 (ns andrewslai.clj.http-api.wedding-test
-  (:require [andrewslai.clj.auth.core :as auth]
+  (:require [andrewslai.clj.auth.buddy-backends :as bb]
             [andrewslai.clj.entities.photo :as photo]
+            [andrewslai.clj.config :as config]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
@@ -65,21 +66,21 @@
 
     "Restricted-access routes can be reached by authorized user"
     {:status 200} {:access-rules (tu/restricted-access "wedding")
-                   :auth         (auth/always-authenticated-backend {:realm_access {:roles ["wedding"]}})}
+                   :auth         (bb/authenticated-backend {:realm_access {:roles ["wedding"]}})}
 
     "Restricted-access routes cannot be reached by unauthorized user"
     {:status 401} {:access-rules (tu/restricted-access "wedding")
-                   :auth         (auth/always-authenticated-backend {:realm_access {:roles ["not-wedding-role"]}})}
+                   :auth         (bb/authenticated-backend {:realm_access {:roles ["not-wedding-role"]}})}
 
     "Restricted-access routes cannot be reached by unauthenticated user"
     {:status 401} {:access-rules (tu/restricted-access "wedding")
-                   :auth         (tu/unauthenticated-backend)}))
+                   :auth         (bb/unauthenticated-backend)}))
 
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (wedding/wedding-app {:access-rules wedding/access-rules
-                                          :auth         (tu/unauthenticated-backend)})]
+      (let [handler (wedding/wedding-app {:access-rules (config/configure-wedding-access nil)
+                                          :auth         (bb/unauthenticated-backend)})]
         (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"
@@ -97,7 +98,7 @@
 
 (deftest static-content-test
   (let [in-mem-fs (atom example-fs)
-        app       (-> {:auth         (tu/authenticated-backend)
+        app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
                        :database     (pg/->NextDatabase (embedded-h2/fresh-db!))
                        :storage      (memory/map->MemFS {:store in-mem-fs})}
@@ -113,7 +114,7 @@
 (deftest upload-test
   (let [in-mem-fs (atom {})
         database  (pg/->NextDatabase (embedded-h2/fresh-db!))
-        app       (wedding/wedding-app {:auth         (tu/authenticated-backend)
+        app       (wedding/wedding-app {:auth         (bb/authenticated-backend)
                                         :access-rules tu/public-access
                                         :database     database
                                         :storage      (memory/map->MemFS {:store in-mem-fs})})]
@@ -174,7 +175,7 @@
 (deftest album-contents-test
   (let [database  (pg/->NextDatabase (embedded-h2/fresh-db!))
         in-mem-fs (atom {})
-        app       (-> {:auth         (tu/authenticated-backend)
+        app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
                        :database     database
                        :storage      (memory/map->MemFS {:store in-mem-fs})}
@@ -220,7 +221,7 @@
 (deftest contents-retrieval-test
   (let [database  (pg/->NextDatabase (embedded-h2/fresh-db!))
         in-mem-fs (atom {})
-        app       (-> {:auth         (tu/authenticated-backend)
+        app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
                        :database     database
                        :storage      (memory/map->MemFS {:store in-mem-fs})}
@@ -256,7 +257,7 @@
 
 (deftest albums-auth-test
   (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
-                 :access-rules wedding/access-rules}
+                 :access-rules (config/configure-wedding-access nil)}
                 wedding/wedding-app)]
 
     (testing "Default access rules restrict access"

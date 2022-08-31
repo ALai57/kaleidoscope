@@ -1,13 +1,11 @@
-(ns andrewslai.clj.auth.core
-  (:require [buddy.auth.backends.token :as token]
+(ns andrewslai.clj.auth.oidc
+  (:require [buddy.auth.accessrules :as ar]
+            [buddy.auth.backends.token :as token]
             [buddy.auth.protocols :as proto]
             [buddy.core.codecs.base64 :as b64]
             [cheshire.core :as json]
             [taoensso.timbre :as log]
             [slingshot.slingshot :refer [try+]]))
-
-(defprotocol TokenAuthenticator
-  (valid? [_ token] "Returns true if authenticated"))
 
 (defn b64->clj [s]
   (json/parse-string (apply str (map char (b64/decode s)))
@@ -22,51 +20,24 @@
 (defn jwt-body [jwt]
   (b64->clj (second (clojure.string/split jwt #"\."))))
 
-(defn get-scopes
-  [{:keys [scope] :as claims}]
-  (and scope (set (clojure.string/split scope #" "))))
-
-(defn get-realm-roles
-  [claims]
-  (set (get-in claims [:realm_access :roles])))
-
-(defn get-full-name
-  [claims]
-  (:name claims))
-
 (defn authenticate
-  [authenticator {:keys [request-id] :as request} token]
+  [token-validator {:keys [request-id] :as request} token]
   (try
     (log/infof "Validating jwt token:\n %s" (-> {:header     (jwt-header token)
                                                  :body       (jwt-body token)
                                                  :request-id request-id}
                                                 clojure.pprint/pprint
                                                 with-out-str))
-    (when (valid? authenticator token)
+    (when (token-validator token)
       (jwt-body token))
     (catch Exception e
       (log/error "Authentication exception" e))))
 
-(defn oauth-backend
-  [authenticator]
-  (token/token-backend {:token-name "Bearer"
-                        :authfn (partial authenticate authenticator)
+(defn oidc-backend
+  [token-validator]
+  (token/token-backend {:token-name           "Bearer"
+                        :authfn               (partial authenticate token-validator)
                         :unauthorized-handler (fn [])}))
-
-(defn always-authenticated-backend
-  [user-identity]
-  (reify
-    proto/IAuthentication
-    (-parse [_ request]
-      (log/info "Auth: Parsing request using `Always authenticated backend`")
-      true)
-    (-authenticate [_ request token]
-      (log/infof "Auth: Authenticated as %s using `Always authenticated backend`" user-identity)
-      user-identity)
-
-    proto/IAuthorization
-    (-handle-unauthorized [_ request metadata]
-      (log/info "Auth: Unauthorized request using `Always authenticated backend`"))))
 
 (comment
   (def valid-token
@@ -114,6 +85,4 @@
   ;;     :preferred_username "a@a.com",
   ;;     :iat 1614122870}
 
-
-  (get-scopes {:scope "openid email profile",})
   )

@@ -1,6 +1,7 @@
 (ns andrewslai.clj.test-utils
-  (:require [andrewslai.clj.auth.core :as auth]
+  (:require [andrewslai.clj.api.auth :as auth]
             [andrewslai.clj.http-api.wedding :as wedding]
+            [andrewslai.clj.utils.jwt :as jwt]
             [cheshire.core :as json]
             [clojure.java.io :as io]
             [clojure.string :as string]
@@ -9,8 +10,8 @@
             [slingshot.slingshot :refer [throw+]])
   (:import java.io.File
            [java.net URL URLClassLoader]
-           java.nio.file.attribute.FileAttribute
-           java.nio.file.Files))
+           java.nio.file.Files
+           java.nio.file.attribute.FileAttribute))
 
 (def TEMP-DIRECTORY
   (System/getProperty "java.io.tmpdir"))
@@ -43,18 +44,6 @@
                                       (let [{:keys [output_]} data]
                                         (swap! logging-atom conj (force output_))))}}})
 
-(defn unauthenticated-backend
-  []
-  (auth/oauth-backend (reify auth/TokenAuthenticator
-                        (auth/valid? [_ token]
-                          (throw+ {:type :Unauthorized})))))
-
-(defn authenticated-backend
-  []
-  (auth/oauth-backend (reify auth/TokenAuthenticator
-                        (auth/valid? [_ token]
-                          true))))
-
 (defn wrap-clojure-response
   [handler]
   (fn [request]
@@ -83,7 +72,7 @@
 
 (defn bearer-token
   [m]
-  (str "Bearer " (make-jwt {:body (auth/clj->b64 m)})))
+  (str "Bearer " (make-jwt {:body (jwt/clj->b64 m)})))
 
 (def valid-token
   (str "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
@@ -101,7 +90,7 @@
 (defn restricted-access
   [role]
   [{:pattern #".*"
-    :handler (partial wedding/require-role role)}])
+    :handler (partial auth/require-role role)}])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Temporary directory

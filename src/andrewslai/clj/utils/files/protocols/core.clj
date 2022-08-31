@@ -1,6 +1,5 @@
 (ns andrewslai.clj.utils.files.protocols.core
   (:require [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.utils.files.protocols.core :as protocols]
             [clojure.string :as string]
             [ring.util.response :as ring-response]
             [taoensso.timbre :as log])

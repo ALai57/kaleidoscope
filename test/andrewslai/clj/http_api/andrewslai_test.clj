@@ -1,9 +1,10 @@
 (ns andrewslai.clj.http-api.andrewslai-test
-  (:require [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
+  (:require [andrewslai.clj.auth.buddy-backends :as bb]
             [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.persistence.articles-test :as a]
+            [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [andrewslai.clj.persistence.postgres :as pg]
             [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]
@@ -54,7 +55,7 @@
                 (handler (mock/request :get "/swagger.json"))))))
 
 (deftest admin-routes-test
-  (let [app (-> {:auth (tu/authenticated-backend)}
+  (let [app (-> {:auth (bb/authenticated-backend)}
                 (andrewslai/andrewslai-app)
                 (tu/wrap-clojure-response))]
     (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
@@ -70,7 +71,7 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (andrewslai/andrewslai-app {:auth           (tu/unauthenticated-backend)
+      (let [handler (andrewslai/andrewslai-app {:auth           (bb/unauthenticated-backend)
                                                 :database       (pg/->NextDatabase (embedded-h2/fresh-db!))
                                                 :static-content (sc/classpath-static-content-wrapper "public" {})})]
         (is (match? expected (handler request)))))
@@ -118,7 +119,7 @@
 
 (deftest create-article-happy-path
   (let [app (-> {:database (pg/->NextDatabase (embedded-h2/fresh-db!))
-                 :auth     (tu/authenticated-backend)}
+                 :auth     (bb/authenticated-backend)}
                 andrewslai/andrewslai-app
                 tu/wrap-clojure-response)
         url (format "/articles/%s" (:article-url a/example-article))]
