@@ -10,7 +10,8 @@
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [ring.mock.request :as mock]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [andrewslai.clj.config :as config]))
 
 (use-fixtures :once
   (fn [f]
@@ -34,33 +35,35 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest ping-test
-  (let [handler (tu/wrap-clojure-response (andrewslai/andrewslai-app {}))]
+  (let [handler (tu/wrap-clojure-response (andrewslai/andrewslai-app {:access-rules tu/public-access}))]
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    {:revision string?}}
                 (handler (mock/request :get "/ping"))))))
 
 (deftest home-test
-  (let [handler (andrewslai/andrewslai-app {:static-content (sc/classpath-static-content-wrapper "public" {})})]
+  (let [handler (andrewslai/andrewslai-app {:static-content (sc/classpath-static-content-wrapper "public" {})
+                                            :access-rules   tu/public-access})]
     (is (match? {:status  200
                  :headers {"Content-Type" #"text/html"}
                  :body    tu/file?}
                 (handler (mock/request :get "/"))))))
 
 (deftest swagger-test
-  (let [handler (tu/wrap-clojure-response (andrewslai/andrewslai-app {}))]
+  (let [handler (tu/wrap-clojure-response (andrewslai/andrewslai-app {:access-rules tu/public-access}))]
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    map?}
                 (handler (mock/request :get "/swagger.json"))))))
 
 (deftest admin-routes-test
-  (let [app (-> {:auth (bb/authenticated-backend)}
+  (let [app (-> {:auth         (bb/authenticated-backend {:realm_access {:roles ["andrewslai"]}})
+                 :access-rules (config/configure-access nil)}
                 (andrewslai/andrewslai-app)
                 (tu/wrap-clojure-response))]
     (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
                 (app (-> (mock/request :get "/admin/")
-                         (mock/header "Authorization" (tu/bearer-token "an-authenticated-user"))))))))
+                         (mock/header "Authorization" "Bearer x")))))))
 
 #_(deftest logging-test
     (let [logging-atom (atom [])
@@ -71,7 +74,8 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (andrewslai/andrewslai-app {:auth           (bb/unauthenticated-backend)
+      (let [handler (andrewslai/andrewslai-app {:auth           bb/unauthenticated-backend
+                                                :access-rules   (config/configure-access nil)
                                                 :database       (pg/->NextDatabase (embedded-h2/fresh-db!))
                                                 :static-content (sc/classpath-static-content-wrapper "public" {})})]
         (is (match? expected (handler request)))))
@@ -109,7 +113,8 @@
 (deftest article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
-      (let [app (andrewslai/andrewslai-app {:database (pg/->NextDatabase (embedded-h2/fresh-db!))})]
+      (let [app (andrewslai/andrewslai-app {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+                                            :access-rules tu/public-access})]
         (is (match? expected
                     (tu/app-request app (mock/request :get endpoint))))))
 
@@ -118,8 +123,9 @@
     "/articles/does-not-exist"   {:status 404}))
 
 (deftest create-article-happy-path
-  (let [app (-> {:database (pg/->NextDatabase (embedded-h2/fresh-db!))
-                 :auth     (bb/authenticated-backend)}
+  (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+                 :access-rules tu/public-access
+                 :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
                 andrewslai/andrewslai-app
                 tu/wrap-clojure-response)
         url (format "/articles/%s" (:article-url a/example-article))]
@@ -132,9 +138,8 @@
       (is (match? {:status 200}
                   (app (-> (mock/request :put url)
                            (mock/json-body a/example-article)
-                           (mock/header "Authorization" (str "Bearer " tu/valid-token)))))))
+                           (mock/header "Authorization" "Bearer x"))))))
 
-    ;; FAILING
     (testing "Article retrieval succeeds"
       (is (match? {:status 200 :body article?}
                   (app (mock/request :get url)))))))
@@ -144,7 +149,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest portfolio-test
-  (let [app      (-> {:database (pg/->NextDatabase (embedded-h2/fresh-db!))}
+  (let [app      (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+                      :access-rules tu/public-access}
                      (andrewslai/andrewslai-app)
                      (tu/wrap-clojure-response))
         response (app (mock/request :get "/projects-portfolio"))]

@@ -6,7 +6,9 @@
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
             [buddy.auth.middleware :as ba]
+            [buddy.auth.accessrules :as ar]
             [compojure.api.sweet :refer [api ANY]]
+            [ring.util.http-response :refer [unauthorized]]
             [compojure.route :as route]
             [clojure.stacktrace :as stacktrace]
             [ring.middleware.content-type :refer [wrap-content-type]]
@@ -24,7 +26,7 @@
     {:status 404}))
 
 (defn andrewslai-app
-  [{:keys [auth static-content] :as components}]
+  [{:keys [auth access-rules static-content] :as components}]
   (api {:components components
         :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
         :middleware [mw/wrap-request-identifier
@@ -35,6 +37,11 @@
                      (or static-content identity)
                      #(ba/wrap-authorization % auth)
                      #(ba/wrap-authentication % auth)
+                     #(ar/wrap-access-rules % {:rules          access-rules
+                                               :reject-handler (fn [& args]
+                                                                 (unauthorized))})
+                     #_(partial debug-log-request! "Finished middleware processing")
+
                      ]}
        ping-routes
        articles-routes

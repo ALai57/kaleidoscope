@@ -38,8 +38,8 @@
         request (-> (mock/request :get "/")
                     (mock/header "Authorization" "Bearer x"))]
     (testing "Bearer token can be parsed"
-      (is (thrown? clojure.lang.ExceptionInfo
-                   (bmw/authentication-request request backend))))))
+      (is (= request
+             (bmw/authentication-request request backend))))))
 
 (deftest authenticated-backend-test
   (let [backend (bb/authenticated-backend {:foo "bar"})

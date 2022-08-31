@@ -57,6 +57,15 @@
   (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")
                        :creds  s3-storage/CustomAWSCredentialsProviderChain}))
 
+(defn configure-access
+  [_env]
+  [{:pattern #"^/admin.*"
+    :handler (partial auth/require-role "andrewslai")}
+   {:request-method :put
+    :pattern        #"^/articles/.*"
+    :handler        (partial auth/require-role "andrewslai")}
+   ])
+
 (defn configure-wedding-access
   [_env]
   [{:pattern #"^/media.*"
@@ -68,6 +77,7 @@
   [env]
   {:port       (configure-port env)
    :andrewslai {:auth           (configure-auth env)
+                :access-rules   (configure-access env)
                 :database       (configure-database env)
                 :static-content (configure-static-content env)}
    :wedding    {:auth         (configure-auth env)
