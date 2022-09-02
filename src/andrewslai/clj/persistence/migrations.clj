@@ -1,6 +1,6 @@
 (ns andrewslai.clj.persistence.migrations
   (:require [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.clj.persistence.postgres :as pg]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [migratus.core :as m]))
 
 (def MIGRATUS-COMMANDS
@@ -25,7 +25,7 @@
   additional args after that."
   [& [v & args]]
   (let [op  (get MIGRATUS-COMMANDS v m/migrate)
-        pg  (pg/pg-conn (System/getenv))]
+        pg  (rdbms/pg-conn (System/getenv))]
     (with-open [connection (rdbms/fresh-connection pg)]
       (apply op (concat [(->migratus-config {:connection connection})]
                         args)))))
@@ -43,7 +43,7 @@
   (require '[migratus.database :as mig-db])
 
   (def connection
-    (rdbms/fresh-connection (pg/pg-conn (System/getenv))))
+    (rdbms/fresh-connection (rdbms/pg-conn (System/getenv))))
 
   (def migratus-config
     (->migratus-config connection))

@@ -1,5 +1,5 @@
 (ns andrewslai.clj.entities.photos-test
-  (:require [andrewslai.clj.persistence.postgres :as pg]
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.entities.photo :as photo]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [clojure.test :refer [deftest is testing use-fixtures]]
@@ -19,7 +19,7 @@
    :modified-at #inst "2021-05-27T18:30:39.000Z"})
 
 (deftest create-and-retrieve-photo-test
-  (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
+  (let [database (rdbms/->RDBMS (embedded-h2/fresh-db!))]
     (testing "example-photos were seeded into the DB"
       ;; Migrations seed db now for convenience
       (is (= 3 (count (photo/get-all-photos database)))))

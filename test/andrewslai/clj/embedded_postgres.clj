@@ -1,7 +1,7 @@
 (ns andrewslai.clj.embedded-postgres
   (:require [clojure.java.jdbc :as jdbc]
             [migratus.core :as migratus]
-            [andrewslai.clj.persistence.postgres :as pg]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.migrations :as migrations]
             [andrewslai.clj.persistence.embedded-postgres :as embedded-pg])
@@ -12,7 +12,7 @@
   db-spec defines the database connection. "
   [database & body]
   `(let [db-spec# (embedded-pg/fresh-db!)
-         ~database (pg/->NextDatabase db-spec#)]
+         ~database (rdbms/->RDBMS db-spec#)]
      (jdbc/with-db-transaction [txn# db-spec#]
        (jdbc/db-set-rollback-only! txn#)
        ~@body)))

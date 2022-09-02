@@ -1,23 +1,23 @@
 (ns andrewslai.clj.entities.article
-  (:require [andrewslai.clj.persistence.postgres :as pg]
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.cljc.specs.articles]
             [clojure.spec.alpha :as s]))
 
 (defn get-all-articles [database]
-  (pg/select database {:select [:*]
-                       :from [:articles]}))
+  (rdbms/select database {:select [:*]
+                          :from [:articles]}))
 
 (defn get-article [database article-url]
   (first
-   (pg/select database
-              {:select [:*]
-               :from   [:articles]
-               :where  [:= :articles/article-url article-url]})))
+   (rdbms/select database
+                 {:select [:*]
+                  :from   [:articles]
+                  :where  [:= :articles/article-url article-url]})))
 
 (defn create-article! [database article]
-  (pg/insert! database
-              :articles article
-              :ex-subtype :UnableToCreateArticle))
+  (rdbms/insert! database
+                 :articles article
+                 :ex-subtype :UnableToCreateArticle))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection

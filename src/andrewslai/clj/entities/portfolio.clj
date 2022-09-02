@@ -1,5 +1,5 @@
 (ns andrewslai.clj.entities.portfolio
-  (:require [andrewslai.clj.persistence.postgres :as pg]
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [clojure.spec.alpha :as s]))
 
 (s/def :andrewslai.portfolio/id int?)
@@ -45,12 +45,12 @@
 
 (defn get-nodes
   [database]
-  (pg/select database {:select [:*]
-                       :from   [:portfolio-entries]}))
+  (rdbms/select database {:select [:*]
+                          :from   [:portfolio-entries]}))
 
 (defn get-links
   [database]
-  (pg/select database {:select [:*] :from [:portfolio-links]}))
+  (rdbms/select database {:select [:*] :from [:portfolio-links]}))
 
 
 (defn get-portfolio
@@ -80,21 +80,21 @@
 
   (defn get-projects
     [database]
-    (pg/select database {:select [:*]
-                         :from   [:portfolio-entries]
-                         :where  [:= :portfolio-entries/type "project"]}))
+    (rdbms/select database {:select [:*]
+                            :from   [:portfolio-entries]
+                            :where  [:= :portfolio-entries/type "project"]}))
 
   (defn get-orgs
     [database]
-    (pg/select database {:select [:*]
-                         :from   [:portfolio-entries]
-                         :where  [:= :portfolio-entries/type "organization"]}))
+    (rdbms/select database {:select [:*]
+                            :from   [:portfolio-entries]
+                            :where  [:= :portfolio-entries/type "organization"]}))
 
   (defn get-skills
     [database]
-    (pg/select database {:select [:*]
-                         :from   [:portfolio-entries]
-                         :where  [:= :portfolio-entries/type "skill"]}))
+    (rdbms/select database {:select [:*]
+                            :from   [:portfolio-entries]
+                            :where  [:= :portfolio-entries/type "skill"]}))
 
 
   )

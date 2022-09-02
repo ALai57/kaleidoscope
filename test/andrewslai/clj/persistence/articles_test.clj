@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.articles-test
-  (:require [andrewslai.clj.persistence.postgres :as pg]
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.entities.article :as article]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [clojure.test :refer [deftest is testing use-fixtures]]
@@ -19,7 +19,7 @@
    :content      "<h1>Hello world!</h1>"})
 
 (deftest create-and-retrieve-articles-test
-  (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
+  (let [database (rdbms/->RDBMS (embedded-h2/fresh-db!))]
     (testing "example-article doesn't exist in the database"
       (is (nil? (article/get-article database (:article-url example-article)))))
 

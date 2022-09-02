@@ -6,7 +6,7 @@
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
-            [andrewslai.clj.persistence.postgres :as pg]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
@@ -85,7 +85,7 @@
     (testing description
       (let [handler (-> {:auth           bb/unauthenticated-backend
                          :access-rules   (config/configure-access nil)
-                         :database       (pg/->NextDatabase (embedded-h2/fresh-db!))
+                         :database       (rdbms/->RDBMS (embedded-h2/fresh-db!))
                          :static-content (sc/classpath-static-content-wrapper "public" {})}
                         config/add-andrewslai-middleware
                         andrewslai/andrewslai-app)]
@@ -124,7 +124,7 @@
 (deftest article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
-      (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+      (let [app (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
                      :access-rules tu/public-access}
                     config/add-andrewslai-middleware
                     andrewslai/andrewslai-app)]
@@ -136,7 +136,7 @@
     "/articles/does-not-exist"   {:status 404}))
 
 (deftest create-article-happy-path
-  (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+  (let [app (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
                  :access-rules tu/public-access
                  :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
                 config/add-andrewslai-middleware
@@ -163,7 +163,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest portfolio-test
-  (let [app      (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+  (let [app      (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
                       :access-rules tu/public-access}
                      config/add-andrewslai-middleware
                      (andrewslai/andrewslai-app)

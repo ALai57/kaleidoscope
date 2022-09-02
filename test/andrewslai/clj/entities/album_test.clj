@@ -1,5 +1,5 @@
 (ns andrewslai.clj.entities.album-test
-  (:require [andrewslai.clj.persistence.postgres :as pg]
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.entities.album :as album]
             [andrewslai.clj.entities.photo :as photo]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
@@ -21,7 +21,7 @@
    :modified-at    #inst "2021-05-27T18:30:39.000Z"})
 
 (deftest create-and-retrieve-album-test
-  (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
+  (let [database (rdbms/->RDBMS (embedded-h2/fresh-db!))]
     (testing "3 example-albums seeded in DB"
       ;; Migrations seed db now for convenience
       (is (= 3 (count (album/get-all-albums database)))))
@@ -41,7 +41,7 @@
                     (album/get-album-by-id database id)))))))
 
 (deftest album-contents-test
-  (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
+  (let [database (rdbms/->RDBMS (embedded-h2/fresh-db!))]
     ;; 3 example-albums seeded in DB
     (let [album-id  (:id (first (album/get-all-albums database)))
           photo-ids (map :id (photo/get-all-photos database))]
@@ -60,7 +60,7 @@
             (is (= 0 (count (album/get-album-contents database album-id))))))))))
 
 (deftest get-all-album-contents-test
-  (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
+  (let [database (rdbms/->RDBMS (embedded-h2/fresh-db!))]
     ;; 3 example-albums seeded in DB
     (let [album-ids (map :id (album/get-all-albums database))
           photo-ids (map :id (photo/get-all-photos database))]

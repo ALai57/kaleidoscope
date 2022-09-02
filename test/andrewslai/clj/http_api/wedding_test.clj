@@ -6,7 +6,7 @@
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [andrewslai.clj.persistence.memory :as memory]
-            [andrewslai.clj.persistence.postgres :as pg]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.utils.core :as util]
             [andrewslai.cljc.specs.albums :refer [example-album example-album-2]]
@@ -101,7 +101,7 @@
   (let [in-mem-fs (atom example-fs)
         app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
-                       :database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+                       :database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
                        :storage      (memory/map->MemFS {:store in-mem-fs})}
                       (config/add-wedding-middleware)
                       (wedding/wedding-app)
@@ -115,7 +115,7 @@
 
 (deftest upload-test
   (let [in-mem-fs (atom {})
-        database  (pg/->NextDatabase (embedded-h2/fresh-db!))
+        database  (rdbms/->RDBMS (embedded-h2/fresh-db!))
         app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
                        :database     database
@@ -140,7 +140,7 @@
                 @in-mem-fs))))
 
 (deftest albums-test
-  (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+  (let [app (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
                  :access-rules tu/public-access}
                 config/add-wedding-middleware
                 wedding/wedding-app
@@ -178,7 +178,7 @@
        (uuid? (java.util.UUID/fromString s))))
 
 (deftest album-contents-test
-  (let [database  (pg/->NextDatabase (embedded-h2/fresh-db!))
+  (let [database  (rdbms/->RDBMS (embedded-h2/fresh-db!))
         in-mem-fs (atom {})
         app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
@@ -225,7 +225,7 @@
         ))))
 
 (deftest contents-retrieval-test
-  (let [database  (pg/->NextDatabase (embedded-h2/fresh-db!))
+  (let [database  (rdbms/->RDBMS (embedded-h2/fresh-db!))
         in-mem-fs (atom {})
         app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
@@ -263,7 +263,7 @@
                     (app (-> (mock/request :get "/albums/-/contents"))))) ))))
 
 (deftest albums-auth-test
-  (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+  (let [app (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
                  :access-rules (config/configure-wedding-access nil)}
                 config/add-wedding-middleware
                 wedding/wedding-app)]

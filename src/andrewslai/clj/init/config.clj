@@ -5,7 +5,7 @@
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [andrewslai.clj.persistence.embedded-postgres :as embedded-pg]
-            [andrewslai.clj.persistence.postgres :as pg]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.s3 :as s3-storage]
             [taoensso.timbre :as log]))
@@ -38,9 +38,9 @@
 (defn configure-database
   [env]
   (case (get env "ANDREWSLAI_DB_TYPE" "postgres")
-    "postgres"          (pg/->NextDatabase (rdbms/get-datasource (pg/pg-conn env)))
-    "embedded-postgres" (pg/->NextDatabase (embedded-pg/fresh-db!))
-    "embedded-h2"       (pg/->NextDatabase (embedded-h2/fresh-db!))))
+    "postgres"          (rdbms/->RDBMS (rdbms/get-datasource (rdbms/pg-conn env)))
+    "embedded-postgres" (rdbms/->RDBMS (embedded-pg/fresh-db!))
+    "embedded-h2"       (rdbms/->RDBMS (embedded-h2/fresh-db!))))
 
 (defn configure-static-content
   [env]

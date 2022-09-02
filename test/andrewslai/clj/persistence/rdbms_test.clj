@@ -1,7 +1,7 @@
-(ns andrewslai.clj.persistence.postgres-test
+(ns andrewslai.clj.persistence.rdbms-test
   (:require [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [andrewslai.clj.persistence.persistence :as persist]
-            [andrewslai.clj.persistence.postgres :as pg]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [clojure.test :refer [is use-fixtures]]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.generators :as gen]
@@ -45,7 +45,7 @@
 ;; https://clojurians.slack.com/archives/C1Q164V29/p1601667389036400
 (defspec insert-get-delete-test
   (prop/for-all [user gen-user]
-    (let [database (pg/->NextDatabase (embedded-h2/fresh-db!))]
+    (let [database (rdbms/->RDBMS (embedded-h2/fresh-db!))]
       (and (is (empty?   (persist/select database all-users)))
            (is (match?   (persist/transact! database (add-user user)) [user]))
            (is (= [user] (persist/select database all-users)))
