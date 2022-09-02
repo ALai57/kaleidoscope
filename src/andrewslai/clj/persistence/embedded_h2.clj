@@ -8,19 +8,10 @@
   ([]
    (start-db! (str (java.util.UUID/randomUUID))))
   ([dbname]
-   {:jdbcUrl (format "jdbc:h2:mem:%s;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE" dbname)}))
+   {:jdbcUrl (format "jdbc:h2:mem:%s;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=1" dbname)}))
 
-(defn fresh-db!
-  []
-  (let [datasource (-> (start-db!)
-                       (rdbms/get-datasource))
-        ;; For some reason, need to create a new connection from this datasource
-        ;; before migrating
-        conn       (rdbms/fresh-connection datasource)]
-    (-> (rdbms/fresh-connection datasource)
-        (migrations/->migratus-config)
-        (migratus/migrate))
-    conn))
+(def fresh-db!
+  (partial rdbms/fresh-db! start-db!))
 
 (comment
 

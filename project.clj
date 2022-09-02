@@ -29,7 +29,7 @@
                  [javax.servlet/servlet-api "2.5"]
                  [metosin/compojure-api "2.0.0-alpha31" :exclusions [ring/ring-codec joda-time]]
                  [metosin/spec-tools "0.10.3"]
-                 [migratus "1.2.8" :scope "test"]
+                 [migratus "1.4.4" :scope "test"]
                  [nubank/matcher-combinators "3.1.4" :exclusions [io.aviso/pretty
                                                                   joda-time] :scope "test"]
                  [org.apache.xmlgraphics/batik-transcoder "1.14"]

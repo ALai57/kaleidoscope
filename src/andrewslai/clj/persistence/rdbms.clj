@@ -5,10 +5,12 @@
             [clojure.java.jdbc :as sql]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
+            [migratus.core :as migratus]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]
             [slingshot.slingshot :refer [throw+ try+]])
-  (:import org.postgresql.util.PGobject))
+  (:import
+   org.postgresql.util.PGobject))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; One time configuration - stateful
@@ -40,6 +42,19 @@
    :user     (get env "ANDREWSLAI_DB_USER")
    :password (get env "ANDREWSLAI_DB_PASSWORD")
    :dbtype   "postgresql"})
+
+(defn fresh-db!
+  "Used to create and migrate a fresh database"
+  [start-fn]
+  (let [datasource (-> (start-fn)
+                       (get-datasource))
+        ;; For some reason, need to create a new connection from this datasource
+        ;; before migrating. I think it's because Migratus closes the connection.
+        conn       (fresh-connection datasource)]
+    (migratus/migrate {:migration-dirs "migrations"
+                       :store          :database
+                       :db             {:datasource datasource}})
+    conn))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; API for interacting with a relational database

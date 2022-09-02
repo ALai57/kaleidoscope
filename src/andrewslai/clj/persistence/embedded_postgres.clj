@@ -14,14 +14,26 @@
 
 (defn start-db!
   []
-  (.start (EmbeddedPostgres/builder)))
+  (->db-spec (.start (EmbeddedPostgres/builder))))
 
-(defn fresh-db!
-  []
-  (let [datasource (-> (start-db!)
-                       (->db-spec)
-                       (rdbms/get-datasource))]
-    (-> datasource
-        (migrations/->migratus-config)
-        (migratus/migrate))
-    datasource))
+(def fresh-db!
+  (partial rdbms/fresh-db! start-db!))
+
+(comment
+
+  (def x
+    (start-db!))
+
+  (def ds
+    (fresh-db!))
+
+  ;; Just checking to make sure we can connect to the DB and perform the
+  ;; migrations
+  (jdbc/execute! ds ["select * from information_schema.tables"])
+  (jdbc/execute! ds ["select * from schema_migrations"])
+
+  (jdbc/execute! ds ["CREATE TABLE testing (id varchar)"])
+  (jdbc/execute! ds ["INSERT INTO testing VALUES ('hello')"])
+  (jdbc/execute! ds ["select * from testing"])
+
+  )
