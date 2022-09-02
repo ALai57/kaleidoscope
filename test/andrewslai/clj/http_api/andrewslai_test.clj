@@ -35,22 +35,30 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest ping-test
-  (let [handler (tu/wrap-clojure-response (andrewslai/andrewslai-app {:access-rules tu/public-access}))]
+  (let [handler (-> {:access-rules tu/public-access}
+                    config/add-andrewslai-middleware
+                    andrewslai/andrewslai-app
+                    tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    {:revision string?}}
                 (handler (mock/request :get "/ping"))))))
 
 (deftest home-test
-  (let [handler (andrewslai/andrewslai-app {:static-content (sc/classpath-static-content-wrapper "public" {})
-                                            :access-rules   tu/public-access})]
+  (let [handler (-> {:static-content (sc/classpath-static-content-wrapper "public" {})
+                     :access-rules   tu/public-access}
+                    config/add-andrewslai-middleware
+                    andrewslai/andrewslai-app)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"text/html"}
                  :body    tu/file?}
                 (handler (mock/request :get "/"))))))
 
 (deftest swagger-test
-  (let [handler (tu/wrap-clojure-response (andrewslai/andrewslai-app {:access-rules tu/public-access}))]
+  (let [handler (-> {:access-rules tu/public-access}
+                    config/add-andrewslai-middleware
+                    andrewslai/andrewslai-app
+                    tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    map?}
@@ -59,6 +67,7 @@
 (deftest admin-routes-test
   (let [app (-> {:auth         (bb/authenticated-backend {:realm_access {:roles ["andrewslai"]}})
                  :access-rules (config/configure-access nil)}
+                config/add-andrewslai-middleware
                 (andrewslai/andrewslai-app)
                 (tu/wrap-clojure-response))]
     (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
@@ -74,10 +83,12 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (andrewslai/andrewslai-app {:auth           bb/unauthenticated-backend
-                                                :access-rules   (config/configure-access nil)
-                                                :database       (pg/->NextDatabase (embedded-h2/fresh-db!))
-                                                :static-content (sc/classpath-static-content-wrapper "public" {})})]
+      (let [handler (-> {:auth           bb/unauthenticated-backend
+                         :access-rules   (config/configure-access nil)
+                         :database       (pg/->NextDatabase (embedded-h2/fresh-db!))
+                         :static-content (sc/classpath-static-content-wrapper "public" {})}
+                        config/add-andrewslai-middleware
+                        andrewslai/andrewslai-app)]
         (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"
@@ -113,8 +124,10 @@
 (deftest article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
-      (let [app (andrewslai/andrewslai-app {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
-                                            :access-rules tu/public-access})]
+      (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
+                     :access-rules tu/public-access}
+                    config/add-andrewslai-middleware
+                    andrewslai/andrewslai-app)]
         (is (match? expected
                     (tu/app-request app (mock/request :get endpoint))))))
 
@@ -126,6 +139,7 @@
   (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
                  :access-rules tu/public-access
                  :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
+                config/add-andrewslai-middleware
                 andrewslai/andrewslai-app
                 tu/wrap-clojure-response)
         url (format "/articles/%s" (:article-url a/example-article))]
@@ -151,6 +165,7 @@
 (deftest portfolio-test
   (let [app      (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
                       :access-rules tu/public-access}
+                     config/add-andrewslai-middleware
                      (andrewslai/andrewslai-app)
                      (tu/wrap-clojure-response))
         response (app (mock/request :get "/projects-portfolio"))]

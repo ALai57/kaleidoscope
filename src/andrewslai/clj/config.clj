@@ -72,22 +72,13 @@
    {:pattern #"^/albums.*"
     :handler (partial auth/require-role "wedding")}])
 
-(defn configure-andrewslai-middleware
-  [{:keys [static-content] :as components}]
-  (assoc-in components
-            [:andrewslai :http-mw]
-            (comp mw/standard-stack
-                  mw/log-request!
-                  static-content
-                  (mw/auth-stack components))))
-
 (defn add-andrewslai-middleware
   [{:keys [static-content] :as andrewslai-components}]
   (assoc andrewslai-components
          :http-mw
          (comp mw/standard-stack
                mw/log-request!
-               static-content
+               (or static-content identity)
                (mw/auth-stack andrewslai-components))))
 
 (defn add-wedding-middleware
