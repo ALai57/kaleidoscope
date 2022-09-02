@@ -26,23 +26,10 @@
     {:status 404}))
 
 (defn andrewslai-app
-  [{:keys [auth access-rules static-content] :as components}]
+  [{:keys [http-mw] :as components}]
   (api {:components components
         :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
-        :middleware [mw/wrap-request-identifier
-                     mw/wrap-redirect-to-index
-                     wrap-content-type
-                     wrap-json-response
-                     mw/log-request!
-                     (or static-content identity)
-                     #(ba/wrap-authorization % auth)
-                     #(ba/wrap-authentication % auth)
-                     #(ar/wrap-access-rules % {:rules          access-rules
-                                               :reject-handler (fn [& args]
-                                                                 (unauthorized))})
-                     #_(partial debug-log-request! "Finished middleware processing")
-
-                     ]}
+        :middleware [http-mw]}
        ping-routes
        articles-routes
        portfolio-routes

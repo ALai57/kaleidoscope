@@ -1,9 +1,10 @@
 (ns andrewslai.clj.http-api.middleware
-  (:gen-class)
   (:require [buddy.auth.accessrules :as ar]
             [buddy.auth.middleware :as ba]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.json :refer [wrap-json-response]]
+            [ring.middleware.multipart-params :refer [wrap-multipart-params]]
+            [ring.middleware.params :refer [wrap-params]]
             [ring.util.http-response :refer [unauthorized]]
             [taoensso.timbre :as log]))
 
@@ -47,6 +48,10 @@
                wrap-redirect-to-index
                wrap-content-type
                wrap-json-response]))
+
+(def params-stack
+  (apply comp [wrap-multipart-params
+               wrap-params]))
 
 (defn auth-stack
   "Stack is applied from top down"

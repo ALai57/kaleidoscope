@@ -3,20 +3,12 @@
             [amazonica.core :as amazon]
             [andrewslai.clj.entities.album :as album]
             [andrewslai.clj.entities.photo :as photo]
-            [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
-            [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [buddy.auth.accessrules :as ar :refer [wrap-access-rules]]
-            [buddy.auth.middleware :as ba]
             [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [api context defroutes GET POST PUT DELETE]]
+            [compojure.api.sweet :refer [api context defroutes DELETE GET POST PUT]]
             [compojure.route :as route]
-            [ring.middleware.content-type :refer [wrap-content-type]]
-            [ring.middleware.json :refer [wrap-json-response]]
-            [ring.middleware.multipart-params :refer [wrap-multipart-params]]
-            [ring.middleware.params :refer [wrap-params]]
-            [ring.util.http-response :refer [created unauthorized ok no-content not-found!]]
+            [ring.util.http-response :refer [created no-content not-found! ok]]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
 
@@ -191,27 +183,11 @@
 
 
 (defn wedding-app
-  [{:keys [auth logging storage access-rules] :as components}]
+  [{:keys [logging http-mw] :as components}]
   (log/with-config logging
     (api {:components (select-keys components [:storage :logging :database])
           :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
-          :middleware [mw/wrap-request-identifier
-                       mw/wrap-redirect-to-index
-                       wrap-content-type
-                       wrap-json-response
-                       wrap-multipart-params
-                       wrap-params
-                       mw/log-request!
-
-                       ;; TODO: Don't use this - pass in a wrapper
-                       (sc/static-content storage)
-                       #(ba/wrap-authorization % auth)
-                       #(ba/wrap-authentication % auth)
-                       #(wrap-access-rules % {:rules access-rules
-                                              :reject-handler (fn [& args]
-                                                                (unauthorized))})
-                       #_(partial debug-log-request! "Finished middleware processing")
-                       ]}
+          :middleware [http-mw]}
          ping-routes
          album-routes
          ;; Useful for local debugging until I set up something better

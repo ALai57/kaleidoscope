@@ -1,5 +1,6 @@
 (ns andrewslai.clj.http-api.auth.buddy-backends
-  (:require [buddy.auth.backends.token :as token]
+  (:require [andrewslai.clj.http-api.auth.keycloak :as keycloak]
+            [buddy.auth.backends.token :as token]
             [ring.util.http-response :refer [unauthorized]]))
 
 (defn bearer-token-backend
@@ -18,3 +19,9 @@
   https://openid.net/specs/openid-connect-core-1_0.html#IDToken"
   ([] (authenticated-backend true))
   ([id-token] (bearer-token-backend (constantly id-token))))
+
+(defn keycloak-backend
+  [keycloak-config-map]
+  (-> keycloak-config-map
+      (keycloak/make-keycloak-authenticator)
+      (bearer-token-backend)))

@@ -1,7 +1,6 @@
 (ns andrewslai.clj.config
   (:require [andrewslai.clj.api.auth :as auth]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
-            [andrewslai.clj.http-api.auth.keycloak :as keycloak]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.http-api.wedding :as wedding]
@@ -25,8 +24,7 @@
        :client-secret     (get env "ANDREWSLAI_AUTH_SECRET")
        :ssl-required      "external"
        :confidential-port 0}
-      keycloak/make-keycloak-authenticator
-      bb/bearer-token-backend))
+      (bb/keycloak-backend)))
 
 (defn configure-auth
   "Is OAUTH is disabled, always authenticate as a user with `wedding` access"
@@ -74,15 +72,24 @@
    {:pattern #"^/albums.*"
     :handler (partial auth/require-role "wedding")}])
 
+(defn configure-andrewslai-middleware
+  [{:keys [static-content] :as components}]
+  (assoc-in components
+            [:andrewslai :http-mw]
+            (comp mw/standard-stack
+                  mw/log-request!
+                  static-content
+                  (mw/auth-stack components))))
+
 (defn configure-wedding-middleware
-  [components]
-  (let [auth-mw (or (mw/auth-stack components))]
-    (assoc-in components
-              [:wedding :middleware]
-              (comp mw/standard-stack
-                    log
-                    static-content
-                    auth-mw))))
+  [{:keys [storage] :as components}]
+  (assoc-in components
+            [:wedding :http-mw]
+            (comp mw/standard-stack
+                  mw/params-stack
+                  mw/log-request!
+                  (sc/static-content storage)
+                  (mw/auth-stack components))))
 
 (defn configure-from-env
   [env]
@@ -90,10 +97,12 @@
        :andrewslai {:auth           (configure-auth env)
                     :access-rules   (configure-access env)
                     :database       (configure-database env)
-                    :static-content (configure-static-content env)}
+                    :static-content (configure-static-content env)
+                    :http-mw        []}
        :wedding    {:auth         (configure-auth env)
                     :access-rules (configure-wedding-access env)
                     :database     (configure-database env)
                     :storage      (configure-wedding-storage env)
                     :logging      (configure-logging env)}}
-      configure-middleware))
+      configure-wedding-middleware
+      configure-andrewslai-middleware))
