@@ -63,25 +63,25 @@
                                           (mock/header "Authorization" "Bearer x")))))))
 
     "Public-access routes can be reached by unauthenticated user"
-    {:status 200} {:access-rules tu/public-access}
+    {:status 200} (config/add-wedding-middleware {:access-rules tu/public-access})
 
     "Restricted-access routes can be reached by authorized user"
-    {:status 200} {:access-rules (tu/restricted-access "wedding")
-                   :auth         (bb/authenticated-backend {:realm_access {:roles ["wedding"]}})}
+    {:status 200} (config/add-wedding-middleware {:access-rules (tu/restricted-access "wedding")
+                                                  :auth         (bb/authenticated-backend {:realm_access {:roles ["wedding"]}})})
 
     "Restricted-access routes cannot be reached by unauthorized user"
-    {:status 401} {:access-rules (tu/restricted-access "wedding")
-                   :auth         (bb/authenticated-backend {:realm_access {:roles ["not-wedding-role"]}})}
+    {:status 401} (config/add-wedding-middleware {:access-rules (tu/restricted-access "wedding")
+                                                  :auth         (bb/authenticated-backend {:realm_access {:roles ["not-wedding-role"]}})})
 
     "Restricted-access routes cannot be reached by unauthenticated user"
-    {:status 401} {:access-rules (tu/restricted-access "wedding")
-                   :auth         bb/unauthenticated-backend}))
+    {:status 401} (config/add-wedding-middleware {:access-rules (tu/restricted-access "wedding")
+                                                  :auth         bb/unauthenticated-backend})))
 
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (wedding/wedding-app {:access-rules (config/configure-wedding-access nil)
-                                          :auth         bb/unauthenticated-backend})]
+      (let [handler (wedding/wedding-app (config/add-wedding-middleware {:access-rules (config/configure-wedding-access nil)
+                                                                         :auth         bb/unauthenticated-backend}))]
         (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"
@@ -103,6 +103,7 @@
                        :access-rules tu/public-access
                        :database     (pg/->NextDatabase (embedded-h2/fresh-db!))
                        :storage      (memory/map->MemFS {:store in-mem-fs})}
+                      (config/add-wedding-middleware)
                       (wedding/wedding-app)
                       (tu/wrap-clojure-response))]
     (is (match? {:status  200
@@ -115,10 +116,12 @@
 (deftest upload-test
   (let [in-mem-fs (atom {})
         database  (pg/->NextDatabase (embedded-h2/fresh-db!))
-        app       (wedding/wedding-app {:auth         (bb/authenticated-backend)
-                                        :access-rules tu/public-access
-                                        :database     database
-                                        :storage      (memory/map->MemFS {:store in-mem-fs})})]
+        app       (-> {:auth         (bb/authenticated-backend)
+                       :access-rules tu/public-access
+                       :database     database
+                       :storage      (memory/map->MemFS {:store in-mem-fs})}
+                      config/add-wedding-middleware
+                      wedding/wedding-app)]
 
     (is (match? {:status 201} (app (make-example-file-upload-request))))
 
@@ -139,6 +142,7 @@
 (deftest albums-test
   (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
                  :access-rules tu/public-access}
+                config/add-wedding-middleware
                 wedding/wedding-app
                 tu/wrap-clojure-response)]
 
@@ -180,6 +184,7 @@
                        :access-rules tu/public-access
                        :database     database
                        :storage      (memory/map->MemFS {:store in-mem-fs})}
+                      config/add-wedding-middleware
                       wedding/wedding-app
                       tu/wrap-clojure-response)]
 
@@ -226,6 +231,7 @@
                        :access-rules tu/public-access
                        :database     database
                        :storage      (memory/map->MemFS {:store in-mem-fs})}
+                      config/add-wedding-middleware
                       wedding/wedding-app
                       tu/wrap-clojure-response)]
 
@@ -259,6 +265,7 @@
 (deftest albums-auth-test
   (let [app (-> {:database     (pg/->NextDatabase (embedded-h2/fresh-db!))
                  :access-rules (config/configure-wedding-access nil)}
+                config/add-wedding-middleware
                 wedding/wedding-app)]
 
     (testing "Default access rules restrict access"

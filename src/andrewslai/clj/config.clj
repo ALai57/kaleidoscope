@@ -81,15 +81,29 @@
                   static-content
                   (mw/auth-stack components))))
 
+(defn add-andrewslai-middleware
+  [{:keys [static-content] :as andrewslai-components}]
+  (assoc andrewslai-components
+         :http-mw
+         (comp mw/standard-stack
+               mw/log-request!
+               static-content
+               (mw/auth-stack andrewslai-components))))
+
+(defn add-wedding-middleware
+  [{:keys [storage] :as wedding-components}]
+  (assoc wedding-components
+         :http-mw (comp mw/standard-stack
+                        mw/params-stack
+                        mw/log-request!
+                        (sc/static-content storage)
+                        (mw/auth-stack wedding-components))))
+
 (defn configure-wedding-middleware
-  [{:keys [storage] :as components}]
-  (assoc-in components
-            [:wedding :http-mw]
-            (comp mw/standard-stack
-                  mw/params-stack
-                  mw/log-request!
-                  (sc/static-content storage)
-                  (mw/auth-stack components))))
+  [components]
+  (update components
+          :wedding
+          add-wedding-middleware))
 
 (defn configure-from-env
   [env]
@@ -104,5 +118,5 @@
                     :database     (configure-database env)
                     :storage      (configure-wedding-storage env)
                     :logging      (configure-logging env)}}
-      configure-wedding-middleware
-      configure-andrewslai-middleware))
+      (update :wedding add-wedding-middleware)
+      (update :andrewslai add-andrewslai-middleware)))
