@@ -1,7 +1,7 @@
 (ns andrewslai.clj.http-api.wedding-test
-  (:require [andrewslai.clj.auth.buddy-backends :as bb]
+  (:require [andrewslai.clj.config :as config]
             [andrewslai.clj.entities.photo :as photo]
-            [andrewslai.clj.config :as config]
+            [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]

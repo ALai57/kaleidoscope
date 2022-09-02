@@ -1,7 +1,8 @@
 (ns andrewslai.clj.config
   (:require [andrewslai.clj.api.auth :as auth]
-            [andrewslai.clj.auth.buddy-backends :as bb]
-            [andrewslai.clj.auth.keycloak :as keycloak]
+            [andrewslai.clj.http-api.auth.buddy-backends :as bb]
+            [andrewslai.clj.http-api.auth.keycloak :as keycloak]
+            [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
@@ -73,15 +74,26 @@
    {:pattern #"^/albums.*"
     :handler (partial auth/require-role "wedding")}])
 
+(defn configure-wedding-middleware
+  [components]
+  (let [auth-mw (or (mw/auth-stack components))]
+    (assoc-in components
+              [:wedding :middleware]
+              (comp mw/standard-stack
+                    log
+                    static-content
+                    auth-mw))))
+
 (defn configure-from-env
   [env]
-  {:port       (configure-port env)
-   :andrewslai {:auth           (configure-auth env)
-                :access-rules   (configure-access env)
-                :database       (configure-database env)
-                :static-content (configure-static-content env)}
-   :wedding    {:auth         (configure-auth env)
-                :access-rules (configure-wedding-access env)
-                :database     (configure-database env)
-                :storage      (configure-wedding-storage env)
-                :logging      (configure-logging env)}})
+  (-> {:port       (configure-port env)
+       :andrewslai {:auth           (configure-auth env)
+                    :access-rules   (configure-access env)
+                    :database       (configure-database env)
+                    :static-content (configure-static-content env)}
+       :wedding    {:auth         (configure-auth env)
+                    :access-rules (configure-wedding-access env)
+                    :database     (configure-database env)
+                    :storage      (configure-wedding-storage env)
+                    :logging      (configure-logging env)}}
+      configure-middleware))

@@ -1,4 +1,4 @@
-(ns andrewslai.clj.auth.keycloak
+(ns andrewslai.clj.http-api.auth.keycloak
   (:require [andrewslai.clj.utils.jwt :as jwt]
             [taoensso.timbre :as log])
   (:import org.keycloak.adapters.KeycloakDeploymentBuilder

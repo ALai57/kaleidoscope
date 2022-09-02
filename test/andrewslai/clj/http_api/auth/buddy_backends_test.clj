@@ -1,8 +1,8 @@
-(ns andrewslai.clj.auth.buddy-backends-test
-  (:require [andrewslai.clj.auth.buddy-backends :as bb]
+(ns andrewslai.clj.http-api.auth.buddy-backends-test
+  (:require [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [buddy.auth.backends.token :as token]
-            [buddy.auth.protocols :as proto]
             [buddy.auth.middleware :as bmw]
+            [buddy.auth.protocols :as proto]
             [clj-http.client :as http]
             [clojure.test :refer :all]
             [matcher-combinators.test :refer [match?]]

@@ -1,13 +1,6 @@
-(ns andrewslai.clj.auth.buddy-backends
-  (:require [andrewslai.clj.utils.jwt :as jwt]
-            [buddy.auth.accessrules :as ar]
-            [buddy.auth.backends.token :as token]
-            [buddy.auth.protocols :as proto]
-            [buddy.core.codecs.base64 :as b64]
-            [ring.util.http-response :refer [unauthorized]]
-            [cheshire.core :as json]
-            [taoensso.timbre :as log]
-            [slingshot.slingshot :refer [try+ throw+]]))
+(ns andrewslai.clj.http-api.auth.buddy-backends
+  (:require [buddy.auth.backends.token :as token]
+            [ring.util.http-response :refer [unauthorized]]))
 
 (defn bearer-token-backend
   [authfn]

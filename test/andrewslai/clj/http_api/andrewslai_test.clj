@@ -1,7 +1,8 @@
 (ns andrewslai.clj.http-api.andrewslai-test
-  (:require [andrewslai.clj.auth.buddy-backends :as bb]
+  (:require [andrewslai.clj.config :as config]
             [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
+            [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
@@ -10,8 +11,7 @@
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [ring.mock.request :as mock]
-            [taoensso.timbre :as log]
-            [andrewslai.clj.config :as config]))
+            [taoensso.timbre :as log]))
 
 (use-fixtures :once
   (fn [f]
