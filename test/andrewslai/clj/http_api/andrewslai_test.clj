@@ -1,5 +1,5 @@
 (ns andrewslai.clj.http-api.andrewslai-test
-  (:require [andrewslai.clj.config :as config]
+  (:require [andrewslai.clj.init.config :as config]
             [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]

@@ -95,7 +95,7 @@
                       {:subtype ex-subtype}))))))
 
 (comment
-  (require '[andrewslai.clj.config :as config])
+  (require '[andrewslai.clj.init.config :as config])
   (require '[honeysql.helpers :as hh])
 
   (def example-user

@@ -25,7 +25,7 @@
 
 (comment
 
-  (require '[andrewslai.clj.config :as config])
+  (require '[andrewslai.clj.init.config :as config])
 
   (def database
     (config/configure-database (System/getenv)))

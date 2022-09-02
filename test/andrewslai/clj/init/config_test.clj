@@ -1,5 +1,5 @@
-(ns andrewslai.clj.config-test
-  (:require [andrewslai.clj.config :as cfg]
+(ns andrewslai.clj.init.config-test
+  (:require [andrewslai.clj.init.config :as cfg]
             [andrewslai.clj.utils.files.protocols.s3 :as s3p]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.test-utils :as tu]

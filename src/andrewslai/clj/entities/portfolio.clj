@@ -34,23 +34,13 @@
 (s/def :andrewslai.portfolio/links
   (s/coll-of :andrewslai.portfolio/link))
 
-(defn get-projects
-  [database]
-  (pg/select database {:select [:*]
-                       :from   [:portfolio-entries]
-                       :where  [:= :portfolio-entries/type "project"]}))
+(s/def :andrewslai/portfolio
+  (s/keys :req-un [:andrewslai.portfolio/nodes
+                   :andrewslai.portfolio/links]))
 
-(defn get-orgs
-  [database]
-  (pg/select database {:select [:*]
-                       :from   [:portfolio-entries]
-                       :where  [:= :portfolio-entries/type "organization"]}))
-
-(defn get-skills
-  [database]
-  (pg/select database {:select [:*]
-                       :from   [:portfolio-entries]
-                       :where  [:= :portfolio-entries/type "skill"]}))
+(defn portfolio?
+  [x]
+  (s/valid? :andrewslai/portfolio x))
 
 
 (defn get-nodes
@@ -63,15 +53,8 @@
   (pg/select database {:select [:*] :from [:portfolio-links]}))
 
 
-(s/def :andrewslai/portfolio
-  (s/keys :req-un [:andrewslai.portfolio/nodes
-                   :andrewslai.portfolio/links]))
-
-(defn portfolio?
-  [x]
-  (s/valid? :andrewslai/portfolio x))
-
-(defn get-portfolio [database]
+(defn get-portfolio
+  [database]
   {:nodes (get-nodes database)
    :links (get-links database)})
 
@@ -94,5 +77,24 @@
       clojure.pprint/pprint)
 
   (sql/query pg-db ["SELECT name FROM projects "])
+
+  (defn get-projects
+    [database]
+    (pg/select database {:select [:*]
+                         :from   [:portfolio-entries]
+                         :where  [:= :portfolio-entries/type "project"]}))
+
+  (defn get-orgs
+    [database]
+    (pg/select database {:select [:*]
+                         :from   [:portfolio-entries]
+                         :where  [:= :portfolio-entries/type "organization"]}))
+
+  (defn get-skills
+    [database]
+    (pg/select database {:select [:*]
+                         :from   [:portfolio-entries]
+                         :where  [:= :portfolio-entries/type "skill"]}))
+
 
   )

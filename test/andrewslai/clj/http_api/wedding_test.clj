@@ -1,5 +1,5 @@
 (ns andrewslai.clj.http-api.wedding-test
-  (:require [andrewslai.clj.config :as config]
+  (:require [andrewslai.clj.init.config :as config]
             [andrewslai.clj.entities.photo :as photo]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.static-content :as sc]

@@ -1,7 +1,7 @@
 (ns andrewslai.clj.main
   (:gen-class)
   (:require [aleph.http :as http]
-            [andrewslai.clj.config :as cfg]
+            [andrewslai.clj.init.config :as cfg]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.virtual-hosting :as vh]
             [andrewslai.clj.http-api.wedding :as wedding]

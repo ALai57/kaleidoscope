@@ -1,15 +1,13 @@
-(ns andrewslai.clj.config
+(ns andrewslai.clj.init.config
   (:require [andrewslai.clj.api.auth :as auth]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.static-content :as sc]
-            [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
             [andrewslai.clj.persistence.embedded-postgres :as embedded-pg]
             [andrewslai.clj.persistence.postgres :as pg]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.s3 :as s3-storage]
-            [andrewslai.clj.utils.files.protocols.core :as protocols]
             [taoensso.timbre :as log]))
 
 (defn configure-port
