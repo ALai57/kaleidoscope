@@ -38,9 +38,9 @@
 (defn configure-database
   [env]
   (case (get env "ANDREWSLAI_DB_TYPE" "postgres")
-    "postgres"          (rdbms/->RDBMS (rdbms/get-datasource (rdbms/pg-conn env)))
-    "embedded-postgres" (rdbms/->RDBMS (embedded-pg/fresh-db!))
-    "embedded-h2"       (rdbms/->RDBMS (embedded-h2/fresh-db!))))
+    "postgres"          (rdbms/get-datasource (rdbms/pg-conn env))
+    "embedded-postgres" (embedded-pg/fresh-db!)
+    "embedded-h2"       (embedded-h2/fresh-db!)))
 
 (defn configure-static-content
   [env]

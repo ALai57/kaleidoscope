@@ -1,6 +1,5 @@
 (ns andrewslai.clj.persistence.rdbms
-  (:require [andrewslai.clj.persistence.persistence :as p :refer [Persistence]]
-            [andrewslai.clj.utils.core :as util :refer [validate]]
+  (:require [andrewslai.clj.utils.core :as util :refer [validate]]
             [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [honeysql.core :as hsql]
@@ -60,33 +59,29 @@
 ;; API for interacting with a relational database
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: REMOVE ME? Seems like RDBMS isn't actually providing any ability to
-;; have alternative implementations
-(defrecord RDBMS [conn]
-  Persistence
-  (select [this stmt]
-    (next/execute! conn stmt {:builder-fn rs/as-unqualified-kebab-maps}))
-  (transact! [this stmt]
-    (next/execute! conn stmt {:return-keys true
-                              :builder-fn  rs/as-unqualified-kebab-maps})))
+(defn transact!
+  [conn stmt]
+  (next/execute! conn stmt {:return-keys true
+                            :builder-fn  rs/as-unqualified-kebab-maps}))
 
 (defn select [database m]
-  (let [result (p/select database (hsql/format m))]
+  (let [result (next/execute! database
+                              (hsql/format m)
+                              {:builder-fn rs/as-unqualified-kebab-maps})]
     (if (= 1 (count result))
       (first result)
-      result))
-  (p/select database (hsql/format m)))
+      result)))
 
 (defn insert! [database table m & {:keys [ex-subtype
                                           input-validation]}]
   (when input-validation
     (validate input-validation m :IllegalArgumentException))
   (try+
-   (p/transact! database (-> (hh/insert-into table)
-                             (hh/values (if (map? m)
-                                          [m]
-                                          m))
-                             hsql/format))
+   (transact! database (-> (hh/insert-into table)
+                           (hh/values (if (map? m)
+                                        [m]
+                                        m))
+                           hsql/format))
    (catch org.postgresql.util.PSQLException e
      (throw+ (merge {:type :PersistenceException
                      :message {:data (select-keys m [:username :email])
@@ -99,10 +94,10 @@
   (when input-validation
     (validate input-validation m :IllegalArgumentException))
   (try+
-   (p/transact! database (-> (hh/update table)
-                             (hh/sset m)
-                             (hh/where where)
-                             hsql/format))
+   (transact! database (-> (hh/update table)
+                           (hh/sset m)
+                           (hh/where where)
+                           hsql/format))
    (catch org.postgresql.util.PSQLException e
      (throw+ (merge {:type    :PersistenceException
                      :message {:data   m
@@ -112,11 +107,11 @@
 
 (defn delete! [database table ids & {:keys [ex-subtype]}]
   (try+
-   (p/transact! database (-> (hh/delete-from table)
-                             (hh/where [:in :id (if (coll? ids)
-                                                  ids
-                                                  [ids])])
-                             hsql/format))
+   (transact! database (-> (hh/delete-from table)
+                           (hh/where [:in :id (if (coll? ids)
+                                                ids
+                                                [ids])])
+                           hsql/format))
    (catch org.postgresql.util.PSQLException e
      (throw+ (merge {:type    :PersistenceException
                      :message {:data   ids
@@ -146,20 +141,20 @@
            :users
            (hh/values [example-user]))
 
-  (p/select database
-            {:select [:*] :from [:users]})
+  (select database
+          {:select [:*] :from [:users]})
 
 
-  (p/transact! database
-               (-> (hh/insert-into :users)
-                   (hh/values [example-user])))
+  (transact! database
+             (-> (hh/insert-into :users)
+                 (hh/values [example-user])))
 
-  (p/transact! database
-               (-> (hh/delete-from :users)
-                   (hh/where [:= :users/username (:username example-user)])))
+  (transact! database
+             (-> (hh/delete-from :users)
+                 (hh/where [:= :users/username (:username example-user)])))
 
-  (p/transact! database
-               (-> (hh/update :users)
-                   (hh/sset {:first_name "FIRSTNAME"})
-                   (hh/where [:= :username (:username example-user)])))
+  (transact! database
+             (-> (hh/update :users)
+                 (hh/sset {:first_name "FIRSTNAME"})
+                 (hh/where [:= :username (:username example-user)])))
   )

@@ -19,7 +19,7 @@
    :modified-at #inst "2021-05-27T18:30:39.000Z"})
 
 (deftest create-and-retrieve-photo-test
-  (let [database (rdbms/->RDBMS (embedded-h2/fresh-db!))]
+  (let [database (embedded-h2/fresh-db!)]
     (testing "example-photos were seeded into the DB"
       ;; Migrations seed db now for convenience
       (is (= 3 (count (photo/get-all-photos database)))))

@@ -85,7 +85,7 @@
     (testing description
       (let [handler (-> {:auth           bb/unauthenticated-backend
                          :access-rules   (config/configure-access nil)
-                         :database       (rdbms/->RDBMS (embedded-h2/fresh-db!))
+                         :database       (embedded-h2/fresh-db!)
                          :static-content (sc/classpath-static-content-wrapper "public" {})}
                         config/add-andrewslai-middleware
                         andrewslai/andrewslai-app)]
@@ -124,7 +124,7 @@
 (deftest article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
-      (let [app (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
+      (let [app (-> {:database     (embedded-h2/fresh-db!)
                      :access-rules tu/public-access}
                     config/add-andrewslai-middleware
                     andrewslai/andrewslai-app)]
@@ -136,7 +136,7 @@
     "/articles/does-not-exist"   {:status 404}))
 
 (deftest create-article-happy-path
-  (let [app (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
+  (let [app (-> {:database     (embedded-h2/fresh-db!)
                  :access-rules tu/public-access
                  :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
                 config/add-andrewslai-middleware
@@ -163,7 +163,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest portfolio-test
-  (let [app      (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
+  (let [app      (-> {:database     (embedded-h2/fresh-db!)
                       :access-rules tu/public-access}
                      config/add-andrewslai-middleware
                      (andrewslai/andrewslai-app)

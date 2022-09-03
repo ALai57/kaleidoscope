@@ -19,7 +19,7 @@
    :content      "<h1>Hello world!</h1>"})
 
 (deftest create-and-retrieve-articles-test
-  (let [database (rdbms/->RDBMS (embedded-h2/fresh-db!))]
+  (let [database (embedded-h2/fresh-db!)]
     (testing "example-article doesn't exist in the database"
       (is (nil? (article/get-article database (:article-url example-article)))))
 

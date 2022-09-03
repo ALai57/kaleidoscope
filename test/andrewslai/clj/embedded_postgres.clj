@@ -12,7 +12,7 @@
   db-spec defines the database connection. "
   [database & body]
   `(let [db-spec# (embedded-pg/fresh-db!)
-         ~database (rdbms/->RDBMS db-spec#)]
+         ~database db-spec#]
      (jdbc/with-db-transaction [txn# db-spec#]
        (jdbc/db-set-rollback-only! txn#)
        ~@body)))

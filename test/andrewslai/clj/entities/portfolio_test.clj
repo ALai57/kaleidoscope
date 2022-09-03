@@ -11,5 +11,5 @@
       (f))))
 
 (deftest get-portfolio-test
-  (let [db (rdbms/->RDBMS (embedded-h2/fresh-db!))]
+  (let [db (embedded-h2/fresh-db!)]
     (is (portfolio/portfolio? (portfolio/get-portfolio db)))))

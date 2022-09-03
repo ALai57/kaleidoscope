@@ -101,7 +101,7 @@
   (let [in-mem-fs (atom example-fs)
         app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
-                       :database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
+                       :database     (embedded-h2/fresh-db!)
                        :storage      (memory/map->MemFS {:store in-mem-fs})}
                       (config/add-wedding-middleware)
                       (wedding/wedding-app)
@@ -115,7 +115,7 @@
 
 (deftest upload-test
   (let [in-mem-fs (atom {})
-        database  (rdbms/->RDBMS (embedded-h2/fresh-db!))
+        database  (embedded-h2/fresh-db!)
         app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
                        :database     database
@@ -140,7 +140,7 @@
                 @in-mem-fs))))
 
 (deftest albums-test
-  (let [app (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
+  (let [app (-> {:database     (embedded-h2/fresh-db!)
                  :access-rules tu/public-access}
                 config/add-wedding-middleware
                 wedding/wedding-app
@@ -178,7 +178,7 @@
        (uuid? (java.util.UUID/fromString s))))
 
 (deftest album-contents-test
-  (let [database  (rdbms/->RDBMS (embedded-h2/fresh-db!))
+  (let [database  (embedded-h2/fresh-db!)
         in-mem-fs (atom {})
         app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
@@ -225,7 +225,7 @@
         ))))
 
 (deftest contents-retrieval-test
-  (let [database  (rdbms/->RDBMS (embedded-h2/fresh-db!))
+  (let [database  (embedded-h2/fresh-db!)
         in-mem-fs (atom {})
         app       (-> {:auth         (bb/authenticated-backend)
                        :access-rules tu/public-access
@@ -263,7 +263,7 @@
                     (app (-> (mock/request :get "/albums/-/contents"))))) ))))
 
 (deftest albums-auth-test
-  (let [app (-> {:database     (rdbms/->RDBMS (embedded-h2/fresh-db!))
+  (let [app (-> {:database     (embedded-h2/fresh-db!)
                  :access-rules (config/configure-wedding-access nil)}
                 config/add-wedding-middleware
                 wedding/wedding-app)]
