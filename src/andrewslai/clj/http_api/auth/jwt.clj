@@ -1,4 +1,4 @@
-(ns andrewslai.clj.utils.jwt
+(ns andrewslai.clj.http-api.auth.jwt
   (:require [buddy.core.codecs.base64 :as b64]
             [cheshire.core :as json]
             [clojure.string :as string]

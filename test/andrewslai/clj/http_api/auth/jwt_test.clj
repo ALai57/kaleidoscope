@@ -1,5 +1,5 @@
-(ns andrewslai.clj.utils.jwt-test
-  (:require [andrewslai.clj.utils.jwt :refer :all]
+(ns andrewslai.clj.http-api.auth.jwt-test
+  (:require [andrewslai.clj.http-api.auth.jwt :refer :all]
             [clojure.test :refer [deftest is]]))
 
 (def example-header "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")

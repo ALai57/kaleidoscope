@@ -1,5 +1,5 @@
 (ns andrewslai.clj.http-api.auth.keycloak
-  (:require [andrewslai.clj.utils.jwt :as jwt]
+  (:require [andrewslai.clj.http-api.auth.jwt :as jwt]
             [taoensso.timbre :as log])
   (:import org.keycloak.adapters.KeycloakDeploymentBuilder
            org.keycloak.adapters.rotation.AdapterTokenVerifier
