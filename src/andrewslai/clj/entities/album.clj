@@ -19,14 +19,14 @@
                        :ex-subtype :UnableToCreateAlbum))))
 
 (defn get-album-by-id [database album-id]
-  (rdbms/select database {:select [:*]
-                          :from   [:enhanced_albums]
-                          :where  [:= :albums/id album-id]}))
+  (rdbms/select-one database {:select [:*]
+                              :from   [:enhanced_albums]
+                              :where  [:= :albums/id album-id]}))
 
 (defn get-album [database album-name]
-  (rdbms/select database {:select [:*]
-                          :from   [:enhanced_albums]
-                          :where  [:= :albums/album-name album-name]}))
+  (rdbms/select-one database {:select [:*]
+                              :from   [:enhanced_albums]
+                              :where  [:= :albums/album-name album-name]}))
 
 (defn update-album! [database album]
   (first (rdbms/update! database
@@ -52,12 +52,12 @@
                  :ex-subtype :UnableToDeletePhotoFromAlbum))
 
 (defn get-album-content [database album-id album-content-id]
-  (rdbms/select database
-                {:select [:*]
-                 :from   [:album_contents]
-                 :where  [:and
-                          [:= :album_contents/album-id album-id]
-                          [:= :album_contents/album-content-id album-content-id]]}))
+  (rdbms/select-one database
+                    {:select [:*]
+                     :from   [:album_contents]
+                     :where  [:and
+                              [:= :album_contents/album-id album-id]
+                              [:= :album_contents/album-content-id album-content-id]]}))
 
 (defn get-all-contents [database]
   (rdbms/select database

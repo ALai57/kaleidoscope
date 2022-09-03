@@ -13,6 +13,6 @@
                         :ex-subtype :UnableToCreatePhoto)))
 
 (defn get-photo [database photo-src]
-  (first (rdbms/select database {:select [:*]
-                                 :from   [:photos]
-                                 :where  [:= :photos/photo-src photo-src]})))
+  (rdbms/select-one database {:select [:*]
+                              :from   [:photos]
+                              :where  [:= :photos/photo-src photo-src]}))

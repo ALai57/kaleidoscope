@@ -45,8 +45,8 @@
 (defspec insert-get-delete-test 10
   (prop/for-all [user gen-user]
     (let [database (embedded-h2/fresh-db!)]
-      (and (is (empty? (rdbms/select database all-users)))
-           (is (match? (rdbms/transact! database (add-user user)) [user]))
-           (is (= user (rdbms/select database all-users)))
-           (is (= []   (rdbms/transact! database (del-user (:username user)))))
-           (is (empty? (rdbms/select database all-users)))))))
+      (and (is (empty?   (rdbms/select database all-users)))
+           (is (match?   (rdbms/transact! database (add-user user)) [user]))
+           (is (= [user] (rdbms/select database all-users)))
+           (is (= []     (rdbms/transact! database (del-user (:username user)))))
+           (is (empty?   (rdbms/select database all-users)))))))

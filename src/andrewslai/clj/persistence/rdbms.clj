@@ -64,13 +64,22 @@
   (next/execute! conn stmt {:return-keys true
                             :builder-fn  rs/as-unqualified-kebab-maps}))
 
-(defn select [database m]
+;; TODO: Only return vectors
+(defn select-one
+  [database m]
   (let [result (next/execute! database
                               (hsql/format m)
                               {:builder-fn rs/as-unqualified-kebab-maps})]
-    (if (= 1 (count result))
-      (first result)
+    (case (count result)
+      1 (first result)
+      0 nil
       result)))
+
+(defn select
+  [database m]
+  (next/execute! database
+                 (hsql/format m)
+                 {:builder-fn rs/as-unqualified-kebab-maps}))
 
 (defn insert! [database table m & {:keys [ex-subtype
                                           input-validation]}]

@@ -2,11 +2,9 @@
   (:require [andrewslai.clj.entities.article :as article])
   (:import java.time.LocalDateTime))
 
-(defn get-all-articles [db]
-  (article/get-all-articles db))
+(def get-all-articles article/get-all-articles)
 
-(defn get-article [db article-name]
-  (article/get-article db article-name))
+(def get-article article/get-article)
 
 (defn create-article! [db article]
   (article/create-article! db (assoc article :timestamp (java.time.LocalDateTime/now))))

@@ -8,11 +8,10 @@
                           :from [:articles]}))
 
 (defn get-article [database article-url]
-  (first
-   (rdbms/select database
-                 {:select [:*]
-                  :from   [:articles]
-                  :where  [:= :articles/article-url article-url]})))
+  (rdbms/select-one database
+                    {:select [:*]
+                     :from   [:articles]
+                     :where  [:= :articles/article-url article-url]}))
 
 (defn create-article! [database article]
   (rdbms/insert! database
