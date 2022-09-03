@@ -38,15 +38,15 @@
       hsql/format))
 
 (def all-users
-  (hsql/format {:select [:*] :from [:users]}))
+  {:select [:*] :from [:users]})
 
 ;; Not all drivers return all keys
 ;; https://clojurians.slack.com/archives/C1Q164V29/p1601667389036400
-(defspec insert-get-delete-test
+(defspec insert-get-delete-test 10
   (prop/for-all [user gen-user]
     (let [database (embedded-h2/fresh-db!)]
-      (and (is (empty?   (rdbms/select database all-users)))
-           (is (match?   (rdbms/transact! database (add-user user)) [user]))
-           (is (= [user] (rdbms/select database all-users)))
-           (is (= []     (rdbms/transact! database (del-user (:username user)))))
-           (is (empty?   (rdbms/select database all-users)))))))
+      (and (is (empty? (rdbms/select database all-users)))
+           (is (match? (rdbms/transact! database (add-user user)) [user]))
+           (is (= user (rdbms/select database all-users)))
+           (is (= []   (rdbms/transact! database (del-user (:username user)))))
+           (is (empty? (rdbms/select database all-users)))))))
