@@ -4,7 +4,7 @@
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.http-api.wedding :as wedding]
-            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as rdbms.embedded-h2-impl]
+            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.test-utils :as tu]

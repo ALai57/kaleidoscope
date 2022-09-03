@@ -1,7 +1,7 @@
 (ns andrewslai.clj.entities.photos-test
   (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.entities.photo :as photo]
-            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as rdbms.embedded-h2-impl]
+            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log])
