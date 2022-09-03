@@ -5,7 +5,7 @@
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.persistence.articles-test :as a]
-            [andrewslai.clj.persistence.rdmbs.embedded-h2-impl :as rdmbs.embedded-h2-impl]
+            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as rdbms.embedded-h2-impl]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]

@@ -3,7 +3,7 @@
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.static-content :as sc]
-            [andrewslai.clj.persistence.rdmbs.embedded-h2-impl :as rdmbs.embedded-h2-impl]
+            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]

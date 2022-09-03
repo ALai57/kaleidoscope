@@ -1,10 +1,6 @@
 (ns andrewslai.clj.embedded-postgres
-  (:require [clojure.java.jdbc :as jdbc]
-            [migratus.core :as migratus]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.clj.persistence.migrations :as migrations]
-            [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg])
+  (:require [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
+            [clojure.java.jdbc :as jdbc])
   (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
 
 (defmacro with-embedded-postgres

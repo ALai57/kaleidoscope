@@ -1,4 +1,4 @@
-(ns andrewslai.clj.persistence.migrations
+(ns andrewslai.clj.persistence.rdbms.migrations
   (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [migratus.core :as m]))
 

@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.rdbms-test
-  (:require [andrewslai.clj.persistence.rdmbs.embedded-h2-impl :as rdmbs.embedded-h2-impl]
+  (:require [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as rdbms.embedded-h2-impl]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [clojure.test :refer [is use-fixtures]]
             [clojure.test.check.clojure-test :refer [defspec]]

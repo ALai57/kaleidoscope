@@ -91,7 +91,7 @@
   :profiles {:dev {:plugins [[lein-ancient "0.6.15"]
                              [lein-kibit "0.1.8"]
                              [lein-ring "0.12.5"]]
-                   :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.migrations]}}}
+                   :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.rdbms.migrations]}}}
 
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]

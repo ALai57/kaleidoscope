@@ -1,5 +1,5 @@
 (ns andrewslai.clj.persistence.rdbms.embedded-postgres-impl
-  (:require [andrewslai.clj.persistence.migrations :as migrations]
+  (:require [andrewslai.clj.persistence.rdbms.migrations :as migrations]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [migratus.core :as migratus])
   (:import

@@ -1,7 +1,7 @@
 (ns andrewslai.clj.persistence.articles-test
   (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.entities.article :as article]
-            [andrewslai.clj.persistence.rdmbs.embedded-h2-impl :as rdmbs.embedded-h2-impl]
+            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as rdbms.embedded-h2-impl]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
