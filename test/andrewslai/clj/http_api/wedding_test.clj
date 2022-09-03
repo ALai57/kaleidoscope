@@ -5,7 +5,7 @@
             [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
-            [andrewslai.clj.persistence.memory :as memory]
+            [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.utils.core :as util]

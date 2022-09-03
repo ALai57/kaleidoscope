@@ -1,6 +1,6 @@
-(ns andrewslai.clj.persistence.memory-test
+(ns andrewslai.clj.persistence.filesystem.in-memory-impl-test
   (:require [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.persistence.memory :refer :all]
+            [andrewslai.clj.persistence.filesystem.in-memory-impl :refer :all]
             [andrewslai.generators.files :as gen-file]
             [clojure.java.io :as io]
             [clojure.test :refer [is deftest]]

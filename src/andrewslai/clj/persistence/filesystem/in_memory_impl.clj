@@ -1,4 +1,4 @@
-(ns andrewslai.clj.persistence.memory
+(ns andrewslai.clj.persistence.filesystem.in-memory-impl
   (:require [andrewslai.clj.persistence.filesystem :as fs]
             ;;TODO: Remove dependence on memp. Seems like memp should be
             ;;together with this namespace, not a separate utility
