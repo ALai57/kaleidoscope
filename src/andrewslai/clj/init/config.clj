@@ -7,7 +7,7 @@
             [andrewslai.clj.persistence.embedded-postgres :as embedded-pg]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.clj.persistence.s3 :as s3-storage]
+            [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
             [taoensso.timbre :as log]))
 
 (defn configure-port

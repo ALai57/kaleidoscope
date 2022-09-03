@@ -15,7 +15,7 @@
     {:content (.getContent url)}))
 
 (comment
-  (require '[andrewslai.clj.persistence.s3 :as s3-storage])
+  (require '[andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage])
 
   (def loader
     (-> (s3-storage/map->S3 {:bucket "andrewslai-wedding"

@@ -1,4 +1,4 @@
-(ns andrewslai.clj.persistence.s3-test
+(ns andrewslai.clj.persistence.filesystem.s3-impl-test
   (:require [amazonica.aws.s3 :as s3]
             [andrewslai.clj.persistence.filesystem :as fs]
             [andrewslai.clj.persistence.s3 :refer :all]
