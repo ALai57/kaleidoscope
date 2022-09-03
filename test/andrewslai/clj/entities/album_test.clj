@@ -28,7 +28,7 @@
 
     (let [{:keys [id]} (album/create-album! database example-album)]
       (testing "Insert the example-album"
-        (is (match? {:id uuid?} (album/create-album! database example-album))))
+        (is (uuid? id)))
 
       (testing "Can retrieve example-album from the DB"
         (is (match? example-album (album/get-album database (:album-name example-album))))
