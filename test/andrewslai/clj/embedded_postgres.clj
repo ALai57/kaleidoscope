@@ -4,7 +4,7 @@
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.migrations :as migrations]
-            [andrewslai.clj.persistence.embedded-postgres :as embedded-pg])
+            [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg])
   (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
 
 (defmacro with-embedded-postgres

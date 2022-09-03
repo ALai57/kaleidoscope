@@ -1,5 +1,5 @@
 (ns andrewslai.clj.entities.portfolio-test
-  (:require [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
+  (:require [andrewslai.clj.persistence.rdmbs.embedded-h2-impl :as rdmbs.embedded-h2-impl]
             [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [clojure.test :refer [deftest is use-fixtures]]

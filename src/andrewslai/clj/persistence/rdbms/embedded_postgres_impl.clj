@@ -1,4 +1,4 @@
-(ns andrewslai.clj.persistence.embedded-postgres
+(ns andrewslai.clj.persistence.rdbms.embedded-postgres-impl
   (:require [andrewslai.clj.persistence.migrations :as migrations]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [migratus.core :as migratus])

@@ -1,4 +1,4 @@
-(ns andrewslai.clj.persistence.embedded-h2
+(ns andrewslai.clj.persistence.rdbms.embedded-h2-impl
   (:require [andrewslai.clj.persistence.migrations :as migrations]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [migratus.core :as migratus]

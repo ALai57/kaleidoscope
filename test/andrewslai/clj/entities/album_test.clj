@@ -2,7 +2,7 @@
   (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.entities.album :as album]
             [andrewslai.clj.entities.photo :as photo]
-            [andrewslai.clj.persistence.embedded-h2 :as embedded-h2]
+            [andrewslai.clj.persistence.rdmbs.embedded-h2-impl :as rdmbs.embedded-h2-impl]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log])
