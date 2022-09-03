@@ -2,7 +2,6 @@
   (:require [amazonica.aws.s3 :as s3]
             [andrewslai.clj.utils.files.protocols.core :as protocols]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
-            [andrewslai.clj.utils.files.protocols.mem :as memp]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.http-api.static-content :as sc]
             [biiwide.sandboxica.alpha :as sandbox]

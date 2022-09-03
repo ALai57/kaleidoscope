@@ -1,10 +1,25 @@
 (ns andrewslai.clj.persistence.filesystem.in-memory-impl
   (:require [andrewslai.clj.persistence.filesystem :as fs]
-            ;;TODO: Remove dependence on memp. Seems like memp should be
-            ;;together with this namespace, not a separate utility
-            [andrewslai.clj.utils.files.protocols.mem :as memp]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [ring.util.response :as ring-response]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Install multimethod to get resource-data from URLs using MEM-PROTOCOL
+;; Useful for teaching http-mw how to retrieve static assets from a FS
+;; TODO: Remove this/move to HTTP middleware ns?
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def MEM-PROTOCOL
+  "In memory protocol"
+  "mem")
+
+(defmethod ring-response/resource-data (keyword MEM-PROTOCOL)
+  [url]
+  (let [conn (.openConnection url)]
+    {:content (.getContent url)}))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Core functionality
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn tag-as
   [x tag]
   (with-meta x {:type tag}))
@@ -51,7 +66,7 @@
       (swap! store assoc-in p file)
       file))
   (get-protocol [_]
-    (or protocol memp/MEM-PROTOCOL)))
+    (or protocol MEM-PROTOCOL)))
 
 (comment
   (def db (atom {"var" {"afile" (tag-as {:name "afile"

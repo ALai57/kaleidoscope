@@ -2,14 +2,34 @@
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.utils.files.protocols.s3 :as s3p]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [ring.util.http-response :refer [internal-server-error not-found]]
             [ring.util.mime-type :as mt]
+            [ring.util.response :as ring-response]
             [taoensso.timbre :as log])
-  (:import [com.amazonaws.auth AWSCredentialsProviderChain ContainerCredentialsProvider EnvironmentVariableCredentialsProvider]
-           com.amazonaws.auth.profile.ProfileCredentialsProvider))
+  (:import
+   [com.amazonaws.auth AWSCredentialsProviderChain ContainerCredentialsProvider EnvironmentVariableCredentialsProvider]
+   com.amazonaws.auth.profile.ProfileCredentialsProvider))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
+;; Useful for teaching http-mw how to retrieve static assets from a FS
+;; TODO: Remove this/move to HTTP middleware ns?
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def S3-PROTOCOL
+  "S3 protocol"
+  "s3p")
+
+(defmethod ring-response/resource-data (keyword S3-PROTOCOL)
+  [url]
+  (let [conn (.openConnection url)]
+    {:content (.getContent url)}))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Is this necesssary?
 (def CustomAWSCredentialsProviderChain
@@ -126,7 +146,7 @@
         (log/error "Could not put object" e)
         (exception-response (amazon/ex->map e)))))
   (get-protocol [_]
-    (or protocol s3p/S3-PROTOCOL)))
+    (or protocol S3-PROTOCOL)))
 
 
 (comment ;; Playing with S3
@@ -207,5 +227,21 @@
   (fs/get-file (map->S3 {:bucket "andrewslai-wedding"
                          :creds CustomAWSCredentialsProviderChain})
                "index.html")
+
+  )
+
+(comment
+
+  ;; Http MW loading static content
+  (def loader
+    (-> (map->S3 {:bucket "andrewslai-wedding"
+                  :creds   CustomAWSCredentialsProviderChain})
+        (protocols/filesystem-loader)))
+
+  (.getResource loader "media/")
+
+  (ring-response/resource-response "media/" {:loader loader})
+
+  (ring-response/resource-response "media/rings.jpg" {:loader loader})
 
   )
