@@ -11,8 +11,7 @@
   (rdbms/select database {:select [:*]
                        :from   [:enhanced_albums]}))
 
-;; TODO:
-;; Don't allow user to specify ID
+;; TODO: Don't allow user to specify ID
 (defn create-album! [database album]
   (let [id (UUID/randomUUID)]
     (first (rdbms/insert! database

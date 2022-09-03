@@ -1,5 +1,7 @@
 (ns andrewslai.clj.persistence.memory
   (:require [andrewslai.clj.persistence.filesystem :as fs]
+            ;;TODO: Remove dependence on memp. Seems like memp should be
+            ;;together with this namespace, not a separate utility
             [andrewslai.clj.utils.files.protocols.mem :as memp]
             [clojure.string :as string]))
 

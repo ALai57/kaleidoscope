@@ -59,6 +59,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; API for interacting with a relational database
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: REMOVE ME? Seems like RDBMS isn't actually providing any ability to
+;; have alternative implementations
 (defrecord RDBMS [conn]
   Persistence
   (select [this stmt]

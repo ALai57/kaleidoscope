@@ -1,5 +1,6 @@
 (ns andrewslai.clj.persistence.filesystem)
 
+;; TODO: Change the folder structure to have `/filesystem/impl-name.clj`
 (defprotocol FileSystem
   (ls [_ path] "Like the unix `ls` command")
   (get-file [_ path] "Retrieve a single file")

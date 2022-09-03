@@ -11,6 +11,7 @@
   (:import [com.amazonaws.auth AWSCredentialsProviderChain ContainerCredentialsProvider EnvironmentVariableCredentialsProvider]
            com.amazonaws.auth.profile.ProfileCredentialsProvider))
 
+;; TODO: Is this necesssary?
 (def CustomAWSCredentialsProviderChain
   (AWSCredentialsProviderChain.
    [^AWSCredentialsProvider (new EnvironmentVariableCredentialsProvider)
