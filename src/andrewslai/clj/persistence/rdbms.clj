@@ -64,7 +64,6 @@
   (next/execute! conn stmt {:return-keys true
                             :builder-fn  rs/as-unqualified-kebab-maps}))
 
-;; TODO: Only return vectors
 (defn select-one
   [database m]
   (let [result (next/execute! database
