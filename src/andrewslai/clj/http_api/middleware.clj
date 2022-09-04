@@ -1,13 +1,19 @@
 (ns andrewslai.clj.http-api.middleware
-  (:require [buddy.auth.accessrules :as ar]
+  (:require [andrewslai.clj.http-api.cache-control :as cc]
+            [buddy.auth.accessrules :as ar]
             [buddy.auth.middleware :as ba]
             [ring.middleware.content-type :refer [wrap-content-type]]
+            [ring.middleware.file :refer [wrap-file]]
             [ring.middleware.json :refer [wrap-json-response]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.middleware.params :refer [wrap-params]]
+            [ring.middleware.resource :refer [wrap-resource]]
             [ring.util.http-response :refer [unauthorized]]
             [taoensso.timbre :as log]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Custom middlewares
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn log-request! [handler]
   (fn [request]
     (handler (do (log/infof "Request received\n %s"
@@ -42,6 +48,24 @@
                (update request :uri #(if (= "/" %) "/index.html" %))
                request))))
 
+(defn- make-cache-control-logger
+  [request-id]
+  (fn [response]
+    (log/infof "Generating Cache control headers for request-id %s\n" request-id)
+    response))
+
+(defn wrap-cache-control
+  "Wraps responses with a cache-control header"
+  [handler]
+  (fn [{:keys [request-id uri] :as request}]
+    (let [log! (make-cache-control-logger request-id)]
+      (-> (handler request)
+          (log!)
+          (cc/cache-control uri)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Configured middleware stacks
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def standard-stack
   "Stack is applied from top down"
   (apply comp [wrap-request-identifier
@@ -63,3 +87,17 @@
                #(ar/wrap-access-rules % {:rules          access-rules
                                          :reject-handler (fn [& args]
                                                            (unauthorized))})]))
+
+(defn classpath-static-content-stack
+  "Returns middleware that intercepts requests and serves files from the
+  ClassLoader's Classpath."
+  [root-path options]
+  (apply comp [#(wrap-resource % root-path options)
+               wrap-cache-control]))
+
+(defn file-static-content-stack
+  "Returns middleware that intercepts requests and serves files relative to
+  the root path."
+  [root-path options]
+  (apply comp [wrap-cache-control
+               #(wrap-file % root-path options)]))

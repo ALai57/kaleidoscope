@@ -1,17 +1,16 @@
 (ns andrewslai.clj.test-utils
   (:require [andrewslai.clj.api.auth :as auth]
-            [andrewslai.clj.http-api.wedding :as wedding]
-            [andrewslai.clj.utils.jwt :as jwt]
+            [andrewslai.clj.http-api.auth.jwt :as jwt]
             [cheshire.core :as json]
             [clojure.java.io :as io]
             [clojure.string :as string]
             [compojure.api.sweet :refer [GET routes]]
-            [compojure.route :as route]
-            [slingshot.slingshot :refer [throw+]])
-  (:import java.io.File
-           [java.net URL URLClassLoader]
-           java.nio.file.Files
-           java.nio.file.attribute.FileAttribute))
+            [compojure.route :as route])
+  (:import
+   java.io.File
+   [java.net URL URLClassLoader]
+   java.nio.file.attribute.FileAttribute
+   java.nio.file.Files))
 
 (def TEMP-DIRECTORY
   (System/getProperty "java.io.tmpdir"))

@@ -2,11 +2,11 @@
   (:require [andrewslai.clj.api.auth :as auth]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.middleware :as mw]
-            [andrewslai.clj.http-api.static-content :as sc]
+            [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
+            [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
+            [andrewslai.clj.utils.files.protocols.core :as protocols]
             [taoensso.timbre :as log]))
 
 (defn configure-port
@@ -41,19 +41,25 @@
     "embedded-postgres" (embedded-pg/fresh-db!)
     "embedded-h2"       (embedded-h2/fresh-db!)))
 
+;; TODO: Replace/remove me
 (defn configure-static-content
   [env]
   (case (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "s3")
-    "s3"    (sc/static-content (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")
-                                                    :creds  s3-storage/CustomAWSCredentialsProviderChain}))
-    "local" (sc/file-static-content-wrapper (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {})))
+    "s3"    (mw/classpath-static-content-stack {:prefer-handler? true
+                                                :loader          nil #_(protocols/filesystem-loader storage)})
+    "local" (mw/file-static-content-stack (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {})))
 
 (defn configure-wedding-storage
   [env]
   (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")
                        :creds  s3-storage/CustomAWSCredentialsProviderChain}))
 
-(defn configure-access
+(defn configure-andrewslai-storage
+  [env]
+  (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")
+                       :creds  s3-storage/CustomAWSCredentialsProviderChain}))
+
+(defn configure-andrewslai-access
   [_env]
   [{:pattern #"^/admin.*"
     :handler (partial auth/require-role "andrewslai")}
@@ -70,13 +76,17 @@
     :handler (partial auth/require-role "wedding")}])
 
 (defn add-andrewslai-middleware
-  [{:keys [static-content] :as andrewslai-components}]
-  (assoc andrewslai-components
-         :http-mw
-         (comp mw/standard-stack
-               mw/log-request!
-               (or static-content identity)
-               (mw/auth-stack andrewslai-components))))
+  [{:keys [storage] :as andrewslai-components}]
+  (let [sc (if storage
+             (mw/classpath-static-content-stack {:prefer-handler? true
+                                                 :loader          (protocols/filesystem-loader storage)})
+             identity)]
+    (assoc andrewslai-components
+           :http-mw
+           (comp mw/standard-stack
+                 mw/log-request!
+                 sc
+                 (mw/auth-stack andrewslai-components)))))
 
 (defn add-wedding-middleware
   [{:keys [storage] :as wedding-components}]
@@ -84,27 +94,23 @@
          :http-mw (comp mw/standard-stack
                         mw/params-stack
                         mw/log-request!
-                        (sc/static-content storage)
+                        (mw/classpath-static-content-stack {:prefer-handler? true
+                                                            :loader          (protocols/filesystem-loader storage)})
                         (mw/auth-stack wedding-components))))
-
-(defn configure-wedding-middleware
-  [components]
-  (update components
-          :wedding
-          add-wedding-middleware))
 
 (defn configure-from-env
   [env]
-  (-> {:port       (configure-port env)
-       :andrewslai {:auth           (configure-auth env)
-                    :access-rules   (configure-access env)
-                    :database       (configure-database env)
-                    :static-content (configure-static-content env)
-                    :http-mw        []}
-       :wedding    {:auth         (configure-auth env)
-                    :access-rules (configure-wedding-access env)
-                    :database     (configure-database env)
-                    :storage      (configure-wedding-storage env)
-                    :logging      (configure-logging env)}}
-      (update :wedding add-wedding-middleware)
-      (update :andrewslai add-andrewslai-middleware)))
+  (let [auth-backend (configure-auth env)
+        database     (configure-database env)]
+    (-> {:port       (configure-port env)
+         :andrewslai {:auth           auth-backend
+                      :access-rules   (configure-andrewslai-access env)
+                      :database       database
+                      :storage        (configure-andrewslai-storage env)}
+         :wedding    {:auth         auth-backend
+                      :access-rules (configure-wedding-access env)
+                      :database     database
+                      :storage      (configure-wedding-storage env)
+                      :logging      (configure-logging env)}}
+        (update :wedding add-wedding-middleware)
+        (update :andrewslai add-andrewslai-middleware))))

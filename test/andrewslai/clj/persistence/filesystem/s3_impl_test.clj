@@ -1,7 +1,7 @@
 (ns andrewslai.clj.persistence.filesystem.s3-impl-test
   (:require [amazonica.aws.s3 :as s3]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [andrewslai.clj.persistence.s3 :refer :all]
+            [andrewslai.clj.persistence.filesystem.s3-impl :refer :all]
             [andrewslai.generators.files :as gen-file]
             [andrewslai.generators.s3 :as gen-s3]
             [biiwide.sandboxica.alpha :as sandbox]

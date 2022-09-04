@@ -1,26 +1,15 @@
 (ns andrewslai.clj.init.config-test
-  (:require [andrewslai.clj.init.config :as cfg]
-            [andrewslai.clj.utils.files.protocols.s3 :as s3p]
-            [andrewslai.clj.http-api.static-content :as sc]
-            [andrewslai.clj.test-utils :as tu]
-            [clojure.test :refer [deftest is use-fixtures]]
-            [matcher-combinators.test]
-            [taoensso.timbre :as log]
-            [andrewslai.clj.http-api.wedding :as wedding]))
+  (:require [clojure.test :refer :all]
+            [taoensso.timbre :as log]))
 
 (use-fixtures :once
   (fn [f]
     (log/with-log-level :fatal
       (f))))
 
-#_(deftest config-from-env-test
-    (is (= []
-           (get-in (cfg/configure-from-env {})
-                   [:wedding :access-rules]))))
-
 ;; Makes a network call
 #_(deftest static-content-wrapper--from-s3
-    (let [wrapper (sc/classpath-static-content-wrapper
+    (let [wrapper (sc/classpath-static-content-stack
                    {:loader (protocols/filesystem-loader "andrewslai-wedding")
                     :prefer-handler? true})]
 

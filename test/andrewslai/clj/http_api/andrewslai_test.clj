@@ -3,7 +3,6 @@
             [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
-            [andrewslai.clj.http-api.static-content :as sc]
             [andrewslai.clj.persistence.articles-test :as a]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms :as rdbms]
@@ -35,7 +34,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest ping-test
-  (let [handler (-> {:access-rules tu/public-access}
+  (let [handler (-> {:auth         bb/unauthenticated-backend
+                     :access-rules tu/public-access}
                     config/add-andrewslai-middleware
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)]
@@ -45,8 +45,8 @@
                 (handler (mock/request :get "/ping"))))))
 
 (deftest home-test
-  (let [handler (-> {:static-content (sc/classpath-static-content-wrapper "public" {})
-                     :access-rules   tu/public-access}
+  (let [handler (-> {:auth         bb/unauthenticated-backend
+                     :access-rules tu/public-access}
                     config/add-andrewslai-middleware
                     andrewslai/andrewslai-app)]
     (is (match? {:status  200
@@ -55,7 +55,8 @@
                 (handler (mock/request :get "/"))))))
 
 (deftest swagger-test
-  (let [handler (-> {:access-rules tu/public-access}
+  (let [handler (-> {:auth         bb/unauthenticated-backend
+                     :access-rules tu/public-access}
                     config/add-andrewslai-middleware
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)]
@@ -66,7 +67,7 @@
 
 (deftest admin-routes-test
   (let [app (-> {:auth         (bb/authenticated-backend {:realm_access {:roles ["andrewslai"]}})
-                 :access-rules (config/configure-access nil)}
+                 :access-rules (config/configure-andrewslai-access nil)}
                 config/add-andrewslai-middleware
                 (andrewslai/andrewslai-app)
                 (tu/wrap-clojure-response))]
@@ -83,10 +84,10 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (-> {:auth           bb/unauthenticated-backend
-                         :access-rules   (config/configure-access nil)
-                         :database       (embedded-h2/fresh-db!)
-                         :static-content (sc/classpath-static-content-wrapper "public" {})}
+      (let [handler (-> {:auth         bb/unauthenticated-backend
+                         :access-rules (config/configure-andrewslai-access nil)
+                         :database     (embedded-h2/fresh-db!)
+                         :storage      nil}
                         config/add-andrewslai-middleware
                         andrewslai/andrewslai-app)]
         (is (match? expected (handler request)))))

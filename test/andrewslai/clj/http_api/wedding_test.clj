@@ -2,7 +2,7 @@
   (:require [andrewslai.clj.init.config :as config]
             [andrewslai.clj.entities.photo :as photo]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
-            [andrewslai.clj.http-api.static-content :as sc]
+            [andrewslai.clj.http-api.cache-control :as cc]
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
@@ -107,7 +107,7 @@
                       (wedding/wedding-app)
                       (tu/wrap-clojure-response))]
     (is (match? {:status  200
-                 :headers {"Cache-Control" sc/no-cache}
+                 :headers {"Cache-Control" cc/no-cache}
                  :body    [{:name "afile"} {:name "adir" :type "directory"}]}
                 (app {:request-method :get
                       :uri            "/media/"
