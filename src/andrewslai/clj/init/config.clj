@@ -45,8 +45,8 @@
 (defn configure-static-content
   [env]
   (case (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "s3")
-    "s3"    (mw/classpath-static-content-stack {:prefer-handler? true
-                                                :loader          nil #_(protocols/filesystem-loader storage)})
+    "s3"    (mw/classpath-static-content-stack "" {:prefer-handler? true
+                                                   :loader          nil #_(protocols/filesystem-loader storage)})
     "local" (mw/file-static-content-stack (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {})))
 
 (defn configure-wedding-storage
@@ -78,7 +78,8 @@
 (defn add-andrewslai-middleware
   [{:keys [storage] :as andrewslai-components}]
   (let [sc (if storage
-             (mw/classpath-static-content-stack {:prefer-handler? true
+             (mw/classpath-static-content-stack ""
+                                                {:prefer-handler? true
                                                  :loader          (protocols/filesystem-loader storage)})
              identity)]
     (assoc andrewslai-components
@@ -92,9 +93,10 @@
   [{:keys [storage] :as wedding-components}]
   (assoc wedding-components
          :http-mw (comp mw/standard-stack
-                        mw/params-stack
+                        ;;mw/params-stack
                         mw/log-request!
-                        (mw/classpath-static-content-stack {:prefer-handler? true
+                        (mw/classpath-static-content-stack ""
+                                                           {:prefer-handler? true
                                                             :loader          (protocols/filesystem-loader storage)})
                         (mw/auth-stack wedding-components))))
 

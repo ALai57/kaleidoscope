@@ -80,8 +80,10 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (wedding/wedding-app (config/add-wedding-middleware {:access-rules (config/configure-wedding-access nil)
-                                                                         :auth         bb/unauthenticated-backend}))]
+      (let [handler (-> {:access-rules (config/configure-wedding-access nil)
+                         :auth         bb/unauthenticated-backend}
+                        config/add-wedding-middleware
+                        wedding/wedding-app)]
         (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"

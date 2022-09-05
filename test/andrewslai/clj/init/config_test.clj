@@ -10,6 +10,7 @@
 ;; Makes a network call
 #_(deftest static-content-wrapper--from-s3
     (let [wrapper (sc/classpath-static-content-stack
+                   ""
                    {:loader (protocols/filesystem-loader "andrewslai-wedding")
                     :prefer-handler? true})]
 

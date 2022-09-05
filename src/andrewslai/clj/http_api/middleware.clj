@@ -59,9 +59,9 @@
   [handler]
   (fn [{:keys [request-id uri] :as request}]
     (let [log! (make-cache-control-logger request-id)]
-      (-> (handler request)
-          (log!)
-          (cc/cache-control uri)))))
+      (->> (handler request)
+           (log!)
+           (cc/cache-control uri)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
@@ -71,11 +71,14 @@
   (apply comp [wrap-request-identifier
                wrap-redirect-to-index
                wrap-content-type
-               wrap-json-response]))
-
-(def params-stack
-  (apply comp [wrap-multipart-params
+               wrap-json-response
+               wrap-multipart-params
                wrap-params]))
+
+;; TODO combine
+#_(def params-stack
+    (apply comp [wrap-multipart-params
+                 wrap-params]))
 
 (defn auth-stack
   "Stack is applied from top down"
@@ -88,12 +91,13 @@
                                          :reject-handler (fn [& args]
                                                            (unauthorized))})]))
 
+;; TODO fix breakages
 (defn classpath-static-content-stack
   "Returns middleware that intercepts requests and serves files from the
   ClassLoader's Classpath."
   [root-path options]
-  (apply comp [#(wrap-resource % root-path options)
-               wrap-cache-control]))
+  (apply comp [wrap-cache-control
+               #(wrap-resource % root-path options)]))
 
 (defn file-static-content-stack
   "Returns middleware that intercepts requests and serves files relative to
