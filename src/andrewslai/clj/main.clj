@@ -23,6 +23,7 @@
 (defn start-app
   [{:keys [port andrewslai wedding] :as configuration}]
   (http/start-server
+   ;; TODO: Move me to config namespace
    (vh/host-based-routing
     {#"caheriaguilar.and.andrewslai.com" {:priority 0
                                           :app      (wedding/wedding-app wedding)}

@@ -1,11 +1,11 @@
 (ns andrewslai.clj.http-api.andrewslai-test
-  (:require [andrewslai.clj.init.config :as config]
-            [andrewslai.clj.entities.portfolio :as portfolio]
+  (:require [andrewslai.clj.entities.portfolio :as portfolio]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
+            [andrewslai.clj.init.config :as config]
             [andrewslai.clj.persistence.articles-test :as a]
+            [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
@@ -16,6 +16,12 @@
   (fn [f]
     (log/with-log-level :fatal
       (f))))
+
+(def example-fs
+  "An in-memory filesystem used for testing"
+  {"" {"index.html" (memory/file {:name     "afile"
+                                  :content  {:qux :quz}
+                                  :metadata {}})}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Predicates

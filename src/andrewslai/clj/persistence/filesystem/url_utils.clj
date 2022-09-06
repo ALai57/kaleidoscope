@@ -1,10 +1,11 @@
-(ns andrewslai.clj.utils.files.protocols.core
+(ns andrewslai.clj.persistence.filesystem.url-utils
   (:require [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.string :as string]
-            [ring.util.response :as ring-response]
             [taoensso.timbre :as log])
-  (:import [java.net URL URLClassLoader URLConnection URLStreamHandler]))
+  (:import
+   [java.net URL URLClassLoader URLConnection URLStreamHandler]))
 
+;; TODO: Move to middleware
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Teaching java.net.URL how to interpret the s3p protocol
 ;; Can be used to create a new URLStreamHandler so that URLs know how to use s3p protocol

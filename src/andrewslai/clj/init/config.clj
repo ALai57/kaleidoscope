@@ -3,10 +3,11 @@
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
+            [andrewslai.clj.persistence.filesystem.url-utils :as url-utils]
             [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
-            [andrewslai.clj.utils.files.protocols.core :as protocols]
+            [andrewslai.clj.persistence.rdbms.embedded-postgres-impl
+             :as embedded-pg]
             [taoensso.timbre :as log]))
 
 (defn configure-port
@@ -46,7 +47,7 @@
   [env]
   (case (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "s3")
     "s3"    (mw/classpath-static-content-stack "" {:prefer-handler? true
-                                                   :loader          nil #_(protocols/filesystem-loader storage)})
+                                                   :loader          nil #_(url-utils/filesystem-loader storage)})
     "local" (mw/file-static-content-stack (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {})))
 
 (defn configure-wedding-storage
@@ -66,6 +67,12 @@
    {:request-method :put
     :pattern        #"^/articles/.*"
     :handler        (partial auth/require-role "andrewslai")}
+   {:pattern #"^/$"
+    :handler (constantly true)}
+   {:pattern #"^/index.html$"
+    :handler (constantly true)}
+   {:pattern #"^/.*"
+    :handler (constantly false)}
    ])
 
 (defn configure-wedding-access
@@ -80,12 +87,11 @@
   (let [sc (if storage
              (mw/classpath-static-content-stack ""
                                                 {:prefer-handler? true
-                                                 :loader          (protocols/filesystem-loader storage)})
+                                                 :loader          (url-utils/filesystem-loader storage)})
              identity)]
     (assoc andrewslai-components
            :http-mw
            (comp mw/standard-stack
-                 mw/log-request!
                  sc
                  (mw/auth-stack andrewslai-components)))))
 
@@ -93,11 +99,9 @@
   [{:keys [storage] :as wedding-components}]
   (assoc wedding-components
          :http-mw (comp mw/standard-stack
-                        ;;mw/params-stack
-                        mw/log-request!
                         (mw/classpath-static-content-stack ""
                                                            {:prefer-handler? true
-                                                            :loader          (protocols/filesystem-loader storage)})
+                                                            :loader          (url-utils/filesystem-loader storage)})
                         (mw/auth-stack wedding-components))))
 
 (defn configure-from-env

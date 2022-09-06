@@ -73,12 +73,8 @@
                wrap-content-type
                wrap-json-response
                wrap-multipart-params
-               wrap-params]))
-
-;; TODO combine
-#_(def params-stack
-    (apply comp [wrap-multipart-params
-                 wrap-params]))
+               wrap-params
+               log-request!]))
 
 (defn auth-stack
   "Stack is applied from top down"
@@ -91,7 +87,6 @@
                                          :reject-handler (fn [& args]
                                                            (unauthorized))})]))
 
-;; TODO fix breakages
 (defn classpath-static-content-stack
   "Returns middleware that intercepts requests and serves files from the
   ClassLoader's Classpath."

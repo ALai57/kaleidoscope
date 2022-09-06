@@ -3,8 +3,8 @@
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.middleware :as sut]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
+            [andrewslai.clj.persistence.filesystem.url-utils :as url-utils]
             [andrewslai.clj.test-utils :as tu]
-            [andrewslai.clj.utils.files.protocols.core :as protocols]
             [biiwide.sandboxica.alpha :as sandbox]
             [cheshire.core :as json]
             [clojure.test :refer :all]
@@ -58,7 +58,7 @@
                     {:status 200 :body ()} (->> (s3-storage/map->S3 {:bucket bucket
                                                                      :creds  {:profile "none"
                                                                               :endpoint "dummy"}})
-                                                (protocols/filesystem-loader))))))
+                                                (url-utils/filesystem-loader))))))
 
 (deftest standard-stack-test
   (let [captured-request (atom nil)

@@ -1,13 +1,13 @@
 (ns andrewslai.clj.persistence.rdbms
-  (:require [andrewslai.clj.utils.core :as util :refer [validate]]
-            [cheshire.core :as json]
+  (:require [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
             [migratus.core :as migratus]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]
-            [slingshot.slingshot :refer [throw+ try+]])
+            [slingshot.slingshot :refer [throw+ try+]]
+            [clojure.spec.alpha :as s])
   (:import
    org.postgresql.util.PGobject))
 
@@ -79,6 +79,18 @@
   (next/execute! database
                  (hsql/format m)
                  {:builder-fn rs/as-unqualified-kebab-maps}))
+
+(defn validate [type data ex]
+  (if (s/valid? type data)
+    true
+    (throw+
+     (let [reason (s/explain-str type data)]
+       {:type ex
+        :subtype type
+        :message {:data data
+                  :reason reason
+                  :feedback (or (:feedback data)
+                                reason)}}))))
 
 (defn insert! [database table m & {:keys [ex-subtype
                                           input-validation]}]
