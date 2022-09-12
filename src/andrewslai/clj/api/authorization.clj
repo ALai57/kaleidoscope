@@ -1,5 +1,5 @@
-(ns andrewslai.clj.api.auth
-  (:require [andrewslai.clj.entities.oidc-id-token :as oidc]
+(ns andrewslai.clj.api.authorization
+  (:require [andrewslai.clj.api.authentication :as oidc]
             [buddy.auth.accessrules :as ar]))
 
 (defn require-role

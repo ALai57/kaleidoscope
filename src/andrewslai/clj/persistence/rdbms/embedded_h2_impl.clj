@@ -1,7 +1,5 @@
 (ns andrewslai.clj.persistence.rdbms.embedded-h2-impl
-  (:require [andrewslai.clj.persistence.rdbms.migrations :as migrations]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
-            [migratus.core :as migratus]
+  (:require [andrewslai.clj.persistence.rdbms.embedded-db-utils :as edb-utils]
             [next.jdbc :as jdbc]))
 
 (defn start-db!
@@ -11,7 +9,7 @@
    {:jdbcUrl (format "jdbc:h2:mem:%s;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=1" dbname)}))
 
 (def fresh-db!
-  (partial rdbms/fresh-db! start-db!))
+  (partial edb-utils/fresh-db! start-db!))
 
 (comment
 

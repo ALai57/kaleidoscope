@@ -30,10 +30,10 @@
 
 (defn file
   [{:keys [name content metadata]}]
-  (tag-as {:name name
-           :content content
+  (tag-as {:name     name
+           :content  content
            :metadata metadata
-           :type :file}
+           :type     :file}
           'file))
 
 ;; Should persistence depend on teh protocols? i.e. should persistence need to know about URLs.. etc?
@@ -54,7 +54,7 @@
   (get-file [_ path]
     (let [x (get-in @store (string/split path #"/"))]
       (when (file? x)
-        x)))
+        (:content x))))
   (put-file [_ path input-stream metadata]
     (let [p    (remove empty? (string/split path #"/+"))
           file (tag-as {:name     (last p)
@@ -74,13 +74,13 @@
                                          :content :b
                                          :metadata {}
                                          :type :file}
-                                        'file)
+                                  'file)
                         "tmp" {"andrewlai.txt" (tag-as {:name "andrewlai.txt"
                                                         :path "/var/tmp/andrewlai.txt"
                                                         :content "something"
                                                         :metadata {:somethin "good"}
                                                         :type :file}
-                                                       'file)}}}))
+                                                 'file)}}}))
 
   (def memfs
     (map->MemFS {:store db}))

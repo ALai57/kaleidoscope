@@ -30,30 +30,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Connection helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def get-datasource   next/get-datasource)
-(def fresh-connection next/get-connection)
-
-(defn pg-conn
-  [env]
-  {:dbname   (get env "ANDREWSLAI_DB_NAME")
-   :db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
-   :host     (get env "ANDREWSLAI_DB_HOST")
-   :user     (get env "ANDREWSLAI_DB_USER")
-   :password (get env "ANDREWSLAI_DB_PASSWORD")
-   :dbtype   "postgresql"})
-
-(defn fresh-db!
-  "Used to create and migrate a fresh database"
-  [start-fn]
-  (let [datasource (-> (start-fn)
-                       (get-datasource))
-        ;; For some reason, need to create a new connection from this datasource
-        ;; before migrating. I think it's because Migratus closes the connection.
-        conn       (fresh-connection datasource)]
-    (migratus/migrate {:migration-dirs "migrations"
-                       :store          :database
-                       :db             {:datasource datasource}})
-    conn))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; API for interacting with a relational database

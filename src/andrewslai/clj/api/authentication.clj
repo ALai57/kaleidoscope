@@ -1,6 +1,9 @@
-(ns andrewslai.clj.entities.oidc-id-token
+(ns andrewslai.clj.api.authentication
   (:require [clojure.string :as string]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; OIDC Identity tokens as authentication
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-scopes
   [{:keys [scope] :as id-token}]
   (and scope (set (string/split scope #" "))))

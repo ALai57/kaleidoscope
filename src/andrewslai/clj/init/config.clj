@@ -1,13 +1,13 @@
 (ns andrewslai.clj.init.config
-  (:require [andrewslai.clj.api.auth :as auth]
+  (:require [andrewslai.clj.api.authorization :as auth]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
             [andrewslai.clj.persistence.filesystem.url-utils :as url-utils]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
+            [andrewslai.clj.persistence.rdbms.live-pg :as live-pg]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [andrewslai.clj.persistence.rdbms.embedded-postgres-impl
-             :as embedded-pg]
+            [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
+            [next.jdbc :as next]
             [taoensso.timbre :as log]))
 
 (defn configure-port
@@ -38,7 +38,7 @@
 (defn configure-database
   [env]
   (case (get env "ANDREWSLAI_DB_TYPE" "postgres")
-    "postgres"          (rdbms/get-datasource (rdbms/pg-conn env))
+    "postgres"          (next/get-datasource (live-pg/pg-conn env))
     "embedded-postgres" (embedded-pg/fresh-db!)
     "embedded-h2"       (embedded-h2/fresh-db!)))
 
@@ -60,6 +60,8 @@
   (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")
                        :creds  s3-storage/CustomAWSCredentialsProviderChain}))
 
+(def public-access (constantly true))
+
 (defn configure-andrewslai-access
   [_env]
   [{:pattern #"^/admin.*"
@@ -68,11 +70,13 @@
     :pattern        #"^/articles/.*"
     :handler        (partial auth/require-role "andrewslai")}
    {:pattern #"^/$"
-    :handler (constantly true)}
+    :handler public-access}
    {:pattern #"^/index.html$"
-    :handler (constantly true)}
-   {:pattern #"^/.*"
-    :handler (constantly false)}
+    :handler public-access}
+   {:pattern #"^/ping"
+    :handler public-access}
+   #_{:pattern #"^/.*"
+      :handler (constantly false)}
    ])
 
 (defn configure-wedding-access

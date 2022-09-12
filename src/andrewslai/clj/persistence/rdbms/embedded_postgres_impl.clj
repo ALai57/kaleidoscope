@@ -1,9 +1,6 @@
 (ns andrewslai.clj.persistence.rdbms.embedded-postgres-impl
-  (:require [andrewslai.clj.persistence.rdbms.migrations :as migrations]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
-            [migratus.core :as migratus])
-  (:import
-   io.zonky.test.db.postgres.embedded.EmbeddedPostgres))
+  (:require [andrewslai.clj.persistence.rdbms.embedded-db-utils :as edb-utils])
+  (:import io.zonky.test.db.postgres.embedded.EmbeddedPostgres))
 
 (defn ->db-spec
   [embedded-db]
@@ -17,7 +14,7 @@
   (->db-spec (.start (EmbeddedPostgres/builder))))
 
 (def fresh-db!
-  (partial rdbms/fresh-db! start-db!))
+  (partial edb-utils/fresh-db! start-db!))
 
 (comment
 

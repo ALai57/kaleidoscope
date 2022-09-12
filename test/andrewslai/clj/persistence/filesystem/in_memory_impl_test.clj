@@ -28,10 +28,7 @@
                              "var/afile.txt"
                              (io/input-stream (.getBytes "<h1>Hello</h1>"))
                              {:content-type "text/html"})))
-    (is (match? {:name "afile.txt"
-                 :path "var/afile.txt"
-                 :content buffered-input-stream?
-                 :metadata {:content-type "text/html"}}
+    (is (match? buffered-input-stream?
                 (fs/get-file memfs "var/afile.txt")))))
 
 (defspec memfs-spec
@@ -50,4 +47,4 @@
                     :metadata metadata}]
       (is (nil? (fs/ls memfs "var")))
       (is (match? file (fs/put-file memfs fullpath content metadata)))
-      (is (match? file (fs/get-file memfs fullpath))))))
+      (is (match? content (fs/get-file memfs fullpath))))))

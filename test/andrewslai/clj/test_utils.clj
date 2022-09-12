@@ -1,5 +1,5 @@
 (ns andrewslai.clj.test-utils
-  (:require [andrewslai.clj.api.auth :as auth]
+  (:require [andrewslai.clj.api.authorization :as auth]
             [andrewslai.clj.http-api.auth.jwt :as jwt]
             [cheshire.core :as json]
             [clojure.java.io :as io]
