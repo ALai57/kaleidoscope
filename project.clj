@@ -7,7 +7,7 @@
             :url          "http://www.eclipse.org/legal/epl-v10.html"
             :distribution :repo
             :comments     "same as Clojure"}
-  :description "The backend for alai57's blogging app"
+  :description "The backend for ALai57's blogging app"
   :dependencies [[aleph "0.4.7-alpha7"]
                  [amazonica "0.3.156" :exclusions [org.apache.commons/commons-lang3
                                                    commons-logging
