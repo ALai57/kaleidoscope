@@ -1,18 +1,11 @@
 (ns andrewslai.clj.http-api.andrewslai
   (:require [andrewslai.clj.http-api.admin :refer [admin-routes]]
             [andrewslai.clj.http-api.articles :refer [articles-routes]]
-            [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
-            [buddy.auth.middleware :as ba]
-            [buddy.auth.accessrules :as ar]
-            [compojure.api.sweet :refer [api ANY]]
-            [ring.util.http-response :refer [unauthorized]]
-            [compojure.route :as route]
             [clojure.stacktrace :as stacktrace]
-            [ring.middleware.content-type :refer [wrap-content-type]]
-            [ring.middleware.json :refer [wrap-json-response]]
+            [compojure.api.sweet :refer [ANY api]]
             [taoensso.timbre :as log]))
 
 (defn exception-handler

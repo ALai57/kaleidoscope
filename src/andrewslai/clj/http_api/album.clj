@@ -1,0 +1,117 @@
+(ns andrewslai.clj.http-api.album
+  (:require [andrewslai.clj.entities.album :as album]
+            [compojure.api.sweet :refer [context defroutes DELETE GET POST PUT]]
+            [ring.util.http-response :refer [no-content not-found! ok]]
+            [taoensso.timbre :as log]))
+
+(defroutes album-routes
+  (context "/albums" []
+    :components [database]
+
+    (GET "/" []
+      :swagger {:summary     "Retrieve all albums"
+                :description (str "This endpoint retrieves all albums. "
+                                  "The endpoint is currently not paginated")
+                :produces    #{"application/json"}
+                :responses   {200 {:description "A collection of all albums"
+                                   :schema      :andrewslai.albums/albums}}}
+      (log/info "Getting albums")
+      (ok (album/get-all-albums database)))
+
+    (GET "/-/contents" []
+      :swagger {:summary     "Retrieve contents from all albums"
+                :description (str "This endpoint retrieves the contents of all albums"
+                                  "The endpoint is currently not paginated")
+                :produces    #{"application/json"}
+                :responses   {200 {:description "A collection of all albums"
+                                   :schema      :andrewslai.albums/albums}}}
+      (log/info "Getting contents")
+      (ok (album/get-all-contents database)))
+
+    (POST "/" {params :params}
+      :swagger {:summary     "Add an album"
+                :description "This endpoint inserts an album into the database"
+                :consumes    #{"application/json"}
+                :produces    #{"application/json"}
+                :request     :andrewslai.album/album
+                :responses   {200 {:description "Success!"
+                                   :schema      :andrewslai.albums/album}}}
+      (log/info "Creating album" params)
+      (let [now (java.time.LocalDateTime/now)]
+        (ok (album/create-album! database (assoc params
+                                                 :created-at now
+                                                 :modified-at now)))))
+
+    (context "/:id" [id]
+      (GET "/" []
+        :swagger {:summary     "Retrieve an album"
+                  :description "This endpoint retrieves an album by ID"
+                  :produces    #{"application/json"}
+                  :responses   {200 {:description "An album"
+                                     :schema      :andrewslai.albums/album}}}
+        (log/infof "Getting album: %s" id)
+        (ok (album/get-album-by-id database id)))
+
+      (PUT "/" {params :params}
+        :swagger {:summary     "Update an album"
+                  :description "This endpoint updates an album"
+                  :produces    #{"application/json"}
+                  :responses   {200 {:description "An album"
+                                     :schema      :andrewslai.albums/album}}}
+        (log/infof "Updating album: %s with: %s" id params)
+        (ok (album/update-album! database params)))
+
+      (context "/contents" []
+        (GET "/" []
+          :swagger {:summary     "Retrieve an album's contents"
+                    :description "This endpoint retrieves an album's contents"
+                    :produces    #{"application/json"}
+                    :responses   {200 {:description "An album"
+                                       :schema      :andrewslai.albums/album}}}
+          (log/infof "Getting album contents from album: %s" id)
+          (ok (album/get-album-contents database id)))
+
+        (DELETE "/" {params :body-params}
+          :swagger {:summary     "Delete an album's contents"
+                    :description "This endpoint removes contents from an album. Supports bulk delete."
+                    :produces    #{"application/json"}
+                    :responses   {200 {:description "An album"
+                                       :schema      :andrewslai.albums/album}}}
+          (let [content-ids (map :id params)]
+            (log/infof "Removing contents %s from album %s" content-ids id)
+            (album/remove-content-from-album! database content-ids)
+            (no-content)))
+
+        ;; Must use body params because POST is accepting a JSON array
+        (POST "/" {params :body-params :as req}
+          :swagger {:summary     "Add contents to album"
+                    :description "This endpoint adds to album's contents. Supports bulk insert."
+                    :produces    #{"application/json"}
+                    :responses   {200 {:description "An album"
+                                       :schema      :andrewslai.albums/album}}}
+          (let [photo-ids (map :id params)]
+            (log/infof "Adding photo: %s to album: %s" photo-ids id)
+            (ok (album/add-photos-to-album! database id photo-ids))))
+
+        (context "/:content-id" [content-id]
+          (GET "/" []
+            :swagger {:summary     "Retrieve one of the album's contents"
+                      :description "This endpoint retrieves an single piece of the album's content"
+                      :produces    #{"application/json"}
+                      :responses   {200 {:description "An album"
+                                         :schema      :andrewslai.albums/album}}}
+            (log/infof "Getting album content %s for album: %s" content-id id)
+            (if-let [result (album/get-album-content database id content-id)]
+              (ok result)
+              (not-found!)))
+
+          (DELETE "/" []
+            :swagger {:summary     "Remove content from an album"
+                      :description "This endpoint removes something from an album"
+                      :produces    #{"application/json"}
+                      :responses   {200 {:description "An album"
+                                         :schema      :andrewslai.albums/album}}}
+            (log/infof "Removing content: %s from album: %s" content-id id)
+            (album/remove-content-from-album! database id content-id)
+            (no-content)))
+        ))))

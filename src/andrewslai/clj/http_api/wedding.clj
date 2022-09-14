@@ -3,6 +3,8 @@
             [amazonica.core :as amazon]
             [andrewslai.clj.entities.album :as album]
             [andrewslai.clj.entities.photo :as photo]
+            [andrewslai.clj.http-api.album :as album-routes]
+            [andrewslai.clj.http-api.photo :as photo-routes]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.stacktrace :as stacktrace]
@@ -18,169 +20,12 @@
               (ex-message e)
               (stacktrace/print-stack-trace e)))
 
-(def MEDIA-FOLDER
-  "media")
-
-(defn ->file-input-stream
-  [file]
-  (java.io.FileInputStream. ^java.io.File file))
-
 ;; Useful for local development so you don't have to set up a connection to S3
 (defroutes index
   (GET "/index.html" []
     (log/info "Fetching `wedding-index.html` locally")
     (-> (ring-resp/resource-response "wedding-index.html" {:root "public"})
         (ring-resp/content-type "text/html"))))
-
-(defn now []
-  (java.time.LocalDateTime/now))
-
-(defroutes album-routes
-  (context "/albums" []
-    :components [database]
-
-    (GET "/" []
-      :swagger {:summary     "Retrieve all albums"
-                :description (str "This endpoint retrieves all albums. "
-                                  "The endpoint is currently not paginated")
-                :produces    #{"application/json"}
-                :responses   {200 {:description "A collection of all albums"
-                                   :schema      :andrewslai.albums/albums}}}
-      (log/info "Getting albums")
-      (ok (album/get-all-albums database)))
-
-    (GET "/-/contents" []
-      :swagger {:summary     "Retrieve contents from all albums"
-                :description (str "This endpoint retrieves the contents of all albums"
-                                  "The endpoint is currently not paginated")
-                :produces    #{"application/json"}
-                :responses   {200 {:description "A collection of all albums"
-                                   :schema      :andrewslai.albums/albums}}}
-      (log/info "Getting contents")
-      (ok (album/get-all-contents database)))
-
-    (POST "/" {params :params}
-      :swagger {:summary     "Add an album"
-                :description "This endpoint inserts an album into the database"
-                :consumes    #{"application/json"}
-                :produces    #{"application/json"}
-                :request     :andrewslai.album/album
-                :responses   {200 {:description "Success!"
-                                   :schema      :andrewslai.albums/album}}}
-      (log/info "Creating album" params)
-      (let [now (java.time.LocalDateTime/now)]
-        (ok (album/create-album! database (assoc params
-                                                 :created-at now
-                                                 :modified-at now)))))
-
-    (context "/:id" [id]
-      (GET "/" []
-        :swagger {:summary     "Retrieve an album"
-                  :description "This endpoint retrieves an album by ID"
-                  :produces    #{"application/json"}
-                  :responses   {200 {:description "An album"
-                                     :schema      :andrewslai.albums/album}}}
-        (log/infof "Getting album: %s" id)
-        (ok (album/get-album-by-id database id)))
-
-      (PUT "/" {params :params}
-        :swagger {:summary     "Update an album"
-                  :description "This endpoint updates an album"
-                  :produces    #{"application/json"}
-                  :responses   {200 {:description "An album"
-                                     :schema      :andrewslai.albums/album}}}
-        (log/infof "Updating album: %s with: %s" id params)
-        (ok (album/update-album! database params)))
-
-      (context "/contents" []
-        (GET "/" []
-          :swagger {:summary     "Retrieve an album's contents"
-                    :description "This endpoint retrieves an album's contents"
-                    :produces    #{"application/json"}
-                    :responses   {200 {:description "An album"
-                                       :schema      :andrewslai.albums/album}}}
-          (log/infof "Getting album contents from album: %s" id)
-          (ok (album/get-album-contents database id)))
-
-        (DELETE "/" {params :body-params}
-          :swagger {:summary     "Delete an album's contents"
-                    :description "This endpoint removes contents from an album. Supports bulk delete."
-                    :produces    #{"application/json"}
-                    :responses   {200 {:description "An album"
-                                       :schema      :andrewslai.albums/album}}}
-          (let [content-ids (map :id params)]
-            (log/infof "Removing contents %s from album %s" content-ids id)
-            (album/remove-content-from-album! database content-ids)
-            (no-content)))
-
-        ;; Must use body params because POST is accepting a JSON array
-        (POST "/" {params :body-params :as req}
-          :swagger {:summary     "Add contents to album"
-                    :description "This endpoint adds to album's contents. Supports bulk insert."
-                    :produces    #{"application/json"}
-                    :responses   {200 {:description "An album"
-                                       :schema      :andrewslai.albums/album}}}
-          (let [photo-ids (map :id params)]
-            (log/infof "Adding photo: %s to album: %s" photo-ids id)
-            (ok (album/add-photos-to-album! database id photo-ids))))
-
-        (context "/:content-id" [content-id]
-          (GET "/" []
-            :swagger {:summary     "Retrieve one of the album's contents"
-                      :description "This endpoint retrieves an single piece of the album's content"
-                      :produces    #{"application/json"}
-                      :responses   {200 {:description "An album"
-                                         :schema      :andrewslai.albums/album}}}
-            (log/infof "Getting album content %s for album: %s" content-id id)
-            (if-let [result (album/get-album-content database id content-id)]
-              (ok result)
-              (not-found!)))
-
-          (DELETE "/" []
-            :swagger {:summary     "Remove content from an album"
-                      :description "This endpoint removes something from an album"
-                      :produces    #{"application/json"}
-                      :responses   {200 {:description "An album"
-                                         :schema      :andrewslai.albums/album}}}
-            (log/infof "Removing content: %s from album: %s" content-id id)
-            (album/remove-content-from-album! database id content-id)
-            (no-content)))
-        ))))
-
-(defroutes upload-routes
-  (context (format "/%s" MEDIA-FOLDER) []
-    :components [storage database]
-
-    (POST "/" {:keys [uri params] :as req}
-      :swagger {:summary     "Upload a new file"
-                :description "Add a new image"
-                :produces    #{"application/json"}
-                :responses   {200 {:description "An album"
-                                   :schema      :andrewslai.albums/album}}}
-      (let [{:keys [filename tempfile] :as file-contents} (get params "file-contents")
-            file-path                                     (format "%s/%s" (if (clojure.string/ends-with? uri "/")
-                                                                            (subs uri 1 (dec (count uri)))
-                                                                            (subs uri 1))
-                                                                  filename)
-            metadata                                      (dissoc file-contents :tempfile)
-            now-time                                      (now)]
-        (log/infof "Processing upload request with params:\n %s" (-> params
-                                                                     clojure.pprint/pprint
-                                                                     with-out-str))
-        (log/infof "Creating file `%s` with metadata:\n %s" file-path (-> metadata
-                                                                          clojure.pprint/pprint
-                                                                          with-out-str))
-        (fs/put-file storage
-                     file-path
-                     (->file-input-stream tempfile)
-                     metadata)
-        (let [photo (photo/create-photo! database {:id          (java.util.UUID/randomUUID)
-                                                   :photo-src   file-path
-                                                   :created-at  now-time
-                                                   :modified-at now-time})]
-          (created (format "/%s" file-path)
-                   photo))))))
-
 
 (defn wedding-app
   [{:keys [logging http-mw] :as components}]
@@ -189,10 +34,10 @@
           :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
           :middleware [http-mw]}
          ping-routes
-         album-routes
+         album-routes/album-routes
          ;; Useful for local debugging until I set up something better
          ;;index
-         upload-routes
+         photo-routes/photo-routes
          (route/not-found "No matching route"))))
 
 
