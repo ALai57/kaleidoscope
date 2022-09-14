@@ -4,7 +4,8 @@ Welcome to my personal website! It is currently hosted at https://andrewslai.com
 
 This repository is the website backend. It contains:
 
-- **Backend**: Clojure web server on Java 11.  
+- **Backend**: Clojure web server that uses Virtual Hosting to serve two different apps: 
+               a blog (andrewslai), and a photo viewer app  
 - **Infrastructure**: Terraform for AWS cloud infrastructure  
 
 ## Architecture of the Clojure namespaces
