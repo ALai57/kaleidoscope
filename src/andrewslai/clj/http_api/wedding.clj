@@ -1,16 +1,12 @@
 (ns andrewslai.clj.http-api.wedding
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
-            [andrewslai.clj.entities.album :as album]
-            [andrewslai.clj.entities.photo :as photo]
             [andrewslai.clj.http-api.album :as album-routes]
             [andrewslai.clj.http-api.photo :as photo-routes]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
-            [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [api context defroutes DELETE GET POST PUT]]
+            [compojure.api.sweet :refer [api defroutes GET]]
             [compojure.route :as route]
-            [ring.util.http-response :refer [created no-content not-found! ok]]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
 

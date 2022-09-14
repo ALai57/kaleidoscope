@@ -1,22 +1,14 @@
 (ns andrewslai.clj.entities.album
-  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.cljc.specs.articles]
-            [clojure.spec.alpha :as s])
-  (:import [java.util UUID]))
-
-(defn now []
-  (java.time.LocalDateTime/now))
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]))
 
 (defn get-all-albums [database]
   (rdbms/select database {:select [:*]
-                       :from   [:enhanced_albums]}))
+                          :from   [:enhanced_albums]}))
 
-;; TODO: Don't allow user to specify ID
 (defn create-album! [database album]
-  (let [id (UUID/randomUUID)]
-    (first (rdbms/insert! database
-                       :albums     (assoc album :id id)
-                       :ex-subtype :UnableToCreateAlbum))))
+  (first (rdbms/insert! database
+                        :albums     album
+                        :ex-subtype :UnableToCreateAlbum)))
 
 (defn get-album-by-id [database album-id]
   (rdbms/select-one database {:select [:*]
@@ -35,16 +27,10 @@
                         :ex-subtype :UnableToUpdateAlbum)))
 
 ;; Album contents
-(defn add-photos-to-album! [database album-id photo-ids]
-  (let [now-time (now)]
-    (vec (rdbms/insert! database
-                        :photos_in_albums (vec (for [photo-id (if (seq? photo-ids) photo-ids [photo-ids])]
-                                                 {:id          (java.util.UUID/randomUUID)
-                                                  :photo-id    photo-id
-                                                  :album-id    album-id
-                                                  :created-at  now-time
-                                                  :modified-at now-time}))
-                        :ex-subtype :UnableToAddPhotoToAlbum))))
+(defn add-photos-to-album! [database photos-in-albums]
+  (vec (rdbms/insert! database
+                      :photos_in_albums photos-in-albums
+                      :ex-subtype :UnableToAddPhotoToAlbum)))
 
 (defn remove-content-from-album! [database album-id album-content-id]
   (rdbms/delete! database

@@ -1,5 +1,5 @@
 (ns andrewslai.clj.http-api.album
-  (:require [andrewslai.clj.entities.album :as album]
+  (:require [andrewslai.clj.api.albums :as albums-api]
             [compojure.api.sweet :refer [context defroutes DELETE GET POST PUT]]
             [ring.util.http-response :refer [no-content not-found! ok]]
             [taoensso.timbre :as log]))
@@ -16,7 +16,7 @@
                 :responses   {200 {:description "A collection of all albums"
                                    :schema      :andrewslai.albums/albums}}}
       (log/info "Getting albums")
-      (ok (album/get-all-albums database)))
+      (ok (albums-api/get-all-albums database)))
 
     (GET "/-/contents" []
       :swagger {:summary     "Retrieve contents from all albums"
@@ -26,21 +26,21 @@
                 :responses   {200 {:description "A collection of all albums"
                                    :schema      :andrewslai.albums/albums}}}
       (log/info "Getting contents")
-      (ok (album/get-all-contents database)))
+      (ok (albums-api/get-all-contents database)))
 
     (POST "/" {params :params}
       :swagger {:summary     "Add an album"
                 :description "This endpoint inserts an album into the database"
                 :consumes    #{"application/json"}
                 :produces    #{"application/json"}
-                :request     :andrewslai.album/album
+                :request     :andrewslai.albums-api/album
                 :responses   {200 {:description "Success!"
                                    :schema      :andrewslai.albums/album}}}
       (log/info "Creating album" params)
       (let [now (java.time.LocalDateTime/now)]
-        (ok (album/create-album! database (assoc params
-                                                 :created-at now
-                                                 :modified-at now)))))
+        (ok (albums-api/create-album! database (assoc params
+                                                      :created-at now
+                                                      :modified-at now)))))
 
     (context "/:id" [id]
       (GET "/" []
@@ -50,7 +50,7 @@
                   :responses   {200 {:description "An album"
                                      :schema      :andrewslai.albums/album}}}
         (log/infof "Getting album: %s" id)
-        (ok (album/get-album-by-id database id)))
+        (ok (albums-api/get-album-by-id database id)))
 
       (PUT "/" {params :params}
         :swagger {:summary     "Update an album"
@@ -59,7 +59,7 @@
                   :responses   {200 {:description "An album"
                                      :schema      :andrewslai.albums/album}}}
         (log/infof "Updating album: %s with: %s" id params)
-        (ok (album/update-album! database params)))
+        (ok (albums-api/update-album! database params)))
 
       (context "/contents" []
         (GET "/" []
@@ -69,7 +69,7 @@
                     :responses   {200 {:description "An album"
                                        :schema      :andrewslai.albums/album}}}
           (log/infof "Getting album contents from album: %s" id)
-          (ok (album/get-album-contents database id)))
+          (ok (albums-api/get-album-contents database id)))
 
         (DELETE "/" {params :body-params}
           :swagger {:summary     "Delete an album's contents"
@@ -79,7 +79,7 @@
                                        :schema      :andrewslai.albums/album}}}
           (let [content-ids (map :id params)]
             (log/infof "Removing contents %s from album %s" content-ids id)
-            (album/remove-content-from-album! database content-ids)
+            (albums-api/remove-content-from-album! database content-ids)
             (no-content)))
 
         ;; Must use body params because POST is accepting a JSON array
@@ -91,7 +91,7 @@
                                        :schema      :andrewslai.albums/album}}}
           (let [photo-ids (map :id params)]
             (log/infof "Adding photo: %s to album: %s" photo-ids id)
-            (ok (album/add-photos-to-album! database id photo-ids))))
+            (ok (albums-api/add-photos-to-album! database id photo-ids))))
 
         (context "/:content-id" [content-id]
           (GET "/" []
@@ -101,7 +101,7 @@
                       :responses   {200 {:description "An album"
                                          :schema      :andrewslai.albums/album}}}
             (log/infof "Getting album content %s for album: %s" content-id id)
-            (if-let [result (album/get-album-content database id content-id)]
+            (if-let [result (albums-api/get-album-content database id content-id)]
               (ok result)
               (not-found!)))
 
@@ -112,6 +112,6 @@
                       :responses   {200 {:description "An album"
                                          :schema      :andrewslai.albums/album}}}
             (log/infof "Removing content: %s from album: %s" content-id id)
-            (album/remove-content-from-album! database id content-id)
+            (albums-api/remove-content-from-album! database id content-id)
             (no-content)))
         ))))
