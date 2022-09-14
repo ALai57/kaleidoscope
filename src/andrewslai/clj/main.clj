@@ -24,7 +24,7 @@
 (defn -main
   "Start a server and run the application"
   [& args]
-  (let [{:keys [port] :as configuration} (cfg/configure-from-env (System/getenv))]
+  (let [{:keys [port] :as configuration} (config/configure-from-env (System/getenv))]
     (log/infof "Hello! Starting andrewslai on port %s" port)
     (initialize!)
     (start-app (config/configure-http-handler configuration)
