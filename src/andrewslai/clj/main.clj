@@ -1,10 +1,7 @@
 (ns andrewslai.clj.main
   (:gen-class)
   (:require [aleph.http :as http]
-            [andrewslai.clj.init.config :as cfg]
-            [andrewslai.clj.http-api.andrewslai :as andrewslai]
-            [andrewslai.clj.http-api.virtual-hosting :as vh]
-            [andrewslai.clj.http-api.wedding :as wedding]
+            [andrewslai.clj.init.config :as config]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
@@ -21,15 +18,8 @@
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn start-app
-  [{:keys [port andrewslai wedding] :as configuration}]
-  (http/start-server
-   ;; TODO: Move me to config namespace
-   (vh/host-based-routing
-    {#"caheriaguilar.and.andrewslai.com" {:priority 0
-                                          :app      (wedding/wedding-app wedding)}
-     #".*"                               {:priority 100
-                                          :app      (andrewslai/andrewslai-app andrewslai)}})
-   {:port port}))
+  [ring-handler {:keys [port] :as configuration}]
+  (http/start-server ring-handler {:port port}))
 
 (defn -main
   "Start a server and run the application"
@@ -37,4 +27,5 @@
   (let [{:keys [port] :as configuration} (cfg/configure-from-env (System/getenv))]
     (log/infof "Hello! Starting andrewslai on port %s" port)
     (initialize!)
-    (start-app configuration)))
+    (start-app (config/configure-http-handler configuration)
+               configuration)))

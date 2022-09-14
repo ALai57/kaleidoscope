@@ -1,7 +1,7 @@
 (ns andrewslai.clj.http-api.photo
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
-            [andrewslai.clj.entities.photo :as photo]
+            [andrewslai.clj.api.photos :as photos-api]
             [andrewslai.clj.persistence.filesystem :as fs]
             [compojure.api.sweet :refer [context defroutes POST]]
             [ring.util.http-response :refer [created]]
@@ -44,10 +44,10 @@
                      file-path
                      (->file-input-stream tempfile)
                      metadata)
-        (let [photo (photo/create-photo! database {:id          (java.util.UUID/randomUUID)
-                                                   :photo-src   file-path
-                                                   :created-at  now-time
-                                                   :modified-at now-time})]
+        (let [photo (photos-api/create-photo! database {:id          (java.util.UUID/randomUUID)
+                                                        :photo-src   file-path
+                                                        :created-at  now-time
+                                                        :modified-at now-time})]
           (created (format "/%s" file-path)
                    photo))))))
 
