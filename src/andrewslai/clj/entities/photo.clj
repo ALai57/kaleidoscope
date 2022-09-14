@@ -1,7 +1,5 @@
 (ns andrewslai.clj.entities.photo
-  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.cljc.specs.articles]
-            [clojure.spec.alpha :as s]))
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]))
 
 (defn get-all-photos [database]
   (rdbms/select database {:select [:*]

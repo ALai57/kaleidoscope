@@ -1,8 +1,6 @@
 (ns andrewslai.clj.api.albums
-  (:require [andrewslai.clj.entities.album :as album]
-            [andrewslai.cljc.specs.articles]
-            [clojure.spec.alpha :as s])
-  (:import [java.util UUID]))
+  (:require [andrewslai.clj.entities.album :as album])
+  (:import java.util.UUID))
 
 (defn now []
   (java.time.LocalDateTime/now))
