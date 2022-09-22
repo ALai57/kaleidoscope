@@ -32,7 +32,9 @@
   [env]
   (case (get env "ANDREWSLAI_AUTH_TYPE" "keycloak")
     "keycloak" (configure-keycloak env)
-    "none"     (bb/authenticated-backend {:realm_access {:roles ["wedding"]}})))
+    "none"     (bb/authenticated-backend {:name         "Test User"
+                                          :realm_access {:roles ["wedding" "andrewslai"]}})))
+
 
 (defn configure-logging
   [env]
@@ -90,12 +92,11 @@
     :handler (partial auth/require-role "wedding")}])
 
 (defn add-andrewslai-middleware
-  [{:keys [storage] :as andrewslai-components}]
-  (let [sc (if storage
-             (mw/classpath-static-content-stack ""
-                                                {:prefer-handler? true
-                                                 :loader          (url-utils/filesystem-loader storage)})
-             identity)]
+  [{:keys [storage] :as andrewslai-components} env]
+  (let [sc (case (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "s3")
+             "s3"    (mw/classpath-static-content-stack "" {:prefer-handler? true
+                                                            :loader          (url-utils/filesystem-loader storage)})
+             "local" (mw/file-static-content-stack (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {}))]
     (assoc andrewslai-components
            :http-mw
            (comp mw/standard-stack
@@ -103,7 +104,7 @@
                  (mw/auth-stack andrewslai-components)))))
 
 (defn add-wedding-middleware
-  [{:keys [storage] :as wedding-components}]
+  [{:keys [storage] :as wedding-components} env]
   (assoc wedding-components
          :http-mw (comp mw/standard-stack
                         (mw/classpath-static-content-stack ""
@@ -125,8 +126,8 @@
                       :database     database
                       :storage      (configure-wedding-storage env)
                       :logging      (configure-logging env)}}
-        (update :wedding add-wedding-middleware)
-        (update :andrewslai add-andrewslai-middleware))))
+        (update :wedding add-wedding-middleware env)
+        (update :andrewslai add-andrewslai-middleware env))))
 
 (defn configure-http-handler
   [{:keys [andrewslai wedding] :as components}]

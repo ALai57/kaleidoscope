@@ -1,6 +1,6 @@
 
 INSERT INTO articles VALUES
-(DEFAULT, 'My first article', 'thoughts', NOW(), 'Andrew Lai', 'my-first-article', '<div><h1>This is an example content piece</h1><h2>This is second example content piece</h2><div class="dynamicjs" id="test-paragraph.js"></div><script class="dynamicjs" src="test-paragraph.js"></script><p>This is fourth example content piece</p></div>'),
+(DEFAULT, 'My first article', 'thoughts', NOW(), 'Andrew Lai', 'my-first-article', '<div><h1>This is an example content piece</h1><h2>This is second example content piece</h2><div class="dynamicjs" id="test-paragraph.js"></div><script class="dynamicjs" src="js/test-paragraph.js"></script><p>This is fourth example content piece</p></div>'),
 (DEFAULT, 'My second article', 'research', NOW(), 'Andrew Lai', 'my-second-article', '<p>Content from 2</p>'),
 (DEFAULT, 'My third article', 'archive', NOW(), 'Andrew Lai', 'my-third-article', '<p>Content from 3</p>'),
 (DEFAULT, 'My fourth article', 'about', NOW(), 'Andrew Lai', 'my-fourth-article','<p>Content from 4</p>'),

@@ -16,7 +16,7 @@ CREATE TABLE articles(
        article_tags VARCHAR (32),
        timestamp    TIMESTAMP,
        author       VARCHAR (50),
-       article_url  VARCHAR (100),
+       article_url  VARCHAR (100) UNIQUE,
        content      VARCHAR
 );
 
