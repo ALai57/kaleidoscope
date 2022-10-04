@@ -24,8 +24,7 @@ CREATE TABLE articles(
 CREATE TABLE article_branches(
        id                BIGSERIAL PRIMARY KEY,
        article_id        INT,
-       archived          BOOLEAN,
-       published         BOOLEAN,
+       published_at      TIMESTAMP,
        branch_name       VARCHAR (100),
        created_at        TIMESTAMP,
        modified_at       TIMESTAMP,
@@ -41,7 +40,6 @@ CREATE TABLE article_branches(
 CREATE TABLE article_versions(
        id                BIGSERIAL PRIMARY KEY,
        branch_id         INT,
-       archived          BOOLEAN,
        title             VARCHAR,
        content           VARCHAR,
        created_at        TIMESTAMP,

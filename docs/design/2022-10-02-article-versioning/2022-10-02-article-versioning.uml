@@ -7,52 +7,54 @@ entity "articles" {
     --
     author:            varchar
     article_url:       varchar
-    current_branch_id: varchar
-    visible:           boolean
-    modified_at:       timestamp
+    article_tags:      varchar
     created_at:        timestamp
+    modified_at:       timestamp
 }
 
 note right of articles
     Each article has a stable identity, but its contents can
-    change over time. This is similar to a Github Repo.
+    change over time. This is similar to a Git Repo.
 end note
 
 entity "article_branches" {
-    id: number <<generated>>
+    id:         number <<generated>>
+    article_id: number FK
     --
-    archived:    boolean
-    branch_name: varchar
-    modified_at: timestamp
-    created_at:  timestamp
+    published_at: timestamp
+    branch_name:  varchar
+    created_at:   timestamp
+    modified_at:  timestamp
 }
 
 note right of article_branches
     Each article can have multiple branches which have different
-    versions of the content. This is similar to a Github branch.
+    versions of the content. This is similar to a Git branch.
 
     This will allow users to branch off of an article and make
     some exploratory/speculative edits without changing the
     published content. However, in contrast to Git, this persistence
     strategy won't attempt to implement branch merging.
 
-    Branches can be "archived", indicating that they are no longer
-    considered useful. This is like a soft delete.
+    Branches can be published, which makes the most recent commit on
+    the branch available online.
 end note
 
 entity "article_versions" {
-    id: number <<generated>>
+    id:        number <<generated>>
+    branch_id: number FK
     --
     title:       varchar
     content:     varchar
-    modified_at: timestamp
     created_at:  timestamp
+    modified_at: timestamp
 }
 
 note right of article_versions
-    Each article_branch can have a series of "commits"
-    that are different versions of that branch.
-    This is similar to the Github concept of a commit on a branch
+    Each article_branch can have a series of "commits" that are
+    different versions of that branch. When a branch is published,
+    only the most recent version will be visible online.
+    This is similar to a Git commit.
 end note
 
 articles         ||--|{ article_branches
