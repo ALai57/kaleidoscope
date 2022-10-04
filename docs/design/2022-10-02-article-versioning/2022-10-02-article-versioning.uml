@@ -1,0 +1,61 @@
+@startuml
+
+skinparam defaultFontName Ubuntu Mono
+
+entity "articles" {
+    id: number <<generated>>
+    --
+    author:            varchar
+    article_url:       varchar
+    current_branch_id: varchar
+    visible:           boolean
+    modified_at:       timestamp
+    created_at:        timestamp
+}
+
+note right of articles
+    Each article has a stable identity, but its contents can
+    change over time. This is similar to a Github Repo.
+end note
+
+entity "article_branches" {
+    id: number <<generated>>
+    --
+    archived:    boolean
+    branch_name: varchar
+    modified_at: timestamp
+    created_at:  timestamp
+}
+
+note right of article_branches
+    Each article can have multiple branches which have different
+    versions of the content. This is similar to a Github branch.
+
+    This will allow users to branch off of an article and make
+    some exploratory/speculative edits without changing the
+    published content. However, in contrast to Git, this persistence
+    strategy won't attempt to implement branch merging.
+
+    Branches can be "archived", indicating that they are no longer
+    considered useful. This is like a soft delete.
+end note
+
+entity "article_versions" {
+    id: number <<generated>>
+    --
+    title:       varchar
+    content:     varchar
+    modified_at: timestamp
+    created_at:  timestamp
+}
+
+note right of article_versions
+    Each article_branch can have a series of "commits"
+    that are different versions of that branch.
+    This is similar to the Github concept of a commit on a branch
+end note
+
+articles         ||--|{ article_branches
+article_branches ||--|{ article_versions
+
+@enduml

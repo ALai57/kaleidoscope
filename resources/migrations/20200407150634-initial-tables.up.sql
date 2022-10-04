@@ -11,13 +11,45 @@ CREATE TABLE users (
 --;;
 
 CREATE TABLE articles(
-       id           BIGSERIAL PRIMARY KEY,
-       title        VARCHAR (100),
-       article_tags VARCHAR (32),
-       timestamp    TIMESTAMP,
-       author       VARCHAR (50),
-       article_url  VARCHAR (100) UNIQUE,
-       content      VARCHAR
+       id                BIGSERIAL PRIMARY KEY,
+       author            VARCHAR (50),
+       article_url       VARCHAR (100) UNIQUE,
+       article_tags      VARCHAR (32),
+       created_at        TIMESTAMP,
+       modified_at       TIMESTAMP
+);
+
+--;;
+
+CREATE TABLE article_branches(
+       id                BIGSERIAL PRIMARY KEY,
+       article_id        INT,
+       archived          BOOLEAN,
+       published         BOOLEAN,
+       branch_name       VARCHAR (100),
+       created_at        TIMESTAMP,
+       modified_at       TIMESTAMP,
+
+       CONSTRAINT fk_articles
+         FOREIGN KEY(article_id)
+           REFERENCES articles(id)
+
+);
+
+--;;
+
+CREATE TABLE article_versions(
+       id                BIGSERIAL PRIMARY KEY,
+       branch_id         INT,
+       archived          BOOLEAN,
+       title             VARCHAR,
+       content           VARCHAR,
+       created_at        TIMESTAMP,
+       modified_at       TIMESTAMP,
+
+       CONSTRAINT fk_branches
+         FOREIGN KEY(branch_id)
+           REFERENCES article_branches(id)
 );
 
 --;;
