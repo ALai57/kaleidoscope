@@ -71,3 +71,36 @@ CREATE TABLE portfolio_links(
        name_2      VARCHAR,
        description VARCHAR
 );
+
+--;;
+
+CREATE OR REPLACE VIEW full_versions AS
+SELECT
+    av.id AS version_id,
+    av.title,
+    av.content,
+    av.created_at,
+    av.modified_at,
+    ab.id AS branch_id,
+    ab.branch_name,
+    ab.published_at,
+    a.id AS article_id,
+    a.author,
+    a.article_url,
+    a.article_tags
+FROM article_versions av
+     JOIN article_branches ab ON ab.id = av.branch_id
+     JOIN articles a ON a.id = av.branch_id
+
+--;;
+
+CREATE OR REPLACE VIEW published_articles AS
+SELECT *
+FROM (
+   SELECT *, RANK() OVER (ORDER BY published_at DESC) AS rank
+   FROM full_versions
+   WHERE published_at IS NOT NULL
+)
+WHERE rank = 1
+
+--;;

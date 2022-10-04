@@ -5,13 +5,17 @@ VALUES
 (3, 'Andrew Lai', 'my-third-article' , 'thoughts', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z'),
 (4, 'Andrew Lai', 'neural-network-explanation', 'thoughts', '2022-04-01T00:00:00Z', '2022-04-01T00:00:00Z');
 
+--;;
+
 INSERT INTO article_branches (id, article_id, published_at, branch_name, created_at, modified_at)
 VALUES
 (1, 1, '2022-03-01T00:00:00Z', 'main', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z'),
 (2, 2, '2022-03-01T00:00:00Z', 'main', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z'),
 (3, 3, '2022-03-01T00:00:00Z', 'main', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z'),
 (4, 4, '2022-03-01T00:00:00Z', 'main', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z'),
-(5, 4,                       , 'test', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z');
+(5, 4,                   NULL, 'test', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z');
+
+--;;
 
 INSERT INTO article_versions (id, branch_id, title, content, created_at, modified_at)
 VALUES
