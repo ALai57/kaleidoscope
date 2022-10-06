@@ -33,7 +33,7 @@
                  :ex-subtype :UnableToCreateArticleVersion))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Reading using views
+;; Reading from views
 ;; This allows us to get denormalized views of the data
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-all-branches [database]
@@ -45,6 +45,12 @@
                 {:select [:*]
                  :from   [:full-branches]
                  :where  [:= :full-branches/article-id article-id]}))
+
+(defn get-branch [database branch-id]
+  (rdbms/select-one database
+                    {:select [:*]
+                     :from   [:full-branches]
+                     :where  [:= :full-branches/branch-id branch-id]}))
 
 (defn get-all-versions [database]
   (rdbms/select database {:select [:*]
@@ -60,6 +66,12 @@
   (rdbms/select database {:select [:*]
                           :from   [:full-versions]
                           :where  [:= :full-versions/article-id article-id]}))
+
+(defn get-version [database version-id]
+  (rdbms/select-one database
+                    {:select [:*]
+                     :from   [:full-versions]
+                     :where  [:= :full-versions/version-id version-id]}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection

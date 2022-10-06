@@ -43,6 +43,10 @@
         (is branch-id))
 
       (testing "Can retrieve example-article from the DB"
+        (is (match? {:article-id  article-id
+                     :branch-id   branch-id
+                     :branch-name "mybranch"}
+                    (article/get-branch database branch-id)))
         (is (match? [{:article-id  article-id
                       :branch-id   branch-id
                       :branch-name "mybranch"}]
@@ -61,13 +65,16 @@
     (testing "example-article-version doesn't exist in the database"
       (is (empty? (article/get-branch-versions database branch-id))))
 
-    (testing "Insert the example-article-version"
-      (is (article/create-version! database (assoc example-article-version
-                                                   :branch-id branch-id))))
+    (let [[{version-id :id}] (article/create-version! database (assoc example-article-version
+                                                                      :branch-id branch-id))]
+      (testing "Insert the example-article-version"
+        (is version-id))
 
-    (testing "Can retrieve example-article-version from the DB"
-      (is (match? [(assoc example-article-version :branch-id branch-id)]
-                  (article/get-branch-versions database branch-id))))))
+      (testing "Can retrieve example-article-version from the DB"
+        (is (match? (assoc example-article-version :branch-id branch-id)
+                    (article/get-version database version-id)))
+        (is (match? [(assoc example-article-version :branch-id branch-id)]
+                    (article/get-branch-versions database branch-id)))))))
 
 (deftest create-and-retrieve-article-version-test
   (let [database           (embedded-h2/fresh-db!)
