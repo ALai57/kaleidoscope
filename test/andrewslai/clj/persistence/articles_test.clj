@@ -12,11 +12,9 @@
       (f))))
 
 (def example-article
-  {:title        "My test article"
-   :article-tags "thoughts"
+  {:article-tags "thoughts"
    :article-url  "my-test-article"
-   :author       "Andrew Lai"
-   :content      "<h1>Hello world!</h1>"})
+   :author       "Andrew Lai"})
 
 (deftest create-and-retrieve-articles-test
   (let [database (embedded-h2/fresh-db!)]
@@ -28,3 +26,59 @@
 
     (testing "Can retrieve example-article from the DB"
       (is (match? example-article (article/get-article database (:article-url example-article)))))))
+
+(def example-article-branch
+  {:branch-name "mybranch"})
+
+(deftest create-and-retrieve-article-branches-test
+  (let [database       (embedded-h2/fresh-db!)
+        [{article-id :id}] (article/create-article! database example-article)]
+
+    (testing "example-article-branch doesn't exist in the database"
+      (is (empty? (article/get-article-branches database article-id))))
+
+    (let [[{branch-id :id}] (article/create-article-branch! database (assoc example-article-branch
+                                                                            :article-id article-id))]
+      (testing "Insert the example-article-branch"
+        (is branch-id))
+
+      (testing "Can retrieve example-article from the DB"
+        (is (match? [{:article-id  article-id
+                      :branch-id   branch-id
+                      :branch-name "mybranch"}]
+                    (article/get-article-branches database article-id)))))))
+
+(def example-article-version
+  {:title   "My Title"
+   :content "<p>Hello</p>"})
+
+(deftest create-and-retrieve-article-version-test
+  (let [database           (embedded-h2/fresh-db!)
+        [{article-id :id}] (article/create-article! database example-article)
+        [{branch-id :id}]  (article/create-article-branch! database (assoc example-article-branch
+                                                                           :article-id article-id))]
+
+    (testing "example-article-version doesn't exist in the database"
+      (is (empty? (article/get-branch-versions database branch-id))))
+
+    (testing "Insert the example-article-version"
+      (is (article/create-version! database (assoc example-article-version
+                                                   :branch-id branch-id))))
+
+    (testing "Can retrieve example-article-version from the DB"
+      (is (match? [(assoc example-article-version :branch-id branch-id)]
+                  (article/get-branch-versions database branch-id))))))
+
+(deftest create-and-retrieve-article-version-test
+  (let [database           (embedded-h2/fresh-db!)
+        [{article-id :id}] (article/create-article! database example-article)
+        [{branch-id :id}]  (article/create-article-branch! database (assoc example-article-branch
+                                                                           :article-id article-id))
+        [{version-id :id}] (article/create-version! database (assoc example-article-version
+                                                                    :branch-id branch-id))]
+    (testing "Full version table works properly"
+      (is (match? [(assoc example-article-version
+                          :article-id article-id
+                          :branch-id  branch-id
+                          :version-id version-id)]
+                  (article/get-article-versions database article-id))))))

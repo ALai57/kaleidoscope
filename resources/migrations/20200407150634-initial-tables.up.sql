@@ -23,7 +23,7 @@ CREATE TABLE articles(
 
 CREATE TABLE article_branches(
        id                BIGSERIAL PRIMARY KEY,
-       article_id        INT,
+       article_id        INT NOT NULL,
        published_at      TIMESTAMP,
        branch_name       VARCHAR (100),
        created_at        TIMESTAMP,
@@ -39,7 +39,7 @@ CREATE TABLE article_branches(
 
 CREATE TABLE article_versions(
        id                BIGSERIAL PRIMARY KEY,
-       branch_id         INT,
+       branch_id         INT NOT NULL,
        title             VARCHAR,
        content           VARCHAR,
        created_at        TIMESTAMP,
@@ -90,7 +90,21 @@ SELECT
     a.article_tags
 FROM article_versions av
      JOIN article_branches ab ON ab.id = av.branch_id
-     JOIN articles a ON a.id = av.branch_id
+     JOIN articles a ON a.id = ab.article_id
+
+--;;
+
+CREATE OR REPLACE VIEW full_branches AS
+SELECT
+    ab.id AS branch_id,
+    ab.branch_name,
+    ab.published_at,
+    a.id AS article_id,
+    a.author,
+    a.article_url,
+    a.article_tags
+FROM article_branches ab
+     JOIN articles a ON a.id = ab.article_id
 
 --;;
 

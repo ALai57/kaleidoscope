@@ -3,6 +3,10 @@
             [andrewslai.cljc.specs.articles]
             [clojure.spec.alpha :as s]))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Low level operations
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-all-articles [database]
   (rdbms/select database {:select [:*]
                           :from [:articles]}))
@@ -17,6 +21,45 @@
   (rdbms/insert! database
                  :articles article
                  :ex-subtype :UnableToCreateArticle))
+
+(defn create-article-branch! [database article-branch]
+  (rdbms/insert! database
+                 :article-branches article-branch
+                 :ex-subtype :UnableToCreateArticleBranch))
+
+(defn create-version! [database article-version]
+  (rdbms/insert! database
+                 :article-versions article-version
+                 :ex-subtype :UnableToCreateArticleVersion))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Reading using views
+;; This allows us to get denormalized views of the data
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn get-all-branches [database]
+  (rdbms/select database {:select [:*]
+                          :from   [:full-branches]}))
+
+(defn get-article-branches [database article-id]
+  (rdbms/select database
+                {:select [:*]
+                 :from   [:full-branches]
+                 :where  [:= :full-branches/article-id article-id]}))
+
+(defn get-all-versions [database]
+  (rdbms/select database {:select [:*]
+                          :from   [:full-versions]}))
+
+(defn get-branch-versions [database branch-id]
+  (rdbms/select database
+                {:select [:*]
+                 :from   [:full-versions]
+                 :where  [:= :full-versions/branch-id branch-id]}))
+
+(defn get-article-versions [database article-id]
+  (rdbms/select database {:select [:*]
+                          :from   [:full-versions]
+                          :where  [:= :full-versions/article-id article-id]}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection
