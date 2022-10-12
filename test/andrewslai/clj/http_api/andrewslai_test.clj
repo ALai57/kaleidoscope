@@ -41,7 +41,7 @@
 (deftest ping-test
   (let [handler (-> {:auth         bb/unauthenticated-backend
                      :access-rules tu/public-access}
-                    config/add-andrewslai-middleware
+                    (config/add-andrewslai-middleware)
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)]
     (is (match? {:status  200
@@ -57,17 +57,17 @@
   (let [handler (-> {:auth         bb/unauthenticated-backend
                      :access-rules tu/public-access
                      :storage      (memory/map->MemFS {:store (atom example-fs)})}
-                    config/add-andrewslai-middleware
+                    (config/add-andrewslai-middleware {"ANDREWSLAI_STATIC_CONTENT_TYPE" "local"})
                     andrewslai/andrewslai-app)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"text/html"}
-                 :body    string?}
+                 :body    any?}
                 (handler (mock/request :get "/"))))))
 
 (deftest swagger-test
   (let [handler (-> {:auth         bb/unauthenticated-backend
                      :access-rules tu/public-access}
-                    config/add-andrewslai-middleware
+                    (config/add-andrewslai-middleware)
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)]
     (is (match? {:status  200
@@ -78,7 +78,7 @@
 (deftest admin-routes-test
   (let [app (-> {:auth         (bb/authenticated-backend {:realm_access {:roles ["andrewslai"]}})
                  :access-rules (config/configure-andrewslai-access nil)}
-                config/add-andrewslai-middleware
+                (config/add-andrewslai-middleware)
                 (andrewslai/andrewslai-app)
                 (tu/wrap-clojure-response))]
     (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
@@ -98,7 +98,7 @@
                          :access-rules (config/configure-andrewslai-access nil)
                          :database     (embedded-h2/fresh-db!)
                          :storage      (memory/map->MemFS {:store (atom example-fs)})}
-                        config/add-andrewslai-middleware
+                        (config/add-andrewslai-middleware {"ANDREWSLAI_STATIC_CONTENT_TYPE" "local"})
                         andrewslai/andrewslai-app)]
         (is (match? expected (handler request)))))
 
@@ -138,7 +138,7 @@
     (testing (format "%s returns %s" endpoint expected)
       (let [app (-> {:database     (embedded-h2/fresh-db!)
                      :access-rules tu/public-access}
-                    config/add-andrewslai-middleware
+                    (config/add-andrewslai-middleware)
                     andrewslai/andrewslai-app)]
         (is (match? expected
                     (tu/app-request app (mock/request :get endpoint))))))
@@ -147,11 +147,12 @@
     "/articles/my-first-article" {:status 200 :body article?}
     "/articles/does-not-exist"   {:status 404}))
 
+;; TODO: HTTP API for create article separate from creating branch and creating version.
 (deftest create-article-happy-path
   (let [app (-> {:database     (embedded-h2/fresh-db!)
                  :access-rules tu/public-access
                  :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
-                config/add-andrewslai-middleware
+                (config/add-andrewslai-middleware)
                 andrewslai/andrewslai-app
                 tu/wrap-clojure-response)
         url (format "/articles/%s" (:article-url a/example-article))]
@@ -177,7 +178,7 @@
 (deftest portfolio-test
   (let [app      (-> {:database     (embedded-h2/fresh-db!)
                       :access-rules tu/public-access}
-                     config/add-andrewslai-middleware
+                     (config/add-andrewslai-middleware {})
                      (andrewslai/andrewslai-app)
                      (tu/wrap-clojure-response))
         response (app (mock/request :get "/projects-portfolio"))]

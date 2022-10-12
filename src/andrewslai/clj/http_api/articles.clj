@@ -17,6 +17,7 @@
       (assoc :article-url article-url)
       (assoc :author (oidc/get-full-name (:identity request)))))
 
+;; TODO: HTTP API for create article separate from creating branch and creating version.
 (defn create-article-handler
   [database article-url request]
   (try
@@ -57,31 +58,31 @@
     :tags ["articles"]
 
     (GET "/" []
-      :swagger {:summary "Retrieve all articles"
+      :swagger {:summary     "Retrieve all articles"
                 :description (str "This endpoint retrieves all articles. "
                                   "The endpoint is currently not paginated")
-                :produces #{"application/json"}
-                :responses {200 {:description "A collection of all articles"
-                                 :schema :andrewslai.article/articles}}}
+                :produces    #{"application/json"}
+                :responses   {200 {:description "A collection of all articles"
+                                   :schema      :andrewslai.article/articles}}}
       (ok (articles-api/get-all-articles database)))
 
     (GET "/:article-name" [article-name]
-      :swagger {:summary "Retrieve a single article"
-                :produces #{"application/json"}
+      :swagger {:summary    "Retrieve a single article"
+                :produces   #{"application/json"}
                 :parameters {:path {:article-name :andrewslai.article/article-name}}
-                :responses {200 {:description "A single article"
-                                 :schema :andrewslai.article/article}}}
-      (if-let [article (articles-api/get-article database article-name)]
+                :responses  {200 {:description "A single article"
+                                  :schema      :andrewslai.article/article}}}
+      (if-let [article (articles-api/get-published-article-by-url database article-name)]
         (ok article)
         (not-found {:reason "Missing"})))
 
     (PUT "/:article-url" [article-url]
-      :swagger {:summary "Create an article"
-                :consumes #{"application/json"}
-                :produces #{"application/json"}
-                :request :andrewslai.article/article
+      :swagger {:summary   "Create an article"
+                :consumes  #{"application/json"}
+                :produces  #{"application/json"}
+                :request   :andrewslai.article/article
                 :responses {200 {:description "The article that was created"
-                                 :schema :andrewslai.article/article}
+                                 :schema      :andrewslai.article/article}
                             401 {:description "Unauthorized"
-                                 :schema ::error-message}}}
+                                 :schema      ::error-message}}}
       (partial create-article-handler database article-url))))

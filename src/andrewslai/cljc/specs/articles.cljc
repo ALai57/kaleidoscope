@@ -17,13 +17,12 @@
 (s/def :andrewslai.article/content spec/string?)
 
 (s/def :andrewslai.article/article
-  (s/keys :req-un [:andrewslai.article/title
-                   :andrewslai.article/article-tags
+  (s/keys :req-un [:andrewslai.article/article-tags
                    :andrewslai.article/author
-                   :andrewslai.article/timestamp
-                   :andrewslai.article/article-url
-                   :andrewslai.article/id]
-          :opt-un [:andrewslai.article/content]))
+                   :andrewslai.article/article-url]
+          :opt-un [:andrewslai.article/id
+                   :andrewslai.article/content
+                   :andrewslai.article/title]))
 
 (s/def :andrewslai.article/articles
   (s/coll-of :andrewslai.article/article))

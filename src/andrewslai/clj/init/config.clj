@@ -92,16 +92,19 @@
     :handler (partial auth/require-role "wedding")}])
 
 (defn add-andrewslai-middleware
-  [{:keys [storage] :as andrewslai-components} env]
-  (let [sc (case (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "s3")
-             "s3"    (mw/classpath-static-content-stack "" {:prefer-handler? true
-                                                            :loader          (url-utils/filesystem-loader storage)})
-             "local" (mw/file-static-content-stack (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {}))]
-    (assoc andrewslai-components
-           :http-mw
-           (comp mw/standard-stack
-                 sc
-                 (mw/auth-stack andrewslai-components)))))
+  ([andrewslai-components]
+   (add-andrewslai-middleware andrewslai-components {}))
+  ([{:keys [storage] :as andrewslai-components} env]
+   (let [sc (case (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "none")
+              "s3"    (mw/classpath-static-content-stack "" {:prefer-handler? true
+                                                             :loader          (url-utils/filesystem-loader storage)})
+              "local" (mw/file-static-content-stack (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {})
+              "none"  identity)]
+     (assoc andrewslai-components
+            :http-mw
+            (comp mw/standard-stack
+                  sc
+                  (mw/auth-stack andrewslai-components))))))
 
 (defn add-wedding-middleware
   [{:keys [storage] :as wedding-components} env]

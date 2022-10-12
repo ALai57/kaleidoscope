@@ -2,10 +2,9 @@
   (:require [andrewslai.clj.entities.article :as article])
   (:import java.time.LocalDateTime))
 
-;; TODO: Get published articles test
-;; TODO: Get published versions instead of get-article
-;; TODO: Create article creates branch and default version too
-(def get-published-articles identity)
+(def get-published-articles article/get-published-articles)
+(def get-published-article article/get-published-article)
+(def get-published-article-by-url article/get-published-article-by-url)
 
 (def get-all-articles article/get-all-articles)
 

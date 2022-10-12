@@ -8,7 +8,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-all-articles [database]
   (rdbms/select database {:select [:*]
-                          :from [:articles]}))
+                          :from   [:articles]}))
 
 (defn get-article [database article-url]
   (rdbms/select-one database
@@ -71,6 +71,20 @@
                     {:select [:*]
                      :from   [:full-versions]
                      :where  [:= :full-versions/version-id version-id]}))
+
+(defn get-published-articles [database]
+  (rdbms/select database {:select [:*]
+                          :from   [:published-articles]}))
+
+(defn get-published-article [database article-id]
+  (rdbms/select-one database {:select [:*]
+                              :from   [:published-articles]
+                              :where  [:= :published-articles/article-id article-id]}))
+
+(defn get-published-article-by-url [database article-url]
+  (rdbms/select-one database {:select [:*]
+                              :from   [:published-articles]
+                              :where  [:= :published-articles/article-url article-url]}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions to test DB connection

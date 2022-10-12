@@ -109,11 +109,11 @@ FROM article_branches ab
 --;;
 
 CREATE OR REPLACE VIEW published_articles AS
-SELECT *
+SELECT *,
 FROM (
-   SELECT *, RANK() OVER (ORDER BY published_at DESC) AS rank
-   FROM full_versions
-   WHERE published_at IS NOT NULL
+     SELECT *, RANK() OVER (PARTITION BY article_id ORDER BY published_at DESC, created_at DESC) AS rank
+     FROM full_versions
+     WHERE published_at IS NOT NULL
 )
 WHERE rank = 1
 
