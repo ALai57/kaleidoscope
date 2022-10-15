@@ -32,13 +32,13 @@
 
 (deftest create-and-retrieve-article-branches-test
   (let [database       (embedded-h2/fresh-db!)
-        [{article-id :id}] (article/create-article! database example-article)]
+        {article-id :id} (article/create-article! database example-article)]
 
     (testing "example-article-branch doesn't exist in the database"
       (is (empty? (article/get-article-branches database article-id))))
 
-    (let [[{branch-id :id}] (article/create-article-branch! database (assoc example-article-branch
-                                                                            :article-id article-id))]
+    (let [{branch-id :id} (article/create-article-branch! database (assoc example-article-branch
+                                                                          :article-id article-id))]
       (testing "Insert the example-article-branch"
         (is branch-id))
 
@@ -78,11 +78,11 @@
 
 (deftest create-and-retrieve-article-version-test
   (let [database           (embedded-h2/fresh-db!)
-        [{article-id :id}] (article/create-article! database example-article)
-        [{branch-id :id}]  (article/create-article-branch! database (assoc example-article-branch
-                                                                           :article-id article-id))
-        [{version-id :id}] (article/create-version! database (assoc example-article-version
-                                                                    :branch-id branch-id))]
+        {article-id :id} (article/create-article! database example-article)
+        {branch-id :id}  (article/create-article-branch! database (assoc example-article-branch
+                                                                         :article-id article-id))
+        {version-id :id} (article/create-version! database (assoc example-article-version
+                                                                  :branch-id branch-id))]
     (testing "Full version table works properly"
       (is (match? [(assoc example-article-version
                           :article-id article-id
@@ -92,23 +92,24 @@
 
 
 (deftest get-published-articles-test
-  (let [database                 (embedded-h2/fresh-db!)
-        [{article-id :id}]       (article/create-article! database example-article)
-        [{older-branch-id :id}]  (article/create-article-branch! database (assoc example-article-branch
-                                                                                 :published-at "2000-01-01T00:00:00Z"
-                                                                                 :article-id article-id))
-        [{newer-branch-id :id}]  (article/create-article-branch! database (assoc example-article-branch
-                                                                                 :published-at "2010-01-01T00:00:00Z"
-                                                                                 :article-id article-id))
-        _                        (article/create-version! database (assoc example-article-version
-                                                                          :created-at "2020-01-01T00:00:00Z"
-                                                                          :branch-id older-branch-id))
-        [{older-version-id :id}] (article/create-version! database (assoc example-article-version
-                                                                          :created-at "1900-01-01T00:00:00Z"
-                                                                          :branch-id newer-branch-id))
-        [{newer-version-id :id}] (article/create-version! database (assoc example-article-version
-                                                                          :created-at "1910-01-01T00:00:00Z"
-                                                                          :branch-id newer-branch-id))]
+  (let [database               (embedded-h2/fresh-db!)
+        {article-id :id}       (article/create-article! database example-article)
+        {older-branch-id :id}  (article/create-article-branch! database (assoc example-article-branch
+                                                                               :published-at "2000-01-01T00:00:00Z"
+                                                                               :article-id article-id))
+        {newer-branch-id :id}  (article/create-article-branch! database (assoc example-article-branch
+                                                                               :branch-name  (str (:branch-name example-article-branch) "-newbranch")
+                                                                               :published-at "2010-01-01T00:00:00Z"
+                                                                               :article-id article-id))
+        _                      (article/create-version! database (assoc example-article-version
+                                                                        :created-at "2020-01-01T00:00:00Z"
+                                                                        :branch-id older-branch-id))
+        {older-version-id :id} (article/create-version! database (assoc example-article-version
+                                                                        :created-at "1900-01-01T00:00:00Z"
+                                                                        :branch-id newer-branch-id))
+        {newer-version-id :id} (article/create-version! database (assoc example-article-version
+                                                                        :created-at "1910-01-01T00:00:00Z"
+                                                                        :branch-id newer-branch-id))]
     (testing "Only the newer published branch and version are found"
       (is (match? (assoc example-article-version
                          :created-at #inst "1910-01-01T00:00:00Z"

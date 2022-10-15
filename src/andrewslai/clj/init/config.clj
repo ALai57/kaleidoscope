@@ -107,13 +107,15 @@
                   (mw/auth-stack andrewslai-components))))))
 
 (defn add-wedding-middleware
-  [{:keys [storage] :as wedding-components} env]
-  (assoc wedding-components
-         :http-mw (comp mw/standard-stack
-                        (mw/classpath-static-content-stack ""
-                                                           {:prefer-handler? true
-                                                            :loader          (url-utils/filesystem-loader storage)})
-                        (mw/auth-stack wedding-components))))
+  ([wedding-components]
+   (add-wedding-middleware wedding-components {}))
+  ([{:keys [storage] :as wedding-components} env]
+   (assoc wedding-components
+          :http-mw (comp mw/standard-stack
+                         (mw/classpath-static-content-stack ""
+                                                            {:prefer-handler? true
+                                                             :loader          (url-utils/filesystem-loader storage)})
+                         (mw/auth-stack wedding-components)))))
 
 (defn configure-from-env
   [env]

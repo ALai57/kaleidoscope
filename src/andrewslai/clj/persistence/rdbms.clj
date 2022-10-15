@@ -7,7 +7,8 @@
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]
             [slingshot.slingshot :refer [throw+ try+]]
-            [clojure.spec.alpha :as s])
+            [clojure.spec.alpha :as s]
+            [taoensso.timbre :as log])
   (:import
    org.postgresql.util.PGobject))
 
@@ -79,8 +80,16 @@
                                         m))
                            hsql/format))
    (catch org.postgresql.util.PSQLException e
-     (throw+ (merge {:type :PersistenceException
-                     :message {:data (select-keys m [:username :email])
+     (log/errorf "Caught Exception while inserting: %s" e)
+     (throw+ (merge {:type    :PersistenceException
+                     :message {:data   (select-keys m [:username :email])
+                               :reason (.getMessage e)}}
+                    (when ex-subtype
+                      {:subtype ex-subtype}))))
+   (catch Object e
+     (log/errorf "Caught Exception while inserting: %s" e)
+     (throw+ (merge {:type    :PersistenceException
+                     :message {:data   (select-keys m [:username :email])
                                :reason (.getMessage e)}}
                     (when ex-subtype
                       {:subtype ex-subtype}))))))

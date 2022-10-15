@@ -29,6 +29,8 @@ CREATE TABLE article_branches(
        created_at        TIMESTAMP,
        modified_at       TIMESTAMP,
 
+       UNIQUE(branch_name, article_id),
+
        CONSTRAINT fk_articles
          FOREIGN KEY(article_id)
            REFERENCES articles(id)

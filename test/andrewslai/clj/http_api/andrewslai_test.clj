@@ -9,6 +9,8 @@
             [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
+            [matcher-combinators.test]
+            [matcher-combinators.matchers :as m]
             [ring.mock.request :as mock]
             [taoensso.timbre :as log]))
 
@@ -147,29 +149,81 @@
     "/articles/my-first-article" {:status 200 :body article?}
     "/articles/does-not-exist"   {:status 404}))
 
+(defn has-count
+  [n]
+  (m/pred (fn [x] (= n (count x)))))
+
 ;; TODO: HTTP API for create article separate from creating branch and creating version.
-(deftest create-article-happy-path
-  (let [app (-> {:database     (embedded-h2/fresh-db!)
-                 :access-rules tu/public-access
-                 :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
-                (config/add-andrewslai-middleware)
-                andrewslai/andrewslai-app
-                tu/wrap-clojure-response)
-        url (format "/articles/%s" (:article-url a/example-article))]
+(deftest create-article-branch-happy-path
+  (let [app           (-> {:database     (embedded-h2/fresh-db!)
+                           :access-rules tu/public-access
+                           :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
+                          (config/add-andrewslai-middleware)
+                          andrewslai/andrewslai-app
+                          tu/wrap-clojure-response)
+        branch-url-1  (format "/articles/%s/branches/%s"
+                              (:article-url a/example-article)
+                              (:branch-name a/example-article-branch))
+        branch-url-2  (format "/articles/%s/branches/%s"
+                              (:article-url a/example-article)
+                              (str (:branch-name a/example-article-branch) "-newbranch"))]
 
     (testing "404 when article not yet created"
       (is (match? {:status 404}
-                  (app (mock/request :get url)))))
+                  (app (mock/request :get branch-url-1)))))
 
-    (testing "Article creation succeeds"
-      (is (match? {:status 200}
-                  (app (-> (mock/request :put url)
+    (testing "Article creation succeeds for branch 1"
+      (is (match? {:status 200 :body {:article-id some?
+                                      :branch-id  some?}}
+                  (app (-> (mock/request :put branch-url-1)
                            (mock/json-body a/example-article)
                            (mock/header "Authorization" "Bearer x"))))))
 
-    (testing "Article retrieval succeeds"
-      (is (match? {:status 200 :body article?}
-                  (app (mock/request :get url)))))))
+    (testing "Repeated request returns 200"
+      (is (match? {:status 200 :body {:article-id some?
+                                      :branch-id  some?}}
+                  (app (-> (mock/request :put branch-url-1)
+                           (mock/json-body a/example-article)
+                           (mock/header "Authorization" "Bearer x"))))))
+
+    (testing "Article creation succeeds for branch 2"
+      (is (match? {:status 200 :body {:article-id some?
+                                      :branch-id  some?}}
+                  (app (-> (mock/request :put branch-url-2)
+                           (mock/json-body a/example-article)
+                           (mock/header "Authorization" "Bearer x"))))))
+
+    (testing "Only 2 branches were created"
+      (is (match? {:status 200 :body (has-count 2)}
+                  (app (mock/request :get (format "/articles/%s/branches/"
+                                                  (:article-url a/example-article)))))))))
+
+(deftest create-article-branch-does-not-publish
+  (let [app           (-> {:database     (embedded-h2/fresh-db!)
+                           :access-rules tu/public-access
+                           :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
+                          (config/add-andrewslai-middleware)
+                          andrewslai/andrewslai-app
+                          tu/wrap-clojure-response)
+        published-url (format "/compositions/%s" (:article-url a/example-article))
+        branch-url    (format "/articles/%s/branches/%s"
+                              (:article-url a/example-article)
+                              (:branch-name a/example-article-branch))]
+
+    (testing "404 when article not yet created"
+      (is (match? {:status 404}
+                  (app (mock/request :get branch-url)))))
+
+    (testing "Article creation succeeds for branch 1"
+      (is (match? {:status 200 :body {:article-id some?
+                                      :branch-id  some?}}
+                  (app (-> (mock/request :put branch-url)
+                           (mock/json-body a/example-article)
+                           (mock/header "Authorization" "Bearer x"))))))
+
+    (testing "Cannot retrieve an unpublished article by `/compositions` endpoint"
+      (is (match? {:status 404}
+                  (app (mock/request :get published-url)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Resume API

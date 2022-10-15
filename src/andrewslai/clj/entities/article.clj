@@ -5,6 +5,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Low level operations
+;; All exception handling behavior belongs at the API level, not here
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-all-articles [database]
   (rdbms/select database {:select [:*]
@@ -17,19 +18,19 @@
                      :where  [:= :articles/article-url article-url]}))
 
 (defn create-article! [database article]
-  (rdbms/insert! database
-                 :articles article
-                 :ex-subtype :UnableToCreateArticle))
+  (first (rdbms/insert! database
+                        :articles article
+                        :ex-subtype :UnableToCreateArticle)))
 
 (defn create-article-branch! [database article-branch]
-  (rdbms/insert! database
-                 :article-branches article-branch
-                 :ex-subtype :UnableToCreateArticleBranch))
+  (first (rdbms/insert! database
+                        :article-branches article-branch
+                        :ex-subtype :UnableToCreateArticleBranch)))
 
 (defn create-version! [database article-version]
-  (rdbms/insert! database
-                 :article-versions article-version
-                 :ex-subtype :UnableToCreateArticleVersion))
+  (first (rdbms/insert! database
+                        :article-versions article-version
+                        :ex-subtype :UnableToCreateArticleVersion)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Reading from views
@@ -44,6 +45,20 @@
                 {:select [:*]
                  :from   [:full-branches]
                  :where  [:= :full-branches/article-id article-id]}))
+
+(defn get-article-branches-by-url [database article-url]
+  (rdbms/select database
+                {:select [:*]
+                 :from   [:full-branches]
+                 :where  [:= :full-branches/article-url article-url]}))
+
+(defn get-article-branch-by-name [database article-id branch-name]
+  (rdbms/select-one database
+                    {:select [:*]
+                     :from   [:full-branches]
+                     :where  [:and
+                              [:= :full-branches/article-id article-id]
+                              [:= :full-branches/branch-name branch-name]]}))
 
 (defn get-branch [database branch-id]
   (rdbms/select-one database
