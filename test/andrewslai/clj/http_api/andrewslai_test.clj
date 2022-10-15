@@ -153,7 +153,6 @@
   [n]
   (m/pred (fn [x] (= n (count x)))))
 
-;; TODO: HTTP API for create article separate from creating branch and creating version.
 (deftest create-article-branch-happy-path
   (let [app           (-> {:database     (embedded-h2/fresh-db!)
                            :access-rules tu/public-access

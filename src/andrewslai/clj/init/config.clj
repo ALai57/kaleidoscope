@@ -47,14 +47,6 @@
     "embedded-postgres" (embedded-pg/fresh-db!)
     "embedded-h2"       (embedded-h2/fresh-db!)))
 
-;; TODO: Replace/remove me
-(defn configure-static-content
-  [env]
-  (case (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "s3")
-    "s3"    (mw/classpath-static-content-stack "" {:prefer-handler? true
-                                                   :loader          nil #_(url-utils/filesystem-loader storage)})
-    "local" (mw/file-static-content-stack (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {})))
-
 (defn configure-wedding-storage
   [env]
   (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")
