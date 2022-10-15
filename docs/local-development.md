@@ -131,6 +131,11 @@ docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai
 ```
 There is a template for what the `.env.local` in `env.local.example`
 
+```bash
+ANDREWSLAI_AUTH_TYPE=none ANDREWSLAI_DB_TYPE=embedded-h2 ANDREWSLAI_STATIC_CONTENT_TYPE=local ANDREWSLAI_STATIC_CONTENT_FOLDER='../andrewslai-frontend/resources/public' lein run
+
+```
+
 ## Locally running app connected to cloud services
 
 **_Setup steps_**  
