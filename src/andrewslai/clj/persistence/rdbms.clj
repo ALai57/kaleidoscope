@@ -1,13 +1,15 @@
 (ns andrewslai.clj.persistence.rdbms
-  (:require [cheshire.core :as json]
+  (:require [camel-snake-kebab.core :as csk]
+            [camel-snake-kebab.extras :as cske]
+            [cheshire.core :as json]
             [clojure.java.jdbc :as sql]
+            [clojure.spec.alpha :as s]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
-            [migratus.core :as migratus]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]
+            [next.jdbc.sql :as next.sql]
             [slingshot.slingshot :refer [throw+ try+]]
-            [clojure.spec.alpha :as s]
             [taoensso.timbre :as log])
   (:import
    org.postgresql.util.PGobject))
@@ -68,6 +70,25 @@
                   :reason reason
                   :feedback (or (:feedback data)
                                 reason)}}))))
+
+(defn find-by-keys
+  ([database table query-map]
+   (next.sql/find-by-keys database
+                          (csk/->snake_case_keyword table)
+                          (cske/transform-keys csk/->snake_case_keyword query-map)
+                          {:builder-fn rs/as-unqualified-kebab-maps})))
+
+(defn make-finder
+  [table]
+  (fn getter
+    ([database]
+     (next/execute! database
+                    [(format "SELECT * FROM %s" (csk/->snake_case_string table))]
+                    {:builder-fn rs/as-unqualified-kebab-maps}))
+    ([database query-map]
+     (if (empty? query-map)
+       (getter database)
+       (find-by-keys database table query-map)))))
 
 (defn insert! [database table m & {:keys [ex-subtype
                                           input-validation]}]

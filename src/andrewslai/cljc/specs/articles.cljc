@@ -7,11 +7,12 @@
               [clojure.test.check.generators :as gen]
               [spec-tools.spec :as spec]])))
 
+(def timestamp (s/or :date spec/inst? :string spec/string?))
+
 (s/def :andrewslai.article/id spec/integer?)
 (s/def :andrewslai.article/article-name spec/string?)
 (s/def :andrewslai.article/title spec/string?)
 (s/def :andrewslai.article/article-tags spec/string?)
-(s/def :andrewslai.article/timestamp (s/or :date spec/inst? :string spec/string?))
 (s/def :andrewslai.article/article-url spec/string?)
 (s/def :andrewslai.article/author spec/string?)
 (s/def :andrewslai.article/content spec/string?)
@@ -23,6 +24,23 @@
           :opt-un [:andrewslai.article/id
                    :andrewslai.article/content
                    :andrewslai.article/title]))
+
+(s/def :andrewslai.branch/id spec/string?)
+(s/def :andrewslai.branch/branch-id spec/string?)
+(s/def :andrewslai.branch/article-id spec/string?)
+(s/def :andrewslai.branch/published-at timestamp)
+(s/def :andrewslai.branch/branch-name spec/string?)
+(s/def :andrewslai.branch/created-at timestamp)
+(s/def :andrewslai.branch/modified-at timestamp)
+
+(s/def :andrewslai.article/article-branch
+  (s/keys :req-un [:andrewslai.branch/branch-name]
+          :opt-un [:andrewslai.branch/article-id
+                   :andrewslai.branch/published-at
+                   :andrewslai.branch/branch-id
+                   :andrewslai.article/author
+                   :andrewslai.article/article-url
+                   :andrewslai.article/article-tags]))
 
 (s/def :andrewslai.article/articles
   (s/coll-of :andrewslai.article/article))

@@ -1,6 +1,5 @@
 (ns andrewslai.clj.http-api.swagger-test
   (:require [andrewslai.clj.http-api.swagger :as swg]
-            [andrewslai.clj.entities.article]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [deftest is]]))
 

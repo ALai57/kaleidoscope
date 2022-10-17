@@ -1,42 +1,94 @@
 (ns andrewslai.clj.api.articles
-  (:require [andrewslai.clj.entities.article :as article]
-            [clojure.set :as set]
-            [taoensso.timbre :as log])
+  (:require [clojure.set :as set]
+            [taoensso.timbre :as log]
+            [andrewslai.clj.persistence.rdbms :as rdbms])
   (:import java.time.LocalDateTime))
 
+;; TODO: Find and Search functions
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Articles
-(def get-all-articles article/get-all-articles)
-(def get-article article/get-article)
-(defn create-article! [db article]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def get-articles
+  (rdbms/make-finder :articles))
+
+(defn create-article!
+  [db article]
   (let [now    (java.time.LocalDateTime/now)
-        result (article/create-article! db (assoc article
-                                                  :created-at  now
-                                                  :modified-at now))]
+        result (rdbms/insert! db
+                              :articles (assoc article
+                                               :created-at  now
+                                               :modified-at now)
+                              :ex-subtype :UnableToCreateArticle)]
     (log/infof "Created Article: %s" result)
     result))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Branches
-(defn new-branch!
-  [db article branch]
-  (let [{article-id :id :as article} (or (get-article db (:article-url article))
-                                         (create-article! db article))
-        branch                       (or (article/get-article-branch-by-name db article-id (:branch-name branch))
-                                         (article/create-article-branch! db (assoc branch
-                                                                                   :article-id article-id)))
-        result                       (merge article
-                                            (set/rename-keys branch {:id :branch-id})
-                                            {:article-id article-id})]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def get-branches
+  (rdbms/make-finder :full-branches))
+
+(defn create-branch!
+  [db {:keys [article-id author branch-name] :as article-branch}]
+  (let [[{article-id :id :as article}] (if article-id
+                                         (get-articles db {:id article-id})
+                                         (create-article! db (select-keys article-branch [:author :article-url :article-tags])))
+        [{branch-id :id :as branch}]   (rdbms/insert! db
+                                                      :article-branches {:branch-name branch-name
+                                                                         :article-id  article-id}
+                                                      :ex-subtype :UnableToCreateArticleBranch)
+        result                         (get-branches db {:branch-id branch-id})]
     (log/infof "Created Article Branch: %s" result)
     result))
 
-(def get-article-branches-by-url article/get-article-branches-by-url)
-(def get-all-branches article/get-all-branches)
-(def get-branch article/get-branch)
+(defn publish-branch!
+  ([db branch-id]
+   (publish-branch! db branch-id (java.time.LocalDateTime/now)))
+  ([db branch-id now]
+   (let [result (rdbms/update! db :article-branches
+                               {:published-at now}
+                               [:= :id branch-id]
+                               :ex-subtype :UnableToPublishBranch)
+         result (get-branches db {:branch-id branch-id})]
+     (log/infof "Published Branch: %s" result)
+     result)))
 
-;; Versions/commits
-(def get-article-versions article/get-article-versions)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Versions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def get-versions
+  (rdbms/make-finder :full-versions))
 
-;; Compositions
-(def get-published-articles article/get-published-articles)
-(def get-published-article article/get-published-article)
-(def get-published-article-by-url article/get-published-article-by-url)
+(defn create-version!
+  [db {:keys [created-at] :as article-version}]
+  (let [now                            (or created-at (java.time.LocalDateTime/now))
+        [{version-id :id :as version}] (rdbms/insert! db
+                                                      :article-versions (assoc article-version
+                                                                               :created-at  now
+                                                                               :modified-at now)
+                                                      :ex-subtype :UnableToCreateArticleBranch)
+        result                         (get-versions db {:version-id version-id})]
+    (log/infof "Created Article version: %s" result)
+    result))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Published articles
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def get-published-articles
+  (rdbms/make-finder :published-articles))
+
+
+(comment
+
+  (require '[andrewslai.clj.init.config :as config])
+
+  (def database
+    (config/configure-database (System/getenv)))
+
+  (get-articles database)
+
+  (create-article! database {:article_tags "thoughts"
+                             :article_url  "my-test-article"
+                             :author       "Andrew Lai"})
+  )

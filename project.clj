@@ -17,6 +17,7 @@
                  [biiwide/sandboxica "0.3.0" :scope "test"]
                  [buddy/buddy-auth "2.2.0" :exclusions [com.google.code.gson/gson
                                                         org.clojure/clojurescript]]
+                 [camel-snake-kebab "0.4.3"]
                  [cheshire "5.10.0"]
                  [clj-http "3.10.0" :exclusions [commons-logging]]
                  [com.amazonaws/aws-java-sdk-s3 "1.11.850" :exclusions [commons-logging

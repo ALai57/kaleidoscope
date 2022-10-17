@@ -3,7 +3,7 @@
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.init.config :as config]
-            [andrewslai.clj.persistence.articles-test :as a]
+            [andrewslai.clj.api.articles-test :as a]
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.test-utils :as tu]
@@ -35,6 +35,9 @@
 (defn articles?
   [x]
   (s/valid? :andrewslai.article/articles x))
+
+(def example-article-branch
+  {:branch-name "mybranch"})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing HTTP routes
@@ -119,8 +122,8 @@
     "GET `/projects-portfolio` is publicly accessible"
     {:status 200} (mock/request :get "/projects-portfolio")
 
-    "GET `/articles` is publicly accessible"
-    {:status 200} (mock/request :get "/articles")
+    "GET `/compositions` is publicly accessible"
+    {:status 200} (mock/request :get "/compositions")
 
     ;; I think the expected behavior changed once I added `storage` to this test
     ;;"GET `/articles/does-not-exist` is publicly accessible"
@@ -135,7 +138,7 @@
 ;; Test of Blogging API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(deftest article-retrieval-test
+(deftest published-article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
       (let [app (-> {:database     (embedded-h2/fresh-db!)
@@ -145,57 +148,47 @@
         (is (match? expected
                     (tu/app-request app (mock/request :get endpoint))))))
 
-    "/articles"                  {:status 200 :body articles?}
-    "/articles/my-first-article" {:status 200 :body article?}
-    "/articles/does-not-exist"   {:status 404}))
+    "/compositions"                  {:status 200 :body articles?}
+    "/compositions/my-first-article" {:status 200 :body article?}
+    "/compositions/does-not-exist"   {:status 404}))
 
 (defn has-count
   [n]
   (m/pred (fn [x] (= n (count x)))))
 
 (deftest create-article-branch-happy-path
-  (let [app           (-> {:database     (embedded-h2/fresh-db!)
-                           :access-rules tu/public-access
-                           :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
-                          (config/add-andrewslai-middleware)
-                          andrewslai/andrewslai-app
-                          tu/wrap-clojure-response)
-        branch-url-1  (format "/articles/%s/branches/%s"
-                              (:article-url a/example-article)
-                              (:branch-name a/example-article-branch))
-        branch-url-2  (format "/articles/%s/branches/%s"
-                              (:article-url a/example-article)
-                              (str (:branch-name a/example-article-branch) "-newbranch"))]
+  (let [app     (-> {:database     (embedded-h2/fresh-db!)
+                     :access-rules tu/public-access
+                     :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
+                    (config/add-andrewslai-middleware)
+                    andrewslai/andrewslai-app
+                    tu/wrap-clojure-response)
+        article {:article-tags "thoughts"
+                 :article-url  "my-test-article"
+                 :author       "Andrew Lai"}]
 
-    (testing "404 when article not yet created"
-      (is (match? {:status 404}
-                  (app (mock/request :get branch-url-1)))))
+    (let [create-result          (app (-> (mock/request :post "/branches")
+                                          (mock/json-body (assoc article :branch-name "branch-1"))
+                                          (mock/header "Authorization" "Bearer x")))
+          [{:keys [article-id]}] (:body create-result)]
+      (testing "Article creation succeeds for branch 1"
+        (is (match? {:status 200 :body [{:article-id some?
+                                         :branch-id  some?}]}
+                    create-result)))
 
-    (testing "Article creation succeeds for branch 1"
-      (is (match? {:status 200 :body {:article-id some?
-                                      :branch-id  some?}}
-                  (app (-> (mock/request :put branch-url-1)
-                           (mock/json-body a/example-article)
-                           (mock/header "Authorization" "Bearer x"))))))
+      (testing "Article creation succeeds for branch 2"
+        (is (match? {:status 200 :body [{:article-id some?
+                                         :branch-id  some?}]}
+                    (app (-> (mock/request :post "/branches")
+                             (mock/json-body (assoc article
+                                                    :branch-name "branch-2"
+                                                    :article-id  article-id))
+                             (mock/header "Authorization" "Bearer x"))))))
 
-    (testing "Repeated request returns 200"
-      (is (match? {:status 200 :body {:article-id some?
-                                      :branch-id  some?}}
-                  (app (-> (mock/request :put branch-url-1)
-                           (mock/json-body a/example-article)
-                           (mock/header "Authorization" "Bearer x"))))))
-
-    (testing "Article creation succeeds for branch 2"
-      (is (match? {:status 200 :body {:article-id some?
-                                      :branch-id  some?}}
-                  (app (-> (mock/request :put branch-url-2)
-                           (mock/json-body a/example-article)
-                           (mock/header "Authorization" "Bearer x"))))))
-
-    (testing "Only 2 branches were created"
-      (is (match? {:status 200 :body (has-count 2)}
-                  (app (mock/request :get (format "/articles/%s/branches/"
-                                                  (:article-url a/example-article)))))))))
+      (testing "The 2 branches were created"
+        (is (match? {:status 200 :body (has-count 2)}
+                    (app (-> (mock/request :get "/branches")
+                             (mock/query-string {:article-id article-id})))))))))
 
 (deftest create-article-branch-does-not-publish
   (let [app           (-> {:database     (embedded-h2/fresh-db!)
@@ -204,19 +197,20 @@
                           (config/add-andrewslai-middleware)
                           andrewslai/andrewslai-app
                           tu/wrap-clojure-response)
-        published-url (format "/compositions/%s" (:article-url a/example-article))
-        branch-url    (format "/articles/%s/branches/%s"
-                              (:article-url a/example-article)
-                              (:branch-name a/example-article-branch))]
+        article       {:article-tags "thoughts"
+                       :article-url  "my-test-article"
+                       :author       "Andrew Lai"}
+        published-url (format "/compositions/%s" (:article-url a/example-article))]
 
     (testing "404 when article not yet created"
       (is (match? {:status 404}
-                  (app (mock/request :get branch-url)))))
+                  (app (-> (mock/request :get "/branches")
+                           (mock/query-string {:article-url (:article-url article)}))))))
 
     (testing "Article creation succeeds for branch 1"
-      (is (match? {:status 200 :body {:article-id some?
-                                      :branch-id  some?}}
-                  (app (-> (mock/request :put branch-url)
+      (is (match? {:status 200 :body [{:article-id some?
+                                       :branch-id  some?}]}
+                  (app (-> (mock/request :post "/branches")
                            (mock/json-body a/example-article)
                            (mock/header "Authorization" "Bearer x"))))))
 

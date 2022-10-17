@@ -1,6 +1,6 @@
 (ns andrewslai.clj.http-api.andrewslai
   (:require [andrewslai.clj.http-api.admin :refer [admin-routes]]
-            [andrewslai.clj.http-api.articles :refer [articles-routes compositions-routes]]
+            [andrewslai.clj.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
@@ -25,6 +25,7 @@
         :middleware [http-mw]}
        ping-routes
        articles-routes
+       branches-routes
        compositions-routes
        portfolio-routes
        admin-routes
