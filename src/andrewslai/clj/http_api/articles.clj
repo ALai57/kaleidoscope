@@ -1,14 +1,14 @@
 (ns andrewslai.clj.http-api.articles
   (:require [andrewslai.clj.api.articles :as articles-api]
             [andrewslai.clj.api.authentication :as oidc]
-            [buddy.auth.accessrules :refer [restrict]]
+            [andrewslai.cljc.specs.articles]
+            [camel-snake-kebab.core :as csk]
+            [camel-snake-kebab.extras :as cske]
             [clojure.spec.alpha :as s]
             [compojure.api.meta :as compojure-meta]
-            [compojure.api.sweet :refer [context GET PUT POST]]
+            [compojure.api.sweet :refer [context GET POST PUT]]
             [ring.util.http-response :refer [not-found ok]]
-            [taoensso.timbre :as log]
-            [camel-snake-kebab.core :as csk]
-            [camel-snake-kebab.extras :as cske]))
+            [taoensso.timbre :as log]))
 
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))
