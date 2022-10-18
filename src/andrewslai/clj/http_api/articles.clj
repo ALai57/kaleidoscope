@@ -20,7 +20,7 @@
       (assoc :author (oidc/get-full-name (:identity request)))))
 
 (defn ->commit [{:keys [body-params] :as request}]
-  body-params)
+  (select-keys body-params [:branch-id :title :content :created-at :modified-at]))
 
 (defmethod compojure-meta/restructure-param :swagger
   [_ {request-spec :request :as swagger} acc]
