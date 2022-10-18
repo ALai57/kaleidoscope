@@ -52,6 +52,30 @@
                              :branch-id   branch-id})]
                     (articles/get-branches database {:article-id article-id})))))))
 
+;; CAREFUL - this uses redefs
+(deftest create-and-retrieve-article-branches-can-handle-concurrency
+  (let [database       (embedded-h2/fresh-db!)
+        article-branch {:article-tags "thoughts"
+                        :article-url  "my-test-article"
+                        :author       "Andrew Lai"
+                        :branch-name  "my-new-branch"}]
+
+    (testing "example-article-branch doesn't exist in the database"
+      (is (empty? (articles/get-branches database {:branch-name (:branch-name article-branch)}))))
+
+
+    (with-redefs [rdbms/insert! (fn [& args] (throw (ex-info "Boom!" {})))]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Boom!"
+                            (articles/create-branch! database article-branch))))
+
+    (testing "example-article-branch still doesn't exist in the database"
+      (is (empty? (articles/get-branches database {:branch-name (:branch-name article-branch)}))))
+
+    (articles/create-branch! database article-branch)
+
+    (testing "example-article-branch is in the DB"
+      (is (not-empty (articles/get-branches database {:branch-name (:branch-name article-branch)}))))))
+
 (deftest create-and-retrieve-article-version-test
   (let [database                                 (embedded-h2/fresh-db!)
         article-branch                           {:article-tags "thoughts"

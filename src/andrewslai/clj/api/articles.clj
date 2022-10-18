@@ -1,7 +1,8 @@
 (ns andrewslai.clj.api.articles
-  (:require [clojure.set :as set]
-            [taoensso.timbre :as log]
-            [andrewslai.clj.persistence.rdbms :as rdbms])
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
+            [clojure.set :as set]
+            [next.jdbc :as next]
+            [taoensso.timbre :as log])
   (:import java.time.LocalDateTime))
 
 ;; TODO: Find and Search functions
@@ -31,16 +32,17 @@
 
 (defn create-branch!
   [db {:keys [article-id author branch-name] :as article-branch}]
-  (let [[{article-id :id :as article}] (if article-id
-                                         (get-articles db {:id article-id})
-                                         (create-article! db (select-keys article-branch [:author :article-url :article-tags])))
-        [{branch-id :id :as branch}]   (rdbms/insert! db
-                                                      :article-branches {:branch-name branch-name
-                                                                         :article-id  article-id}
-                                                      :ex-subtype :UnableToCreateArticleBranch)
-        result                         (get-branches db {:branch-id branch-id})]
-    (log/infof "Created Article Branch: %s" result)
-    result))
+  (next/with-transaction [tx db]
+    (let [[{article-id :id :as article}] (if article-id
+                                           (get-articles tx {:id article-id})
+                                           (create-article! tx (select-keys article-branch [:author :article-url :article-tags])))
+          [{branch-id :id :as branch}]   (rdbms/insert! tx
+                                                        :article-branches {:branch-name branch-name
+                                                                           :article-id  article-id}
+                                                        :ex-subtype :UnableToCreateArticleBranch)
+          result                         (get-branches tx {:branch-id branch-id})]
+      (log/infof "Created Article Branch: %s" result)
+      result)))
 
 (defn publish-branch!
   ([db branch-id]

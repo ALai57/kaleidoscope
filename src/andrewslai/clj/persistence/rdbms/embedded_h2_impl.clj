@@ -1,6 +1,5 @@
 (ns andrewslai.clj.persistence.rdbms.embedded-h2-impl
-  (:require [andrewslai.clj.persistence.rdbms.embedded-db-utils :as edb-utils]
-            [next.jdbc :as jdbc]))
+  (:require [andrewslai.clj.persistence.rdbms.embedded-db-utils :as edb-utils]))
 
 (defn start-db!
   ([]
