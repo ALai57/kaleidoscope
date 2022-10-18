@@ -89,8 +89,9 @@
     (testing "No versions exist for the given branch to start"
       (is (empty? (articles/get-versions database {:branch-id branch-id}))))
 
-    (let [[{:keys [version-id] :as v}] (articles/create-version! database (assoc version
-                                                                                 :branch-id branch-id))]
+    (let [[{:keys [version-id] :as v}] (articles/create-version! database
+                                                                 {:branch-id branch-id}
+                                                                 version)]
       (testing "Create a new version"
         (is version-id))
 
@@ -146,17 +147,17 @@
                                                                       :article-id   article-id))
 
         _                              (articles/create-version! database
+                                                                 {:branch-id  old-branch-id}
                                                                  (assoc version
-                                                                        :created-at "1900-01-01T00:00:00Z"
-                                                                        :branch-id  old-branch-id))
+                                                                        :created-at "1900-01-01T00:00:00Z"))
         [{old-version-id :version-id}] (articles/create-version! database
+                                                                 {:branch-id  new-branch-id}
                                                                  (assoc version
-                                                                        :created-at "2000-01-01T00:00:00Z"
-                                                                        :branch-id  new-branch-id))
+                                                                        :created-at "2000-01-01T00:00:00Z"))
         [{new-version-id :version-id}] (articles/create-version! database
+                                                                 {:branch-id  new-branch-id}
                                                                  (assoc version
-                                                                        :created-at "2050-01-01T00:00:00Z"
-                                                                        :branch-id  new-branch-id))]
+                                                                        :created-at "2050-01-01T00:00:00Z"))]
 
     (testing "Can publish branches"
       (is (match? [{:published-at inst?}]

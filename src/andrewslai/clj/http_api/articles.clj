@@ -19,6 +19,9 @@
       (assoc :article-url article-url)
       (assoc :author (oidc/get-full-name (:identity request)))))
 
+(defn ->commit [{:keys [body-params] :as request}]
+  body-params)
+
 (defmethod compojure-meta/restructure-param :swagger
   [_ {request-spec :request :as swagger} acc]
   (let [path (fn [spec] (str "#/components/schemas/" (name spec)))
@@ -99,6 +102,22 @@
               (let [article (->article article-url request)
                     branch  {:branch-name branch-name}]
                 (ok (doto (articles-api/create-branch! database article branch)
+                      log/info)))
+              (catch Exception e
+                (log/error "Caught exception " e))))
+
+          (POST "/" request
+            :swagger {:summary   "Create a commit on a branch"
+                      :consumes  #{"application/json"}
+                      :produces  #{"application/json"}
+                      :request   :andrewslai.article/article
+                      :responses {200 {:description "The commit that was created"
+                                       :schema      :andrewslai.article/article}
+                                  401 {:description "Unauthorized"
+                                       :schema      ::error-message}}}
+            (try
+              (let [commit (->commit request)]
+                (ok (doto (articles-api/create-version! database {:branch-name branch-name} commit)
                       log/info)))
               (catch Exception e
                 (log/error "Caught exception " e))))

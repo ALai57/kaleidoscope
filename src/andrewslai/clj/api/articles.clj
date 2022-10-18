@@ -61,14 +61,18 @@
   (rdbms/make-finder :full-versions))
 
 (defn create-version!
-  [db {:keys [created-at] :as article-version}]
-  (let [now                            (or created-at (java.time.LocalDateTime/now))
+  [db {:keys [branch-id] :as article-branch} {:keys [created-at] :as article-version}]
+  (let [branch-id                      (or branch-id (get-in (get-branches db article-branch)
+                                                             [0 :branch-id]))
+        now                            (or created-at (java.time.LocalDateTime/now))
         [{version-id :id :as version}] (rdbms/insert! db
                                                       :article-versions (assoc article-version
+                                                                               :branch-id   branch-id
                                                                                :created-at  now
                                                                                :modified-at now)
                                                       :ex-subtype :UnableToCreateArticleBranch)
-        result                         (get-versions db {:version-id version-id})]
+
+        result (get-versions db {:version-id version-id})]
     (log/infof "Created Article version: %s" result)
     result))
 
