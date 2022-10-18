@@ -1,32 +1,52 @@
 (ns andrewslai.clj.api.albums
-  (:require [andrewslai.clj.entities.album :as album])
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms])
   (:import java.util.UUID))
 
 (defn now []
   (java.time.LocalDateTime/now))
 
-(def get-all-albums album/get-all-albums)
-(def get-album-by-id album/get-album-by-id)
-(def get-album album/get-album)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Albums
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def get-albums
+  (rdbms/make-finder :enhanced-albums))
 
 (defn create-album!
   [database album]
-  (album/create-album! database (assoc album :id (UUID/randomUUID))))
+  (rdbms/insert! database
+                 :albums     (assoc album :id (UUID/randomUUID))
+                 :ex-subtype :UnableToCreateAlbum))
 
-(def update-album! album/update-album!)
+(defn update-album!
+  [database album]
+  (rdbms/update! database
+                 :albums     album
+                 [:= :id (:id album)]
+                 :ex-subtype :UnableToUpdateAlbum))
 
-;; Album contents
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Photos in albums
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn add-photos-to-album! [database album-id photo-ids]
-  (let [now-time (now)]
-    (album/add-photos-to-album! database
-                                (vec (for [photo-id (if (seq? photo-ids) photo-ids [photo-ids])]
-                                       {:id          (java.util.UUID/randomUUID)
-                                        :photo-id    photo-id
-                                        :album-id    album-id
-                                        :created-at  now-time
-                                        :modified-at now-time})))))
+  (let [now-time        (now)
+        photos-in-album (vec (for [photo-id (if (seq? photo-ids) photo-ids [photo-ids])]
+                               {:id          (java.util.UUID/randomUUID)
+                                :photo-id    photo-id
+                                :album-id    album-id
+                                :created-at  now-time
+                                :modified-at now-time}))]
+    (vec (rdbms/insert! database
+                        :photos_in_albums photos-in-album
+                        :ex-subtype :UnableToAddPhotoToAlbum))))
 
-(def remove-content-from-album! album/remove-content-from-album!)
-(def get-album-content album/get-album-content)
-(def get-all-contents album/get-all-contents)
-(def get-album-contents album/get-album-contents)
+(defn remove-content-album-link!
+  [database album-content-id]
+  (rdbms/delete! database
+                 :photos_in_albums album-content-id
+                 :ex-subtype :UnableToDeletePhotoFromAlbum))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Album contents
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def get-album-contents
+  (rdbms/make-finder :album-contents))
