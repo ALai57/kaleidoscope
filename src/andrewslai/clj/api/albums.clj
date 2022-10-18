@@ -25,6 +25,18 @@
                  :ex-subtype :UnableToUpdateAlbum))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Photos
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def get-photos
+  (rdbms/make-finder :photos))
+
+(defn create-photo!
+  [database photo]
+  (first (rdbms/insert! database
+                        :photos     photo
+                        :ex-subtype :UnableToCreatePhoto)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn add-photos-to-album! [database album-id photo-ids]

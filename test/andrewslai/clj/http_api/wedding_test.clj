@@ -1,6 +1,6 @@
 (ns andrewslai.clj.http-api.wedding-test
   (:require [andrewslai.clj.init.config :as config]
-            [andrewslai.clj.api.photos :as photos-api]
+            [andrewslai.clj.api.albums :as albums-api]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.cache-control :as cc]
             [andrewslai.clj.http-api.wedding :as wedding]
@@ -127,12 +127,12 @@
 
     (is (match? {:status 201} (app (make-example-file-upload-request))))
 
-    (is (match? {:photo-src   "media/lock.svg"
-                 :photo-title nil
-                 :id          uuid?
-                 :created-at  inst?
-                 :modified-at inst?}
-                (photos-api/get-photo database "media/lock.svg")))
+    (is (match? [{:photo-src   "media/lock.svg"
+                  :photo-title nil
+                  :id          uuid?
+                  :created-at  inst?
+                  :modified-at inst?}]
+                (albums-api/get-photos database {:photo-src "media/lock.svg"})))
 
     (is (match? {"media" {"lock.svg" {:name     "lock.svg"
                                       :path     "media/lock.svg"

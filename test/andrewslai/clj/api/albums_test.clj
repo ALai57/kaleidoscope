@@ -1,7 +1,6 @@
 (ns andrewslai.clj.api.albums-test
   (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.api.albums :as albums-api]
-            [andrewslai.clj.api.photos :as photos-api]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
@@ -19,6 +18,12 @@
    :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"
    :created-at     #inst "2021-05-27T18:30:39.000Z"
    :modified-at    #inst "2021-05-27T18:30:39.000Z"})
+
+(def example-photo
+  {:id          #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"
+   :photo-src  "example/photo"
+   :created-at  #inst "2021-05-27T18:30:39.000Z"
+   :modified-at #inst "2021-05-27T18:30:39.000Z"})
 
 (deftest create-and-retrieve-album-test
   (let [database (embedded-h2/fresh-db!)]
@@ -44,7 +49,7 @@
   (let [database (embedded-h2/fresh-db!)]
     ;; 3 example-albums seeded in DB
     (let [album-id  (:id (first (albums-api/get-albums database)))
-          photo-ids (map :id (photos-api/get-all-photos database))]
+          photo-ids (map :id (albums-api/get-photos database))]
 
       (testing "No contents in the album to start"
         (is (= [] (albums-api/get-album-contents database {:album-id album-id}))))
@@ -63,7 +68,7 @@
   (let [database (embedded-h2/fresh-db!)]
     ;; 3 example-albums seeded in DB
     (let [album-ids (map :id (albums-api/get-albums database))
-          photo-ids (map :id (photos-api/get-all-photos database))]
+          photo-ids (map :id (albums-api/get-photos database))]
 
       (testing "No contents in the album to start"
         (is (= [] (albums-api/get-album-contents database))))
@@ -77,3 +82,15 @@
       (testing "Contents come from different albums"
         (is (= 3 (count (set (map :album-name (albums-api/get-album-contents database)))))))
       )))
+
+(deftest create-and-retrieve-photo-test
+  (let [database (embedded-h2/fresh-db!)]
+    (testing "example-photos were seeded into the DB"
+      ;; Migrations seed db now for convenience
+      (is (= 3 (count (albums-api/get-photos database)))))
+
+    (testing "Insert the example-photo"
+      (is (match? {:id uuid?} (albums-api/create-photo! database example-photo))))
+
+    (testing "Can retrieve example-photo from the DB"
+      (is (match? [example-photo] (albums-api/get-photos database {:photo-src "example/photo"}))))))
