@@ -215,6 +215,50 @@
       (is (match? {:status 404}
                   (app (mock/request :get published-url)))))))
 
+(deftest get-versions-test
+  (let [app       (-> {:database     (embedded-h2/fresh-db!)
+                       :access-rules tu/public-access
+                       :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
+                      (config/add-andrewslai-middleware)
+                      andrewslai/andrewslai-app
+                      tu/wrap-clojure-response)
+        article   {:article-tags "thoughts"
+                   :article-url  "my-test-article"
+                   :author       "Andrew Lai"}
+        version-1 {:title   "My Title"
+                   :content "<p>Hello</p>"}
+        version-2 {:title   "My Title 2"
+                   :content "<p>Hello</p>"}
+
+        {[article-branch] :body :as create-result} (app (-> (mock/request :post "/branches")
+                                                            (mock/json-body (assoc article :branch-name "branch-1"))
+                                                            (mock/header "Authorization" "Bearer x")))
+        ]
+
+    (testing "Create article branch"
+      (is (match? {:status 200 :body [{:article-id some?
+                                       :branch-id  some?}]}
+                  create-result)))
+
+    (testing "Commit to branch twice"
+      (is (match? {:status 200 :body [(merge version-1
+                                             article
+                                             {:branch-name "branch-1"})]}
+                  (app (-> (mock/request :post (format "/articles/%s/branches/%s"
+                                                       (:article-url article)
+                                                       "branch-1"))
+                           (mock/json-body version-1)))))
+      (is (match? {:status 200 :body [(merge version-2
+                                             article
+                                             {:branch-name "branch-1"})]}
+                  (app (-> (mock/request :post (format "/articles/%s/branches/%s"
+                                                       (:article-url article)
+                                                       "branch-1"))
+                           (mock/json-body version-2)))))
+      (is (match? {:status 200 :body (has-count 2)}
+                  (app (mock/request :get (format "/branches/%s/versions"
+                                                  (:branch-id article-branch)))))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Resume API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

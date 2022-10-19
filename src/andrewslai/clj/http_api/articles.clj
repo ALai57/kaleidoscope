@@ -86,8 +86,6 @@
                     :produces    #{"application/json"}}
           (ok (articles-api/get-branches database {:article-url article-url})))
 
-
-        ;; TODO: Implement publishing!
         (context "/:branch-name" [branch-name]
           (PUT "/" request
             :swagger {:summary   "Create an Article branch"
@@ -107,11 +105,11 @@
                 (log/error "Caught exception " e))))
 
           (POST "/" request
-            :swagger {:summary   "Create a commit on a branch"
+            :swagger {:summary   "Create a new version (commit) on a branch"
                       :consumes  #{"application/json"}
                       :produces  #{"application/json"}
                       :request   :andrewslai.article/article
-                      :responses {200 {:description "The commit that was created"
+                      :responses {200 {:description "The version that was created"
                                        :schema      :andrewslai.article/article}
                                   401 {:description "Unauthorized"
                                        :schema      ::error-message}}}
@@ -160,40 +158,12 @@
         (catch Exception e
           (log/error "Caught exception " e))))
 
-    ;; TODO: Implement commiting to a branch!
-    #_(context "/commits" _
-        (POST "/" request
-          :swagger {:summary  "Commit to a branch"
-                    :consumes #{"application/json"}
-                    :produces #{"application/json"}}
-          (try
-            (let [version (->version request)]
-              (ok (doto (articles-api/create-version! database (assoc version
-                                                                      :branch-id branch-id))
-                    log/info)))
-            (catch Exception e
-              (log/error "Caught exception " e)))))
-
-    #_(context "/:branch-id" [branch-id]
-        (PUT "/" request
-          :swagger {:summary   "Create an Article branch"
-                    :consumes  #{"application/json"}
-                    :produces  #{"application/json"}
-                    :request   :andrewslai.article/article
-                    :responses {200 {:description "The article branch that was created"
-                                     :schema      :andrewslai.article/article}
-                                401 {:description "Unauthorized"
-                                     :schema      ::error-message}}}
-          (try
-            (let [article (->article article-url request)
-                  branch  {:branch-id branch-name}]
-              (ok (doto (articles-api/create-branch! database article branch)
-                    log/info)))
-            (catch Exception e
-              (log/error "Caught exception " e))))
-
-
-        )))
+    (context "/:branch-id" [branch-id]
+      (GET "/versions" request
+        (let [branches (articles-api/get-versions database {:branch-id branch-id})]
+          (if (empty? branches)
+            (not-found {:reason "Missing"})
+            (ok branches)))))))
 
 (def compositions-routes
   ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
