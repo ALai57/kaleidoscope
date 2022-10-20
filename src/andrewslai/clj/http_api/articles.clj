@@ -115,7 +115,8 @@
                                        :schema      ::error-message}}}
             (try
               (let [commit (->commit request)]
-                (ok (doto (articles-api/create-version! database {:branch-name branch-name} commit)
+                (ok (doto (articles-api/create-version! database {:branch-name branch-name
+                                                                  :article-url article-url} commit)
                       log/info)))
               (catch Exception e
                 (log/error "Caught exception " e))))
@@ -163,7 +164,7 @@
         (let [branches (articles-api/get-versions database {:branch-id branch-id})]
           (if (empty? branches)
             (not-found {:reason "Missing"})
-            (ok branches)))))))
+            (ok (reverse (sort-by :created-at branches)))))))))
 
 (def compositions-routes
   ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
