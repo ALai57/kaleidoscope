@@ -24,7 +24,6 @@ variable "ANDREWSLAI_DB_PORT" {
   description = "Database port"
 }
 
-
 variable "ANDREWSLAI_AUTH_REALM" {
   description = "Keycloak realm to auth into"
 }
@@ -41,11 +40,7 @@ variable "ANDREWSLAI_AUTH_SECRET" {
   description = "Keycloak client secret"
 }
 
-variable "ANDREWSLAI_STATIC_CONTENT" {
-  description = "How to serve static content"
-}
-
-variable "ANDREWSLAI_STATIC_CONTENT_BASE_URL" {
+variable "ANDREWSLAI_STATIC_CONTENT_TYPE" {
   description = "How to serve static content"
 }
 
@@ -66,8 +61,11 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_subnet_ids" "all" {
-  vpc_id = "${data.aws_vpc.default.id}"
+data "aws_subnets" "all" {
+  filter {
+    name = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
 }
 
 data "aws_security_group" "default" {
@@ -225,7 +223,7 @@ resource "aws_alb" "main" {
   # launch lbs in public or private subnets based on "internal" variable
   internal = false
 
-  subnets = ["${data.aws_subnet_ids.all.ids}"]
+  subnets = data.aws_subnets.all.ids
   security_groups = ["${data.aws_security_group.default.id}", "${aws_security_group.ecs_allow_http_https.id}"]
 
 }
@@ -328,8 +326,15 @@ resource "aws_lb_listener_rule" "host_based_routing" {
 
 resource "aws_ecs_cluster" "andrewslai_cluster" {
   name = "andrewslai"
+}
+
+
+resource "aws_ecs_cluster_capacity_providers" "example" {
+  cluster_name = aws_ecs_cluster.andrewslai_cluster.name
+
   capacity_providers = ["FARGATE"]
 }
+
 
 resource "aws_ecs_task_definition" "andrewslai_task" {
   family                = "andrewslai-site"
@@ -391,12 +396,8 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
         "value": "${var.ANDREWSLAI_AUTH_SECRET}"
       },
       {
-        "name": "ANDREWSLAI_STATIC_CONTENT",
-        "value": "${var.ANDREWSLAI_STATIC_CONTENT}"
-      },
-      {
-        "name": "ANDREWSLAI_STATIC_CONTENT_BASE_URL",
-        "value": "${var.ANDREWSLAI_STATIC_CONTENT_BASE_URL}"
+        "name": "ANDREWSLAI_STATIC_CONTENT_TYPE",
+        "value": "${var.ANDREWSLAI_STATIC_CONTENT_TYPE}"
       },
       {
         "name": "AWS_DEFAULT_REGION",
@@ -425,7 +426,7 @@ resource "aws_ecs_service" "andrewslai_service" {
 
   network_configuration {
     security_groups  = ["${data.aws_security_group.default.id}", "${aws_security_group.ecs_allow_http_https.id}"]
-    subnets          = ["${data.aws_subnet_ids.all.ids}"]
+    subnets          = data.aws_subnets.all.ids
     assign_public_ip = "true"
   }
 

@@ -36,6 +36,7 @@
   (-main "init")
   (-main "migrate")
   (-main "up")
+  (-main "reset")
 
   (require '[migratus.database :as mig-db])
 
