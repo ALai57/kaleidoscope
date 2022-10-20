@@ -6,7 +6,7 @@ DROP VIEW IF EXISTS album_contents;
 
 --;;
 
-DROP TABLE IF EXISTS photos_in_albums;
+DROP TABLE IF EXISTS photos_in_albums CASCADE;
 
 --;;
 

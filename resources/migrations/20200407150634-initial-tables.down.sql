@@ -1,39 +1,30 @@
 
-
-DROP TABLE IF EXISTS roles_permissions;
-
---;;
-
-DROP TABLE IF EXISTS logins;
+DROP VIEW IF EXISTS published_articles;
 
 --;;
 
-DROP TABLE IF EXISTS users;
+DROP VIEW IF EXISTS full_versions;
 
 --;;
 
-DROP TABLE IF EXISTS permissions;
+DROP VIEW IF EXISTS full_branches;
 
 --;;
 
-DROP TABLE IF EXISTS roles;
+DROP TABLE IF EXISTS article_versions;
 
 --;;
 
-DROP TABLE IF EXISTS users;
-
---;;
-
-DROP TABLE IF EXISTS organizations;
-
---;;
-
-DROP TABLE IF EXISTS projects;
-
---;;
-
-DROP TABLE IF EXISTS skills;
+DROP TABLE IF EXISTS article_branches;
 
 --;;
 
 DROP TABLE IF EXISTS articles;
+
+--;;
+
+DROP TABLE IF EXISTS portfolio_links;
+
+--;;
+
+DROP TABLE IF EXISTS portfolio_entries;

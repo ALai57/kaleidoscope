@@ -1,11 +1,6 @@
-DELETE FROM skills;
+
+DELETE FROM portfolio_links;
 
 --;;
 
-DELETE FROM projects;
-
---;;
-
-DELETE FROM organizations;
-
---;;
+DELETE FROM portfolio_entries;

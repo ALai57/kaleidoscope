@@ -1,15 +1,4 @@
 
-CREATE TABLE users (
-       id         UUID NOT NULL PRIMARY KEY,
-       first_name VARCHAR(32),
-       last_name  VARCHAR(32),
-       username   VARCHAR(32) NOT NULL UNIQUE,
-       avatar     BYTEA,
-       email      VARCHAR NOT NULL UNIQUE
-);
-
---;;
-
 CREATE TABLE articles(
        id                BIGSERIAL PRIMARY KEY,
        author            VARCHAR (50),
@@ -111,12 +100,10 @@ FROM article_branches ab
 --;;
 
 CREATE OR REPLACE VIEW published_articles AS
-SELECT *,
-FROM (
-     SELECT *, RANK() OVER (PARTITION BY article_id ORDER BY published_at DESC, created_at DESC) AS rank
+SELECT *
+FROM (SELECT *, RANK() OVER (PARTITION BY article_id ORDER BY published_at DESC, created_at DESC) AS rank
      FROM full_versions
-     WHERE published_at IS NOT NULL
-)
+     WHERE published_at IS NOT NULL) AS sq
 WHERE rank = 1
 
 --;;
