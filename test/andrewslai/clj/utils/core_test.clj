@@ -1,5 +1,6 @@
 (ns andrewslai.clj.utils.core-test
   (:require [andrewslai.clj.utils.core :refer :all]
+            [clojure.string :as string]
             [clojure.test :refer [deftest is]]))
 
 
@@ -18,3 +19,8 @@
                      {:cookie-attrs {:secure true}
                       :store        {:bye "there"}
                       :more          "hi"}))))
+
+(deftest change-newline-test
+  (is (= "\\r\\r\\tStuff\\r"
+         (string/escape (change-newlines "\n\r\tStuff\n")
+                        char-escape-string))))

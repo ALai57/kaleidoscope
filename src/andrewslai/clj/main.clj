@@ -2,6 +2,7 @@
   (:gen-class)
   (:require [aleph.http :as http]
             [andrewslai.clj.init.config :as config]
+            [andrewslai.clj.utils.core :as util]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
@@ -12,6 +13,8 @@
   []
   (log/merge-config!
    {:min-level :info
+    :middleware [(fn [data]
+                   (update data :vargs (partial map util/change-newlines)))]
     :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
