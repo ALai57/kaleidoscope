@@ -119,10 +119,32 @@ resource "aws_security_group" "ecs_allow_http_https" {
   }
 }
 
+##############################################################
+# Secret values
+##############################################################
+
+variable "example_secrets" {
+  default = {
+    andrewslai_auth_secret = "FILLMEIN"
+    andrewslai_db_password = "FILLMEIN"
+  }
+
+  type = map(string)
+}
+
+resource "aws_secretsmanager_secret" "andrewslai_secrets" {
+  name = "andrewslai-secrets"
+}
+
+resource "aws_secretsmanager_secret_version" "andrewslai_secret_version" {
+  secret_id     = aws_secretsmanager_secret.andrewslai_secrets.id
+  secret_string = jsonencode(var.example_secrets)
+}
 
 ##############################################################
 # Roles
 ##############################################################
+
 
 data "aws_iam_policy_document" "assume_role_policy" {
   statement {
@@ -161,6 +183,13 @@ resource "aws_iam_role_policy" "ecsTaskExecutionRolePolicy" {
         ],
         "Effect": "Allow",
         "Resource": "*"
+      },
+      {
+        "Action": [
+                "secretsmanager:GetSecretValue"
+        ],
+        "Effect": "Allow",
+        "Resource": ["${aws_secretsmanager_secret.andrewslai_secrets.arn}"]
       }
     ]
   }
@@ -320,7 +349,6 @@ resource "aws_lb_listener_rule" "host_based_routing" {
   }
 }
 
-
 ##############################################################
 # ECS
 ##############################################################
@@ -329,13 +357,11 @@ resource "aws_ecs_cluster" "andrewslai_cluster" {
   name = "andrewslai"
 }
 
-
 resource "aws_ecs_cluster_capacity_providers" "example" {
   cluster_name = aws_ecs_cluster.andrewslai_cluster.name
 
   capacity_providers = ["FARGATE"]
 }
-
 
 resource "aws_ecs_task_definition" "andrewslai_task" {
   family                = "andrewslai-site"
@@ -380,11 +406,17 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
         "hostPort": 5000
       }
     ],
-    "environment": [
+    "secrets": [
       {
         "name": "ANDREWSLAI_DB_PASSWORD",
-        "value": "${var.ANDREWSLAI_DB_PASSWORD}"
+        "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_db_password::"
       },
+      {
+        "name": "ANDREWSLAI_AUTH_SECRET",
+        "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_auth_secret::"
+      }
+     ],
+    "environment": [
       {
         "name": "ANDREWSLAI_DB_USER",
         "value": "${var.ANDREWSLAI_DB_USER}"
@@ -412,10 +444,6 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
       {
         "name": "ANDREWSLAI_AUTH_CLIENT",
         "value": "${var.ANDREWSLAI_AUTH_CLIENT}"
-      },
-      {
-        "name": "ANDREWSLAI_AUTH_SECRET",
-        "value": "${var.ANDREWSLAI_AUTH_SECRET}"
       },
       {
         "name": "ANDREWSLAI_STATIC_CONTENT_TYPE",
