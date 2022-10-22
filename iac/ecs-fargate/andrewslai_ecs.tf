@@ -363,6 +363,10 @@ resource "aws_ecs_cluster_capacity_providers" "example" {
   capacity_providers = ["FARGATE"]
 }
 
+# Seems like Loki's docs are out of date:
+# https://github.com/grafana/loki/issues/5271
+# For logging, see the FluentBit output Plugin:
+# https://docs.fluentbit.io/manual/pipeline/outputs/loki
 resource "aws_ecs_task_definition" "andrewslai_task" {
   family                = "andrewslai-site"
   requires_compatibilities = ["FARGATE"]
@@ -376,7 +380,7 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
 [
  {
     "essential": true,
-    "image": "grafana/fluent-bit-plugin-loki:2.6.1-amd64",
+    "image": "amazon/aws-for-fluent-bit:stable",
     "name": "log_router",
     "firelensConfiguration": {
         "type": "fluentbit",
@@ -457,13 +461,22 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
     "logConfiguration": {
       "logDriver": "awsfirelens",
       "options": {
-          "Name": "grafana-loki",
-          "Url": "https://309152:eyJrIjoiNTFjMmNmY2Y4OWQwNDU3NDEyNWI5YWNiYzExMzg1MmE3Yjc3ODlhNiIsIm4iOiJ0ZXN0LWxva2ktMSIsImlkIjo3MzA4ODF9@logs-prod3.grafana.net/loki/api/v1/push",
-          "Labels": "{job=\"firelens\"}",
-          "RemoveKeys": "container_id, ecs_task_arn",
-          "LabelKeys": "container_name,ecs_task_definition,source,ecs_cluster",
-          "LineFormat": "key_value"
-      }
+          "Name":        "loki",
+          "host":        "logs-prod3.grafana.net",
+          "port":        "443",
+          "http_user":   "309152",
+          "labels":      "job=firelens",
+          "tls":         "on",
+          "remove_keys":  "container_id, ecs_task_arn",
+          "label_keys":   "$container_name,$ecs_task_definition,$source,$ecs_cluster",
+          "line_format":  "key_value"
+      },
+      "secretOptions": [
+        {
+          "name": "http_passwd",
+          "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_loki_password::"
+        }
+      ]
     }
   }
 ]
