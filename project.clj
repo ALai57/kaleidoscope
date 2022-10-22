@@ -1,7 +1,7 @@
 (def COMPILE-TIME-LOG-LEVEL
   :info)
 
-(defproject org.clojars.alai57/andrewslai "0.0.70"
+(defproject org.clojars.alai57/andrewslai "0.0.71-SNAPSHOT"
   :url "https://github.com/ALai57/andrewslai"
   :license {:name         "Eclipse Public License - v 1.0"
             :url          "http://www.eclipse.org/legal/epl-v10.html"
