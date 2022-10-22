@@ -380,8 +380,9 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
 [
  {
     "essential": true,
-    "image": "amazon/aws-for-fluent-bit:stable",
+    "image": "amazon/aws-for-fluent-bit:2.28.3",
     "name": "log_router",
+    "environment": [{"name": "FLB_LOG_LEVEL", "value": "debug"}],
     "firelensConfiguration": {
         "type": "fluentbit",
         "options": {
@@ -397,7 +398,7 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
             "awslogs-stream-prefix": "firelens"
         }
     },
-    "memoryReservation": 50
+    "memoryReservation": 128
   },
   {
     "name": "andrewslai",
@@ -461,15 +462,16 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
     "logConfiguration": {
       "logDriver": "awsfirelens",
       "options": {
-          "Name":        "loki",
-          "host":        "logs-prod3.grafana.net",
-          "port":        "443",
-          "http_user":   "309152",
-          "labels":      "job=firelens",
-          "tls":         "on",
-          "remove_keys":  "container_id, ecs_task_arn",
-          "label_keys":   "$container_name,$ecs_task_definition,$source,$ecs_cluster",
-          "line_format":  "key_value"
+          "Name":          "loki",
+          "host":          "logs-prod3.grafana.net",
+          "port":          "443",
+          "http_user":     "309152",
+          "labels":        "job=firelens",
+          "tls":           "on",
+          "net.keepalive": "false",
+          "remove_keys":   "container_id, ecs_task_arn",
+          "label_keys":    "$container_name,$ecs_task_definition,$source,$ecs_cluster",
+          "line_format":   "key_value"
       },
       "secretOptions": [
         {
