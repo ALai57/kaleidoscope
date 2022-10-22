@@ -13,8 +13,6 @@
   []
   (log/merge-config!
    {:min-level :info
-    :middleware [(fn [data]
-                   (update data :vargs (partial map util/change-newlines)))]
     :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
