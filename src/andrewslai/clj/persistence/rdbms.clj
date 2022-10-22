@@ -160,27 +160,4 @@
   (def database
     (config/configure-database (System/getenv)))
 
-  (select database
-          {:select [:*] :from [:users]})
-
-  (insert! database
-           :users
-           (hh/values [example-user]))
-
-  (select database
-          {:select [:*] :from [:users]})
-
-
-  (transact! database
-             (-> (hh/insert-into :users)
-                 (hh/values [example-user])))
-
-  (transact! database
-             (-> (hh/delete-from :users)
-                 (hh/where [:= :users/username (:username example-user)])))
-
-  (transact! database
-             (-> (hh/update :users)
-                 (hh/sset {:first_name "FIRSTNAME"})
-                 (hh/where [:= :username (:username example-user)])))
   )

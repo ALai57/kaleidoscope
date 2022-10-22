@@ -159,9 +159,10 @@
         (catch Exception e
           (log/error "Caught exception " e))))
 
+    ;;TODO: FIX org.postgresql.util.PSQLException: ERROR: operator does not exist: bigint = character varying
     (context "/:branch-id" [branch-id]
       (GET "/versions" request
-        (let [branches (articles-api/get-versions database {:branch-id branch-id})]
+        (let [branches (articles-api/get-versions database {:branch-id (Integer/parseInt branch-id)})]
           (if (empty? branches)
             (not-found {:reason "Missing"})
             (ok (reverse (sort-by :created-at branches)))))))))
