@@ -156,6 +156,7 @@ resource "aws_iam_role_policy" "ecsTaskExecutionRolePolicy" {
                 "ecr:GetDownloadUrlForLayer",
                 "ecr:BatchGetImage",
                 "logs:CreateLogStream",
+                "logs:CreateLogGroup",
                 "logs:PutLogEvents"
         ],
         "Effect": "Allow",
@@ -347,6 +348,27 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
 
  container_definitions = <<DEFINITION
 [
+ {
+    "essential": true,
+    "image": "grafana/fluent-bit-plugin-loki:2.6.1-amd64",
+    "name": "log_router",
+    "firelensConfiguration": {
+        "type": "fluentbit",
+        "options": {
+            "enable-ecs-log-metadata": "true"
+        }
+    },
+    "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+            "awslogs-group": "/fargate/service/andrewslai-production-firelens",
+            "awslogs-region": "us-east-1",
+            "awslogs-create-group": "true",
+            "awslogs-stream-prefix": "firelens"
+        }
+    },
+    "memoryReservation": 50
+  },
   {
     "name": "andrewslai",
     "image": "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr:latest",
@@ -405,11 +427,14 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
       }
     ],
     "logConfiguration": {
-      "logDriver": "awslogs",
+      "logDriver": "awsfirelens",
       "options": {
-        "awslogs-group": "/fargate/service/andrewslai-production",
-        "awslogs-region": "us-east-1",
-        "awslogs-stream-prefix": "ecs"
+          "Name": "grafana-loki",
+          "Url": "https://309152:eyJrIjoiNTFjMmNmY2Y4OWQwNDU3NDEyNWI5YWNiYzExMzg1MmE3Yjc3ODlhNiIsIm4iOiJ0ZXN0LWxva2ktMSIsImlkIjo3MzA4ODF9@logs-prod3.grafana.net/loki/api/v1/push",
+          "Labels": "{job=\"firelens\"}",
+          "RemoveKeys": "container_id, ecs_task_arn",
+          "LabelKeys": "container_name,ecs_task_definition,source,ecs_cluster",
+          "LineFormat": "key_value"
       }
     }
   }
