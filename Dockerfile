@@ -12,6 +12,6 @@ COPY target/andrewslai.jar .
 #COPY resources/public/index.html assets/public/index.html
 #COPY resources/public/js assets/public/js
 
-CMD java -jar andrewslai.jar
+CMD java -jar andrewslai.jar -Xmx256m
 
 EXPOSE 5000
