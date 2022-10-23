@@ -367,6 +367,14 @@ resource "aws_ecs_cluster_capacity_providers" "example" {
 # https://github.com/grafana/loki/issues/5271
 # For logging, see the FluentBit output Plugin:
 # https://docs.fluentbit.io/manual/pipeline/outputs/loki
+
+## TODO: Fix multiline logging! You can look at https://docs.fluentbit.io/manual/pipeline/filters/multiline-stacktrace
+##  and
+##  https://docs.aws.amazon.com/AmazonECS/latest/userguide/firelens-taskdef.html
+##  which describes how to set up a fluentbit logger with custom configuration file.
+##
+## https://aws.amazon.com/blogs/containers/choosing-container-logging-options-to-avoid-backpressure/
+##  https://aws.amazon.com/blogs/containers/how-to-set-fluentd-and-fluent-bit-input-parameters-in-firelens/
 resource "aws_ecs_task_definition" "andrewslai_task" {
   family                = "andrewslai-site"
   requires_compatibilities = ["FARGATE"]
