@@ -237,6 +237,17 @@ resource "aws_iam_role_policy" "ecsTaskRolePolicy" {
                 "s3:ListBucket"
             ],
             "Resource": "arn:aws:s3:::*"
+        },
+        {
+            "Sid": "VisualEditor2",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:PutMetricFilter"
+            ],
+            "Resource": "*"
         }
     ]
   }
@@ -388,13 +399,22 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
 [
  {
     "essential": true,
-    "image": "amazon/aws-for-fluent-bit:2.28.3",
+    "image": "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_fluentbit_ecr:latest",
     "name": "log_router",
-    "environment": [{"name": "FLB_LOG_LEVEL", "value": "debug"}],
+    "environment": [
+        {"name":  "FLB_LOG_LEVEL",
+         "value": "debug"},
+        {"name":  "FLUENT_BIT_METRICS_LOG_GROUP",
+         "value": "fluent-bit-metrics-firelens-example-parsed" },
+        {"name":  "FLUENT_BIT_METRICS_LOG_REGION",
+         "value": "us-east-1" }
+    ],
     "firelensConfiguration": {
         "type": "fluentbit",
         "options": {
-            "enable-ecs-log-metadata": "true"
+            "enable-ecs-log-metadata": "true",
+            "config-file-type": "file",
+            "config-file-value": "/extra.conf"
         }
     },
     "logConfiguration": {
