@@ -13,7 +13,7 @@
 ;; Global settings (Yuck!)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- json-log-output
-  [{:keys [level msg_ instant ?ns-str ?file ?line]}]
+  [{:keys [level msg_ instant ?ns-str ?file ?line] :as data}]
   (let [event    (read-string (force msg_))
         ns-name  (or ?ns-str ?file "?")
         line-num (or ?line "?")]

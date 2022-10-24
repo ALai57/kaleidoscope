@@ -11,7 +11,8 @@
             [ring.util.http-response :refer [unauthorized]]
             [taoensso.timbre :as log]))
 
-(def ^:dynamic *request-id*)
+(def ^:dynamic *request-id*
+  "Unbound")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom middlewares
@@ -52,20 +53,18 @@
                (update request :uri #(if (= "/" %) "/index.html" %))
                request))))
 
-(defn- make-cache-control-logger
-  [request-id]
-  (fn [response]
-    (log/infof "Generating Cache control headers for request-id %s\n" request-id)
-    response))
+(defn- cache-control-log!
+  [response]
+  (log/infof "Generating Cache control headers")
+  response)
 
 (defn wrap-cache-control
   "Wraps responses with a cache-control header"
   [handler]
   (fn [{:keys [request-id uri] :as request}]
-    (let [log! (make-cache-control-logger request-id)]
-      (->> (handler request)
-           (log!)
-           (cc/cache-control uri)))))
+    (->> (handler request)
+         (cache-control-log!)
+         (cc/cache-control uri))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
