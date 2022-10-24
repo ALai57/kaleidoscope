@@ -411,7 +411,9 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
     ],
     "secrets": [
         {"name":  "HTTP_PASSWORD",
-         "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_loki_password::"}
+         "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_loki_password::"},
+        {"name":  "SUMO_PASSWORD",
+         "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_sumo_password::"}
      ],
     "firelensConfiguration": {
         "type": "fluentbit",
@@ -492,18 +494,7 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
       }
     ],
     "logConfiguration": {
-      "logDriver": "awsfirelens",
-      "options": {
-          "Name":          "loki",
-          "host":          "logs-prod3.grafana.net",
-          "port":          "443",
-          "http_user":     "309152",
-          "labels":        "job=firelens",
-          "tls":           "on",
-          "remove_keys":   "container_id,ecs_task_arn",
-          "label_keys":    "$container_name,$ecs_task_definition,$source,$ecs_cluster",
-          "line_format":   "json"
-      }
+      "logDriver": "awsfirelens"
     }
   }
 ]
