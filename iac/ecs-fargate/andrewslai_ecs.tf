@@ -409,6 +409,10 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
         {"name":  "FLUENT_BIT_METRICS_LOG_REGION",
          "value": "us-east-1" }
     ],
+    "secrets": [
+        {"name":  "HTTP_PASSWORD",
+         "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_loki_password::"}
+     ],
     "firelensConfiguration": {
         "type": "fluentbit",
         "options": {
@@ -496,17 +500,10 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
           "http_user":     "309152",
           "labels":        "job=firelens",
           "tls":           "on",
-          "net.keepalive": "false",
-          "remove_keys":   "container_id, ecs_task_arn",
+          "remove_keys":   "container_id,ecs_task_arn",
           "label_keys":    "$container_name,$ecs_task_definition,$source,$ecs_cluster",
-          "line_format":   "key_value"
-      },
-      "secretOptions": [
-        {
-          "name": "http_passwd",
-          "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_loki_password::"
-        }
-      ]
+          "line_format":   "json"
+      }
     }
   }
 ]
