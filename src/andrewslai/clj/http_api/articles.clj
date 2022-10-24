@@ -104,6 +104,14 @@
               (catch Exception e
                 (log/error "Caught exception " e))))
 
+
+          ;;TODO: Caught exception  clojure.lang.ExceptionInfo: throw+: {:type
+          ;;:PersistenceException, :message {:data {}, :reason "ERROR: duplicate key
+          ;;value violates unique constraint \"article_versions_pkey\"\n  Detail: Key
+          ;;(id)=(3) already exists."}, :subtype :UnableToCreateArticleBranch} {:type
+          ;;:PersistenceException, :message {:data {}, :reason "ERROR: duplicate key
+          ;;value violates unique constraint \"article_versions_pkey\"\n  Detail: Key
+          ;;(id)=(3) already exists."}, :subtype :UnableToCreateArticleBranch
           (POST "/" request
             :swagger {:summary   "Create a new version (commit) on a branch"
                       :consumes  #{"application/json"}
@@ -159,7 +167,6 @@
         (catch Exception e
           (log/error "Caught exception " e))))
 
-    ;;TODO: FIX org.postgresql.util.PSQLException: ERROR: operator does not exist: bigint = character varying
     (context "/:branch-id" [branch-id]
       (GET "/versions" request
         (let [branches (articles-api/get-versions database {:branch-id (Integer/parseInt branch-id)})]
