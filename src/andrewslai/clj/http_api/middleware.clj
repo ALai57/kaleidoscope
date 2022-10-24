@@ -11,6 +11,8 @@
             [ring.util.http-response :refer [unauthorized]]
             [taoensso.timbre :as log]))
 
+(def ^:dynamic *request-id*)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom middlewares
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,7 +41,9 @@
 (defn wrap-request-identifier
   [handler]
   (fn [request]
-    (handler (assoc request :request-id (str (java.util.UUID/randomUUID))))))
+    (let [request-id (str (java.util.UUID/randomUUID))]
+      (binding [*request-id* request-id]
+        (handler (assoc request :request-id request-id))))))
 
 (defn wrap-redirect-to-index
   [handler]

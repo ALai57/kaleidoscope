@@ -1,18 +1,34 @@
 (ns andrewslai.clj.main
   (:gen-class)
   (:require [aleph.http :as http]
+            [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.init.config :as config]
             [andrewslai.clj.utils.core :as util]
+            [clojure.string :as string]
+            [cheshire.core :as json]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global settings (Yuck!)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- json-log-output
+  [{:keys [level msg_ instant ?ns-str ?file ?line]}]
+  (let [event    (read-string (force msg_))
+        ns-name  (or ?ns-str ?file "?")
+        line-num (or ?line "?")]
+    (json/generate-string {:timestamp  instant
+                           :level      level
+                           :ns         ns-name
+                           :request-id mw/*request-id*
+                           :line       (format "%s:%s" ns-name line-num)
+                           :message    (string/replace event #"\n" " ")})))
+
 (defn initialize!
   []
   (log/merge-config!
    {:min-level :info
+    :output-fn json-log-output
     :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
