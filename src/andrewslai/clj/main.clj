@@ -14,7 +14,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- json-log-output
   [{:keys [level msg_ instant ?ns-str ?file ?line] :as data}]
-  (let [event    (read-string (force msg_))
+  (let [event    (force msg_)
         ns-name  (or ?ns-str ?file "?")
         line-num (or ?line "?")]
     (json/generate-string {:timestamp  instant
@@ -46,3 +46,13 @@
     (initialize!)
     (start-app (config/configure-http-handler configuration)
                configuration)))
+
+(comment
+  (log/with-merged-config
+    {:output-fn json-log-output}
+    (log/info (->> {:a "bbig long bits of stuff and more and more"
+                    :c {:d :foo :e "bar"}
+                    :f {:a "b" :c {:d :foo :e "bar"}}}
+                   clojure.pprint/pprint
+                   with-out-str)))
+  )
