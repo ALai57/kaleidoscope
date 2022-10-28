@@ -28,3 +28,15 @@ DROP TABLE IF EXISTS portfolio_links;
 --;;
 
 DROP TABLE IF EXISTS portfolio_entries;
+
+--;;
+
+DROP SEQUENCE IF EXISTS articles_id_seq;
+
+--;;
+
+DROP SEQUENCE IF EXISTS article_branches_id_seq;
+
+--;;
+
+DROP SEQUENCE IF EXISTS article_versions_id_seq;

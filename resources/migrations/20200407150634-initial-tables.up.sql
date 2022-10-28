@@ -1,6 +1,17 @@
+CREATE SEQUENCE articles_id_seq START WITH 1000;
+
+--;;
+
+CREATE SEQUENCE article_branches_id_seq START WITH 1000;
+
+--;;
+
+CREATE SEQUENCE article_versions_id_seq START WITH 1000;
+
+--;;
 
 CREATE TABLE articles(
-       id                BIGSERIAL PRIMARY KEY,
+       id                BIGINT DEFAULT nextval('articles_id_seq') PRIMARY KEY,
        author            VARCHAR (50),
        article_url       VARCHAR (100) UNIQUE,
        article_tags      VARCHAR (32),
@@ -11,7 +22,7 @@ CREATE TABLE articles(
 --;;
 
 CREATE TABLE article_branches(
-       id                BIGSERIAL PRIMARY KEY,
+       id                BIGINT DEFAULT nextval('article_branches_id_seq') PRIMARY KEY,
        article_id        INT NOT NULL,
        published_at      TIMESTAMP,
        branch_name       VARCHAR (100),
@@ -29,7 +40,7 @@ CREATE TABLE article_branches(
 --;;
 
 CREATE TABLE article_versions(
-       id                BIGSERIAL PRIMARY KEY,
+       id                BIGINT DEFAULT nextval('article_versions_id_seq') PRIMARY KEY,
        branch_id         INT NOT NULL,
        title             VARCHAR,
        content           VARCHAR,
