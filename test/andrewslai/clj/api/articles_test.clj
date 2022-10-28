@@ -101,6 +101,45 @@
         (is (match? [version]
                     (articles/get-versions database {:branch-id branch-id})))))))
 
+(deftest new-version-test
+  (testing "Creates article and branch when they don't already exist"
+    (let [database                                 (embedded-h2/fresh-db!)
+          article-branch                           {:article-tags "thoughts"
+                                                    :article-url  "my-test-article"
+                                                    :author       "Andrew Lai"
+                                                    :branch-name  "my-new-branch"}
+          version                                  {:title   "My Title"
+                                                    :content "<p>Hello</p>"}]
+
+      (let [[{:keys [version-id] :as v}] (articles/new-version! database
+                                                                article-branch
+                                                                version)]
+        (testing "Create a new version"
+          (is version-id))
+
+        (testing "Can retrieve newly created version from the DB"
+          (is (match? [version]
+                      (articles/get-versions database {:version-id version-id})))))))
+  (testing "Uses existing article and branch"
+    (let [database                                 (embedded-h2/fresh-db!)
+          article-branch                           {:article-tags "thoughts"
+                                                    :article-url  "my-test-article"
+                                                    :author       "Andrew Lai"
+                                                    :branch-name  "my-new-branch"}
+          version                                  {:title   "My Title"
+                                                    :content "<p>Hello</p>"}
+          [{:keys [branch-id] :as article-branch}] (articles/create-branch! database article-branch)]
+
+      (let [[{:keys [version-id] :as v}] (articles/new-version! database
+                                                                article-branch
+                                                                version)]
+        (testing "Create a new version"
+          (is version-id))
+
+        (testing "Can retrieve newly created version from the DB"
+          (is (match? [version]
+                      (articles/get-versions database {:version-id version-id}))))))))
+
 (deftest multiple-branches-for-same-article
   (let [database       (embedded-h2/fresh-db!)
         article-branch {:article-tags "thoughts"

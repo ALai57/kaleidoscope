@@ -76,6 +76,14 @@
     (log/infof "Created Article version: %s" result)
     result))
 
+(defn new-version!
+  [db article-branch article-version]
+  (next/with-transaction [tx db]
+    (if (empty? (get-branches tx article-branch))
+      (create-branch! tx article-branch))
+    (let [[branch] (get-branches tx article-branch)]
+      (create-version! tx branch article-version))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Published articles
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

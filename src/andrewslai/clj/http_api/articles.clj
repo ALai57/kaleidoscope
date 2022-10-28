@@ -104,14 +104,6 @@
               (catch Exception e
                 (log/error "Caught exception " e))))
 
-
-          ;;TODO: Caught exception  clojure.lang.ExceptionInfo: throw+: {:type
-          ;;:PersistenceException, :message {:data {}, :reason "ERROR: duplicate key
-          ;;value violates unique constraint \"article_versions_pkey\"\n  Detail: Key
-          ;;(id)=(3) already exists."}, :subtype :UnableToCreateArticleBranch} {:type
-          ;;:PersistenceException, :message {:data {}, :reason "ERROR: duplicate key
-          ;;value violates unique constraint \"article_versions_pkey\"\n  Detail: Key
-          ;;(id)=(3) already exists."}, :subtype :UnableToCreateArticleBranch
           (POST "/" request
             :swagger {:summary   "Create a new version (commit) on a branch"
                       :consumes  #{"application/json"}
@@ -122,10 +114,11 @@
                                   401 {:description "Unauthorized"
                                        :schema      ::error-message}}}
             (try
-              (let [commit (->commit request)]
-                (ok (doto (articles-api/create-version! database {:branch-name branch-name
-                                                                  :article-url article-url} commit)
-                      log/info)))
+              (let [commit (->commit request)
+                    result (articles-api/new-version! database {:branch-name branch-name
+                                                                :article-url article-url} commit)]
+                (log/info result)
+                (ok result))
               (catch Exception e
                 (log/error "Caught exception " e))))
           )))))
