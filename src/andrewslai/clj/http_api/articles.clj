@@ -133,9 +133,10 @@
               (try
                 (let [commit (->commit request)
                       result (articles-api/new-version! database
-                                                        {:branch-name branch-name
-                                                         :article-url article-url
-                                                         :author      (oidc/get-full-name (:identity request))}
+                                                        {:branch-name  branch-name
+                                                         :article-url  article-url
+                                                         :article-tags (get-in request [:body :article-tags] "thoughts")
+                                                         :author       (oidc/get-full-name (:identity request))}
                                                         commit)]
                   (log/info result)
                   (ok result))
