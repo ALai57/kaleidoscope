@@ -132,8 +132,11 @@
                                          :schema      ::error-message}}}
               (try
                 (let [commit (->commit request)
-                      result (articles-api/new-version! database {:branch-name branch-name
-                                                                  :article-url article-url} commit)]
+                      result (articles-api/new-version! database
+                                                        {:branch-name branch-name
+                                                         :article-url article-url
+                                                         :author      (oidc/get-full-name (:identity request))}
+                                                        commit)]
                   (log/info result)
                   (ok result))
                 (catch Exception e

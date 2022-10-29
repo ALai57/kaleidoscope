@@ -216,7 +216,7 @@
                                                   (get-in create-response [:body 0 :branch-name])))))))
 
     (testing "Can retrieve an published article by `/compositions` endpoint"
-      (is (match? {:status 200 :body (merge article branch version)}
+      (is (match? {:status 200 :body (merge article branch version {:author "Andrew Lai"})}
                   (app (mock/request :get published-url)))))))
 
 (deftest get-versions-test
@@ -227,8 +227,7 @@
                       andrewslai/andrewslai-app
                       tu/wrap-clojure-response)
         article   {:article-tags "thoughts"
-                   :article-url  "my-test-article"
-                   :author       "Andrew Lai"}
+                   :article-url  "my-test-article"}
         version-1 {:title   "My Title"
                    :content "<p>Hello</p>"}
         version-2 {:title   "My Title 2"
