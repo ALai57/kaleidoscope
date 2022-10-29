@@ -187,32 +187,36 @@
                     (app (-> (mock/request :get "/branches")
                              (mock/query-string {:article-id article-id})))))))))
 
-(deftest create-article-branch-does-not-publish
-  (let [app           (-> {:database     (embedded-h2/fresh-db!)
-                           :access-rules tu/public-access
-                           :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
-                          (config/add-andrewslai-middleware)
-                          andrewslai/andrewslai-app
-                          tu/wrap-clojure-response)
-        article       {:article-tags "thoughts"
-                       :article-url  "my-test-article"
-                       :author       "Andrew Lai"}
-        published-url (format "/compositions/%s" (:article-url a/example-article))]
-
-    (testing "404 when article not yet created"
-      (is (match? {:status 404}
-                  (app (-> (mock/request :get "/branches")
-                           (mock/query-string {:article-url (:article-url article)}))))))
-
-    (testing "Article creation succeeds for branch 1"
-      (is (match? {:status 200 :body [{:article-id some?
-                                       :branch-id  some?}]}
-                  (app (-> (mock/request :post "/branches")
-                           (mock/json-body a/example-article)
-                           (mock/header "Authorization" "Bearer x"))))))
+(deftest publish-branch-test
+  (let [app             (-> {:database     (embedded-h2/fresh-db!)
+                             :access-rules tu/public-access
+                             :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
+                            (config/add-andrewslai-middleware)
+                            andrewslai/andrewslai-app
+                            tu/wrap-clojure-response)
+        article         {:article-url  "my-test-article"}
+        branch          {:branch-name "mybranch"}
+        version         {:content     "<p>Hi</p>"
+                         :title       "My Article"}
+        create-response (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
+                                                             (:article-url article)
+                                                             (:branch-name branch)))
+                                 (mock/json-body (merge article version))
+                                 (mock/header "Authorization" "Bearer x")))
+        published-url   (format "/compositions/%s" (:article-url article))]
 
     (testing "Cannot retrieve an unpublished article by `/compositions` endpoint"
       (is (match? {:status 404}
+                  (app (mock/request :get published-url)))))
+
+    (testing "Publish article"
+      (is (match? {:status 200 :body [(merge article branch)]}
+                  (app (mock/request :put (format "/articles/%s/branches/%s/publish"
+                                                  (:article-url article)
+                                                  (get-in create-response [:body 0 :branch-name])))))))
+
+    (testing "Can retrieve an published article by `/compositions` endpoint"
+      (is (match? {:status 200 :body (merge article branch version)}
                   (app (mock/request :get published-url)))))))
 
 (deftest get-versions-test
@@ -244,14 +248,14 @@
       (is (match? {:status 200 :body [(merge version-1
                                              article
                                              {:branch-name "branch-1"})]}
-                  (app (-> (mock/request :post (format "/articles/%s/branches/%s"
+                  (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
                                                        (:article-url article)
                                                        "branch-1"))
                            (mock/json-body version-1)))))
       (is (match? {:status 200 :body [(merge version-2
                                              article
                                              {:branch-name "branch-1"})]}
-                  (app (-> (mock/request :post (format "/articles/%s/branches/%s"
+                  (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
                                                        (:article-url article)
                                                        "branch-1"))
                            (mock/json-body version-2)))))

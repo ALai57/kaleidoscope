@@ -22,7 +22,7 @@
   https://openid.net/specs/openid-connect-core-1_0.html#IDToken"
   ([] (authenticated-backend true))
   ([id-token]
-   (log/infof "Creating Authenicated backend with identity: %s" id-token)
+   (log/infof "Creating Authenticated backend with identity: %s" id-token)
    (bearer-token-backend (fn [& args]
                            (log/infof "[authenticated-backend]: Authenticated with user %s" id-token)
                            id-token))))

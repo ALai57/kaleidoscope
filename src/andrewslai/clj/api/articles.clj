@@ -46,6 +46,7 @@
   ([db branch-id]
    (publish-branch! db branch-id (java.time.LocalDateTime/now)))
   ([db branch-id now]
+   (log/infof "Publishing Branch: %s" branch-id)
    (let [result (rdbms/update! db :article-branches
                                {:published-at now}
                                [:= :id branch-id]

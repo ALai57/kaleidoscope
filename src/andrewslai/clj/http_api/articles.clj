@@ -104,23 +104,40 @@
               (catch Exception e
                 (log/error "Caught exception " e))))
 
-          (POST "/" request
-            :swagger {:summary   "Create a new version (commit) on a branch"
-                      :consumes  #{"application/json"}
+          (PUT "/publish" request
+            :swagger {:summary   "Publish an Article branch"
                       :produces  #{"application/json"}
-                      :request   :andrewslai.article/article
-                      :responses {200 {:description "The version that was created"
+                      :responses {200 {:description "The article branch that was created"
                                        :schema      :andrewslai.article/article}
                                   401 {:description "Unauthorized"
                                        :schema      ::error-message}}}
             (try
-              (let [commit (->commit request)
-                    result (articles-api/new-version! database {:branch-name branch-name
-                                                                :article-url article-url} commit)]
-                (log/info result)
+              (log/infof "Publishing article %s and branch %s" article-url branch-name)
+              (let [[{:keys [branch-id]}] (articles-api/get-branches database {:branch-name branch-name
+                                                                               :article-url article-url})
+                    result                (articles-api/publish-branch! database branch-id)]
                 (ok result))
               (catch Exception e
                 (log/error "Caught exception " e))))
+
+          (context "/versions" []
+            (POST "/" request
+              :swagger {:summary   "Create a new version (commit) on a branch"
+                        :consumes  #{"application/json"}
+                        :produces  #{"application/json"}
+                        :request   :andrewslai.article/article
+                        :responses {200 {:description "The version that was created"
+                                         :schema      :andrewslai.article/article}
+                                    401 {:description "Unauthorized"
+                                         :schema      ::error-message}}}
+              (try
+                (let [commit (->commit request)
+                      result (articles-api/new-version! database {:branch-name branch-name
+                                                                  :article-url article-url} commit)]
+                  (log/info result)
+                  (ok result))
+                (catch Exception e
+                  (log/error "Caught exception " e)))))
           )))))
 
 (def branches-routes
