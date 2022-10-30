@@ -7,7 +7,7 @@
             [clojure.spec.alpha :as s]
             [compojure.api.meta :as compojure-meta]
             [compojure.api.sweet :refer [context GET POST PUT]]
-            [ring.util.http-response :refer [not-found ok]]
+            [ring.util.http-response :refer [not-found ok conflict]]
             [taoensso.timbre :as log]))
 
 (s/def ::message string?)
@@ -141,7 +141,8 @@
                   (log/info result)
                   (ok result))
                 (catch Exception e
-                  (log/error "Caught exception " e)))))
+                  (log/error "Caught exception " e)
+                  (conflict (ex-message e))))))
           )))))
 
 (def branches-routes

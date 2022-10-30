@@ -198,11 +198,19 @@
                                                                  (assoc version
                                                                         :created-at "2050-01-01T00:00:00Z"))]
 
+
     (testing "Can publish branches"
       (is (match? [{:published-at inst?}]
                   (articles/publish-branch! database old-branch-id "2000-01-01T00:00:00Z")))
       (is (match? [{:published-at inst?}]
                   (articles/publish-branch! database new-branch-id "2050-01-01T00:00:00Z"))))
+
+    (testing "Cannot create new version on published branch"
+      (is (thrown? clojure.lang.ExceptionInfo
+                   (articles/new-version! database
+                                          {:branch-id  new-branch-id}
+                                          (assoc version
+                                                 :created-at "4321-01-01T00:00:00Z")))))
 
     (testing "Only the newer published branch and version are found"
       (is (match? [(assoc article-branch

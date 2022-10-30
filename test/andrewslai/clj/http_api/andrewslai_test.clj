@@ -217,7 +217,15 @@
 
     (testing "Can retrieve an published article by `/compositions` endpoint"
       (is (match? {:status 200 :body (merge article branch version {:author "Andrew Lai"})}
-                  (app (mock/request :get published-url)))))))
+                  (app (mock/request :get published-url)))))
+
+    (testing "Cannot commit to published branch"
+      (is (match? {:status 409 :body "Cannot change a published branch"}
+                  (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
+                                                       (:article-url article)
+                                                       (:branch-name branch)))
+                           (mock/json-body (merge article version))
+                           (mock/header "Authorization" "Bearer x"))))))))
 
 (deftest get-versions-test
   (let [app       (-> {:database     (embedded-h2/fresh-db!)
@@ -260,7 +268,8 @@
                            (mock/json-body version-2)))))
       (is (match? {:status 200 :body (has-count 2)}
                   (app (mock/request :get (format "/branches/%s/versions"
-                                                  (:branch-id article-branch)))))))))
+                                                  (:branch-id article-branch)))))))
+    ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Resume API

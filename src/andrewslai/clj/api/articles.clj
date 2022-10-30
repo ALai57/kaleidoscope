@@ -77,13 +77,20 @@
     (log/infof "Created Article version: %s" result)
     result))
 
+(defn published?
+  [branch]
+  (:published-at branch))
+
 (defn new-version!
   [db article-branch article-version]
-  (next/with-transaction [tx db]
-    (if (empty? (get-branches tx article-branch))
-      (create-branch! tx article-branch))
-    (let [[branch] (get-branches tx article-branch)]
-      (create-version! tx branch article-version))))
+  (let [existing-branch (first (get-branches db article-branch))]
+    (if (published? existing-branch)
+      (throw (ex-info "Cannot change a published branch" existing-branch))
+      (next/with-transaction [tx db]
+        (when-not existing-branch
+          (create-branch! tx article-branch))
+        (let [[branch] (get-branches tx article-branch)]
+          (create-version! tx branch article-version))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Published articles

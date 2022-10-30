@@ -54,7 +54,7 @@
                  ;; Bridges between different logging libs and SLF4J
                  [org.slf4j/log4j-over-slf4j "1.7.30"]
 
-                 [com.h2database/h2 "1.4.200"]
+                 [com.h2database/h2 "2.1.214"]
                  [org.postgresql/postgresql "42.2.11"]
                  [peridot "0.5.3" :scope "test"]
                  [ring "1.8.0" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
