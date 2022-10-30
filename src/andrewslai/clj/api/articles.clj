@@ -31,12 +31,15 @@
 (defn create-branch!
   [db {:keys [article-id author branch-name] :as article-branch}]
   (next/with-transaction [tx db]
-    (let [[{article-id :id :as article}] (if article-id
+    (let [now    (java.time.LocalDateTime/now)
+          [{article-id :id :as article}] (if article-id
                                            (get-articles tx {:id article-id})
                                            (create-article! tx (select-keys article-branch [:author :article-url :article-tags])))
           [{branch-id :id :as branch}]   (rdbms/insert! tx
                                                         :article-branches {:branch-name branch-name
-                                                                           :article-id  article-id}
+                                                                           :article-id  article-id
+                                                                           :created-at  now
+                                                                           :modified-at now}
                                                         :ex-subtype :UnableToCreateArticleBranch)
           result                         (get-branches tx {:branch-id branch-id})]
       (log/infof "Created Article Branch: %s" result)
