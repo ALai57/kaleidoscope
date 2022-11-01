@@ -8,7 +8,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :info
+    (log/with-log-level :fatal
       (f))))
 
 (def example-article

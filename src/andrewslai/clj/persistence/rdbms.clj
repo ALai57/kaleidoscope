@@ -43,16 +43,6 @@
   (next/execute! conn stmt {:return-keys true
                             :builder-fn  rs/as-unqualified-kebab-maps}))
 
-(defn select-one
-  [database m]
-  (let [result (next/execute! database
-                              (hsql/format m)
-                              {:builder-fn rs/as-unqualified-kebab-maps})]
-    (case (count result)
-      1 (first result)
-      0 nil
-      result)))
-
 (defn select
   [database m]
   (next/execute! database
