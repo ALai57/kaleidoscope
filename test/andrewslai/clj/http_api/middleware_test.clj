@@ -9,7 +9,13 @@
             [cheshire.core :as json]
             [clojure.test :refer :all]
             [ring.mock.request :as mock]
-            [ring.util.response :as response]))
+            [ring.util.response :as response]
+            [taoensso.timbre :as log]))
+
+(use-fixtures :once
+  (fn [f]
+    (log/with-log-level :fatal
+      (f))))
 
 (deftest resources-from-classpath-test
   "The Thread's default classloader should be unable to load a resource from a

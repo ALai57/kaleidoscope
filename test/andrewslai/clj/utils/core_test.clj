@@ -19,8 +19,3 @@
                      {:cookie-attrs {:secure true}
                       :store        {:bye "there"}
                       :more          "hi"}))))
-
-(deftest change-newline-test
-  (is (= "\\r\\r\\tStuff\\r"
-         (string/escape (change-newlines "\n\r\tStuff\n")
-                        char-escape-string))))

@@ -1,9 +1,8 @@
 (ns andrewslai.clj.api.articles
   (:require [andrewslai.clj.persistence.rdbms :as rdbms]
-            [clojure.set :as set]
+            [andrewslai.clj.utils.core :as utils]
             [next.jdbc :as next]
-            [taoensso.timbre :as log])
-  (:import java.time.LocalDateTime))
+            [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Articles
@@ -13,7 +12,7 @@
 
 (defn create-article!
   [db article]
-  (let [now    (java.time.LocalDateTime/now)
+  (let [now    (utils/now)
         result (rdbms/insert! db
                               :articles (assoc article
                                                :created-at  now
@@ -31,7 +30,7 @@
 (defn create-branch!
   [db {:keys [article-id author branch-name] :as article-branch}]
   (next/with-transaction [tx db]
-    (let [now    (java.time.LocalDateTime/now)
+    (let [now    (utils/now)
           [{article-id :id :as article}] (if article-id
                                            (get-articles tx {:id article-id})
                                            (create-article! tx (select-keys article-branch [:author :article-url :article-tags])))
@@ -47,7 +46,7 @@
 
 (defn publish-branch!
   ([db branch-id]
-   (publish-branch! db branch-id (java.time.LocalDateTime/now)))
+   (publish-branch! db branch-id (utils/now)))
   ([db branch-id now]
    (log/infof "Publishing Branch: %s" branch-id)
    (let [result (rdbms/update! db :article-branches
@@ -68,7 +67,7 @@
   [db {:keys [branch-id] :as article-branch} {:keys [created-at] :as article-version}]
   (let [branch-id                      (or branch-id (get-in (get-branches db article-branch)
                                                              [0 :branch-id]))
-        now                            (or created-at (java.time.LocalDateTime/now))
+        now                            (or created-at (utils/now))
         [{version-id :id :as version}] (rdbms/insert! db
                                                       :article-versions (assoc article-version
                                                                                :branch-id   branch-id

@@ -1,9 +1,6 @@
 (ns andrewslai.clj.api.albums
-  (:require [andrewslai.clj.persistence.rdbms :as rdbms])
-  (:import java.util.UUID))
-
-(defn now []
-  (java.time.LocalDateTime/now))
+  (:require [andrewslai.clj.persistence.rdbms :as rdbms]
+            [andrewslai.clj.utils.core :as utils]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Albums
@@ -14,7 +11,7 @@
 (defn create-album!
   [database album]
   (rdbms/insert! database
-                 :albums     (assoc album :id (UUID/randomUUID))
+                 :albums     (assoc album :id (utils/uuid))
                  :ex-subtype :UnableToCreateAlbum))
 
 (defn update-album!
@@ -40,9 +37,9 @@
 ;; Photos in albums
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn add-photos-to-album! [database album-id photo-ids]
-  (let [now-time        (now)
+  (let [now-time        (utils/now)
         photos-in-album (vec (for [photo-id (if (seq? photo-ids) photo-ids [photo-ids])]
-                               {:id          (java.util.UUID/randomUUID)
+                               {:id          (utils/uuid)
                                 :photo-id    photo-id
                                 :album-id    album-id
                                 :created-at  now-time

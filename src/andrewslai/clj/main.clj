@@ -3,16 +3,18 @@
   (:require [aleph.http :as http]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.init.config :as config]
-            [andrewslai.clj.utils.core :as util]
-            [clojure.string :as string]
             [cheshire.core :as json]
+            [clojure.string :as string]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Global settings (Yuck!)
+;; Logging
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- json-log-output
+  "Useful when shipping logs via FluentBit (the recommended log router for AWS
+  ECS applications)
+  https://docs.aws.amazon.com/AmazonECS/latest/developerguide/firelens-using-fluentbit.html"
   [{:keys [level msg_ instant ?ns-str ?file ?line] :as data}]
   (let [event    (force msg_)
         ns-name  (or ?ns-str ?file "?")
@@ -34,18 +36,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn start-app
-  [ring-handler {:keys [port] :as configuration}]
-  (http/start-server ring-handler {:port port}))
-
 (defn -main
   "Start a server and run the application"
   [& args]
   (let [{:keys [port] :as configuration} (config/configure-from-env (System/getenv))]
     (log/infof "Hello! Starting andrewslai on port %s" port)
     (initialize!)
-    (start-app (config/configure-http-handler configuration)
-               configuration)))
+    (-> configuration
+        (config/configure-http-handler)
+        (http/start-server {:port port}))))
 
 (comment
   (log/with-merged-config

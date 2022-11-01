@@ -1,5 +1,6 @@
 (ns andrewslai.clj.utils.core
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string])
+  (:import java.util.UUID))
 
 (defn deep-merge
   [m1 m2]
@@ -13,9 +14,8 @@
                             (mapcat keys [m1 m2]))
     :else m2))
 
-(defn change-newlines
-  "AWS Cloudwatch breaks up logs based on newline characters \n, which makes it
-  horrible to read logs.
-  This allows us to do multiline logging in Cloudwatch."
-  [s]
-  (string/replace s #"\n" "\r"))
+(defn now []
+  (java.time.LocalDateTime/now))
+
+(defn uuid []
+  (java.util.UUID/randomUUID))
