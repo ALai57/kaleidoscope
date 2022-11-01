@@ -7,8 +7,9 @@
   (context "/admin" []
     :tags ["admin"]
     (GET "/" []
-      :swagger {:summary "An Echo route to see if a user is authenticated"
-                :produces #{"application/json"}
-                :responses {200 {:description "A collection of all articles"}}}
-      (do (log/info "User Authorized for /admin/ route")
+      :swagger {:summary     "An Echo route"
+                :description "Can only be reached if user is authenticated."
+                :produces    #{"application/json"}
+                :responses   {200 {:description "Success"}}}
+      (do (log/info "User Authorized for /admin route")
           (ok {:message "Got to the admin-route!"})))))

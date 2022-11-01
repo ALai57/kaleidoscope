@@ -10,9 +10,13 @@
 
 (defn create-album!
   [database album]
-  (rdbms/insert! database
-                 :albums     (assoc album :id (utils/uuid))
-                 :ex-subtype :UnableToCreateAlbum))
+  (let [now (utils/now)]
+    (rdbms/insert! database
+                   :albums     (assoc album
+                                      :id          (utils/uuid)
+                                      :created-at  now
+                                      :modified-at now)
+                   :ex-subtype :UnableToCreateAlbum)))
 
 (defn update-album!
   [database album]

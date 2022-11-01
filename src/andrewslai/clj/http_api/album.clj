@@ -1,5 +1,6 @@
 (ns andrewslai.clj.http-api.album
   (:require [andrewslai.clj.api.albums :as albums-api]
+            [andrewslai.clj.utils.core :as utils]
             [compojure.api.sweet :refer [context defroutes DELETE GET POST PUT]]
             [ring.util.http-response :refer [no-content not-found! ok]]
             [taoensso.timbre :as log]))
@@ -10,8 +11,7 @@
 
     (GET "/" []
       :swagger {:summary     "Retrieve all albums"
-                :description (str "This endpoint retrieves all albums. "
-                                  "The endpoint is currently not paginated")
+                :description "The endpoint is currently not paginated"
                 :produces    #{"application/json"}
                 :responses   {200 {:description "A collection of all albums"
                                    :schema      :andrewslai.albums/albums}}}
@@ -20,27 +20,22 @@
 
     (GET "/-/contents" []
       :swagger {:summary     "Retrieve contents from all albums"
-                :description (str "This endpoint retrieves the contents of all albums"
-                                  "The endpoint is currently not paginated")
+                :description "The endpoint is currently not paginated"
                 :produces    #{"application/json"}
-                :responses   {200 {:description "A collection of all albums"
+                :responses   {200 {:description "All album contents"
                                    :schema      :andrewslai.albums/albums}}}
       (log/info "Getting contents")
       (ok (albums-api/get-album-contents database)))
 
     (POST "/" {params :params}
       :swagger {:summary     "Add an album"
-                :description "This endpoint inserts an album into the database"
                 :consumes    #{"application/json"}
                 :produces    #{"application/json"}
                 :request     :andrewslai.albums-api/album
                 :responses   {200 {:description "Success!"
                                    :schema      :andrewslai.albums/album}}}
       (log/info "Creating album" params)
-      (let [now (java.time.LocalDateTime/now)]
-        (ok (first (albums-api/create-album! database (assoc params
-                                                             :created-at now
-                                                             :modified-at now))))))
+      (ok (first (albums-api/create-album! database params))))
 
     (context "/:id" [id]
       (GET "/" []

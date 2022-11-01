@@ -15,9 +15,7 @@
 (def example-album
   {:album-name     "Test album"
    :description    "My description"
-   :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"
-   :created-at     #inst "2021-05-27T18:30:39.000Z"
-   :modified-at    #inst "2021-05-27T18:30:39.000Z"})
+   :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"})
 
 (def example-photo
   {:id          #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"
@@ -36,7 +34,7 @@
         (is (uuid? id)))
 
       (testing "Can retrieve example-album from the DB"
-        (is (match? [example-album] (albums-api/get-albums database {:album-name (:album-name example-album)})))
+        (is (match? [example-album] (albums-api/get-albums database (select-keys example-album [:album-name]))))
         (is (match? [example-album] (albums-api/get-albums database {:id id}))))
 
       (testing "Can update an album"
@@ -90,7 +88,8 @@
       (is (= 3 (count (albums-api/get-photos database)))))
 
     (testing "Insert the example-photo"
-      (is (match? {:id uuid?} (albums-api/create-photo! database example-photo))))
+      (is (match? {:id uuid?}
+                  (albums-api/create-photo! database example-photo))))
 
     (testing "Can retrieve example-photo from the DB"
       (is (match? [example-photo] (albums-api/get-photos database {:photo-src "example/photo"}))))))
