@@ -3,7 +3,8 @@
             [amazonica.core :as amazon]
             [andrewslai.clj.api.albums :as albums-api]
             [andrewslai.clj.persistence.filesystem :as fs]
-            [compojure.api.sweet :refer [context defroutes POST]]
+            [andrewslai.cljc.specs.albums] ;; Install specs
+            [compojure.api.sweet :refer [context POST]]
             [ring.util.http-response :refer [created]]
             [taoensso.timbre :as log]))
 
@@ -17,9 +18,11 @@
 (defn now []
   (java.time.LocalDateTime/now))
 
-(defroutes photo-routes
+(def photo-routes
   (context (format "/%s" MEDIA-FOLDER) []
+    :coercion   :spec
     :components [storage database]
+    :tags       ["photos"]
 
     (POST "/" {:keys [uri params] :as req}
       :swagger {:summary     "Upload a new file"

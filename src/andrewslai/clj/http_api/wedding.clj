@@ -4,6 +4,7 @@
             [andrewslai.clj.http-api.album :as album-routes]
             [andrewslai.clj.http-api.photo :as photo-routes]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
+            [andrewslai.clj.http-api.swagger :as swagger]
             [clojure.stacktrace :as stacktrace]
             [compojure.api.sweet :refer [api defroutes GET]]
             [compojure.route :as route]
@@ -24,20 +25,23 @@
         (ring-resp/content-type "text/html"))))
 
 (defn wedding-app
-  [{:keys [logging http-mw] :as components}]
-  (log/with-config logging
-    (api {:components (select-keys components [:storage :logging :database])
-          :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
-          :middleware [http-mw]}
-         ping-routes
-         album-routes/album-routes
-         ;; Useful for local debugging until I set up something better
-         ;;index
-         photo-routes/photo-routes
-         (route/not-found "No matching route"))))
+  [{:keys [http-mw] :as components}]
+  (api {:components (select-keys components [:storage :logging :database])
+        :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
+        :middleware [http-mw]}
+       ping-routes
+       swagger/swagger-wedding-routes
+       album-routes/album-routes
+       ;; Useful for local debugging until I set up something better
+       ;;index
+       photo-routes/photo-routes
+       (route/not-found "No matching route")))
 
 
 (comment
+  (require '[ring.mock.request :as mock])
+  ((wedding-app {}) (mock/request :get "/swagger.json"))
+
   (s3-path [MEDIA-FOLDER "something.ptg"])
 
   (try

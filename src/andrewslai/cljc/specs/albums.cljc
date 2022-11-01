@@ -7,19 +7,21 @@
               [clojure.test.check.generators :as gen]
               [spec-tools.spec :as spec]])))
 
-(s/def :andrewslai.album/id spec/integer?)
-(s/def :andrewslai.album/album-name spec/string?)
-(s/def :andrewslai.album/created-at (s/or :date spec/inst? :string spec/string?))
-(s/def :andrewslai.album/modified-at (s/or :date spec/inst? :string spec/string?))
+(def timestamp (s/or :date spec/inst? :string spec/string?))
 
-(s/def :andrewslai.album/album
-  (s/keys :req-un [:andrewslai.album/album-name]
-          :opt-un [:andrewslai.album/id
-                   :andrewslai.album/created-at
-                   :andrewslai.album/modified-at]))
+(s/def :andrewslai.albums/id spec/integer?)
+(s/def :andrewslai.albums/album-name spec/string?)
+(s/def :andrewslai.albums/created-at timestamp)
+(s/def :andrewslai.albums/modified-at timestamp)
 
-(s/def :andrewslai.album/albums
-  (s/coll-of :andrewslai.album/album))
+(s/def :andrewslai.albums/album
+  (s/keys :req-un [:andrewslai.albums/album-name]
+          :opt-un [:andrewslai.albums/id
+                   :andrewslai.albums/created-at
+                   :andrewslai.albums/modified-at]))
+
+(s/def :andrewslai.albums/albums
+  (s/coll-of :andrewslai.albums/album))
 
 (def example-album
   {:album-name     "hello"
@@ -38,7 +40,7 @@
 (comment
   ;; Example data for article spec
 
-  (gen/sample (s/gen :andrewslai.album/album))
+  (gen/sample (s/gen :andrewslai.albums/album))
 
-  (s/valid? :andrewslai.album/album example-album)
+  (s/valid? :andrewslai.albums/album example-album)
   )

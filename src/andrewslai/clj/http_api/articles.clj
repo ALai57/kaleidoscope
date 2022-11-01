@@ -1,7 +1,7 @@
 (ns andrewslai.clj.http-api.articles
   (:require [andrewslai.clj.api.articles :as articles-api]
             [andrewslai.clj.api.authentication :as oidc]
-            [andrewslai.cljc.specs.articles]
+            [andrewslai.cljc.specs.articles] ;; Install specs
             [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
             [clojure.spec.alpha :as s]
@@ -52,9 +52,9 @@
   ;; reverse the order of the emitted bindings, or do what I did, and just
   ;; change the symbol =)
   (context "/articles" +compojure-api-request+
-    :coercion :spec
+    :coercion   :spec
     :components [database]
-    :tags ["articles"]
+    :tags       ["articles"]
 
     (GET "/" []
       :swagger {:summary     "Retrieve all articles"

@@ -38,10 +38,10 @@
 (def swagger-ui-routes
   (routes
     (undocumented
-     (swagger-ui/swagger-ui {:path "/swagger"
+     (swagger-ui/swagger-ui {:path         "/swagger"
                              :swagger-docs "/swagger.json"}))
     (GET "/swagger.json" req
-      {:summary "Return a swagger 3.0.2 spec"
+      {:summary  "Return a swagger 3.0.2 spec"
        :produces #{"application/json"}}
       (let [runtime-info1 (mw/get-swagger-data req)
             runtime-info2 (rsm/get-swagger-data req)
@@ -56,16 +56,56 @@
             spec          (st/swagger-spec
                            (swagger2/swagger-json swagger options))]
         (-> spec
-            (assoc :openapi "3.0.2"
-                   :info {:title       "andrewslai"
-                          :description "My personal website"}
-                   :components
-                   {:schemas (-> swagger
-                                 extract-specs
-                                 specs->components)
-                    :examples (reduce-kv (fn [acc k v]
-                                           (assoc acc (name k) v))
-                                         {}
-                                         example-data-2)})
+            (assoc :openapi    "3.0.2"
+                   :info       {:title       "andrewslai"
+                                :description "My personal website"}
+                   :components {:schemas  (-> swagger
+                                              extract-specs
+                                              specs->components)
+                                :examples (reduce-kv (fn [acc k v]
+                                                       (assoc acc (name k) v))
+                                                     {}
+                                                     example-data-2)})
+            (dissoc :swagger)
+            ok)))))
+
+(def example-wedding-data
+  {:andrewslai.albums/album {:summary "An example album"
+                             :value   {:id             1
+                                       :album-name     "my album"
+                                       :created-at     "2022-10-01T02:55:27Z"
+                                       :modified-at    "2022-10-01T02:55:27Z"}}})
+
+(def swagger-wedding-routes
+  (routes
+    (undocumented
+     (swagger-ui/swagger-ui {:path         "/swagger"
+                             :swagger-docs "/swagger.json"}))
+    (GET "/swagger.json" req
+      {:summary  "Return a swagger 3.0.2 spec"
+       :produces #{"application/json"}}
+      (let [runtime-info1 (mw/get-swagger-data req)
+            runtime-info2 (rsm/get-swagger-data req)
+            base-path     {:basePath (swag/base-path req)}
+            options       (:compojure.api.request/ring-swagger req)
+            paths         (:compojure.api.request/paths req)
+            swagger       (apply rsc/deep-merge
+                                 (keep identity [base-path
+                                                 paths
+                                                 runtime-info1
+                                                 runtime-info2]))
+            spec          (st/swagger-spec
+                           (swagger2/swagger-json swagger options))]
+        (-> spec
+            (assoc :openapi    "3.0.2"
+                   :info       {:title       "caheriaguilar.and.andrewslai"
+                                :description "Our wedding website"}
+                   :components {:schemas  (-> swagger
+                                              extract-specs
+                                              specs->components)
+                                :examples (reduce-kv (fn [acc k v]
+                                                       (assoc acc (name k) v))
+                                                     {}
+                                                     example-wedding-data)})
             (dissoc :swagger)
             ok)))))
