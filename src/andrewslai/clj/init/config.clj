@@ -63,9 +63,12 @@
   [_env]
   [{:pattern #"^/admin.*"
     :handler (partial auth/require-role "andrewslai")}
-   {:request-method :put
-    :pattern        #"^/articles/.*"
-    :handler        (partial auth/require-role "andrewslai")}
+   {:pattern #"^/articles/.*"
+    :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/branches/.*"
+    :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/compositions.*"
+    :handler public-access}
    {:pattern #"^/$"
     :handler public-access}
    {:pattern #"^/index.html$"

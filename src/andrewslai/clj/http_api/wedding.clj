@@ -6,7 +6,7 @@
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.swagger :as swagger]
             [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [api defroutes GET]]
+            [compojure.api.sweet :refer [api GET]]
             [compojure.route :as route]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
@@ -18,7 +18,7 @@
               (stacktrace/print-stack-trace e)))
 
 ;; Useful for local development so you don't have to set up a connection to S3
-(defroutes index
+(def index
   (GET "/index.html" []
     (log/info "Fetching `wedding-index.html` locally")
     (-> (ring-resp/resource-response "wedding-index.html" {:root "public"})

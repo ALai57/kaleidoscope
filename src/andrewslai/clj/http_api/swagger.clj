@@ -58,7 +58,7 @@
         (-> spec
             (assoc :openapi    "3.0.2"
                    :info       {:title       "andrewslai"
-                                :description "My personal website"}
+                                :description "The backend HTTP API for a blog"}
                    :components {:schemas  (-> swagger
                                               extract-specs
                                               specs->components)
@@ -99,7 +99,7 @@
         (-> spec
             (assoc :openapi    "3.0.2"
                    :info       {:title       "caheriaguilar.and.andrewslai"
-                                :description "Our wedding website"}
+                                :description "The backend HTTP API for a photo sharing web-app"}
                    :components {:schemas  (-> swagger
                                               extract-specs
                                               specs->components)
