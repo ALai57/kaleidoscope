@@ -8,6 +8,7 @@
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.resource :refer [wrap-resource]]
+            [ring.util.response :as resp]
             [ring.util.http-response :refer [unauthorized]]
             [taoensso.timbre :as log]))
 
@@ -88,7 +89,9 @@
                ;;#(debug-log-request! "2" %)
                #(ar/wrap-access-rules % {:rules          access-rules
                                          :reject-handler (fn [& args]
-                                                           (unauthorized))})]))
+                                                           (-> "Not authorized"
+                                                               (unauthorized)
+                                                               (resp/content-type "application/text")))})]))
 
 (defn classpath-static-content-stack
   "Returns middleware that intercepts requests and serves files from the

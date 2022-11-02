@@ -52,23 +52,23 @@
   ;; reverse the order of the emitted bindings, or do what I did, and just
   ;; change the symbol =)
   (context "/articles" +compojure-api-request+
-    :coercion   :spec
-    :components [database]
-    :tags       ["articles"]
+    :coercion    :spec
+    :components  [database]
+    :tags        ["articles"]
 
     (GET "/" []
-      :swagger {:summary     "Retrieve all articles"
-                :description (str "This endpoint retrieves all articles. "
-                                  "The endpoint is currently not paginated")
-                :produces    #{"application/json"}
-                :responses   {200 {:description "A collection of all articles"
-                                   :schema      :andrewslai.article/articles}}}
+      :swagger {:summary   "Retrieve all articles"
+                :produces  #{"application/json"}
+                :security  [{:andrewslai-oidc ["roles" "profile"]}]
+                :responses {200 {:description "A collection of all articles"
+                                 :schema      :andrewslai.article/articles}}}
       (ok (articles-api/get-articles database)))
 
     (context "/:article-url" [article-url]
       (GET "/" request
         :swagger {:summary    "Retrieve a single article"
                   :produces   #{"application/json"}
+                  :security   [{:andrewslai-oidc ["roles" "profile"]}]
                   :parameters {:path {:article-url :andrewslai.article/article-url}}
                   :responses  {200 {:description "A single article"
                                     :schema      :andrewslai.article/article}}}
@@ -80,17 +80,17 @@
         :tags ["branches"]
 
         (GET "/" []
-          :swagger {:summary     "Retrieve all branches"
-                    :description (str "This endpoint retrieves all branches. "
-                                      "The endpoint is currently not paginated")
-                    :produces    #{"application/json"}}
+          :swagger {:summary  "Retrieve all branches for a specific article"
+                    :security [{:andrewslai-oidc ["roles" "profile"]}]
+                    :produces #{"application/json"}}
           (ok (articles-api/get-branches database {:article-url article-url})))
 
         (context "/:branch-name" [branch-name]
           (PUT "/" request
-            :swagger {:summary   "Create an Article branch"
+            :swagger {:summary   "Create an article branch"
                       :consumes  #{"application/json"}
                       :produces  #{"application/json"}
+                      :security  [{:andrewslai-oidc ["roles" "profile"]}]
                       :request   :andrewslai.article/article
                       :responses {200 {:description "The article branch that was created"
                                        :schema      :andrewslai.article/article}
@@ -105,8 +105,9 @@
                 (log/error "Caught exception " e))))
 
           (PUT "/publish" request
-            :swagger {:summary   "Publish an Article branch"
+            :swagger {:summary   "Publish an article branch"
                       :produces  #{"application/json"}
+                      :security  [{:andrewslai-oidc ["roles" "profile"]}]
                       :responses {200 {:description "The article branch that was created"
                                        :schema      :andrewslai.article/article}
                                   401 {:description "Unauthorized"
@@ -121,10 +122,12 @@
                 (log/error "Caught exception " e))))
 
           (context "/versions" []
+            :tags ["versions"]
             (POST "/" request
               :swagger {:summary   "Create a new version (commit) on a branch"
                         :consumes  #{"application/json"}
                         :produces  #{"application/json"}
+                        :security  [{:andrewslai-oidc ["roles" "profile"]}]
                         :request   :andrewslai.article/article
                         :responses {200 {:description "The version that was created"
                                          :schema      :andrewslai.article/article}
@@ -157,10 +160,9 @@
     :tags       ["branches"]
 
     (GET "/" request
-      :swagger {:summary     "Retrieve all branches"
-                :description (str "This endpoint retrieves all branches. "
-                                  "The endpoint is currently not paginated")
-                :produces    #{"application/json"}}
+      :swagger {:summary  "Retrieve all branches"
+                :security [{:andrewslai-oidc ["roles" "profile"]}]
+                :produces #{"application/json"}}
       (let [query-params (select-keys (cske/transform-keys csk/->kebab-case-keyword (:query-params request))
                                       [:article-id :article-url])
             branches     (articles-api/get-branches database query-params)]
@@ -172,6 +174,7 @@
       :swagger {:summary   "Create a branch"
                 :consumes  #{"application/json"}
                 :produces  #{"application/json"}
+                :security  [{:andrewslai-oidc ["roles" "profile"]}]
                 :request   :andrewslai.article/article-branch
                 :responses {200 {:description "The branch that was created"
                                  :schema      :andrewslai.article/article-branch}
@@ -184,6 +187,14 @@
 
     (context "/:branch-id" [branch-id]
       (GET "/versions" request
+        :tags ["versions"]
+        :swagger {:summary   "Get versions"
+                  :produces  #{"application/json"}
+                  :security  [{:andrewslai-oidc ["roles" "profile"]}]
+                  :responses {200 {:description "The version that was created"
+                                   :schema      :andrewslai.article/article-branch}
+                              401 {:description "Unauthorized"
+                                   :schema      ::error-message}}}
         (let [branches (articles-api/get-versions database {:branch-id (Integer/parseInt branch-id)})]
           (if (empty? branches)
             (not-found {:reason "Missing"})

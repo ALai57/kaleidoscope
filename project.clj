@@ -72,7 +72,7 @@
              ~(format "-DTIMBRE_LEVEL=%s" COMPILE-TIME-LOG-LEVEL)]
 
   ;; Used to make this compatible with Java 11
-  :managed-dependencies [[metosin/ring-swagger-ui "3.25.3"]
+  :managed-dependencies [[metosin/ring-swagger-ui "4.5.0"]
                          [org.clojure/core.rrb-vector "0.1.1"]
                          [org.flatland/ordered "1.5.7"]
                          [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "10.6.0" :scope "test"]

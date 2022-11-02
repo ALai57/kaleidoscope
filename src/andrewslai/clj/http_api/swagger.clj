@@ -56,16 +56,25 @@
             spec          (st/swagger-spec
                            (swagger2/swagger-json swagger options))]
         (-> spec
-            (assoc :openapi    "3.0.2"
-                   :info       {:title       "andrewslai"
-                                :description "The backend HTTP API for a blog"}
-                   :components {:schemas  (-> swagger
-                                              extract-specs
-                                              specs->components)
-                                :examples (reduce-kv (fn [acc k v]
-                                                       (assoc acc (name k) v))
-                                                     {}
-                                                     example-data-2)})
+            (merge {:openapi    "3.0.2"
+                    :info       {:title       "andrewslai"
+                                 :description "The backend HTTP API for a blog"}
+                    :tags       [{:name        "articles"
+                                  :description "Articles (published and non-published)"}]
+                    :components {:schemas         (-> swagger
+                                                      extract-specs
+                                                      specs->components)
+                                 :securitySchemes {:andrewslai-auth {:type         "http"
+                                                                     :scheme       "bearer"
+                                                                     :bearerFormat "JWT"}
+                                                   :andrewslai-oidc {:type             "openIdConnect"
+                                                                     :openIdConnectUrl "https://keycloak.andrewslai.com/auth/realms/andrewslai/.well-known/openid-configuration"}
+                                                   }
+
+                                 :examples (reduce-kv (fn [acc k v]
+                                                        (assoc acc (name k) v))
+                                                      {}
+                                                      example-data-2)}})
             (dissoc :swagger)
             ok)))))
 

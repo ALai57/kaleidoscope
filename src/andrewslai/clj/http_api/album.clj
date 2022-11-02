@@ -21,6 +21,7 @@
       (ok (albums-api/get-albums database)))
 
     (GET "/-/contents" []
+      :tags    ["album contents"]
       :swagger {:summary   "Retrieve contents from all albums"
                 :produces  #{"application/json"}
                 :responses {200 {:description "All album contents"
@@ -58,6 +59,7 @@
 
       (context "/contents" []
         (GET "/" []
+          :tags    ["album contents"]
           :swagger {:summary   "Retrieve an album's contents"
                     :produces  #{"application/json"}
                     :responses {200 {:description "An album"
@@ -66,6 +68,7 @@
           (ok (albums-api/get-album-contents database {:album-id id})))
 
         (DELETE "/" {params :body-params}
+          :tags    ["album contents"]
           :swagger {:summary   "Delete an album's contents"
                     :produces  #{"application/json"}
                     :responses {200 {:description "An album"
@@ -77,6 +80,7 @@
 
         ;; Must use body params because POST is accepting a JSON array
         (POST "/" {params :body-params :as req}
+          :tags    ["album contents"]
           :swagger {:summary     "Add content to album"
                     :description "Supports bulk insert."
                     :consumes    #{"application/json"}
@@ -89,6 +93,7 @@
 
         (context "/:content-id" [content-id]
           (GET "/" []
+            :tags    ["album contents"]
             :swagger {:summary   "Retrieve content from album by ID"
                       :produces  #{"application/json"}
                       :responses {200 {:description "An album"
@@ -101,6 +106,7 @@
                 (not-found!))))
 
           (DELETE "/" []
+            :tags    ["album contents"]
             :swagger {:summary   "Remove content from an album"
                       :produces  #{"application/json"}
                       :responses {200 {:description "An album"

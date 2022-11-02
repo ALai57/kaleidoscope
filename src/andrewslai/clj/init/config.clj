@@ -63,9 +63,9 @@
   [_env]
   [{:pattern #"^/admin.*"
     :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/articles/.*"
+   {:pattern #"^/articles.*"
     :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/branches/.*"
+   {:pattern #"^/branches.*"
     :handler (partial auth/require-role "andrewslai")}
    {:pattern #"^/compositions.*"
     :handler public-access}

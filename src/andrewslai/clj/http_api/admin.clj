@@ -1,14 +1,15 @@
 (ns andrewslai.clj.http-api.admin
-  (:require [compojure.api.sweet :refer [context defroutes GET]]
+  (:require [compojure.api.sweet :refer [context GET]]
             [ring.util.http-response :refer [ok]]
             [taoensso.timbre :as log]))
 
-(defroutes admin-routes
+(def admin-routes
   (context "/admin" []
     :tags ["admin"]
     (GET "/" []
       :swagger {:summary     "An Echo route"
                 :description "Can only be reached if user is authenticated."
+                :security    [{:andrewslai-oidc ["roles" "profile"]}]
                 :produces    #{"application/json"}
                 :responses   {200 {:description "Success"}}}
       (do (log/info "User Authorized for /admin route")
