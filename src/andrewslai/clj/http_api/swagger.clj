@@ -35,6 +35,21 @@
              {}
              swagger-specs))
 
+(def security-schemes
+  "This works in conjunction with the `/resources/swagger-ui/index.html` to
+  initialize the basic security scheme for PKCE. In addition to doing this, we
+  also need to do some initialization in order to use PKCE.
+
+  See https://swagger.io/docs/open-source-tools/swagger-ui/usage/oauth2/"
+  {:andrewslai-pkce
+   {:type  "oauth2"
+    :flows {:authorizationCode {:authorizationUrl "https://keycloak.andrewslai.com/auth/realms/andrewslai/protocol/openid-connect/auth"
+                                :tokenUrl         "https://keycloak.andrewslai.com/auth/realms/andrewslai/protocol/openid-connect/token"
+                                :scopes           {"profile" "A users profile"
+                                                   "roles"   "View users roles"}}}}})
+#_{:type             "openIdConnect"
+   :openIdConnectUrl "https://keycloak.andrewslai.com/auth/realms/andrewslai/.well-known/openid-configuration"}
+
 (def swagger-ui-routes
   (routes
     (undocumented
@@ -64,12 +79,7 @@
                     :components {:schemas         (-> swagger
                                                       extract-specs
                                                       specs->components)
-                                 :securitySchemes {:andrewslai-auth {:type         "http"
-                                                                     :scheme       "bearer"
-                                                                     :bearerFormat "JWT"}
-                                                   :andrewslai-oidc {:type             "openIdConnect"
-                                                                     :openIdConnectUrl "https://keycloak.andrewslai.com/auth/realms/andrewslai/.well-known/openid-configuration"}
-                                                   }
+                                 :securitySchemes security-schemes
 
                                  :examples (reduce-kv (fn [acc k v]
                                                         (assoc acc (name k) v))

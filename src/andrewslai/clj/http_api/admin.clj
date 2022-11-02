@@ -9,7 +9,7 @@
     (GET "/" []
       :swagger {:summary     "An Echo route"
                 :description "Can only be reached if user is authenticated."
-                :security    [{:andrewslai-oidc ["roles" "profile"]}]
+                :security    [{:andrewslai-pkce ["roles" "profile"]}]
                 :produces    #{"application/json"}
                 :responses   {200 {:description "Success"}}}
       (do (log/info "User Authorized for /admin route")

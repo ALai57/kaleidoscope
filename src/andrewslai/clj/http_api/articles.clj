@@ -59,7 +59,7 @@
     (GET "/" []
       :swagger {:summary   "Retrieve all articles"
                 :produces  #{"application/json"}
-                :security  [{:andrewslai-oidc ["roles" "profile"]}]
+                :security  [{:andrewslai-pkce ["roles" "profile"]}]
                 :responses {200 {:description "A collection of all articles"
                                  :schema      :andrewslai.article/articles}}}
       (ok (articles-api/get-articles database)))
@@ -68,7 +68,7 @@
       (GET "/" request
         :swagger {:summary    "Retrieve a single article"
                   :produces   #{"application/json"}
-                  :security   [{:andrewslai-oidc ["roles" "profile"]}]
+                  :security   [{:andrewslai-pkce ["roles" "profile"]}]
                   :parameters {:path {:article-url :andrewslai.article/article-url}}
                   :responses  {200 {:description "A single article"
                                     :schema      :andrewslai.article/article}}}
@@ -81,7 +81,7 @@
 
         (GET "/" []
           :swagger {:summary  "Retrieve all branches for a specific article"
-                    :security [{:andrewslai-oidc ["roles" "profile"]}]
+                    :security [{:andrewslai-pkce ["roles" "profile"]}]
                     :produces #{"application/json"}}
           (ok (articles-api/get-branches database {:article-url article-url})))
 
@@ -90,7 +90,7 @@
             :swagger {:summary   "Create an article branch"
                       :consumes  #{"application/json"}
                       :produces  #{"application/json"}
-                      :security  [{:andrewslai-oidc ["roles" "profile"]}]
+                      :security  [{:andrewslai-pkce ["roles" "profile"]}]
                       :request   :andrewslai.article/article
                       :responses {200 {:description "The article branch that was created"
                                        :schema      :andrewslai.article/article}
@@ -107,7 +107,7 @@
           (PUT "/publish" request
             :swagger {:summary   "Publish an article branch"
                       :produces  #{"application/json"}
-                      :security  [{:andrewslai-oidc ["roles" "profile"]}]
+                      :security  [{:andrewslai-pkce ["roles" "profile"]}]
                       :responses {200 {:description "The article branch that was created"
                                        :schema      :andrewslai.article/article}
                                   401 {:description "Unauthorized"
@@ -127,7 +127,7 @@
               :swagger {:summary   "Create a new version (commit) on a branch"
                         :consumes  #{"application/json"}
                         :produces  #{"application/json"}
-                        :security  [{:andrewslai-oidc ["roles" "profile"]}]
+                        :security  [{:andrewslai-pkce ["roles" "profile"]}]
                         :request   :andrewslai.article/article
                         :responses {200 {:description "The version that was created"
                                          :schema      :andrewslai.article/article}
@@ -161,7 +161,7 @@
 
     (GET "/" request
       :swagger {:summary  "Retrieve all branches"
-                :security [{:andrewslai-oidc ["roles" "profile"]}]
+                :security [{:andrewslai-pkce ["roles" "profile"]}]
                 :produces #{"application/json"}}
       (let [query-params (select-keys (cske/transform-keys csk/->kebab-case-keyword (:query-params request))
                                       [:article-id :article-url])
@@ -174,7 +174,7 @@
       :swagger {:summary   "Create a branch"
                 :consumes  #{"application/json"}
                 :produces  #{"application/json"}
-                :security  [{:andrewslai-oidc ["roles" "profile"]}]
+                :security  [{:andrewslai-pkce ["roles" "profile"]}]
                 :request   :andrewslai.article/article-branch
                 :responses {200 {:description "The branch that was created"
                                  :schema      :andrewslai.article/article-branch}
@@ -190,7 +190,7 @@
         :tags ["versions"]
         :swagger {:summary   "Get versions"
                   :produces  #{"application/json"}
-                  :security  [{:andrewslai-oidc ["roles" "profile"]}]
+                  :security  [{:andrewslai-pkce ["roles" "profile"]}]
                   :responses {200 {:description "The version that was created"
                                    :schema      :andrewslai.article/article-branch}
                               401 {:description "Unauthorized"
