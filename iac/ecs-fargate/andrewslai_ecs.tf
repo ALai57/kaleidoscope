@@ -402,6 +402,7 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
   # shut down/exited, while Andrewslai continued running successfully.
   #
   # Update: The FluentBit container is catching a SIGSEGV
+  # https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Ffargate$252Fservice$252Fandrewslai-production-firelens/log-events/firelens$252Flog_router$252F9c2cd30c94a142e2a5b0bb8a0ee12b42
   #
   # This could be happening because AWS is sending a SIGKILL signal
   # (https://stackoverflow.com/a/46284715)

@@ -70,7 +70,8 @@ docker run -e KEYCLOAK_USER=<USERNAME> \
            jboss/keycloak
 ```
 Then import `test-keycloak-realm.json` to set up the realm and test client
-
+This is a specific example showing how to set up the container connected to a locally running
+Postgres instance.
 **_Postgres as persistence layer_**  
 ```bash
 docker run --network host \
@@ -79,12 +80,58 @@ docker run --network host \
             -e DB_DATABASE=keycloak \
             -e DB_VENDOR=POSTGRES \
             -e DB_ADDR=""  \
+            -e KEYCLOAK_USER=admin \
+            -e KEYCLOAK_PASSWORD=admin \
             jboss/keycloak -Djgroups.bind_addr=127.0.0.1
 ```
 
 The Djgroups.bind_addr argument seems to refer to the address that the server
 will bind to on the local network. When this is set to localhost, the Wildfly
 (JBoss) application server will start on port 9990.
+
+Run the docker image on your local machine connected to some kind of backend for persistence
+Useful for running locally while connected to the cloud AWS RDS database
+```bash 
+docker run --network host \
+            -e DB_USER=$DB_USER  \
+            -e DB_PASSWORD=$DB_PASSWORD \
+            -e DB_DATABASE=$DB_DATABASE \
+            -e DB_VENDOR=$DB_VENDOR \
+            -e DB_ADDR=$DB_ADDR  \
+            -e KEYCLOAK_USER=admin \
+            -e KEYCLOAK_PASSWORD=admin \
+            jboss/keycloak -Djgroups.bind_addr=127.0.0.1
+```
+
+
+Keycloak released a new version of the container that does not depend on an 
+Application Server (Wildfly) for deployment. This keeps the image and the container
+much smaller and simpler.
+
+Still working on the local setup for the new container. Right now, it is difficult to 
+set up the reverse proxy (which replicates the situation we want in AWS). In AWS, we want
+to use a reverse proxy (the Load Balancer) to terminate SSL connections and forward Thea
+traffic to Keycloak via HTTP instead of over HTTPS. However, newer versions of Keycloak
+want to be running on HTTPS, so we need to figure out how to run the container and accept
+HTTP traffic.
+
+;; TODO: TRY THIS WITH ANOTHER VERSION OF KEYCLOAK - V18 perhaps? Use environment vars instead
+```bash 
+docker run --network host \
+            -p 8443:8443 \
+            -e KEYCLOAK_USER=admin \
+            -e KEYCLOAK_PASSWORD=admin \
+            -e KC_HOSTNAME_STRICT_BACKCHANNEL=true \
+            -e KC_HOSTNAME_STRICT=false \
+            quay.io/keycloak/keycloak \
+            start --proxy edge --hostname-strict=false \
+            --hostname-strict-backchannel=true \
+            --features=token-exchange \
+            --db=$DB_VENDOR \
+            --db-url=$DB_URL \
+            --db-username=$DB_USER \
+            --db-password=$DB_PASSWORD 
+```
 
 #### Confirming Keycloak is running
 If you navigate to 172.17.0.1:8080/auth you can see the Keycloak admin console.
