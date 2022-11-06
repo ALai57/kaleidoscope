@@ -395,10 +395,25 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
   execution_role_arn    = "${aws_iam_role.ecsTaskExecutionRole.arn}"
   task_role_arn         = "${aws_iam_role.ecsTaskRole.arn}"
 
- container_definitions = <<DEFINITION
+  # NOTE: 2022-11-06 The `log_router` container definition is causing problems.
+  # It is consistently getting shut down with exit code 137, with unknown root
+  # cause. I suspect that either the container is exiting, or there is a memory
+  # issue. I proved this by making the log_router container non-essential and it
+  # shut down/exited, while Andrewslai continued running successfully.
+  #
+  # Update: The FluentBit container is catching a SIGSEGV
+  #
+  # This could be happening because AWS is sending a SIGKILL signal
+  # (https://stackoverflow.com/a/46284715)
+  # (https://aws.amazon.com/premiumsupport/knowledge-center/ecs-task-stopped/)
+  # Exit code 137 falls into the Linux "Exit codes with special meanings"
+  # https://tldp.org/LDP/abs/html/exitcodes.html of '128 + n', meaning that there
+  # was a fatal error signal of n (9) - SIGKILL from AWS.
+  #
+  container_definitions = <<DEFINITION
 [
  {
-    "essential": true,
+    "essential": false,
     "image": "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_fluentbit_ecr:latest",
     "name": "log_router",
     "environment": [
@@ -533,4 +548,59 @@ resource "aws_ecs_service" "andrewslai_service" {
 resource "aws_cloudwatch_log_group" "logs" {
   name              = "/fargate/service/andrewslai-production"
   retention_in_days = 90
+}
+
+
+
+## Send logs to andrewslai-production log group when ECS task is stopped
+## https://github.com/aws-samples/amazon-ecs-stopped-tasks-cwlogs/blob/master/ecs-stopped-tasks-cwlogs.yaml
+resource "aws_cloudwatch_log_group" "stopped_task_logs" {
+  name              = "/fargate/services/stopped-tasks"
+  retention_in_days = 90
+}
+
+resource "aws_cloudwatch_event_rule" "ecs_kill" {
+  name="ecs-stopped-tasks-event"
+  description="Log when AWS ECS stops a task"
+
+  event_pattern = <<EOF
+{
+  "source": ["aws.ecs"],
+  "detail-type": ["ECS Task State Change"],
+  "detail": {
+    "desiredStatus": ["STOPPED"],
+    "lastStatus": ["STOPPED"]
+  }
+
+}
+EOF
+}
+
+resource "aws_cloudwatch_event_target" "loggroup" {
+  rule= aws_cloudwatch_event_rule.ecs_kill.name
+  target_id="SendToCloudWatchLog"
+  arn=aws_cloudwatch_log_group.stopped_task_logs.arn
+}
+
+data "aws_iam_policy_document" "eventbridge-log-publishing"{
+
+  statement {
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+
+    resources= ["arn:aws:logs:*"]
+
+    principals {
+      identifiers = ["events.amazonaws.com", "delivery.logs.amazonaws.com"]
+      type = "Service"
+    }
+  }
+
+}
+
+resource "aws_cloudwatch_log_resource_policy" "eventbridge-log-publishing-policy" {
+  policy_document = data.aws_iam_policy_document.eventbridge-log-publishing.json
+  policy_name     = "eventbridge-log-publishing-policy"
 }
