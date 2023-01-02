@@ -195,13 +195,14 @@
       (testing "The 2 branches were created"
         (is (match? {:status 200 :body (has-count 2)}
                     (app (-> (mock/request :get "/branches")
+                             (mock/header "Authorization" "Bearer x")
                              (mock/query-string {:article-id article-id})))))))))
 
 (deftest publish-branch-test
-  (let [app             (-> {:database     (embedded-h2/fresh-db!)
-                             :access-rules tu/public-access
-                             :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
-                            (config/add-andrewslai-middleware)
+  (let [app             (-> {:database (embedded-h2/fresh-db!)
+                             :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
+                                                                           :andrewslai/authorization-type  :public-access}
+                                                                          {})}
                             andrewslai/andrewslai-app
                             tu/wrap-clojure-response)
         article         {:article-url  "my-test-article"}
@@ -226,7 +227,7 @@
                                                   (get-in create-response [:body 0 :branch-name])))))))
 
     (testing "Can retrieve an published article by `/compositions` endpoint"
-      (is (match? {:status 200 :body (merge article branch version {:author "Andrew Lai"})}
+      (is (match? {:status 200 :body (merge article branch version {:author "Test User"})}
                   (app (mock/request :get published-url)))))
 
     (testing "Cannot commit to published branch"
@@ -238,10 +239,10 @@
                            (mock/header "Authorization" "Bearer x"))))))))
 
 (deftest get-versions-test
-  (let [app       (-> {:database     (embedded-h2/fresh-db!)
-                       :access-rules tu/public-access
-                       :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
-                      (config/add-andrewslai-middleware)
+  (let [app       (-> {:database (embedded-h2/fresh-db!)
+                       :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
+                                                                     :andrewslai/authorization-type  :public-access}
+                                                                    {})}
                       andrewslai/andrewslai-app
                       tu/wrap-clojure-response)
         article   {:article-tags "thoughts"
@@ -286,9 +287,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest portfolio-test
-  (let [app      (-> {:database     (embedded-h2/fresh-db!)
-                      :access-rules tu/public-access}
-                     (config/add-andrewslai-middleware {})
+  (let [app      (-> {:database (embedded-h2/fresh-db!)
+                      :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
+                                                                    :andrewslai/authorization-type  :public-access}
+                                                                   {})}
                      (andrewslai/andrewslai-app)
                      (tu/wrap-clojure-response))
         response (app (mock/request :get "/projects-portfolio"))]
