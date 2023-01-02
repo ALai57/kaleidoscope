@@ -54,22 +54,24 @@
       (bb/keycloak-backend)))
 
 (defn make-andrewslai-authentication-backend
-  [{:andrewslai/keys [authentication-type] :as launch-options} env]
+  [{:andrewslai/keys [authentication-type custom-authenticated-user] :as launch-options} env]
   (case authentication-type
     :keycloak                     (make-keycloak env)
     :always-unauthenticated       bb/unauthenticated-backend
     :always-authenticated         (bb/authenticated-backend {:name         "Test User"
                                                              :realm_access {:roles []}})
+    :custom-authenticated-user    (bb/authenticated-backend custom-authenticated-user)
     :authenticated-and-authorized (bb/authenticated-backend {:name         "Test User"
                                                              :realm_access {:roles ["andrewslai"]}})))
 
 (defn make-wedding-authentication-backend
-  [{:wedding/keys [authentication-type] :as launch-options} env]
+  [{:wedding/keys [authentication-type custom-authenticated-user] :as launch-options} env]
   (case authentication-type
     :keycloak                     (make-keycloak env)
     :always-unauthenticated       bb/unauthenticated-backend
     :always-authenticated         (bb/authenticated-backend {:name         "Test User"
                                                              :realm_access {:roles []}})
+    :custom-authenticated-user    (bb/authenticated-backend custom-authenticated-user)
     :authenticated-and-authorized (bb/authenticated-backend {:name         "Test User"
                                                              :realm_access {:roles ["wedding"]}})))
 
@@ -121,23 +123,26 @@
   (let [authentication-backend (make-andrewslai-authentication-backend launch-options env)
         access-rules           (make-andrewslai-authorization launch-options env)]
     (comp mw/standard-stack
-          (mw/auth-stack-2 authentication-backend access-rules))))
+          (mw/auth-stack authentication-backend access-rules))))
 
 (defn make-wedding-authorization
-  [{:wedding/keys [authorization-type] :as launch-options} _env]
+  [{:wedding/keys [authorization-type custom-access-rules] :as launch-options} _env]
   (case authorization-type
-    :public-access             tu/public-access
-    :use-access-control-list   [{:pattern #"^/media.*" :handler (partial auth/require-role "wedding")}
-                                {:pattern #"^/albums.*" :handler (partial auth/require-role "wedding")}]))
+    :public-access           tu/public-access
+    :custom-access-rules     custom-access-rules
+    :use-access-control-list [{:pattern #"^/media.*" :handler (partial auth/require-role "wedding")}
+                              {:pattern #"^/albums.*" :handler (partial auth/require-role "wedding")}]))
 
 ;; REMOVING STATIC CONTENT FETCHER HERE
 (defn make-wedding-middleware
   "Middleware handles Authentication, Authorization"
-  [launch-options env]
-  (let [authentication-backend (make-wedding-authentication-backend launch-options env)
-        access-rules           (make-wedding-authorization launch-options env)]
-    (comp mw/standard-stack
-          (mw/auth-stack-2 authentication-backend access-rules))))
+  ([launch-options]
+   (make-wedding-middleware launch-options {}))
+  ([launch-options env]
+   (let [authentication-backend (make-wedding-authentication-backend launch-options env)
+         access-rules           (make-wedding-authorization launch-options env)]
+     (comp mw/standard-stack
+           (mw/auth-stack authentication-backend access-rules)))))
 
 (defn initialize-system!
   [launch-options env]

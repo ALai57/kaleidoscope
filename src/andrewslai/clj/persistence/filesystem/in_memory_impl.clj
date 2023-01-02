@@ -74,20 +74,19 @@
                                          :content :b
                                          :metadata {}
                                          :type :file}
-                                  'file)
+                                        'file)
                         "tmp" {"andrewlai.txt" (tag-as {:name "andrewlai.txt"
                                                         :path "/var/tmp/andrewlai.txt"
                                                         :content "something"
                                                         :metadata {:somethin "good"}
                                                         :type :file}
-                                                 'file)}}}))
+                                                       'file)}}}))
 
   (def memfs
     (map->MemFS {:store db}))
 
-  (fs/ls memfs "var")
-
-  (fs/get-file memfs "var/afile")
+  (fs/get memfs "var/")
+  (fs/get memfs "var/afile")
 
   (def x (tag-as {:hi "there"} "myclass"))
 

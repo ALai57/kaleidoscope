@@ -19,7 +19,7 @@
 (deftest memfs-test
   (let [db    (atom {})
         memfs (map->MemFS {:store db})]
-    (is (nil? (fs/ls memfs "var")))
+    (is (nil? (fs/get memfs "var")))
     (is (match? {:name "afile.txt"
                  :path "var/afile.txt"
                  :content buffered-input-stream?
@@ -45,6 +45,6 @@
                     :path     fullpath
                     :content  content
                     :metadata metadata}]
-      (is (nil? (fs/ls memfs "var")))
+      (is (nil? (fs/get memfs "var")))
       (is (match? file (fs/put-file memfs fullpath content metadata)))
-      (is (match? content (fs/get-file memfs fullpath))))))
+      (is (match? content (fs/get memfs fullpath))))))

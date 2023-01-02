@@ -198,9 +198,9 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;  LIST files
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  (fs/ls (map->S3 {:bucket "andrewslai-wedding"
-                   :creds CustomAWSCredentialsProviderChain})
-         "public/")
+  (fs/get (map->S3 {:bucket "andrewslai-wedding"
+                    :creds CustomAWSCredentialsProviderChain})
+          "public/")
   ;; => ({:path "public/css/",
   ;;      :key "public/css/",
   ;;      :storage-class "STANDARD",

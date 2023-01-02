@@ -63,27 +63,35 @@
                                           (mock/header "Authorization" "Bearer x")))))))
 
     "Public-access routes can be reached by unauthenticated user"
-    {:status 200} (config/add-wedding-middleware {:access-rules tu/public-access})
+    {:status 200} {:http-mw (-> {:wedding/authentication-type :always-unauthenticated
+                                 :wedding/authorization-type  :public-access}
+                                config/make-wedding-middleware)}
 
     "Restricted-access routes can be reached by authorized user"
-    {:status 200} (config/add-wedding-middleware {:access-rules (tu/restricted-access "wedding")
-                                                  :auth         (bb/authenticated-backend {:realm_access {:roles ["wedding"]}})})
+    {:status 200} {:http-mw (-> {:wedding/authentication-type :authenticated-and-authorized
+                                 :wedding/authorization-type  :custom-access-rules
+                                 :wedding/custom-access-rules (tu/restricted-access "wedding")}
+                                config/make-wedding-middleware)}
 
     "Restricted-access routes cannot be reached by unauthorized user"
-    {:status 401} (config/add-wedding-middleware {:access-rules (tu/restricted-access "wedding")
-                                                  :auth         (bb/authenticated-backend {:realm_access {:roles ["not-wedding-role"]}})})
+    {:status 401} {:http-mw (-> {:wedding/authentication-type       :custom-authenticated-user
+                                 :wedding/custom-authenticated-user {:realm_access {:roles ["not-wedding-role"]}}
+                                 :wedding/authorization-type        :custom-access-rules
+                                 :wedding/custom-access-rules       (tu/restricted-access "wedding")}
+                                config/make-wedding-middleware)}
 
     "Restricted-access routes cannot be reached by unauthenticated user"
-    {:status 401} (config/add-wedding-middleware {:access-rules (tu/restricted-access "wedding")
-                                                  :auth         bb/unauthenticated-backend})))
+    {:status 401} {:http-mw (-> {:wedding/authentication-type :always-unauthenticated
+                                 :wedding/authorization-type  :custom-access-rules
+                                 :wedding/custom-access-rules (tu/restricted-access "wedding")}
+                                config/make-wedding-middleware)}))
 
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (-> {:access-rules (config/make-wedding-authorization {:wedding.authorization/type :use-access-control-list}
-                                                                          nil)
-                         :auth         bb/unauthenticated-backend}
-                        config/add-wedding-middleware
+      (let [handler (-> {:http-mw (-> {:wedding/authentication-type :always-unauthenticated
+                                       :wedding/authorization-type  :use-access-control-list}
+                                      config/make-wedding-middleware)}
                         wedding/wedding-app)]
         (is (match? expected (handler request)))))
 
@@ -102,11 +110,11 @@
 
 (deftest static-content-test
   (let [in-mem-fs (atom example-fs)
-        app       (-> {:auth         (bb/authenticated-backend)
-                       :access-rules tu/public-access
-                       :database     (embedded-h2/fresh-db!)
-                       :storage      (memory/map->MemFS {:store in-mem-fs})}
-                      (config/add-wedding-middleware)
+        app       (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
+                                                    :wedding/authorization-type  :public-access}
+                                                   config/make-wedding-middleware)
+                       :database               (embedded-h2/fresh-db!)
+                       :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
                       (wedding/wedding-app)
                       (tu/wrap-clojure-response))]
     (is (match? {:status  200

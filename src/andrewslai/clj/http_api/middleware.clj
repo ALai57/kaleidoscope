@@ -72,7 +72,7 @@
                wrap-params
                log-request!]))
 
-(defn auth-stack-2
+(defn auth-stack
   "Stack is applied from top down"
   [authentication-backend access-rules]
   (apply comp [#(ba/wrap-authorization % authentication-backend)
@@ -84,19 +84,6 @@
                                                            (-> "Not authorized"
                                                                (unauthorized)
                                                                (resp/content-type "application/text")))})]))
-
-#_(defn auth-stack
-    "Stack is applied from top down"
-    [{:keys [auth access-rules] :as components}]
-    (apply comp [#(ba/wrap-authorization % auth)
-                 ;;#(debug-log-request! "1" %)
-                 #(ba/wrap-authentication % auth)
-                 ;;#(debug-log-request! "2" %)
-                 #(ar/wrap-access-rules % {:rules          access-rules
-                                           :reject-handler (fn [& args]
-                                                             (-> "Not authorized"
-                                                                 (unauthorized)
-                                                                 (resp/content-type "application/text")))})]))
 
 (defn classpath-static-content-stack
   "Returns middleware that intercepts requests and serves files from the

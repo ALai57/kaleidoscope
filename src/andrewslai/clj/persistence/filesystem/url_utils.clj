@@ -22,9 +22,7 @@
     (getContent []
       (let [[protocol & more] (string/split (str url) #"/+")
             s (string/join "/" more)]
-        (if (folder? url)
-          (fs/ls filesystem (str s "/"))
-          (fs/get-file filesystem s))))))
+        (fs/get filesystem (str s "/"))))))
 
 (defn url-stream-handler
   [filesystem]
