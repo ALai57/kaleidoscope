@@ -79,7 +79,8 @@
 
 (deftest admin-routes-test
   (let [app (-> {:auth         (bb/authenticated-backend {:realm_access {:roles ["andrewslai"]}})
-                 :access-rules (config/configure-andrewslai-access nil)}
+                 :access-rules (config/make-andrewslai-authorization {:andrewslai.authorization/type :use-access-control-list}
+                                                                     nil)}
                 (config/add-andrewslai-middleware)
                 (andrewslai/andrewslai-app)
                 (tu/wrap-clojure-response))]
@@ -97,7 +98,8 @@
   (are [description expected request]
     (testing description
       (let [handler (-> {:auth         bb/unauthenticated-backend
-                         :access-rules (config/configure-andrewslai-access nil)
+                         :access-rules (config/make-andrewslai-authorization {:andrewslai.authorization/type :use-access-control-list}
+                                                                             nil)
                          :database     (embedded-h2/fresh-db!)
                          :storage      (memory/map->MemFS {:store (atom example-fs)})}
                         (config/add-andrewslai-middleware {"ANDREWSLAI_STATIC_CONTENT_TYPE" "local"})

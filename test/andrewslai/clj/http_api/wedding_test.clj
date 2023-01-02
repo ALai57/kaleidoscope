@@ -80,7 +80,8 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (-> {:access-rules (config/configure-wedding-access nil)
+      (let [handler (-> {:access-rules (config/make-wedding-authorization {:wedding.authorization/type :use-access-control-list}
+                                                                          nil)
                          :auth         bb/unauthenticated-backend}
                         config/add-wedding-middleware
                         wedding/wedding-app)]
@@ -266,7 +267,7 @@
 
 (deftest albums-auth-test
   (let [app (-> {:database     (embedded-h2/fresh-db!)
-                 :access-rules (config/configure-wedding-access nil)}
+                 :access-rules (config/make-wedding-authorization {:wedding.authorization/type :use-access-control-list} nil)}
                 config/add-wedding-middleware
                 wedding/wedding-app)]
 

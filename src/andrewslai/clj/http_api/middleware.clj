@@ -96,13 +96,17 @@
 (defn classpath-static-content-stack
   "Returns middleware that intercepts requests and serves files from the
   ClassLoader's Classpath."
-  [root-path options]
-  (apply comp [wrap-cache-control
-               #(wrap-resource % root-path options)]))
+  ([{:keys [root-path] :as options}]
+   (classpath-static-content-stack root-path options))
+  ([root-path options]
+   (apply comp [wrap-cache-control
+                #(wrap-resource % root-path options)])))
 
 (defn file-static-content-stack
   "Returns middleware that intercepts requests and serves files relative to
   the root path."
-  [root-path options]
-  (apply comp [wrap-cache-control
-               #(wrap-file % root-path options)]))
+  ([{:keys [root-path] :as options}]
+   (file-static-content-stack root-path options))
+  ([root-path options]
+   (apply comp [wrap-cache-control
+                #(wrap-file % root-path options)])))

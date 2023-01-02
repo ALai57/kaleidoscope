@@ -106,7 +106,8 @@
   (require '[andrewslai.clj.init.config :as config])
 
   (def database
-    (config/configure-database (System/getenv)))
+    (config/make-database-connection {:database/type :postgres}
+                                     (System/getenv)))
 
   (get-articles database)
 

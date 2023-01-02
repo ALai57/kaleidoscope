@@ -148,6 +148,7 @@
      :email      "andrew@andrew.com"})
 
   (def database
-    (config/configure-database (System/getenv)))
+    (config/make-database-connection {:database/type :postgres}
+                                     (System/getenv)))
 
   )

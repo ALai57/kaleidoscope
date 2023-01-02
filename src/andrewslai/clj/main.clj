@@ -6,7 +6,8 @@
             [cheshire.core :as json]
             [clojure.string :as string]
             [taoensso.timbre :as log]
-            [taoensso.timbre.appenders.core :as appenders]))
+            [taoensso.timbre.appenders.core :as appenders]
+            [andrewslai.clj.init.env :as env]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Logging
@@ -26,7 +27,7 @@
                            :line       (format "%s:%s" ns-name line-num)
                            :message    (string/replace event #"\n" " ")})))
 
-(defn initialize!
+(defn initialize-logging!
   []
   (log/merge-config!
    {:min-level :info
@@ -39,11 +40,12 @@
 (defn -main
   "Start a server and run the application"
   [& args]
-  (let [{:keys [port] :as configuration} (config/configure-from-env (System/getenv))]
+  (let [launch-options                   (env/environment->launch-options (System/getenv))
+        {:keys [port] :as configuration} (config/initialize-system! launch-options (System/getenv))]
     (log/infof "Hello! Starting andrewslai on port %s" port)
-    (initialize!)
+    (initialize-logging!)
     (-> configuration
-        (config/configure-http-handler)
+        (config/make-http-handler)
         (http/start-server {:port port}))))
 
 (comment

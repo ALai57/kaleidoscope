@@ -10,121 +10,159 @@
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [andrewslai.clj.persistence.rdbms.live-pg :as live-pg]
+            [andrewslai.clj.init.env :as env]
             [next.jdbc :as next]
             [taoensso.timbre :as log]))
 
-(defn configure-port
-  [env]
-  (Integer/parseInt (get env "ANDREWSLAI_PORT" "5000")))
-
-(defn configure-keycloak
-  [env]
-  (-> {:realm             (get env "ANDREWSLAI_AUTH_REALM")
-       :auth-server-url   (get env "ANDREWSLAI_AUTH_URL")
-       :client-id         (get env "ANDREWSLAI_AUTH_CLIENT")
-       :client-secret     (get env "ANDREWSLAI_AUTH_SECRET")
-       :ssl-required      "external"
-       :confidential-port 0}
-      (bb/keycloak-backend)))
-
-(defn configure-auth
-  "Is OAUTH is disabled, always authenticate as a user with `wedding` access"
-  [env]
-  (case (get env "ANDREWSLAI_AUTH_TYPE" "keycloak")
-    "keycloak" (configure-keycloak env)
-    "none"     (bb/authenticated-backend {:name         "Test User"
-                                          :realm_access {:roles ["wedding" "andrewslai"]}})))
-
-
-(defn configure-logging
-  [env]
-  (merge log/*config* {:min-level (keyword (get env "ANDREWSLAI_LOG_LEVEL" "info"))}))
-
-(defn configure-database
-  [env]
-  (case (get env "ANDREWSLAI_DB_TYPE" "postgres")
-    "postgres"          (next/get-datasource (live-pg/pg-conn env))
-    "embedded-postgres" (embedded-pg/fresh-db!)
-    "embedded-h2"       (embedded-h2/fresh-db!)))
-
-(defn configure-wedding-storage
-  [env]
-  (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")
-                       :creds  s3-storage/CustomAWSCredentialsProviderChain}))
-
-(defn configure-andrewslai-storage
-  [env]
-  (s3-storage/map->S3 {:bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")
-                       :creds  s3-storage/CustomAWSCredentialsProviderChain}))
-
 (def public-access (constantly true))
 
-(defn configure-andrewslai-access
-  [_env]
-  [{:pattern #"^/admin.*"        :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/articles.*"     :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/branches.*"     :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/compositions.*" :handler public-access}
-   {:pattern #"^/$"              :handler public-access}
-   {:pattern #"^/index.html$"    :handler public-access}
-   {:pattern #"^/ping"           :handler public-access}
-   #_{:pattern #"^/.*"             :handler (constantly false)}
-   ])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Desired
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn configure-wedding-access
-  [_env]
-  [{:pattern #"^/media.*"
-    :handler (partial auth/require-role "wedding")}
-   {:pattern #"^/albums.*"
-    :handler (partial auth/require-role "wedding")}])
+(def launch-options
+  (env/environment->launch-options (System/getenv))
 
-(defn add-andrewslai-middleware
-  ([andrewslai-components]
-   (add-andrewslai-middleware andrewslai-components {}))
-  ([{:keys [storage] :as andrewslai-components} env]
-   (let [sc (case (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "none")
-              "s3"    (mw/classpath-static-content-stack "" {:prefer-handler? true
-                                                             :loader          (url-utils/filesystem-loader storage)})
-              "local" (mw/file-static-content-stack (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public") {})
-              "none"  identity)]
-     (assoc andrewslai-components
-            :http-mw
-            (comp mw/standard-stack
-                  sc
-                  (mw/auth-stack andrewslai-components))))))
+  #_{:port       12121
+     :andrewslai {:auth          :auth-type
+                  :access-type   :access-type
+                  :database-type :db-type
+                  :storage-type  :storage-type}
+     :wedding    {:auth          :auth-type
+                  :access-type   :access-type
+                  :database-type :db-type
+                  :storage-type  :storage-type}})
 
-(defn add-wedding-middleware
-  ([wedding-components]
-   (add-wedding-middleware wedding-components {}))
-  ([{:keys [storage] :as wedding-components} env]
-   (assoc wedding-components
-          :http-mw (comp mw/standard-stack
-                         (mw/classpath-static-content-stack ""
-                                                            {:prefer-handler? true
-                                                             :loader          (url-utils/filesystem-loader storage)})
-                         (mw/auth-stack wedding-components)))))
+(defn make-logging
+  [{:logging/keys [level] :as launch-options} env]
+  (merge log/*config* {:min-level level}))
 
-(defn configure-from-env
+(defn make-database-connection
+  [{:database/keys [type] :as launch-options} env]
+  (case type
+    :postgres          (next/get-datasource (env/env->pg-conn env))
+    :embedded-postgres (embedded-pg/fresh-db!)
+    :embedded-h2       (embedded-h2/fresh-db!)))
+
+;; Authentication backends
+(defn make-keycloak
   [env]
-  (let [auth-backend (configure-auth env)
-        database     (configure-database env)]
-    (-> {:port       (configure-port env)
-         :andrewslai {:auth           auth-backend
-                      :access-rules   (configure-andrewslai-access env)
-                      :database       database
-                      :storage        (configure-andrewslai-storage env)}
-         :wedding    {:auth         auth-backend
-                      :access-rules (configure-wedding-access env)
-                      :database     database
-                      :storage      (configure-wedding-storage env)
-                      :logging      (configure-logging env)}}
-        (update :wedding add-wedding-middleware env)
-        (update :andrewslai add-andrewslai-middleware env))))
+  (-> env
+      (env/env->keycloak)
+      (bb/keycloak-backend)))
 
-(defn configure-http-handler
+(defn make-authentication-backend
+  [{:authentication/keys [type] :as launch-options} env]
+  (case type
+    :keycloak                     (make-keycloak env)
+    :authenticated-only           (bb/authenticated-backend {:name         "Test User"
+                                                             :realm_access {:roles []}})
+    :authenticated-and-authorized (bb/authenticated-backend {:name         "Test User"
+                                                             :realm_access {:roles ["wedding" "andrewslai"]}})))
+
+;; Static content serving
+(defn make-andrewslai-static-content-fetcher
+  [{:andrewslai.static-content/keys [type] :as launch-options} env]
+  (case type
+    :s3    (mw/classpath-static-content-stack
+            {:root-path       ""
+             :prefer-handler? true
+             :loader          (-> {:bucket (env/env->andrewslai-s3-bucket env)
+                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
+                                  s3-storage/map->S3
+                                  url-utils/filesystem-loader)})
+    :local (mw/file-static-content-stack
+            {:root-path (env/env->andrewslai-local-static-content-folder env)})
+    :none  identity))
+
+(defn make-wedding-static-content-fetcher
+  [{:andrewslai.static-content/keys [type] :as launch-options} env]
+  (case type
+    :s3    (mw/classpath-static-content-stack
+            {:root-path       ""
+             :prefer-handler? true
+             :loader          (-> {:bucket (env/env->wedding-s3-bucket env)
+                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
+                                  s3-storage/map->S3
+                                  url-utils/filesystem-loader)})
+    :local (mw/file-static-content-stack
+            {:root-path (env/env->wedding-local-static-content-folder env)})
+    :none  identity))
+
+;; Access control
+(defn make-andrewslai-authorization
+  [{:andrewslai.authorization/keys [type] :as launch-options} env]
+  (case type
+    :allow-authenticated-users []
+    :use-access-control-list   [{:pattern #"^/admin.*" :handler (partial auth/require-role "andrewslai")}
+                                {:pattern #"^/articles.*" :handler (partial auth/require-role "andrewslai")}
+                                {:pattern #"^/branches.*" :handler (partial auth/require-role "andrewslai")}
+                                {:pattern #"^/compositions.*" :handler public-access}
+                                {:pattern #"^/$" :handler public-access}
+                                {:pattern #"^/index.html$" :handler public-access}
+                                {:pattern #"^/ping" :handler public-access}
+                                #_{:pattern #"^/.*" :handler (constantly false)}]))
+
+(defn make-wedding-authorization
+  [{:wedding.authorization/keys [type] :as launch-options} _env]
+  (case type
+    :allow-authenticated-users []
+    :use-access-control-list   [{:pattern #"^/media.*" :handler (partial auth/require-role "wedding")}
+                                {:pattern #"^/albums.*" :handler (partial auth/require-role "wedding")}]))
+
+(defn make-middleware
+  [{:keys [static-content-fetcher] :as components} _env]
+  (comp mw/standard-stack
+        static-content-fetcher
+        (mw/auth-stack components)))
+
+(defn initialize-system!
+  [launch-options env]
+  (let [authentication-backend            (make-authentication-backend launch-options env)
+        database-connection               (make-database-connection launch-options env)
+        logging                           (make-logging launch-options env)
+
+        andrewslai-authorization          (make-andrewslai-authorization launch-options env)
+        andrewslai-static-content-fetcher (make-andrewslai-static-content-fetcher launch-options env)
+        andrewslai-middleware             (make-middleware {:static-content-fetcher andrewslai-static-content-fetcher} env)
+
+        wedding-authorization             (make-wedding-authorization launch-options env)
+        wedding-static-content-fetcher    (make-wedding-static-content-fetcher launch-options env)
+        andrewslai-middleware             (make-middleware {:static-content-fetcher wedding-static-content-fetcher} env)
+        ]
+    {:port       (:server/port launch-options)
+     :andrewslai {:auth         authentication-backend
+                  :database     database-connection
+
+                  :access-rules andrewslai-authorization
+                  :storage      andrewslai-static-content-fetcher
+                  :http-mw      andrewslai-middleware}
+     :wedding    {:auth         authentication-backend
+                  :database     database-connection
+
+                  :access-rules wedding-authorization
+                  :storage      wedding-static-content-fetcher
+                  :logging      logging}}))
+
+(defn make-http-handler
   [{:keys [andrewslai wedding] :as components}]
   (vh/host-based-routing
    {#"caheriaguilar.and.andrewslai.com" {:priority 0
                                          :app      (wedding/wedding-app wedding)}
     #".*"                               {:priority 100
                                          :app      (andrewslai/andrewslai-app andrewslai)}}))
+
+(comment
+
+  (initialize-system! {:server/port         5000
+                       :logging/level       :info
+                       :authentication/type :authenticated-only
+                       :database/type       :embedded-h2
+
+                       :andrewslai.authorization/type  :allow-authenticated-users
+                       :andrewslai.static-content/type :none
+
+                       :wedding.authorization/type  :allow-authenticated-users
+                       :wedding.static-content/type :none}
+                      (System/getenv))
+  )
