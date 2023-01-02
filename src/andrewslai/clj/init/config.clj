@@ -61,22 +61,14 @@
 
 (defn configure-andrewslai-access
   [_env]
-  [{:pattern #"^/admin.*"
-    :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/articles.*"
-    :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/branches.*"
-    :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/compositions.*"
-    :handler public-access}
-   {:pattern #"^/$"
-    :handler public-access}
-   {:pattern #"^/index.html$"
-    :handler public-access}
-   {:pattern #"^/ping"
-    :handler public-access}
-   #_{:pattern #"^/.*"
-      :handler (constantly false)}
+  [{:pattern #"^/admin.*"        :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/articles.*"     :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/branches.*"     :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/compositions.*" :handler public-access}
+   {:pattern #"^/$"              :handler public-access}
+   {:pattern #"^/index.html$"    :handler public-access}
+   {:pattern #"^/ping"           :handler public-access}
+   #_{:pattern #"^/.*"             :handler (constantly false)}
    ])
 
 (defn configure-wedding-access

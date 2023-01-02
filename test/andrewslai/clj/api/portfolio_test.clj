@@ -1,6 +1,6 @@
 (ns andrewslai.clj.api.portfolio-test
   (:require [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [andrewslai.clj.entities.portfolio :as portfolio]
+            [andrewslai.clj.api.portfolio :as portfolio]
             [clojure.test :refer :all]
             [taoensso.timbre :as log]))
 
