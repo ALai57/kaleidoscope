@@ -16,7 +16,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :fatal
+    (log/with-log-level :trace
       (f))))
 
 (def example-fs
@@ -39,11 +39,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing HTTP routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn in-memory-fs?
+  [x]
+  (= andrewslai.clj.persistence.filesystem.in_memory_impl.MemFS (class x)))
 
 (deftest ping-test
-  (let [handler (-> {:auth         bb/unauthenticated-backend
-                     :access-rules tu/public-access}
-                    (config/add-andrewslai-middleware)
+  (let [handler (-> {:http-mw (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
+                                                                  :andrewslai/authorization-type  :public-access}
+                                                                 {})}
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)]
     (is (match? {:status  200
@@ -51,25 +54,21 @@
                  :body    {:revision string?}}
                 (handler (mock/request :get "/ping"))))))
 
-(defn in-memory-fs?
-  [x]
-  (= andrewslai.clj.persistence.filesystem.in_memory_impl.MemFS (class x)))
-
 (deftest home-test
-  (let [handler (-> {:auth         bb/unauthenticated-backend
-                     :access-rules tu/public-access
-                     :storage      (memory/map->MemFS {:store (atom example-fs)})}
-                    (config/add-andrewslai-middleware {"ANDREWSLAI_STATIC_CONTENT_TYPE" "local"})
+  (let [handler (-> {:static-content-adapter (memory/map->MemFS {:store (atom example-fs)})
+                     :http-mw                (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
+                                                                                 :andrewslai/authorization-type  :public-access}
+                                                                                {})}
                     andrewslai/andrewslai-app)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"text/html"}
-                 :body    any?}
+                 :body    "<div>Hello</div>"}
                 (handler (mock/request :get "/"))))))
 
 (deftest swagger-test
-  (let [handler (-> {:auth         bb/unauthenticated-backend
-                     :access-rules tu/public-access}
-                    (config/add-andrewslai-middleware)
+  (let [handler (-> {:http-mw (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
+                                                                  :andrewslai/authorization-type  :public-access}
+                                                                 {})}
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)]
     (is (match? {:status  200
@@ -78,15 +77,24 @@
                 (handler (mock/request :get "/swagger.json"))))))
 
 (deftest admin-routes-test
-  (let [app (-> {:auth         (bb/authenticated-backend {:realm_access {:roles ["andrewslai"]}})
-                 :access-rules (config/make-andrewslai-authorization {:andrewslai.authorization/type :use-access-control-list}
-                                                                     nil)}
-                (config/add-andrewslai-middleware)
-                (andrewslai/andrewslai-app)
-                (tu/wrap-clojure-response))]
-    (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
-                (app (-> (mock/request :get "/admin/")
-                         (mock/header "Authorization" "Bearer x")))))))
+  (testing "Authenticated and Authorized happy path"
+    (let [app (-> {:http-mw (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
+                                                                :andrewslai/authorization-type  :use-access-control-list}
+                                                               {})}
+                  (andrewslai/andrewslai-app)
+                  (tu/wrap-clojure-response))]
+      (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
+                  (app (-> (mock/request :get "/admin/")
+                           (mock/header "Authorization" "Bearer x")))))))
+  (testing "Authenticated but not Authorized cannot access"
+    (let [app (-> {:http-mw (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-authenticated
+                                                                :andrewslai/authorization-type  :use-access-control-list}
+                                                               {})}
+                  (andrewslai/andrewslai-app)
+                  (tu/wrap-clojure-response))]
+      (is (match? {:status 401 :body "Not authorized"}
+                  (app (-> (mock/request :get "/admin/")
+                           (mock/header "Authorization" "Bearer x"))))))))
 
 #_(deftest logging-test
     (let [logging-atom (atom [])
@@ -97,12 +105,11 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (-> {:auth         bb/unauthenticated-backend
-                         :access-rules (config/make-andrewslai-authorization {:andrewslai.authorization/type :use-access-control-list}
-                                                                             nil)
-                         :database     (embedded-h2/fresh-db!)
-                         :storage      (memory/map->MemFS {:store (atom example-fs)})}
-                        (config/add-andrewslai-middleware {"ANDREWSLAI_STATIC_CONTENT_TYPE" "local"})
+      (let [handler (-> {:static-content-adapter (memory/map->MemFS {:store (atom example-fs)})
+                         :database               (embedded-h2/fresh-db!)
+                         :http-mw                (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
+                                                                                     :andrewslai/authorization-type  :use-access-control-list}
+                                                                                    {})}
                         andrewslai/andrewslai-app)]
         (is (match? expected (handler request)))))
 
@@ -124,9 +131,8 @@
     "GET `/compositions` is publicly accessible"
     {:status 200} (mock/request :get "/compositions")
 
-    ;; I think the expected behavior changed once I added `storage` to this test
-    ;;"GET `/articles/does-not-exist` is publicly accessible"
-    ;;{:status 404} (mock/request :get "/articles/does-not-exist")
+    "GET `/articles/does-not-exist` is not publicly accessible"
+    {:status 401} (mock/request :get "/articles/does-not-exist")
 
     "PUT `/articles/new-article` is not publicly accessible"
     {:status 401} (mock/request :put "/articles/new-article")))
@@ -140,9 +146,10 @@
 (deftest published-article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
-      (let [app (-> {:database     (embedded-h2/fresh-db!)
-                     :access-rules tu/public-access}
-                    (config/add-andrewslai-middleware)
+      (let [app (-> {:database (embedded-h2/fresh-db!)
+                     :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
+                                                                   :andrewslai/authorization-type  :public-access}
+                                                                  {})}
                     andrewslai/andrewslai-app)]
         (is (match? expected
                     (tu/app-request app (mock/request :get endpoint))))))
@@ -156,10 +163,10 @@
   (m/pred (fn [x] (= n (count x)))))
 
 (deftest create-article-branch-happy-path
-  (let [app     (-> {:database     (embedded-h2/fresh-db!)
-                     :access-rules tu/public-access
-                     :auth         (bb/authenticated-backend {:name "Andrew Lai"})}
-                    (config/add-andrewslai-middleware)
+  (let [app     (-> {:database (embedded-h2/fresh-db!)
+                     :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
+                                                                   :andrewslai/authorization-type  :use-access-control-list}
+                                                                  {})}
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)
         article {:article-tags "thoughts"
@@ -184,6 +191,7 @@
                                                     :article-id  article-id))
                              (mock/header "Authorization" "Bearer x"))))))
 
+      ;; PICK BACK UP HERE
       (testing "The 2 branches were created"
         (is (match? {:status 200 :body (has-count 2)}
                     (app (-> (mock/request :get "/branches")

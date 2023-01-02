@@ -40,11 +40,11 @@
 (defn -main
   "Start a server and run the application"
   [& args]
-  (let [launch-options                   (env/environment->launch-options (System/getenv))
-        {:keys [port] :as configuration} (config/initialize-system! launch-options (System/getenv))]
+  (let [{:server/keys [port] :as launch-options} (env/environment->launch-options (System/getenv))
+        system-components                        (config/initialize-system! launch-options (System/getenv))]
     (log/infof "Hello! Starting andrewslai on port %s" port)
     (initialize-logging!)
-    (-> configuration
+    (-> system-components
         (config/make-http-handler)
         (http/start-server {:port port}))))
 

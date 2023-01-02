@@ -5,14 +5,28 @@
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
             [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [ANY api]]
-            [taoensso.timbre :as log]))
+            [compojure.api.sweet :refer [ANY GET api context]]
+            [taoensso.timbre :as log]
+            [andrewslai.clj.persistence.filesystem :as fs]))
 
 (defn exception-handler
   [e data request]
   (log/errorf "Error: %s, %s"
               (ex-message e)
               (stacktrace/print-stack-trace e)))
+
+(def index-routes
+  (context "/" []
+    (GET "/" []
+      :components [static-content-adapter]
+      {:status  200
+       :headers {"Content-Type" "text/html"}
+       :body    (fs/get-file static-content-adapter "index.html")})
+    (GET "/index.html" []
+      :components [static-content-adapter]
+      {:status  200
+       :headers {"Content-Type" "text/html"}
+       :body    (fs/get-file static-content-adapter "index.html")})))
 
 (def default-handler
   (ANY "*" []
@@ -24,6 +38,7 @@
         :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
         :middleware [http-mw]}
        ping-routes
+       index-routes
        articles-routes
        branches-routes
        compositions-routes

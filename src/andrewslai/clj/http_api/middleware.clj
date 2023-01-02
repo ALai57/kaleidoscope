@@ -47,13 +47,6 @@
       (binding [*request-id* request-id]
         (handler (assoc request :request-id request-id))))))
 
-(defn wrap-redirect-to-index
-  [handler]
-  (fn [{:keys [request-method] :as request}]
-    (handler (if (= :get request-method)
-               (update request :uri #(if (= "/" %) "/index.html" %))
-               request))))
-
 (defn- cache-control-log!
   [response]
   (log/infof "Generating Cache control headers")
@@ -73,25 +66,37 @@
 (def standard-stack
   "Stack is applied from top down"
   (apply comp [wrap-request-identifier
-               wrap-redirect-to-index
                wrap-content-type
                wrap-json-response
                wrap-multipart-params
                wrap-params
                log-request!]))
 
-(defn auth-stack
+(defn auth-stack-2
   "Stack is applied from top down"
-  [{:keys [auth access-rules] :as components}]
-  (apply comp [#(ba/wrap-authorization % auth)
+  [authentication-backend access-rules]
+  (apply comp [#(ba/wrap-authorization % authentication-backend)
                ;;#(debug-log-request! "1" %)
-               #(ba/wrap-authentication % auth)
+               #(ba/wrap-authentication % authentication-backend)
                ;;#(debug-log-request! "2" %)
                #(ar/wrap-access-rules % {:rules          access-rules
                                          :reject-handler (fn [& args]
                                                            (-> "Not authorized"
                                                                (unauthorized)
                                                                (resp/content-type "application/text")))})]))
+
+#_(defn auth-stack
+    "Stack is applied from top down"
+    [{:keys [auth access-rules] :as components}]
+    (apply comp [#(ba/wrap-authorization % auth)
+                 ;;#(debug-log-request! "1" %)
+                 #(ba/wrap-authentication % auth)
+                 ;;#(debug-log-request! "2" %)
+                 #(ar/wrap-access-rules % {:rules          access-rules
+                                           :reject-handler (fn [& args]
+                                                             (-> "Not authorized"
+                                                                 (unauthorized)
+                                                                 (resp/content-type "application/text")))})]))
 
 (defn classpath-static-content-stack
   "Returns middleware that intercepts requests and serves files from the

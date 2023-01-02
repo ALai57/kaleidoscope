@@ -7,12 +7,14 @@
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
             [andrewslai.clj.persistence.filesystem.url-utils :as url-utils]
+            [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [andrewslai.clj.persistence.rdbms.live-pg :as live-pg]
             [andrewslai.clj.init.env :as env]
             [next.jdbc :as next]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [andrewslai.clj.test-utils :as tu]))
 
 (def public-access (constantly true))
 
@@ -51,49 +53,59 @@
       (env/env->keycloak)
       (bb/keycloak-backend)))
 
-(defn make-authentication-backend
-  [{:authentication/keys [type] :as launch-options} env]
-  (case type
+(defn make-andrewslai-authentication-backend
+  [{:andrewslai/keys [authentication-type] :as launch-options} env]
+  (case authentication-type
     :keycloak                     (make-keycloak env)
-    :authenticated-only           (bb/authenticated-backend {:name         "Test User"
+    :always-unauthenticated       bb/unauthenticated-backend
+    :always-authenticated         (bb/authenticated-backend {:name         "Test User"
                                                              :realm_access {:roles []}})
     :authenticated-and-authorized (bb/authenticated-backend {:name         "Test User"
-                                                             :realm_access {:roles ["wedding" "andrewslai"]}})))
+                                                             :realm_access {:roles ["andrewslai"]}})))
 
-;; Static content serving
-(defn make-andrewslai-static-content-fetcher
-  [{:andrewslai.static-content/keys [type] :as launch-options} env]
-  (case type
-    :s3    (mw/classpath-static-content-stack
-            {:root-path       ""
-             :prefer-handler? true
-             :loader          (-> {:bucket (env/env->andrewslai-s3-bucket env)
-                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
-                                  s3-storage/map->S3
-                                  url-utils/filesystem-loader)})
-    :local (mw/file-static-content-stack
-            {:root-path (env/env->andrewslai-local-static-content-folder env)})
-    :none  identity))
+(defn make-wedding-authentication-backend
+  [{:wedding/keys [authentication-type] :as launch-options} env]
+  (case authentication-type
+    :keycloak                     (make-keycloak env)
+    :always-unauthenticated       bb/unauthenticated-backend
+    :always-authenticated         (bb/authenticated-backend {:name         "Test User"
+                                                             :realm_access {:roles []}})
+    :authenticated-and-authorized (bb/authenticated-backend {:name         "Test User"
+                                                             :realm_access {:roles ["wedding"]}})))
 
-(defn make-wedding-static-content-fetcher
-  [{:andrewslai.static-content/keys [type] :as launch-options} env]
-  (case type
-    :s3    (mw/classpath-static-content-stack
-            {:root-path       ""
-             :prefer-handler? true
-             :loader          (-> {:bucket (env/env->wedding-s3-bucket env)
-                                   :creds  s3-storage/CustomAWSCredentialsProviderChain}
-                                  s3-storage/map->S3
-                                  url-utils/filesystem-loader)})
-    :local (mw/file-static-content-stack
-            {:root-path (env/env->wedding-local-static-content-folder env)})
-    :none  identity))
+;; Static content Adapter (a Filesystem-like object)
+(def example-fs
+  "An in-memory filesystem used for testing"
+  {"index.html" (memory/file {:name    "index.html"
+                              :content "<div>Hello</div>"})})
+
+;; TODO: Update in-memory
+(defn make-andrewslai-static-content-adapter
+  [{:andrewslai/keys [static-content-type] :as launch-options} env]
+  (case static-content-type
+    :s3               (s3-storage/map->S3 {:bucket (env/env->andrewslai-s3-bucket env)
+                                           :creds  s3-storage/CustomAWSCredentialsProviderChain})
+    :in-memory        (memory/map->MemFS {:store (atom example-fs)})
+    :local-filesystem identity #_ (mw/file-static-content-stack
+                                   {:root-path (env/env->andrewslai-local-static-content-folder env)})
+    :none             identity))
+
+(defn make-wedding-static-content-adapter
+  [{:wedding/keys [static-content-type] :as launch-options} env]
+  (case static-content-type
+    :s3               (s3-storage/map->S3 {:bucket (env/env->wedding-s3-bucket env)
+                                           :creds  s3-storage/CustomAWSCredentialsProviderChain})
+    :in-memory        (memory/map->MemFS {:store (atom example-fs)})
+    :local-filesystem identity #_ (mw/file-static-content-stack
+                                   {:root-path (env/env->andrewslai-local-static-content-folder env)})
+    :none             identity))
 
 ;; Access control
 (defn make-andrewslai-authorization
-  [{:andrewslai.authorization/keys [type] :as launch-options} env]
-  (case type
-    :allow-authenticated-users []
+  [{:andrewslai/keys [authorization-type] :as launch-options} env]
+  (case authorization-type
+    :public-access             tu/public-access
+    ;;:allow-authenticated-users []
     :use-access-control-list   [{:pattern #"^/admin.*" :handler (partial auth/require-role "andrewslai")}
                                 {:pattern #"^/articles.*" :handler (partial auth/require-role "andrewslai")}
                                 {:pattern #"^/branches.*" :handler (partial auth/require-role "andrewslai")}
@@ -103,46 +115,47 @@
                                 {:pattern #"^/ping" :handler public-access}
                                 #_{:pattern #"^/.*" :handler (constantly false)}]))
 
+(defn make-andrewslai-middleware
+  "Middleware handles Authentication, Authorization"
+  [launch-options env]
+  (let [authentication-backend (make-andrewslai-authentication-backend launch-options env)
+        access-rules           (make-andrewslai-authorization launch-options env)]
+    (comp mw/standard-stack
+          (mw/auth-stack-2 authentication-backend access-rules))))
+
 (defn make-wedding-authorization
-  [{:wedding.authorization/keys [type] :as launch-options} _env]
-  (case type
-    :allow-authenticated-users []
+  [{:wedding/keys [authorization-type] :as launch-options} _env]
+  (case authorization-type
+    :public-access             tu/public-access
     :use-access-control-list   [{:pattern #"^/media.*" :handler (partial auth/require-role "wedding")}
                                 {:pattern #"^/albums.*" :handler (partial auth/require-role "wedding")}]))
 
-(defn make-middleware
-  [{:keys [static-content-fetcher] :as components} _env]
-  (comp mw/standard-stack
-        static-content-fetcher
-        (mw/auth-stack components)))
+;; REMOVING STATIC CONTENT FETCHER HERE
+(defn make-wedding-middleware
+  "Middleware handles Authentication, Authorization"
+  [launch-options env]
+  (let [authentication-backend (make-wedding-authentication-backend launch-options env)
+        access-rules           (make-wedding-authorization launch-options env)]
+    (comp mw/standard-stack
+          (mw/auth-stack-2 authentication-backend access-rules))))
 
 (defn initialize-system!
   [launch-options env]
-  (let [authentication-backend            (make-authentication-backend launch-options env)
-        database-connection               (make-database-connection launch-options env)
-        logging                           (make-logging launch-options env)
+  (let [database-connection (make-database-connection launch-options env)
+        logging             (make-logging launch-options env)
 
-        andrewslai-authorization          (make-andrewslai-authorization launch-options env)
-        andrewslai-static-content-fetcher (make-andrewslai-static-content-fetcher launch-options env)
-        andrewslai-middleware             (make-middleware {:static-content-fetcher andrewslai-static-content-fetcher} env)
+        andrewslai-middleware             (make-andrewslai-middleware launch-options env)
+        andrewslai-static-content-adapter (make-andrewslai-static-content-adapter launch-options env)
 
-        wedding-authorization             (make-wedding-authorization launch-options env)
-        wedding-static-content-fetcher    (make-wedding-static-content-fetcher launch-options env)
-        andrewslai-middleware             (make-middleware {:static-content-fetcher wedding-static-content-fetcher} env)
-        ]
-    {:port       (:server/port launch-options)
-     :andrewslai {:auth         authentication-backend
-                  :database     database-connection
-
-                  :access-rules andrewslai-authorization
-                  :storage      andrewslai-static-content-fetcher
-                  :http-mw      andrewslai-middleware}
-     :wedding    {:auth         authentication-backend
-                  :database     database-connection
-
-                  :access-rules wedding-authorization
-                  :storage      wedding-static-content-fetcher
-                  :logging      logging}}))
+        wedding-middleware             (make-wedding-middleware launch-options env)
+        wedding-static-content-adapter (make-andrewslai-static-content-adapter launch-options env)]
+    {:andrewslai {:database               database-connection
+                  :http-mw                andrewslai-middleware
+                  :static-content-adapter andrewslai-static-content-adapter}
+     :wedding    {:database               database-connection
+                  :http-mw                wedding-middleware
+                  :static-content-adapter wedding-static-content-adapter
+                  :logging                logging}}))
 
 (defn make-http-handler
   [{:keys [andrewslai wedding] :as components}]
