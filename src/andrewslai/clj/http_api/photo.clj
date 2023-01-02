@@ -21,7 +21,7 @@
 (def photo-routes
   (context (format "/%s" MEDIA-FOLDER) []
     :coercion   :spec
-    :components [storage database]
+    :components [static-content-adapter database]
     :tags       ["photos"]
 
     (POST "/" {:keys [uri params] :as req}
@@ -43,7 +43,7 @@
         (log/infof "Creating file `%s` with metadata:\n %s" file-path (-> metadata
                                                                           clojure.pprint/pprint
                                                                           with-out-str))
-        (fs/put-file storage
+        (fs/put-file static-content-adapter
                      file-path
                      (->file-input-stream tempfile)
                      metadata)

@@ -44,8 +44,8 @@
        ;; Useful for local debugging until I set up something better
        ;;index
        photo-routes/photo-routes
-       (route/not-found "No matching route")))
        static-content-routes
+       #_(route/not-found "No matching route")))
 
 
 (comment

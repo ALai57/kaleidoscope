@@ -127,12 +127,12 @@
 (deftest upload-test
   (let [in-mem-fs (atom {})
         database  (embedded-h2/fresh-db!)
-        app       (-> {:auth         (bb/authenticated-backend)
-                       :access-rules tu/public-access
-                       :database     database
-                       :storage      (memory/map->MemFS {:store in-mem-fs})}
-                      config/add-wedding-middleware
-                      wedding/wedding-app)]
+        app       (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
+                                                    :wedding/authorization-type  :public-access}
+                                                   config/make-wedding-middleware)
+                       :database               database
+                       :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
+                      (wedding/wedding-app))]
 
     (is (match? {:status 201} (app (make-example-file-upload-request))))
 
@@ -151,9 +151,10 @@
                 @in-mem-fs))))
 
 (deftest albums-test
-  (let [app (-> {:database     (embedded-h2/fresh-db!)
-                 :access-rules tu/public-access}
-                config/add-wedding-middleware
+  (let [app (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
+                                              :wedding/authorization-type  :public-access}
+                                             config/make-wedding-middleware)
+                 :database               (embedded-h2/fresh-db!)}
                 wedding/wedding-app
                 tu/wrap-clojure-response)]
 
@@ -191,11 +192,11 @@
 (deftest album-contents-test
   (let [database  (embedded-h2/fresh-db!)
         in-mem-fs (atom {})
-        app       (-> {:auth         (bb/authenticated-backend)
-                       :access-rules tu/public-access
-                       :database     database
-                       :storage      (memory/map->MemFS {:store in-mem-fs})}
-                      config/add-wedding-middleware
+        app       (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
+                                                    :wedding/authorization-type  :public-access}
+                                                   config/make-wedding-middleware)
+                       :database               database
+                       :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
                       wedding/wedding-app
                       tu/wrap-clojure-response)]
 
@@ -209,8 +210,8 @@
         (is (match? {:status 200 :body []}
                     (app (-> (mock/request :get (format "/albums/%s/contents" album-id)))))))
 
-      (let [result (app (-> (mock/request :post (format "/albums/%s/contents" album-id))
-                            (mock/json-body [{:id photo-id}])))
+      (let [result           (app (-> (mock/request :post (format "/albums/%s/contents" album-id))
+                                      (mock/json-body [{:id photo-id}])))
             album-content-id (get-in result [:body 0 :id])]
         (testing "Successfully added photo to album"
           (is (match? {:status 200 :body [{:id string-uuid?}]}
@@ -238,11 +239,11 @@
 (deftest contents-retrieval-test
   (let [database  (embedded-h2/fresh-db!)
         in-mem-fs (atom {})
-        app       (-> {:auth         (bb/authenticated-backend)
-                       :access-rules tu/public-access
-                       :database     database
-                       :storage      (memory/map->MemFS {:store in-mem-fs})}
-                      config/add-wedding-middleware
+        app       (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
+                                                    :wedding/authorization-type  :public-access}
+                                                   config/make-wedding-middleware)
+                       :database               database
+                       :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
                       wedding/wedding-app
                       tu/wrap-clojure-response)]
 
@@ -274,9 +275,9 @@
                     (app (-> (mock/request :get "/albums/-/contents"))))) ))))
 
 (deftest albums-auth-test
-  (let [app (-> {:database     (embedded-h2/fresh-db!)
-                 :access-rules (config/make-wedding-authorization {:wedding.authorization/type :use-access-control-list} nil)}
-                config/add-wedding-middleware
+  (let [app (-> {:http-mw (-> {:wedding/authentication-type :always-authenticated
+                               :wedding/authorization-type  :use-access-control-list}
+                              config/make-wedding-middleware)}
                 wedding/wedding-app)]
 
     (testing "Default access rules restrict access"
