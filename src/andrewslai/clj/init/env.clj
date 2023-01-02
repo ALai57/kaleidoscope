@@ -76,34 +76,50 @@
   [env]
   (keyword (get env "ANDREWSLAI_LOG_LEVEL" "info")))
 
-(defn env->auth-type
-  [env]
-  (keyword (get env "ANDREWSLAI_AUTH_TYPE" "keycloak")))
-
 (defn env->db-type
   [env]
   (keyword (get env "ANDREWSLAI_DB_TYPE" "postgres")))
 
-(defn env->wedding-static-content-type
+
+(defn env->andrewslai-authentication-type
   [env]
-  (keyword (get env "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none")))
+  (keyword (get env "ANDREWSLAI_AUTH_TYPE" "keycloak")))
+
+(defn env->andrewslai-authorization-type
+  [env]
+  (keyword (get env "ANDREWSLAI_AUTHORIZATION_TYPE" "keycloak")))
 
 (defn env->andrewslai-static-content-type
   [env]
   (keyword (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "none")))
 
+
+(defn env->wedding-static-content-type
+  [env]
+  (keyword (get env "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none")))
+
+(defn env->wedding-authentication-type
+  [env]
+  (keyword (get env "ANDREWSLAI_WEDDING_AUTH_TYPE" "keycloak")))
+
+(defn env->wedding-authorization-type
+  [env]
+  (keyword (get env "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE" "keycloak")))
+
 (defn environment->launch-options
   [env]
   (-> {:server/port         (env->port env)
        :logging/level       (env->log-level env)
-       :authentication/type (env->auth-type env)
        :database/type       (env->db-type env)
 
-       :andrewslai.static-content/type (env->andrewslai-static-content-type env)
-       :andrewslai.authorization/type  (env->andrewslai-static-content-type env)
+       :andrewslai/authentication-type (env->andrewslai-authentication-type env)
+       :andrewslai/authorization-type  (env->andrewslai-authorization-type env)
+       :andrewslai/static-content-type (env->andrewslai-static-content-type env)
 
-       :wedding.static-content/type (env->wedding-static-content-type env)
-       :wedding.authorization/type  (env->wedding-static-content-type env)}
+       :wedding/authentication-type (env->wedding-authentication-type env)
+       :wedding/authorization-type  (env->wedding-authorization-type env)
+       :wedding/static-content-type (env->wedding-static-content-type env)
+       }
       ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
