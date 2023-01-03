@@ -5,6 +5,7 @@
             [andrewslai.clj.http-api.cache-control :as cc]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.swagger :as swagger]
+            [andrewslai.clj.http-api.photo :as photo-routes]
             [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.stacktrace :as stacktrace]
             [compojure.api.sweet :refer [api context GET]]

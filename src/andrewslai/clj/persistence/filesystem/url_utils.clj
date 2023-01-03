@@ -10,9 +10,6 @@
 ;; Teaching java.net.URL how to interpret the s3p protocol
 ;; Can be used to create a new URLStreamHandler so that URLs know how to use s3p protocol
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn folder?
-  [url]
-  (string/ends-with? (str url) "/"))
 
 (defn connection
   [filesystem url]
