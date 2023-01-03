@@ -41,10 +41,6 @@
             swagger)]
     (assoc-in acc [:info :public :swagger] x)))
 
-;; TODO: all of this should be done by ID, not by english name... because it's
-;; not dealing with human readable content, we're dealing with non-published
-;; things
-
 (def articles-routes
   ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
   ;; with let-bindings out of order: +compojure-api-request+ is referred to

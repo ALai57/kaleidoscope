@@ -21,16 +21,20 @@
       :components [static-content-adapter]
       {:status  200
        :headers {"Content-Type" "text/html"}
-       :body    (fs/get-file static-content-adapter "index.html")})
+       :body    (fs/get static-content-adapter "index.html")})
     (GET "/index.html" []
       :components [static-content-adapter]
       {:status  200
        :headers {"Content-Type" "text/html"}
-       :body    (fs/get-file static-content-adapter "index.html")})))
+       :body    (fs/get static-content-adapter "index.html")})))
 
 (def default-handler
-  (ANY "*" []
-    {:status 404}))
+  (ANY "*" {:keys [uri] :as request}
+    :components [static-content-adapter]
+    (if-let [response (fs/get static-content-adapter uri)]
+      {:status 200
+       :body   response}
+      {:status 404})))
 
 (defn andrewslai-app
   [{:keys [http-mw] :as components}]

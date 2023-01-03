@@ -6,8 +6,7 @@
 (defprotocol FileSystem
   (ls [_ path] "Like the unix `ls` command")
   (get-file [_ path] "Retrieve a single file")
-  (put-file [_ path input-stream metadata] "Put a file")
-  (get-protocol [_] "Retrieve the protocol (e.g. `http`) the FileSystem uses"))
+  (put-file [_ path input-stream metadata] "Put a file"))
 
 (defn folder?
   [url]
@@ -15,7 +14,8 @@
 
 (defn canonical-url
   [url]
-  (if (string/starts-with? url "/")
+  (if (and (string/starts-with? url "/")
+           (< 1 (count url)))
     (subs url 1)
     url))
 

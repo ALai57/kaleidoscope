@@ -7,6 +7,7 @@
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
+            [andrewslai.clj.persistence.filesystem.local :as local-fs]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [andrewslai.clj.persistence.rdbms.live-pg :as live-pg]
@@ -80,15 +81,13 @@
   {"index.html" (memory/file {:name    "index.html"
                               :content "<div>Hello</div>"})})
 
-;; TODO: Update in-memory
 (defn make-andrewslai-static-content-adapter
   [{:andrewslai/keys [static-content-type] :as launch-options} env]
   (case static-content-type
     :s3               (s3-storage/map->S3 {:bucket (env/env->andrewslai-s3-bucket env)
                                            :creds  s3-storage/CustomAWSCredentialsProviderChain})
     :in-memory        (memory/map->MemFS {:store (atom example-fs)})
-    :local-filesystem identity #_ (mw/file-static-content-stack
-                                   {:root-path (env/env->andrewslai-local-static-content-folder env)})
+    :local-filesystem (local-fs/map->LocalFS {:root (env/env->andrewslai-local-static-content-folder env)})
     :none             identity))
 
 (defn make-wedding-static-content-adapter
@@ -97,8 +96,7 @@
     :s3               (s3-storage/map->S3 {:bucket (env/env->wedding-s3-bucket env)
                                            :creds  s3-storage/CustomAWSCredentialsProviderChain})
     :in-memory        (memory/map->MemFS {:store (atom example-fs)})
-    :local-filesystem identity #_ (mw/file-static-content-stack
-                                   {:root-path (env/env->andrewslai-local-static-content-folder env)})
+    :local-filesystem (local-fs/map->LocalFS {:root (env/env->wedding-local-static-content-folder env)})
     :none             identity))
 
 ;; Access control
@@ -152,7 +150,7 @@
         andrewslai-static-content-adapter (make-andrewslai-static-content-adapter launch-options env)
 
         wedding-middleware             (make-wedding-middleware launch-options env)
-        wedding-static-content-adapter (make-andrewslai-static-content-adapter launch-options env)]
+        wedding-static-content-adapter (make-wedding-static-content-adapter launch-options env)]
     {:andrewslai {:database               database-connection
                   :http-mw                andrewslai-middleware
                   :static-content-adapter andrewslai-static-content-adapter}

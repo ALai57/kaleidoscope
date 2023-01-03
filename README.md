@@ -91,12 +91,3 @@ For local development, see [local-development.md](./docs/local-development.md)
 
 ## Deployment
 To deploy, follow instructions in [deployment.md](./docs/deployment.md)
-
-
-TODO: Check Front end for compatibility with new `article-branches` endpoints
-and `/compositions` for published content
-
-TODO: Merge `plate` into main and deploy
-TODO: Blow away DB and re-run migrations
-TODO: Add more icons to allow user to create headings
-TODO: Fix about me resume cards

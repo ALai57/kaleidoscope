@@ -30,7 +30,7 @@
 ;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: Is this necesssary?
+;; TODO: Is this custom provider necesssary?
 (def CustomAWSCredentialsProviderChain
   (AWSCredentialsProviderChain.
    [^AWSCredentialsProvider (new EnvironmentVariableCredentialsProvider)
@@ -143,9 +143,7 @@
                       :metadata     (prepare-metadata metadata)})
       (catch Exception e
         (log/error "Could not put object" e)
-        (exception-response (amazon/ex->map e)))))
-  (get-protocol [_]
-    (or protocol S3-PROTOCOL)))
+        (exception-response (amazon/ex->map e))))))
 
 
 (comment ;; Playing with S3
@@ -226,6 +224,7 @@
   (fs/get-file (map->S3 {:bucket "andrewslai-wedding"
                          :creds CustomAWSCredentialsProviderChain})
                "index.html")
+  ;; => #object[com.amazonaws.services.s3.model.S3ObjectInputStream 0x2fdbe8b5 "com.amazonaws.services.s3.model.S3ObjectInputStream@2fdbe8b5"]
 
   )
 

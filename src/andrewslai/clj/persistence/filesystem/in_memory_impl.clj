@@ -6,16 +6,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Install multimethod to get resource-data from URLs using MEM-PROTOCOL
 ;; Useful for teaching http-mw how to retrieve static assets from a FS
-;; TODO: Remove this/move to HTTP middleware ns?
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def MEM-PROTOCOL
   "In memory protocol"
   "mem")
-
-(defmethod ring-response/resource-data (keyword MEM-PROTOCOL)
-  [url]
-  (let [conn (.openConnection url)]
-    {:content (.getContent url)}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Core functionality
@@ -39,7 +33,7 @@
 ;; Should persistence depend on teh protocols? i.e. should persistence need to know about URLs.. etc?
 ;; Add protocol as the first argument to the FilesysteM?
 ;; Configuration map as first argument and extract other args from there?
-(defrecord MemFS [store protocol]
+(defrecord MemFS [store]
   fs/FileSystem
   (ls [_ path]
     (seq (reduce-kv (fn [xs entry v]
@@ -64,9 +58,7 @@
                         :type     :file}
                        'file)]
       (swap! store assoc-in p file)
-      file))
-  (get-protocol [_]
-    (or protocol MEM-PROTOCOL)))
+      file)))
 
 (comment
   (def db (atom {"var" {"afile" (tag-as {:name "afile"
