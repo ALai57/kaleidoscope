@@ -10,7 +10,8 @@
             [clojure.test :refer :all]
             [ring.mock.request :as mock]
             [ring.util.response :as response]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [matcher-combinators.test :refer [match?]]))
 
 (use-fixtures :once
   (fn [f]
@@ -76,7 +77,7 @@
                  :headers {"Content-Type" #"application/json"}
                  :body    (json/generate-string {:foo "bar"})}
                 (app (mock/request :get "/"))))
-    (is (match? {:uri        "/index.html"
+    (is (match? {:uri        "/"
                  :request-id string?}
                 @captured-request))))
 
