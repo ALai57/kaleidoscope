@@ -1,73 +1,15 @@
 (ns andrewslai.clj.init.env
-  "Parses environment variables into a configuration map"
+  "Parses environment variables into Clojure maps that are used to boot system
+  components."
   (:require [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]))
 
-(defn merge-if
-  [m pred m2]
-  (if (pred m)
-    (merge m m2)
-    m))
-
-;; Predicates
-(defn keycloak-auth?
-  [m]
-  (= "keycloak" (:auth/type m)))
-
-(defn postgres-db?
-  [m]
-  (= "postgres" (:database/type m)))
-
-(defn andrewslai-local-static-content?
-  [m]
-  (= "local" (:andrewslai.static-content/type m)))
-
-(defn andrewslai-s3-static-content?
-  [m]
-  (= "s3" (:andrewslai.static-content/type m)))
-
-(defn wedding-s3-static-content?
-  [m]
-  (= "s3" (:wedding.static-content/type m)))
-
-;; Configuration map
-(defn environment->cfg-map
-  [env]
-  (-> {:server/port                    (Integer/parseInt (get env "ANDREWSLAI_PORT" "5000"))
-       :logging/level                  (keyword (get env "ANDREWSLAI_LOG_LEVEL" "info"))
-       :auth/type                      (get env "ANDREWSLAI_AUTH_TYPE" "keycloak")
-       :database/type                  (get env "ANDREWSLAI_DB_TYPE" "postgres")
-       :wedding.static-content/type    (get env "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none")
-       :andrewslai.static-content/type (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "none")}
-      (merge-if keycloak-auth?
-                {:keycloak/realm             (get env "ANDREWSLAI_AUTH_REALM")
-                 :keycloak/auth-server-url   (get env "ANDREWSLAI_AUTH_URL")
-                 :keycloak/client-id         (get env "ANDREWSLAI_AUTH_CLIENT")
-                 :keycloak/client-secret     (get env "ANDREWSLAI_AUTH_SECRET")
-                 :keycloak/ssl-required      "external"
-                 :keycloak/confidential-port 0})
-      (merge-if postgres-db?
-                {:postgres/dbname   (get env "ANDREWSLAI_DB_NAME")
-                 :postgres/db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
-                 :postgres/host     (get env "ANDREWSLAI_DB_HOST")
-                 :postgres/user     (get env "ANDREWSLAI_DB_USER")
-                 :postgres/password (get env "ANDREWSLAI_DB_PASSWORD")})
-      (merge-if andrewslai-local-static-content?
-                {:andrewslai.local-fs/folder (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER" "resources/public")})
-      (merge-if andrewslai-s3-static-content?
-                {:andrewslai.s3/bucket (get env "ANDREWSLAI_BUCKET" "andrewslai")})
-      (merge-if wedding-s3-static-content?
-                {:wedding.s3/bucket (get env "ANDREWSLAI_WEDDING_BUCKET" "andrewslai-wedding")})
-
-
-      ))
-
-(defn from-env
-  [env k default]
-  (keyword (get env k default)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Environment variable helpers
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Environment variable helpers for Launch options
+;;
+;; Environment variables are used to launch the application
+;; and change the configuration of the app. These helpers
+;; parse the environment variables into `launch-options`
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn env->port
   [env]
   (Integer/parseInt (get env "ANDREWSLAI_PORT" "5000")))
@@ -81,6 +23,7 @@
   (keyword (get env "ANDREWSLAI_DB_TYPE" "postgres")))
 
 
+;; Andrewslai app
 (defn env->andrewslai-authentication-type
   [env]
   (keyword (get env "ANDREWSLAI_AUTH_TYPE" "keycloak")))
@@ -94,6 +37,7 @@
   (keyword (get env "ANDREWSLAI_STATIC_CONTENT_TYPE" "none")))
 
 
+;; Wedding app
 (defn env->wedding-static-content-type
   [env]
   (keyword (get env "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none")))
@@ -106,6 +50,11 @@
   [env]
   (keyword (get env "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE" "keycloak")))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Launch Options Map
+;; Parse environment variables into a map of `launch-options`:
+;; the minimal amount of information needed to launch a webserver.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn environment->launch-options
   [env]
   (-> {:server/port         (env->port env)
@@ -119,12 +68,20 @@
        :wedding/authentication-type (env->wedding-authentication-type env)
        :wedding/authorization-type  (env->wedding-authorization-type env)
        :wedding/static-content-type (env->wedding-static-content-type env)
-       }
-      ))
+       }))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuration for components
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; After parsing into a `launch-options` map, the config
+;; namespace will continue booting pieces/components of the system
+;; depending on which launch options were selected
+;;
+;; e.g. if `:keycloak` authentication was selected,
+;;      the `env->keycloak` helper will parse relevant
+;;      keycloak environment variables into a configuration
+;;      map that can be used to boot the keycloak component.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn env->keycloak
   [env]
   {:realm             (get env "ANDREWSLAI_AUTH_REALM")

@@ -6,7 +6,6 @@
             [andrewslai.clj.http-api.virtual-hosting :as vh]
             [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
-            [andrewslai.clj.persistence.filesystem.url-utils :as url-utils]
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
