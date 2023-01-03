@@ -3,12 +3,12 @@
             [amazonica.core :as amazon]
             [andrewslai.clj.http-api.album :as album-routes]
             [andrewslai.clj.http-api.cache-control :as cc]
+            [andrewslai.clj.http-api.photo :as photo-routes]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.swagger :as swagger]
-            [andrewslai.clj.http-api.photo :as photo-routes]
             [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [api context GET ANY]]
+            [compojure.api.sweet :refer [api context GET]]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
 
@@ -18,7 +18,6 @@
               (ex-message e)
               (stacktrace/print-stack-trace e)))
 
-;; Useful for local development so you don't have to set up a connection to S3
 (def index-routes
   (context "/" []
     (GET "/" []

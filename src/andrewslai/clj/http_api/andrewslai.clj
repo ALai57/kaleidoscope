@@ -4,10 +4,10 @@
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
+            [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [ANY GET api context]]
-            [taoensso.timbre :as log]
-            [andrewslai.clj.persistence.filesystem :as fs]))
+            [compojure.api.sweet :refer [api context GET]]
+            [taoensso.timbre :as log]))
 
 (defn exception-handler
   [e data request]
@@ -29,7 +29,7 @@
        :body    (fs/get static-content-adapter "index.html")})))
 
 (def default-handler
-  (ANY "*" {:keys [uri] :as request}
+  (GET "*" {:keys [uri] :as request}
     :components [static-content-adapter]
     (if-let [response (fs/get static-content-adapter uri)]
       {:status 200
