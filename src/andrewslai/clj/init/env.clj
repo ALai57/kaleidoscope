@@ -30,7 +30,7 @@
 
 (defn env->andrewslai-authorization-type
   [env]
-  (keyword (get env "ANDREWSLAI_AUTHORIZATION_TYPE" "keycloak")))
+  (keyword (get env "ANDREWSLAI_AUTHORIZATION_TYPE" "use-access-control-list")))
 
 (defn env->andrewslai-static-content-type
   [env]
@@ -48,7 +48,7 @@
 
 (defn env->wedding-authorization-type
   [env]
-  (keyword (get env "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE" "keycloak")))
+  (keyword (get env "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE" "use-access-control-list")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Launch Options Map
