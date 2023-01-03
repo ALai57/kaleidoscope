@@ -8,7 +8,7 @@
             [andrewslai.clj.http-api.photo :as photo-routes]
             [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [api context GET]]
+            [compojure.api.sweet :refer [api context GET ANY]]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
 
@@ -19,20 +19,25 @@
               (stacktrace/print-stack-trace e)))
 
 ;; Useful for local development so you don't have to set up a connection to S3
-(def index
-  (GET "/index.html" []
-    (log/info "Fetching `wedding-index.html` locally")
-    (-> (ring-resp/resource-response "wedding-index.html" {:root "public"})
-        (ring-resp/content-type "text/html"))))
-
-(def static-content-routes
-  "Must be last in the routes table because it will return a 404 if it matches and the route is not found"
-  (context "/media" []
-    (GET "*" {:keys [uri] :as request}
+(def index-routes
+  (context "/" []
+    (GET "/" []
       :components [static-content-adapter]
-      (if-let [response (fs/get static-content-adapter uri)]
-        (cc/cache-control uri (ring-resp/response response))
-        (ring-resp/not-found "No matching route")))))
+      {:status  200
+       :headers {"Content-Type" "text/html"}
+       :body    (fs/get static-content-adapter "index.html")})
+    (GET "/index.html" []
+      :components [static-content-adapter]
+      {:status  200
+       :headers {"Content-Type" "text/html"}
+       :body    (fs/get static-content-adapter "index.html")})))
+
+(def default-handler
+  (GET "*" {:keys [uri] :as request}
+    :components [static-content-adapter]
+    (if-let [response (fs/get static-content-adapter uri)]
+      (cc/cache-control uri (ring-resp/response response))
+      (ring-resp/not-found "No matching route"))))
 
 (defn wedding-app
   [{:keys [http-mw] :as components}]
@@ -40,13 +45,11 @@
         :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
         :middleware [http-mw]}
        ping-routes
+       index-routes
        swagger/swagger-wedding-routes
        album-routes/album-routes
-       ;; Useful for local debugging until I set up something better
-       ;;index
        photo-routes/photo-routes
-       static-content-routes
-       #_(route/not-found "No matching route")))
+       default-handler))
 
 
 (comment
