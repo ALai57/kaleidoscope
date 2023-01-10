@@ -22,7 +22,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :fatal
+    (log/with-log-level :trace
       (f))))
 
 (def example-fs

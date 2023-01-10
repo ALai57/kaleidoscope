@@ -1,5 +1,6 @@
 (ns andrewslai.clj.http-api.andrewslai
-  (:require [andrewslai.clj.http-api.admin :refer [admin-routes]]
+  (:require [andrewslai.clj.api.authorization :as auth]
+            [andrewslai.clj.http-api.admin :refer [admin-routes]]
             [andrewslai.clj.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
@@ -8,6 +9,19 @@
             [clojure.stacktrace :as stacktrace]
             [compojure.api.sweet :refer [api context GET]]
             [taoensso.timbre :as log]))
+
+(def public-access
+  (constantly true))
+
+(def ANDREWSLAI-ACCESS-CONTROL-LIST
+  [{:pattern #"^/admin.*"        :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/articles.*"     :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/branches.*"     :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/compositions.*" :handler public-access}
+   {:pattern #"^/$"              :handler public-access}
+   {:pattern #"^/index.html$"    :handler public-access}
+   {:pattern #"^/ping"           :handler public-access}
+   #_{:pattern #"^/.*" :handler (constantly false)}])
 
 (defn exception-handler
   [e data request]

@@ -2,9 +2,12 @@
   "Parses environment variables into Clojure maps that are used to boot system
   components."
   (:require [andrewslai.clj.http-api.auth.buddy-backends :as bb]
+            [andrewslai.clj.http-api.andrewslai :as andrewslai]
+            [andrewslai.clj.http-api.wedding :as wedding]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
+            [andrewslai.clj.test-utils :as tu]
             [next.jdbc :as next]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -87,8 +90,23 @@
    :ssl-required      "external"
    :confidential-port 0})
 
-(def init-keycloak        (comp bb/keycloak-backend env->keycloak))
-(def init-unauthenticated (constantly bb/unauthenticated-backend))
+(def init-andrewslai-keycloak             (comp bb/keycloak-backend env->keycloak))
+(def init-andrewslai-authenticated-user   bb/authenticated-backend)
+(def init-andrewslai-unauthenticated-user (constantly bb/unauthenticated-backend))
+(def init-andrewslai-public-access        (constantly tu/public-access))
+(def init-andrewslai-access-control       (constantly andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST))
+(def init-andrewslai-s3-filesystem        s3-storage/andrewslai-s3-from-env)
+(def init-andrewslai-in-memory-filesystem memory/in-mem-fs-from-env)
+(def init-andrewslai-local-filesystem     local-fs/andrewslai-local-fs-from-env)
+
+(def init-wedding-keycloak             (comp bb/keycloak-backend env->keycloak))
+(def init-wedding-authenticated-user   bb/authenticated-backend)
+(def init-wedding-unauthenticated-user (constantly bb/unauthenticated-backend))
+(def init-wedding-public-access        (constantly tu/public-access))
+(def init-wedding-access-control       (constantly wedding/WEDDING-ACCESS-CONTROL-LIST))
+(def init-wedding-s3-filesystem        s3-storage/wedding-s3-from-env)
+(def init-wedding-in-memory-filesystem memory/in-mem-fs-from-env)
+(def init-wedding-local-filesystem     local-fs/wedding-local-fs-from-env)
 
 (defn env->pg-conn
   [env]

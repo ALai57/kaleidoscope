@@ -1,6 +1,7 @@
 (ns andrewslai.clj.http-api.wedding
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
+            [andrewslai.clj.api.authorization :as auth]
             [andrewslai.clj.http-api.album :as album-routes]
             [andrewslai.clj.http-api.cache-control :as cc]
             [andrewslai.clj.http-api.photo :as photo-routes]
@@ -11,6 +12,10 @@
             [compojure.api.sweet :refer [api context GET]]
             [ring.util.response :as ring-resp]
             [taoensso.timbre :as log]))
+
+(def WEDDING-ACCESS-CONTROL-LIST
+  [{:pattern #"^/media.*"  :handler (partial auth/require-role "wedding")}
+   {:pattern #"^/albums.*" :handler (partial auth/require-role "wedding")}])
 
 (defn exception-handler
   [e data request]

@@ -49,6 +49,14 @@
   (put-file [_ path input-stream _metadata]
     (write-stream! input-stream path)))
 
+(defn andrewslai-local-fs-from-env
+  [env]
+  (fs/map->LocalFS {:root (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER")}))
+
+(defn wedding-local-fs-from-env
+  [env]
+  (fs/map->LocalFS {:root (get env "ANDREWSLAI_WEDDING_STATIC_CONTENT_FOLDER")}))
+
 (comment
   (def fs
     (map->LocalFS {:root ROOT}))

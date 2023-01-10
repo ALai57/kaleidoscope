@@ -60,6 +60,15 @@
       (swap! store assoc-in p file)
       file)))
 
+(def example-fs
+  "An in-memory filesystem used for testing"
+  {"index.html" (memory/file {:name    "index.html"
+                              :content "<div>Hello</div>"})})
+
+(defn in-mem-fs-from-env
+  [_env]
+  (map->MemFS {:store (atom example-fs)}))
+
 (comment
   (def db (atom {"var" {"afile" (tag-as {:name "afile"
                                          :path "/var/afile"

@@ -5,16 +5,16 @@
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.virtual-hosting :as vh]
             [andrewslai.clj.http-api.wedding :as wedding]
-            [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
+            [andrewslai.clj.init.env :as env]
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.filesystem.local :as local-fs]
+            [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [andrewslai.clj.persistence.rdbms.live-pg :as live-pg]
-            [andrewslai.clj.init.env :as env]
+            [andrewslai.clj.test-utils :as tu]
             [next.jdbc :as next]
-            [taoensso.timbre :as log]
-            [andrewslai.clj.test-utils :as tu]))
+            [taoensso.timbre :as log]))
 
 ;;; TODO: Next up - simplify this configuration, especially duplicated code
 ;;;
@@ -23,21 +23,6 @@
 ;; Access control
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def public-access (constantly true))
-
-(def ANDREWSLAI-ACCESS-CONTROL-LIST
-  [{:pattern #"^/admin.*"        :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/articles.*"     :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/branches.*"     :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/compositions.*" :handler public-access}
-   {:pattern #"^/$"              :handler public-access}
-   {:pattern #"^/index.html$"    :handler public-access}
-   {:pattern #"^/ping"           :handler public-access}
-   #_{:pattern #"^/.*" :handler (constantly false)}])
-
-(def WEDDING-ACCESS-CONTROL-LIST
-  [{:pattern #"^/media.*"  :handler (partial auth/require-role "wedding")}
-   {:pattern #"^/albums.*" :handler (partial auth/require-role "wedding")}])
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Launching the system
@@ -50,7 +35,7 @@
   (merge log/*config* {:min-level level}))
 
 (defn make-database-connection
-  [{:keys [database] :as launch-options} {:keys [database] :as config-map} env]
+  [{:keys [database] :as config-map} env]
   (case (:db-type database)
     :postgres          (next/get-datasource (:connection database))
     :embedded-postgres (embedded-pg/fresh-db!)
