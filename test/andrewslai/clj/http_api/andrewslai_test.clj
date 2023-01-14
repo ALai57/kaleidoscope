@@ -24,10 +24,13 @@
   {"index.html" (memory/file {:name    "index.html"
                               :content "<div>Hello</div>"})})
 
+(def AUTHORIZED-USER
+  {:name         "Test User"
+   :realm_access {:roles ["andrewslai"]}})
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Predicates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn article?
   [x]
   (s/valid? :andrewslai.article/article x))
@@ -39,14 +42,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing HTTP routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn in-memory-fs?
-  [x]
-  (= andrewslai.clj.persistence.filesystem.in_memory_impl.MemFS (class x)))
-
 (deftest ping-test
-  (let [handler (-> {:http-mw (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
-                                                                  :andrewslai/authorization-type  :public-access}
-                                                                 {})}
+  (let [handler (-> {:http-mw (config/make-middleware {:authentication-type :always-unauthenticated
+                                                       :authorization-type  :public-access}
+                                                      {})}
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)]
     (is (match? {:status  200
@@ -56,9 +55,9 @@
 
 (deftest home-test
   (let [handler (-> {:static-content-adapter (memory/map->MemFS {:store (atom example-fs)})
-                     :http-mw                (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
-                                                                                 :andrewslai/authorization-type  :public-access}
-                                                                                {})}
+                     :http-mw                (config/make-middleware {:authentication-type :always-unauthenticated
+                                                                      :authorization-type  :public-access}
+                                                                     {})}
                     andrewslai/andrewslai-app)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"text/html"}
@@ -66,9 +65,9 @@
                 (handler (mock/request :get "/"))))))
 
 (deftest swagger-test
-  (let [handler (-> {:http-mw (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
-                                                                  :andrewslai/authorization-type  :public-access}
-                                                                 {})}
+  (let [handler (-> {:http-mw (config/make-middleware {:authentication-type :always-unauthenticated
+                                                       :authorization-type  :public-access}
+                                                      {})}
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)]
     (is (match? {:status  200
@@ -78,38 +77,38 @@
 
 (deftest admin-routes-test
   (testing "Authenticated and Authorized happy path"
-    (let [app (-> {:http-mw (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
-                                                                :andrewslai/authorization-type  :use-access-control-list}
-                                                               {})}
+    (let [app (-> {:http-mw (config/make-middleware {:authentication-type       :custom-authenticated-user
+                                                     :custom-authenticated-user AUTHORIZED-USER
+                                                     :authorization-type        :use-access-control-list
+                                                     :custom-access-rules       andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST}
+                                                    {})}
                   (andrewslai/andrewslai-app)
                   (tu/wrap-clojure-response))]
       (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
                   (app (-> (mock/request :get "/admin/")
                            (mock/header "Authorization" "Bearer x")))))))
   (testing "Authenticated but not Authorized cannot access"
-    (let [app (-> {:http-mw (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-authenticated
-                                                                :andrewslai/authorization-type  :use-access-control-list}
-                                                               {})}
+    (let [app (-> {:http-mw (config/make-middleware {:authentication-type       :custom-authenticated-user
+                                                     :custom-authenticated-user {}
+                                                     :authorization-type        :use-access-control-list
+                                                     :custom-access-rules       andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST}
+                                                    {})}
                   (andrewslai/andrewslai-app)
                   (tu/wrap-clojure-response))]
       (is (match? {:status 401 :body "Not authorized"}
                   (app (-> (mock/request :get "/admin/")
                            (mock/header "Authorization" "Bearer x"))))))))
 
-#_(deftest logging-test
-    (let [logging-atom (atom [])
-          handler      (andrewslai/andrewslai-app {:logging (tu/captured-logging logging-atom)})]
-      (handler (mock/request :get "/ping"))
-      (is (= 1 (count @logging-atom)))))
-
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
       (let [handler (-> {:static-content-adapter (memory/map->MemFS {:store (atom example-fs)})
                          :database               (embedded-h2/fresh-db!)
-                         :http-mw                (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
-                                                                                     :andrewslai/authorization-type  :use-access-control-list}
-                                                                                    {})}
+                         :http-mw                (config/make-middleware
+                                                  {:authentication-type :always-unauthenticated
+                                                   :authorization-type  :use-access-control-list
+                                                   :custom-access-rules andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST}
+                                                  {})}
                         andrewslai/andrewslai-app)]
         (is (match? expected (handler request)))))
 
@@ -147,9 +146,9 @@
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
       (let [app (-> {:database (embedded-h2/fresh-db!)
-                     :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :always-unauthenticated
-                                                                   :andrewslai/authorization-type  :public-access}
-                                                                  {})}
+                     :http-mw  (config/make-middleware {:authentication-type :always-unauthenticated
+                                                        :authorization-type  :public-access}
+                                                       {})}
                     andrewslai/andrewslai-app)]
         (is (match? expected
                     (tu/app-request app (mock/request :get endpoint))))))
@@ -164,9 +163,12 @@
 
 (deftest create-article-branch-happy-path
   (let [app     (-> {:database (embedded-h2/fresh-db!)
-                     :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
-                                                                   :andrewslai/authorization-type  :use-access-control-list}
-                                                                  {})}
+                     :http-mw  (config/make-middleware
+                                {:authentication-type       :custom-authenticated-user
+                                 :custom-authenticated-user AUTHORIZED-USER
+                                 :authorization-type        :use-access-control-list
+                                 :custom-access-rules       andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST}
+                                {})}
                     andrewslai/andrewslai-app
                     tu/wrap-clojure-response)
         article {:article-tags "thoughts"
@@ -200,15 +202,17 @@
 
 (deftest publish-branch-test
   (let [app             (-> {:database (embedded-h2/fresh-db!)
-                             :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
-                                                                           :andrewslai/authorization-type  :public-access}
-                                                                          {})}
+                             :http-mw  (config/make-middleware
+                                        {:authentication-type       :custom-authenticated-user
+                                         :custom-authenticated-user AUTHORIZED-USER
+                                         :authorization-type        :public-access}
+                                        {})}
                             andrewslai/andrewslai-app
                             tu/wrap-clojure-response)
-        article         {:article-url  "my-test-article"}
+        article         {:article-url "my-test-article"}
         branch          {:branch-name "mybranch"}
-        version         {:content     "<p>Hi</p>"
-                         :title       "My Article"}
+        version         {:content "<p>Hi</p>"
+                         :title   "My Article"}
         create-response (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
                                                              (:article-url article)
                                                              (:branch-name branch)))
@@ -240,9 +244,11 @@
 
 (deftest get-versions-test
   (let [app       (-> {:database (embedded-h2/fresh-db!)
-                       :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
-                                                                     :andrewslai/authorization-type  :public-access}
-                                                                    {})}
+                       :http-mw  (config/make-middleware
+                                  {:authentication-type       :custom-authenticated-user
+                                   :custom-authenticated-user AUTHORIZED-USER
+                                   :authorization-type        :public-access}
+                                  {})}
                       andrewslai/andrewslai-app
                       tu/wrap-clojure-response)
         article   {:article-tags "thoughts"
@@ -288,9 +294,9 @@
 
 (deftest portfolio-test
   (let [app      (-> {:database (embedded-h2/fresh-db!)
-                      :http-mw  (config/make-andrewslai-middleware {:andrewslai/authentication-type :authenticated-and-authorized
-                                                                    :andrewslai/authorization-type  :public-access}
-                                                                   {})}
+                      :http-mw  (config/make-middleware {:authentication-type :always-unauthenticated
+                                                         :authorization-type  :public-access}
+                                                        {})}
                      (andrewslai/andrewslai-app)
                      (tu/wrap-clojure-response))
         response (app (mock/request :get "/projects-portfolio"))]

@@ -4,14 +4,6 @@
             [ring.util.response :as ring-response]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Install multimethod to get resource-data from URLs using MEM-PROTOCOL
-;; Useful for teaching http-mw how to retrieve static assets from a FS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def MEM-PROTOCOL
-  "In memory protocol"
-  "mem")
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Core functionality
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn tag-as
@@ -60,10 +52,14 @@
       (swap! store assoc-in p file)
       file)))
 
+(defn in-memory-fs?
+  [x]
+  (= andrewslai.clj.persistence.filesystem.in_memory_impl.MemFS (class x)))
+
 (def example-fs
   "An in-memory filesystem used for testing"
-  {"index.html" (memory/file {:name    "index.html"
-                              :content "<div>Hello</div>"})})
+  {"index.html" (file {:name    "index.html"
+                       :content "<div>Hello</div>"})})
 
 (defn in-mem-fs-from-env
   [_env]

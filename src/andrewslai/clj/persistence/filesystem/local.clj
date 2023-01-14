@@ -51,11 +51,11 @@
 
 (defn andrewslai-local-fs-from-env
   [env]
-  (fs/map->LocalFS {:root (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER")}))
+  (map->LocalFS {:root (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER")}))
 
 (defn wedding-local-fs-from-env
   [env]
-  (fs/map->LocalFS {:root (get env "ANDREWSLAI_WEDDING_STATIC_CONTENT_FOLDER")}))
+  (map->LocalFS {:root (get env "ANDREWSLAI_WEDDING_STATIC_CONTENT_FOLDER")}))
 
 (comment
   (def fs

@@ -14,20 +14,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
-;; Useful for teaching http-mw how to retrieve static assets from a FS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def S3-PROTOCOL
-  "S3 protocol"
-  "s3p")
-
-(defmethod ring-response/resource-data (keyword S3-PROTOCOL)
-  [url]
-  (let [conn (.openConnection url)]
-    {:content (.getContent url)}))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: Is this custom provider necesssary?
@@ -148,12 +134,12 @@
 (defn andrewslai-s3-from-env
   [env]
   (map->S3 {:bucket (get "ANDREWSLAI_BUCKET")
-            :creds  s3-storage/CustomAWSCredentialsProviderChain}))
+            :creds  CustomAWSCredentialsProviderChain}))
 
 (defn wedding-s3-from-env
   [env]
   (map->S3 {:bucket (get "ANDREWSLAI_WEDDING_BUCKET")
-            :creds  s3-storage/CustomAWSCredentialsProviderChain}))
+            :creds  CustomAWSCredentialsProviderChain}))
 
 (comment ;; Playing with S3
 
