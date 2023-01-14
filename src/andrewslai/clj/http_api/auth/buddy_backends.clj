@@ -13,7 +13,9 @@
                                                 (unauthorized))}))
 
 (def unauthenticated-backend
-  (bearer-token-backend (constantly nil)))
+  (bearer-token-backend (fn authfn
+                          [& _]
+                          nil)))
 
 (defn authenticated-backend
   "Always returns an authenticated user. Useful for testing.
@@ -22,7 +24,7 @@
   https://openid.net/specs/openid-connect-core-1_0.html#IDToken"
   ([] (authenticated-backend true))
   ([id-token]
-   (log/infof "Creating Authenticated backend with identity: %s" id-token)
+   (log/debugf "Creating Authenticated backend with identity: %s" id-token)
    (bearer-token-backend (fn [& args]
                            (log/infof "[authenticated-backend]: Authenticated with user %s" id-token)
                            id-token))))

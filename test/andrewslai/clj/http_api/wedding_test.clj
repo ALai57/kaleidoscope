@@ -34,6 +34,10 @@
                                                  :content  {:qux :quz}
                                                  :metadata {}})}}})
 
+(def AUTHORIZED-USER
+  {:name         "Test User"
+   :realm_access {:roles ["wedding"]}})
+
 (defn make-example-file-upload-request
   "A function because the body is an input stream, which is consumable and must
   be regenerated each request"
@@ -63,35 +67,37 @@
                                           (mock/header "Authorization" "Bearer x")))))))
 
     "Public-access routes can be reached by unauthenticated user"
-    {:status 200} {:http-mw (-> {:wedding/authentication-type :always-unauthenticated
-                                 :wedding/authorization-type  :public-access}
-                                config/make-wedding-middleware)}
+    {:status 200} {:http-mw (-> {:authentication-type :always-unauthenticated
+                                 :authorization-type  :public-access}
+                                config/make-middleware)}
 
     "Restricted-access routes can be reached by authorized user"
-    {:status 200} {:http-mw (-> {:wedding/authentication-type :authenticated-and-authorized
-                                 :wedding/authorization-type  :custom-access-rules
-                                 :wedding/custom-access-rules (tu/restricted-access "wedding")}
-                                config/make-wedding-middleware)}
+    {:status 200} {:http-mw (-> {:authentication-type       :custom-authenticated-user
+                                 :custom-authenticated-user AUTHORIZED-USER
+                                 :authorization-type        :use-access-control-list
+                                 :custom-access-rules       (tu/restricted-access "wedding")}
+                                config/make-middleware)}
 
     "Restricted-access routes cannot be reached by unauthorized user"
-    {:status 401} {:http-mw (-> {:wedding/authentication-type       :custom-authenticated-user
-                                 :wedding/custom-authenticated-user {:realm_access {:roles ["not-wedding-role"]}}
-                                 :wedding/authorization-type        :custom-access-rules
-                                 :wedding/custom-access-rules       (tu/restricted-access "wedding")}
-                                config/make-wedding-middleware)}
+    {:status 401} {:http-mw (-> {:authentication-type       :custom-authenticated-user
+                                 :custom-authenticated-user {:realm_access {:roles ["not-wedding-role"]}}
+                                 :authorization-type        :use-access-control-list
+                                 :custom-access-rules       (tu/restricted-access "wedding")}
+                                config/make-middleware)}
 
     "Restricted-access routes cannot be reached by unauthenticated user"
-    {:status 401} {:http-mw (-> {:wedding/authentication-type :always-unauthenticated
-                                 :wedding/authorization-type  :custom-access-rules
-                                 :wedding/custom-access-rules (tu/restricted-access "wedding")}
-                                config/make-wedding-middleware)}))
+    {:status 401} {:http-mw (-> {:authentication-type :always-unauthenticated
+                                 :authorization-type  :use-access-control-list
+                                 :custom-access-rules (tu/restricted-access "wedding")}
+                                config/make-middleware)}))
 
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (-> {:http-mw (-> {:wedding/authentication-type :always-unauthenticated
-                                       :wedding/authorization-type  :use-access-control-list}
-                                      config/make-wedding-middleware)}
+      (let [handler (-> {:http-mw (-> {:authentication-type :always-unauthenticated
+                                       :authorization-type  :use-access-control-list
+                                       :custom-access-rules wedding/WEDDING-ACCESS-CONTROL-LIST}
+                                      config/make-middleware)}
                         wedding/wedding-app)]
         (is (match? expected (handler request)))))
 
@@ -110,9 +116,9 @@
 
 (deftest static-content-test
   (let [in-mem-fs (atom example-fs)
-        app       (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
-                                                    :wedding/authorization-type  :public-access}
-                                                   config/make-wedding-middleware)
+        app       (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
+                                                    :authorization-type  :public-access}
+                                                   config/make-middleware)
                        :database               (embedded-h2/fresh-db!)
                        :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
                       (wedding/wedding-app)
@@ -127,9 +133,9 @@
 (deftest upload-test
   (let [in-mem-fs (atom {})
         database  (embedded-h2/fresh-db!)
-        app       (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
-                                                    :wedding/authorization-type  :public-access}
-                                                   config/make-wedding-middleware)
+        app       (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
+                                                    :authorization-type  :public-access}
+                                                   config/make-middleware)
                        :database               database
                        :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
                       (wedding/wedding-app))]
@@ -151,9 +157,9 @@
                 @in-mem-fs))))
 
 (deftest albums-test
-  (let [app (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
-                                              :wedding/authorization-type  :public-access}
-                                             config/make-wedding-middleware)
+  (let [app (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
+                                              :authorization-type  :public-access}
+                                             config/make-middleware)
                  :database               (embedded-h2/fresh-db!)}
                 wedding/wedding-app
                 tu/wrap-clojure-response)]
@@ -192,9 +198,9 @@
 (deftest album-contents-test
   (let [database  (embedded-h2/fresh-db!)
         in-mem-fs (atom {})
-        app       (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
-                                                    :wedding/authorization-type  :public-access}
-                                                   config/make-wedding-middleware)
+        app       (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
+                                                    :authorization-type  :public-access}
+                                                   config/make-middleware)
                        :database               database
                        :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
                       wedding/wedding-app
@@ -239,9 +245,9 @@
 (deftest contents-retrieval-test
   (let [database  (embedded-h2/fresh-db!)
         in-mem-fs (atom {})
-        app       (-> {:http-mw                (-> {:wedding/authentication-type :always-authenticated
-                                                    :wedding/authorization-type  :public-access}
-                                                   config/make-wedding-middleware)
+        app       (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
+                                                    :authorization-type  :public-access}
+                                                   config/make-middleware)
                        :database               database
                        :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
                       wedding/wedding-app
@@ -275,11 +281,12 @@
                     (app (-> (mock/request :get "/albums/-/contents"))))) ))))
 
 (deftest albums-auth-test
-  (let [app (-> {:http-mw (-> {:wedding/authentication-type :always-authenticated
-                               :wedding/authorization-type  :use-access-control-list}
-                              config/make-wedding-middleware)}
+  (let [app (-> {:http-mw (-> {:authentication-type       :custom-authenticated-user
+                               :custom-authenticated-user AUTHORIZED-USER
+                               :authorization-type        :use-access-control-list
+                               :custom-access-rules       wedding/WEDDING-ACCESS-CONTROL-LIST}
+                              config/make-middleware)}
                 wedding/wedding-app)]
-
     (testing "Default access rules restrict access"
       (is (match? {:status 401}
                   (app (mock/request :get "/albums")))))))

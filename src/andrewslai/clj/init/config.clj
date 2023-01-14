@@ -56,9 +56,6 @@
     :local-filesystem (local-fs/map->LocalFS {:root (:folder launch-options)})
     :none             identity))
 
-;; Access control
-#_{:name         "Test User"
-   :realm_access {:roles ["andrewslai"]}}
 (defn make-middleware
   "Middleware handles Authentication, Authorization"
   ([launch-options]
