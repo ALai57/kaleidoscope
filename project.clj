@@ -33,6 +33,7 @@
                  [migratus "1.4.4" :scope "test"]
                  [nubank/matcher-combinators "3.1.4" :exclusions [io.aviso/pretty
                                                                   joda-time] :scope "test"]
+                 [lambdaisland/deep-diff2 "2.7.169"]
                  [org.apache.xmlgraphics/batik-transcoder "1.14"]
                  [org.clojure/clojure "1.10.1"]
                  [org.clojure/core.async "1.0.567" :exclusions [org.clojure/tools.reader]]
