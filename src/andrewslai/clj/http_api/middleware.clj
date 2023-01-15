@@ -4,13 +4,15 @@
             [buddy.auth.middleware :as ba]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.file :refer [wrap-file]]
-            [ring.middleware.json :refer [wrap-json-response]]
-            [ring.middleware.multipart-params :refer [wrap-multipart-params]]
-            [ring.middleware.params :refer [wrap-params]]
+            [ring.middleware.json :as json-mw :refer [wrap-json-response]]
+            [ring.middleware.multipart-params :as mp :refer [wrap-multipart-params]]
+            [ring.middleware.params :as params :refer [wrap-params]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.util.response :as resp]
             [ring.util.http-response :refer [unauthorized]]
-            [taoensso.timbre :as log])
+            [taoensso.timbre :as log]
+            [ring.mock.request :as mock]
+            [lambdaisland.deep-diff2 :as ddiff])
   (:import [lambdaisland.deep_diff2.diff_impl Mismatch Deletion Insertion]))
 
 ;; https://gist.github.com/hsartoris-bard/856d79d3a13f6cafaaa6e5079c76cd97
@@ -38,6 +40,18 @@
                                      (filter not-empty)
                                      (seq))]
                 (into (empty x) result))))
+
+(defn print-diff
+  [x y]
+  (ddiff/pretty-print (remove-unchanged (ddiff/diff x y))))
+
+(defn string-diff
+  [x y]
+  (with-out-str (ddiff/pretty-print (remove-unchanged (ddiff/diff x y))
+                                    (ddiff/printer {:print-color false}))))
+
+(string-diff {:a :b}
+             {:c :d})
 
 
 (def ^:dynamic *request-id*
@@ -77,6 +91,26 @@
                                                         :remote-addr))
                  request))))
 
+(defn log-transformation-diffs
+  [{:keys [name handler]}]
+  (fn [x]
+    (let [modified-x (handler x)]
+      (log/debugf "Difference introduced by %s: %s"
+                  name
+                  (string-diff x modified-x))
+      modified-x)))
+
+(comment
+  ((log-transformation-diffs {:name    :Hello
+                              :handler add-request-identifier})
+   (mock/request :get "/endpoint")))
+
+(defn add-request-identifier
+  [request]
+  (let [request-id       (str (java.util.UUID/randomUUID))
+        modified-request (assoc request :request-id request-id)]
+    modified-request))
+
 (defn wrap-request-identifier
   [handler]
   (fn [request]
@@ -115,12 +149,97 @@
 (defn auth-stack
   "Stack is applied from top down"
   [authentication-backend access-rules]
-  (apply comp [#(ba/wrap-authorization % authentication-backend)
-               ;;#(debug-log-request! "1" %)
-               #(ba/wrap-authentication % authentication-backend)
-               ;;#(debug-log-request! "2" %)
+  (apply comp [#(ba/wrap-authentication % authentication-backend)
                #(ar/wrap-access-rules % {:rules          access-rules
                                          :reject-handler (fn [& args]
                                                            (-> "Not authorized"
                                                                (unauthorized)
                                                                (resp/content-type "application/text")))})]))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; NEW -- Trying to convert middleware to processing chains
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn compose-xforms
+  [xforms]
+  (reduce (fn [fs {:keys [name log-diffs? handler] :as xform}]
+            (let [f (if log-diffs?
+                      (log-transformation-diffs xform))]
+              (comp f fs)))
+          identity
+          xforms))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Transform the incoming Ring request
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ring-request-pipeline-config
+  [{:name       :add-request-identifier
+    :handler    add-request-identifier
+    :log-diffs? true}
+   {:name       :add-params-to-request
+    :handler    params/params-request
+    :log-diffs? true}
+   {:name       :add-multipart-params-to-request
+    :handler    mp/multipart-params-request
+    :log-diffs? true}])
+
+(defn ring-auth-pipeline-config
+  [authentication-backend access-rules]
+  [{:name       :authenticate-user
+    :handler    (fn [request]
+                  (apply ba/authentication-request request authentication-backend))
+    :log-diffs? true}])
+
+(def ring-request-pipeline
+  (compose-xforms ring-request-pipeline-config))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Transform the outgoing Ring response
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def ring-response-pipeline-config
+  [{:name       :convert-response-to-json
+    :handler    (fn [response]
+                  (json-mw/json-response response {}))
+    :log-diffs? true}
+   {:name       :add-content-type-headers
+    :handler    identity
+    :log-diffs? true}
+   {:name       :add-cache-control-headers
+    :handler    identity
+    :log-diffs? true}])
+
+(def ring-response-pipeline
+  (compose-xforms ring-response-pipeline-config))
+
+
+(comment
+  {:name       :enforce-access-rules
+   :handler    (fn [request]
+                 (ar/wrap-access-rules
+                  request
+                  {:rules          access-rules
+                   :reject-handler (fn [& args]
+                                     (-> "Not authorized"
+                                         (unauthorized)
+                                         (resp/content-type "application/text")))}))}
+
+  (require '[ring.mock.request :as mock])
+  (ring-request-pipeline (mock/request :get "/endpoint")))
+
+
+
+
+
+[{:name :add-request-identifier    :handler add-request-identifier      :log-diffs? true}
+ {:name :add-params-to-request     :handler params/params-request       :log-diffs? true}
+ {:name :add-multipart-to-request  :handler mp/multipart-params-request :log-diffs? true}
+ {:name :authenticate-user         :handler authenticate-user           :log-diffs? true}
+ {:name :check-authorization       :handler authorize-user              :log-diffs? true}
+ {:name :handle-request            :handler handle-request              :log-diffs? true}
+ {:name :convert-response-to-json  :handler convert-to-json             :log-diffs? true}
+ {:name :add-content-type-headers  :handler add-content-type            :log-diffs? true}
+ {:name :add-cache-control         :handler add-cache-control           :log-diffs? true}
+ ]

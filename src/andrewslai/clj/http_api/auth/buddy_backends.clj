@@ -6,11 +6,8 @@
 
 (defn bearer-token-backend
   [authfn]
-  (token/token-backend {:token-name           "Bearer"
-                        :authfn               authfn
-                        :unauthorized-handler (fn [& args]
-                                                (log/infof "[token-backend]: Unauthorized user")
-                                                (unauthorized))}))
+  (token/token-backend {:token-name "Bearer"
+                        :authfn     authfn}))
 
 (def unauthenticated-backend
   (bearer-token-backend (fn authfn
