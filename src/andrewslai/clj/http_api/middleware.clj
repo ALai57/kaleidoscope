@@ -228,18 +228,3 @@
 
   (require '[ring.mock.request :as mock])
   (ring-request-pipeline (mock/request :get "/endpoint")))
-
-
-
-
-
-[{:name :add-request-identifier    :handler add-request-identifier      :log-diffs? true}
- {:name :add-params-to-request     :handler params/params-request       :log-diffs? true}
- {:name :add-multipart-to-request  :handler mp/multipart-params-request :log-diffs? true}
- {:name :authenticate-user         :handler authenticate-user           :log-diffs? true}
- {:name :check-authorization       :handler authorize-user              :log-diffs? true}
- {:name :handle-request            :handler handle-request              :log-diffs? true}
- {:name :convert-response-to-json  :handler convert-to-json             :log-diffs? true}
- {:name :add-content-type-headers  :handler add-content-type            :log-diffs? true}
- {:name :add-cache-control         :handler add-cache-control           :log-diffs? true}
- ]

@@ -1,5 +1,5 @@
 (def COMPILE-TIME-LOG-LEVEL
-  :info)
+  :debug)
 
 (defproject org.clojars.alai57/andrewslai "0.0.81-SNAPSHOT"
   :url "https://github.com/ALai57/andrewslai"
@@ -9,14 +9,13 @@
             :comments     "same as Clojure"}
   :description "The backend for ALai57's blogging app"
   :dependencies [[aleph "0.4.7-alpha7"]
-                 [amazonica "0.3.156" :exclusions [org.apache.commons/commons-lang3
+                 [amazonica "0.3.162" :exclusions [org.apache.commons/commons-lang3
                                                    commons-logging
                                                    com.taoensso/encore
                                                    org.apache.httpcomponents/httpclient
                                                    com.amazonaws/aws-java-sdk]]
-                 [biiwide/sandboxica "0.3.0" :scope "test"]
-                 [buddy/buddy-auth "2.2.0" :exclusions [com.google.code.gson/gson
-                                                        org.clojure/clojurescript]]
+                 [biiwide/sandboxica "0.4.0" :scope "test"]
+                 [buddy/buddy-auth "3.0.323"]
                  [camel-snake-kebab "0.4.3"]
                  [cheshire "5.10.0"]
                  [clj-http "3.10.0" :exclusions [commons-logging]]
