@@ -9,18 +9,13 @@
             :comments     "same as Clojure"}
   :description "The backend for ALai57's blogging app"
   :dependencies [[aleph "0.4.7-alpha7"]
-                 [amazonica "0.3.162" :exclusions [org.apache.commons/commons-lang3
-                                                   commons-logging
-                                                   com.taoensso/encore
-                                                   org.apache.httpcomponents/httpclient
-                                                   com.amazonaws/aws-java-sdk]]
+                 [amazonica "0.3.162"]
                  [biiwide/sandboxica "0.4.0" :scope "test"]
                  [buddy/buddy-auth "3.0.323"]
                  [camel-snake-kebab "0.4.3"]
                  [cheshire "5.10.0"]
-                 [clj-http "3.10.0" :exclusions [commons-logging]]
-                 [com.amazonaws/aws-java-sdk-s3 "1.11.850" :exclusions [commons-logging
-                                                                        org.apache.httpcomponents/httpclient]]
+                 [clj-http "3.12.3"]
+                 [com.amazonaws/aws-java-sdk-s3 "1.12.385"]
                  [com.twelvemonkeys.imageio/imageio-batik "3.7.0"]
                  [com.twelvemonkeys.servlet/servlet "3.7.0"]
                  [com.taoensso/timbre "5.1.2"]
@@ -35,10 +30,7 @@
                  [lambdaisland/deep-diff2 "2.7.169"]
                  [org.apache.xmlgraphics/batik-transcoder "1.14"]
                  [org.clojure/clojure "1.10.1"]
-                 [org.clojure/core.async "1.0.567" :exclusions [org.clojure/tools.reader]]
-                 [org.clojure/test.check "0.10.0"]
-                 [org.clojure/data.codec "0.1.1"]
-                 [org.clojure/data.csv "1.0.0" :scope "dev"]
+                 [org.clojure/test.check "1.1.1"]
                  [org.clojure/java.jdbc "0.7.8"]
                  [org.keycloak/keycloak-adapter-core "12.0.3"]
                  [org.keycloak/keycloak-adapter-spi "12.0.3"]
@@ -56,9 +48,8 @@
 
                  [com.h2database/h2 "2.1.214"]
                  [org.postgresql/postgresql "42.2.11"]
-                 [peridot "0.5.3" :scope "test"]
-                 [ring "1.8.0" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
                  [ring/ring-json "0.5.0" :exclusions [joda-time]]
+                 [ring "1.9.6" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
                  [ring/ring-mock "0.4.0" :scope "test"]
                  [com.github.seancorfield/next.jdbc "1.2.780"]
                  [slingshot "0.12.2"]]
