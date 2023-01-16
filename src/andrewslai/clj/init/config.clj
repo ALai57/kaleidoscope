@@ -16,9 +16,6 @@
             [next.jdbc :as next]
             [taoensso.timbre :as log]))
 
-;;; TODO: Next up - simplify this configuration, especially duplicated code
-;;;
-;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Access control
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -36,10 +33,15 @@
 
 (defn make-database-connection
   [{:keys [database] :as config-map} env]
-  (case (:db-type database)
-    :postgres          (next/get-datasource (:connection database))
-    :embedded-postgres (embedded-pg/fresh-db!)
-    :embedded-h2       (embedded-h2/fresh-db!)))
+  (try
+    (log/infof "Starting Database connection to %s" (:db-type database))
+    (case (:db-type database)
+      :postgres          (next/get-datasource (:connection database))
+      :embedded-postgres (embedded-pg/fresh-db!)
+      :embedded-h2       (embedded-h2/fresh-db!))
+    (catch Throwable e
+      (log/errorf "Failed to start database %s. Check your environment variables." (:db-type database))
+      (throw e))))
 
 ;; Static content Adapter (a Filesystem-like object)
 (def example-fs

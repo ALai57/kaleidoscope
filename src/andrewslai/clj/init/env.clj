@@ -10,6 +10,11 @@
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [andrewslai.clj.test-utils :as tu]
+            [malli.core :as m]
+            [malli.error :as me]
+            [malli.dev.pretty :as pretty]
+            [malli.dev.virhe :as v]
+            [malli.instrument :as mi]
             [next.jdbc :as next]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -110,7 +115,17 @@
 (def init-wedding-in-memory-filesystem memory/in-mem-fs-from-env)
 (def init-wedding-local-filesystem     local-fs/wedding-local-fs-from-env)
 
+(def PostgresConnectionMap
+  [:map
+   [:dbname   [:string {:error/message "Missing DB name. Set via ANDREWSLAI_DB_NAME environment variable."}]]
+   [:db-port  [:string {:error/message "Missing DB port. Set via ANDREWSLAI_DB_PORT environment variable."}]]
+   [:host     [:string {:error/message "Missing DB host. Set via ANDREWSLAI_DB_HOST environment variable."}]]
+   [:user     [:string {:error/message "Missing DB user. Set via ANDREWSLAI_DB_USER environment variable."}]]
+   [:password [:string {:error/message "Missing DB pass. Set via ANDREWSLAI_DB_PASSWORD environment variable."}]]
+   [:dbtype   [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]])
+
 (defn env->pg-conn
+  {:malli/schema [:=> [:cat :map] PostgresConnectionMap]}
   [env]
   {:dbname   (get env "ANDREWSLAI_DB_NAME")
    :db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
@@ -172,6 +187,16 @@
                  (assoc-in acc (get system-blueprint lookup-component) (init-fn env))))
              {}
              boot-instructions))
+
+(defmethod v/-format ::m/invalid-output [_ _ {:keys [value args output fn-name]} printer]
+  {:body
+   [:group
+    (pretty/-block "Invalid function return value. Function Var:" (v/-visit fn-name printer) printer) :break :break
+    (pretty/-block "Errors:" (pretty/-explain output value printer) printer) :break :break]})
+
+(mi/collect! {:ns 'andrewslai.clj.init.env})
+(mi/instrument! {:report (pretty/thrower)})
+
 
 ;; defn prepare-for-virtual-hosting
 

@@ -8,51 +8,37 @@
             :distribution :repo
             :comments     "same as Clojure"}
   :description "The backend for ALai57's blogging app"
-  :dependencies [[aleph "0.6.0"]
-                 [amazonica "0.3.162"]
-                 [buddy/buddy-auth "3.0.323"]
-                 [camel-snake-kebab "0.4.3"]
-                 [cheshire "5.10.0"]
-                 [clj-http "3.12.3"]
-                 [com.amazonaws/aws-java-sdk-s3 "1.12.385"]
-                 [com.twelvemonkeys.imageio/imageio-batik "3.9.4"]
-                 [com.twelvemonkeys.servlet/servlet "3.9.4"]
-                 [com.taoensso/timbre "6.0.4"]
-                 [honeysql "1.0.461"]
-                 [javax.servlet/servlet-api "2.5"]
-                 [metosin/compojure-api "2.0.0-alpha31" :exclusions [ring/ring-codec joda-time]]
-                 [metosin/spec-tools "0.10.3"]
-                 [nubank/matcher-combinators "3.7.2" :exclusions [io.aviso/pretty
-                                                                  joda-time] :scope "test"]
-                 [lambdaisland/deep-diff2 "2.7.169"]
-                 [org.apache.xmlgraphics/batik-transcoder "1.16"]
-                 [org.clojure/clojure "1.11.1"]
-                 [org.clojure/java.jdbc "0.7.12"]
-                 [org.keycloak/keycloak-adapter-core "12.0.3"]
-                 [org.keycloak/keycloak-adapter-spi "12.0.3"]
-                 [org.keycloak/keycloak-admin-client "12.0.3"]
-                 [org.keycloak/keycloak-common "12.0.3"]
-                 [org.keycloak/keycloak-core "12.0.3" :exclusions [com.fasterxml.jackson.core/jackson-annotations
-                                                                   com.fasterxml.jackson.core/jackson-core]]
-
-                 ;; Intercept logging to Apache Commons Logging (introduced by AWS SDK)
-                 [com.fzakaria/slf4j-timbre "0.3.21"]
-
-                 ;; Bridges between different logging libs and SLF4J
-                 [org.slf4j/log4j-over-slf4j "1.7.30"]
-
-                 [com.h2database/h2 "2.1.214"]
-                 [org.postgresql/postgresql "42.5.1"]
-                 [ring/ring-json "0.5.1" :exclusions [joda-time]]
-                 [ring "1.9.6" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
-                 [com.github.seancorfield/next.jdbc "1.3.847"]
-                 [slingshot "0.12.2"]
-
-                 [biiwide/sandboxica "0.4.0" :scope "test"]
-                 [io.zonky.test/embedded-postgres "1.2.6" :scope "test"]
-                 [migratus "1.4.9" :scope "test"]
-                 [ring/ring-mock "0.4.0" :scope "test"]
-                 ]
+  :dependencies
+  [[aleph "0.6.0"]
+   [amazonica "0.3.162"]
+   [buddy/buddy-auth "3.0.323"]
+   [camel-snake-kebab "0.4.3"]
+   [cheshire "5.10.0"]
+   [clj-http "3.12.3"]
+   [com.amazonaws/aws-java-sdk-s3 "1.12.385"]
+   [com.fzakaria/slf4j-timbre "0.3.21"] ;; Intercept logging to Apache Commons Logging (introduced by AWS SDK)
+   [com.github.seancorfield/next.jdbc "1.3.847"]
+   [com.h2database/h2 "2.1.214"]
+   [com.taoensso/timbre "6.0.4"]
+   [com.twelvemonkeys.servlet/servlet "3.9.4"]
+   [honeysql "1.0.461"]
+   [javax.servlet/servlet-api "2.5"]
+   [lambdaisland/deep-diff2 "2.7.169"]
+   [metosin/compojure-api "2.0.0-alpha31"]
+   [metosin/malli "0.10.0"]
+   [metosin/spec-tools "0.10.3"]
+   [org.clojure/clojure "1.11.1"]
+   [org.keycloak/keycloak-adapter-core "12.0.3"]
+   [org.keycloak/keycloak-adapter-spi "12.0.3"]
+   [org.keycloak/keycloak-admin-client "12.0.3"]
+   [org.keycloak/keycloak-common "12.0.3"]
+   [org.keycloak/keycloak-core "12.0.3" :exclusions [com.fasterxml.jackson.core/jackson-annotations com.fasterxml.jackson.core/jackson-core]]
+   [org.postgresql/postgresql "42.5.1"]
+   [org.slf4j/log4j-over-slf4j "1.7.30"] ;; Bridges between different logging libs and SLF4J
+   [ring "1.9.6" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
+   [ring/ring-json "0.5.1"]
+   [slingshot "0.12.2"]
+   ]
 
   :plugins [[lein-shell "0.5.0"]]
 
@@ -80,10 +66,16 @@
   ;; Speeds up Docker builds, see https://docs.docker.com/develop/develop-images/build_enhancements/
   :shell {:env {"DOCKER_BUILDKIT" "1"}}
 
-  :profiles {:dev {:plugins [[lein-ancient "0.6.15"]
-                             [lein-kibit "0.1.8"]
-                             [lein-ring "0.12.5"]]
-                   :aliases {"migratus" ["run" "-m" andrewslai.clj.persistence.rdbms.migrations]}}}
+  :profiles {:dev {:plugins      [[lein-ancient "0.6.15"]
+                                  [lein-kibit "0.1.8"]
+                                  [lein-ring "0.12.5"]]
+                   :dependencies [[biiwide/sandboxica "0.4.0"]
+                                  [io.zonky.test/embedded-postgres "1.2.6"]
+                                  [migratus "1.4.9"]
+                                  [ring/ring-mock "0.4.0"]
+                                  [nubank/matcher-combinators "3.7.2"]
+                                  ]
+                   :aliases      {"migratus" ["run" "-m" andrewslai.clj.persistence.rdbms.migrations]}}}
 
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]

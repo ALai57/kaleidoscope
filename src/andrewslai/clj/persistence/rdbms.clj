@@ -2,7 +2,6 @@
   (:require [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
             [cheshire.core :as json]
-            [clojure.java.jdbc :as sql]
             [clojure.spec.alpha :as s]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
@@ -13,26 +12,6 @@
             [taoensso.timbre :as log])
   (:import
    org.postgresql.util.PGobject))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; One time configuration - stateful
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(extend-protocol sql/IResultSetReadColumn
-  org.postgresql.jdbc.PgArray
-  (result-set-read-column [pgobj metadata i]
-    (vec (.getArray pgobj)))
-
-  PGobject
-  (result-set-read-column [pgobj conn metadata]
-    (let [type  (.getType pgobj)
-          value (.getValue pgobj)]
-      (case type
-        "json" (json/parse-string value keyword)
-        :else value))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Connection helpers
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; API for interacting with a relational database

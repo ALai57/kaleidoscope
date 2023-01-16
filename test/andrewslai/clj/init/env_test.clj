@@ -41,3 +41,14 @@
      "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
      "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "s3"}
     ))
+
+(deftest env->pg-conn-throws-when-missing-env-vars
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                        #"Missing DB name. Set via ANDREWSLAI_DB_NAME environment variable."
+                        (sut/env->pg-conn {})))
+  (is (re-matches #"Missing DB name. Set via ANDREWSLAI_DB_NAME environment variable."
+       (try
+         (sut/env->pg-conn {"ANDREWSLAI_DB_NAME" "Hi"})
+         (throw (Exception. "Should blow up before this with ex-info"))
+         (catch clojure.lang.ExceptionInfo e
+           (ex-message e))))))

@@ -1,6 +1,6 @@
 (ns andrewslai.clj.embedded-postgres
   (:require [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
-            [clojure.java.jdbc :as jdbc])
+            [next.jdbc :as next])
   (:import (io.zonky.test.db.postgres.embedded EmbeddedPostgres)))
 
 (defmacro with-embedded-postgres
@@ -9,6 +9,5 @@
   [database & body]
   `(let [db-spec# (embedded-pg/fresh-db!)
          ~database db-spec#]
-     (jdbc/with-db-transaction [txn# db-spec#]
-       (jdbc/db-set-rollback-only! txn#)
+     (next/with-db-transaction [txn# db-spec# {:rollback-only true}]
        ~@body)))
