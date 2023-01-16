@@ -23,7 +23,33 @@
 ;; the minimal amount of information needed to launch a webserver.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def LaunchOptionsMap
+  "Describes what system components should be started at app startup time."
+  [:map
+   [:port  [:int {:error/message "Invalid port. Set via ANDREWSLAI_PORT environment variable."}]]
+   [:level [:enum {:error/message "Invalid log level. Set via ANDREWSLAI_LOG_LEVEL environment variable."} :trace :debug :info :warn :error :fatal]]
+
+   [:database
+    [:map
+     [:db-type [:enum {:error/message "Invalid database type. Set via ANDREWSLAI_DB_TYPE environment variable."} :postgres :embedded-h2 :embedded-postgres]]]]
+
+   [:andrewslai
+    [:map
+     [:authentication-type [:enum {:error/message "Invalid authentication type. Set via ANDREWSLAI_AUTH_TYPE environment variable."} :keycloak :always-unauthenticated :custom-authenticated-user]]
+     [:authorization-type [:enum {:error/message "Invalid authorization type. Set via ANDREWSLAI_AUTHORIZATION_TYPE environment variable."} :use-access-control-list :public-access]]
+     [:static-content-type [:enum {:error/message "Invalid static content type. Set via ANDREWSLAI_STATIC_CONTENT_TYPE environment variable."} :none :s3 :in-memory :local-filesystem]]]]
+
+   [:wedding
+    [:map
+     [:authentication-type [:enum {:error/message "Invalid authentication type. Set via ANDREWSLAI_AUTH_TYPE environment variable."} :keycloak :always-unauthenticated :custom-authenticated-user]]
+     [:authorization-type [:enum {:error/message "Invalid authorization type. Set via ANDREWSLAI_AUTHORIZATION_TYPE environment variable."} :use-access-control-list :public-access]]
+     [:static-content-type [:enum {:error/message "Invalid static content type. Set via ANDREWSLAI_STATIC_CONTENT_TYPE environment variable."} :none :s3 :in-memory :local-filesystem]]]]
+   ])
+
 (defn environment->launch-options
+  "Reads the environment to determine what system components should be started at app startup time."
+  {:malli/schema [:=> [:cat :map] LaunchOptionsMap]
+   :malli/scope  #{:output}}
   [env]
   (let [kenv (fn [env-var default] (keyword (get env env-var default)))
         ienv (fn [env-var default] (Integer/parseInt (get env env-var (str default))))]
@@ -77,18 +103,29 @@
 (def use-access-control-list? (partial = :use-access-control-list))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Configuration for components
+;; Boot instructions for starting system components from the environment
 ;;
 ;; After parsing into a `launch-options` map, the config
 ;; namespace will continue booting pieces/components of the system
 ;; depending on which launch options were selected
 ;;
-;; e.g. if `:keycloak` authentication was selected,
-;;      the `env->keycloak` helper will parse relevant
-;;      keycloak environment variables into a configuration
-;;      map that can be used to boot the keycloak component.
+;; e.g. if `[:andrewslai :authentication-type]` of `:keycloak` was selected,
+;;      the `init-andrewslai-keycloak` helper will start a `bb/keycloak-backend`
+;;      by parsing relevant keycloak environment variables into a configuration
+;;      map (`env->keycloak`) that can be used to boot the keycloak component.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def KeycloakConnectionMap
+  [:map
+   [:realm             [:string {:error/message "Missing Keycloak realm. Set via ANDREWSLAI_AUTH_REALM environment variable."}]]
+   [:auth-server-url   [:string {:error/message "Missing Keycloak auth server url. Set via ANDREWSLAI_AUTH_URL environment variable."}]]
+   [:client-id         [:string {:error/message "Missing Keycloak client id. Set via ANDREWSLAI_AUTH_CLIENT environment variable."}]]
+   [:client-secret     [:string {:error/message "Missing Keycloak secret. Set via ANDREWSLAI_AUTH_SECRET environment variable."}]]
+   [:ssl-required      [:string {:error/message "Missing Keycloak ssl requirement. Set in code. Should never happen."}]]
+   [:confidential-port [:string {:error/message "Missing Keycloak confidential port. Set in code. Should never happen."}]]])
+
 (defn env->keycloak
+  {:malli/schema [:=> [:cat :map] KeycloakConnectionMap]
+   :malli/scope  #{:output}}
   [env]
   {:realm             (get env "ANDREWSLAI_AUTH_REALM")
    :auth-server-url   (get env "ANDREWSLAI_AUTH_URL")
@@ -125,7 +162,8 @@
    [:dbtype   [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]])
 
 (defn env->pg-conn
-  {:malli/schema [:=> [:cat :map] PostgresConnectionMap]}
+  {:malli/schema [:=> [:cat :map] PostgresConnectionMap]
+   :malli/scope  #{:output}}
   [env]
   {:dbname   (get env "ANDREWSLAI_DB_NAME")
    :db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
@@ -143,19 +181,13 @@
 ;; Parse environment variables into a map of config values:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def system-blueprint
-  {database-type [:database]
-
-   andrewslai-authentication-type [:andrewslai :authentication-backend]
-   andrewslai-authorization-type  [:andrewslai :authorization]
-   andrewslai-static-content-type [:andrewslai :static-content-adapter]
-
-   wedding-authentication-type [:wedding :authentication-backend]
-   wedding-authorization-type  [:wedding :authorization]
-   wedding-static-content-type [:wedding :static-content-adapter]
-   })
+(def database-boot-instructions
+  {database-type {:postgres          init-embedded-postgres-connection
+                  :embedded-h2       init-embedded-h2-connection
+                  :embedded-postgres init-embedded-postgres-connection}})
 
 (def boot-instructions
+  "How to boot each component"
   {database-type {:postgres          init-embedded-postgres-connection
                   :embedded-h2       init-embedded-h2-connection
                   :embedded-postgres init-embedded-postgres-connection}
@@ -179,6 +211,18 @@
                                 :local-filesystem init-wedding-local-filesystem}
    })
 
+(def system-blueprint
+  {database-type [:database]
+
+   andrewslai-authentication-type [:andrewslai :authentication-backend]
+   andrewslai-authorization-type  [:andrewslai :authorization]
+   andrewslai-static-content-type [:andrewslai :static-content-adapter]
+
+   wedding-authentication-type [:wedding :authentication-backend]
+   wedding-authorization-type  [:wedding :authorization]
+   wedding-static-content-type [:wedding :static-content-adapter]
+   })
+
 (defn start-system!
   [launch-options env]
   (reduce-kv (fn [acc lookup-component launcher-map]
@@ -188,6 +232,10 @@
              {}
              boot-instructions))
 
+;; Updates the Malli schema validation output to only show the errors
+;; This will:
+;; (1) Make sure we don't log secrets
+;; (2) Focus on errors so the user gets direct feedback about what to fix
 (defmethod v/-format ::m/invalid-output [_ _ {:keys [value args output fn-name]} printer]
   {:body
    [:group

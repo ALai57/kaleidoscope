@@ -40,8 +40,9 @@
 (defn -main
   "Start a server and run the application"
   [& args]
-  (let [{:keys [port] :as launch-options} (env/environment->launch-options (System/getenv))
-        system-components                 (config/initialize-system! launch-options (System/getenv))]
+  (let [env                               (into {} (System/getenv)) ;; b/c getenv returns java.util.Collections$UnmodifiableMap
+        {:keys [port] :as launch-options} (env/environment->launch-options env)
+        system-components                 (config/initialize-system! launch-options env)]
     (log/infof "Hello! Starting andrewslai on port %s" port)
     (initialize-logging!)
     (-> system-components
