@@ -61,10 +61,6 @@
   {"index.html" (file {:name    "index.html"
                        :content "<div>Hello</div>"})})
 
-(defn in-mem-fs-from-env
-  [_env]
-  (map->MemFS {:store (atom example-fs)}))
-
 (comment
   (def db (atom {"var" {"afile" (tag-as {:name "afile"
                                          :path "/var/afile"

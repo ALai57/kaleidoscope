@@ -131,16 +131,6 @@
         (log/error "Could not put object" e)
         (exception-response (amazon/ex->map e))))))
 
-(defn andrewslai-s3-from-env
-  [env]
-  (map->S3 {:bucket (get "ANDREWSLAI_BUCKET")
-            :creds  CustomAWSCredentialsProviderChain}))
-
-(defn wedding-s3-from-env
-  [env]
-  (map->S3 {:bucket (get "ANDREWSLAI_WEDDING_BUCKET")
-            :creds  CustomAWSCredentialsProviderChain}))
-
 (comment ;; Playing with S3
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -15,7 +15,8 @@
             [malli.dev.pretty :as pretty]
             [malli.dev.virhe :as v]
             [malli.instrument :as mi]
-            [next.jdbc :as next]))
+            [next.jdbc :as next]
+            [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Launch Options Map
@@ -65,43 +66,6 @@
                   :authorization-type  (kenv "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  :use-access-control-list)
                   :static-content-type (kenv "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" :none)}}))
 
-(def database :database)
-(def andrewslai :andrewslai)
-(def wedding :wedding)
-(def authentication-type :authentication-type)
-(def authorization-type :authorization-type)
-(def static-content-type :static-content-type)
-
-(def database-type (comp :db-type database))
-(def andrewslai-authentication-type (comp authentication-type andrewslai))
-(def andrewslai-authorization-type  (comp authorization-type  andrewslai))
-(def andrewslai-static-content-type (comp static-content-type andrewslai))
-
-(def wedding-authentication-type (comp authentication-type wedding))
-(def wedding-authorization-type  (comp authorization-type  wedding))
-(def wedding-static-content-type (comp static-content-type wedding))
-
-;; Supported launch options
-;;
-;; Authentication
-(def keycloak?               (partial = :keycloak))
-(def always-authenticated?   (partial = :always-authenticated))
-(def always-unauthenticated? (partial = :always-unauthenticated))
-
-;; Database
-(def postgres?          (partial = :postgres))
-(def embedded-postgres? (partial = :embedded-postgres))
-(def embedded-h2?       (partial = :embedded-h2))
-
-;; Static File Adapter
-(def s3?                (partial = :s3))
-(def in-memory?         (partial = :in-memory))
-(def local-filesystem?  (partial = :local-filesystem))
-
-;; Authorization
-(def public-access?           (partial = :public-access))
-(def use-access-control-list? (partial = :use-access-control-list))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot instructions for starting system components from the environment
 ;;
@@ -114,17 +78,15 @@
 ;;      by parsing relevant keycloak environment variables into a configuration
 ;;      map (`env->keycloak`) that can be used to boot the keycloak component.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def KeycloakConnectionMap
-  [:map
-   [:realm             [:string {:error/message "Missing Keycloak realm. Set via ANDREWSLAI_AUTH_REALM environment variable."}]]
-   [:auth-server-url   [:string {:error/message "Missing Keycloak auth server url. Set via ANDREWSLAI_AUTH_URL environment variable."}]]
-   [:client-id         [:string {:error/message "Missing Keycloak client id. Set via ANDREWSLAI_AUTH_CLIENT environment variable."}]]
-   [:client-secret     [:string {:error/message "Missing Keycloak secret. Set via ANDREWSLAI_AUTH_SECRET environment variable."}]]
-   [:ssl-required      [:string {:error/message "Missing Keycloak ssl requirement. Set in code. Should never happen."}]]
-   [:confidential-port [:string {:error/message "Missing Keycloak confidential port. Set in code. Should never happen."}]]])
-
 (defn env->keycloak
-  {:malli/schema [:=> [:cat :map] KeycloakConnectionMap]
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:realm             [:string {:error/message "Missing Keycloak realm. Set via ANDREWSLAI_AUTH_REALM environment variable."}]]
+                   [:auth-server-url   [:string {:error/message "Missing Keycloak auth server url. Set via ANDREWSLAI_AUTH_URL environment variable."}]]
+                   [:client-id         [:string {:error/message "Missing Keycloak client id. Set via ANDREWSLAI_AUTH_CLIENT environment variable."}]]
+                   [:client-secret     [:string {:error/message "Missing Keycloak secret. Set via ANDREWSLAI_AUTH_SECRET environment variable."}]]
+                   [:ssl-required      [:string {:error/message "Missing Keycloak ssl requirement. Set in code. Should never happen."}]]
+                   [:confidential-port [:string {:error/message "Missing Keycloak confidential port. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
   {:realm             (get env "ANDREWSLAI_AUTH_REALM")
@@ -134,35 +96,15 @@
    :ssl-required      "external"
    :confidential-port 0})
 
-(def init-andrewslai-keycloak             (comp bb/keycloak-backend env->keycloak))
-(def init-andrewslai-authenticated-user   bb/authenticated-backend)
-(def init-andrewslai-unauthenticated-user (constantly bb/unauthenticated-backend))
-(def init-andrewslai-public-access        (constantly tu/public-access))
-(def init-andrewslai-access-control       (constantly andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST))
-(def init-andrewslai-s3-filesystem        s3-storage/andrewslai-s3-from-env)
-(def init-andrewslai-in-memory-filesystem memory/in-mem-fs-from-env)
-(def init-andrewslai-local-filesystem     local-fs/andrewslai-local-fs-from-env)
-
-(def init-wedding-keycloak             (comp bb/keycloak-backend env->keycloak))
-(def init-wedding-authenticated-user   bb/authenticated-backend)
-(def init-wedding-unauthenticated-user (constantly bb/unauthenticated-backend))
-(def init-wedding-public-access        (constantly tu/public-access))
-(def init-wedding-access-control       (constantly wedding/WEDDING-ACCESS-CONTROL-LIST))
-(def init-wedding-s3-filesystem        s3-storage/wedding-s3-from-env)
-(def init-wedding-in-memory-filesystem memory/in-mem-fs-from-env)
-(def init-wedding-local-filesystem     local-fs/wedding-local-fs-from-env)
-
-(def PostgresConnectionMap
-  [:map
-   [:dbname   [:string {:error/message "Missing DB name. Set via ANDREWSLAI_DB_NAME environment variable."}]]
-   [:db-port  [:string {:error/message "Missing DB port. Set via ANDREWSLAI_DB_PORT environment variable."}]]
-   [:host     [:string {:error/message "Missing DB host. Set via ANDREWSLAI_DB_HOST environment variable."}]]
-   [:user     [:string {:error/message "Missing DB user. Set via ANDREWSLAI_DB_USER environment variable."}]]
-   [:password [:string {:error/message "Missing DB pass. Set via ANDREWSLAI_DB_PASSWORD environment variable."}]]
-   [:dbtype   [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]])
-
 (defn env->pg-conn
-  {:malli/schema [:=> [:cat :map] PostgresConnectionMap]
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:dbname   [:string {:error/message "Missing DB name. Set via ANDREWSLAI_DB_NAME environment variable."}]]
+                   [:db-port  [:string {:error/message "Missing DB port. Set via ANDREWSLAI_DB_PORT environment variable."}]]
+                   [:host     [:string {:error/message "Missing DB host. Set via ANDREWSLAI_DB_HOST environment variable."}]]
+                   [:user     [:string {:error/message "Missing DB user. Set via ANDREWSLAI_DB_USER environment variable."}]]
+                   [:password [:string {:error/message "Missing DB pass. Set via ANDREWSLAI_DB_PASSWORD environment variable."}]]
+                   [:dbtype   [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
   {:dbname   (get env "ANDREWSLAI_DB_NAME")
@@ -172,9 +114,65 @@
    :password (get env "ANDREWSLAI_DB_PASSWORD")
    :dbtype   "postgresql"})
 
-(def init-postgres-connection          (comp next/get-datasource env->pg-conn))
-(def init-embedded-postgres-connection (fn [x] (embedded-pg/fresh-db!)))
-(def init-embedded-h2-connection       (fn [x] (embedded-h2/fresh-db!)))
+(defn env->andrewslai-s3
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:bucket [:string {:error/message "Missing S3 bucket. Set via ANDREWSLAI_BUCKET environment variable."}]]
+                   [:creds  [:string {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:bucket (get "ANDREWSLAI_BUCKET")
+   :creds  s3-storage/CustomAWSCredentialsProviderChain})
+
+(defn env->wedding-s3
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:bucket [:string {:error/message "Missing Wedding S3 bucket. Set via ANDREWSLAI_WEDDING_BUCKET environment variable."}]]
+                   [:creds  [:string {:error/message "Missing Wedding S3 credential provider chain. Set in code. Should never happen."}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:bucket (get "ANDREWSLAI_WEDDING_BUCKET")
+   :creds  s3-storage/CustomAWSCredentialsProviderChain})
+
+(defn env->andrewslai-local-fs
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:root [:string {:error/message "Missing Local FS root path. Set via ANDREWSLAI_STATIC_CONTENT_FOLDER environment variable."}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:root (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER")})
+
+(defn env->wedding-local-fs
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:root [:string {:error/message "Missing Local FS root path. Set via ANDREWSLAI_WEDDING_STATIC_CONTENT_FOLDER environment variable."}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:root (get env "ANDREWSLAI_WEDDING_STATIC_CONTENT_FOLDER")})
+
+
+
+(def init-andrewslai-keycloak             (fn [env] (bb/keycloak-backend (env->keycloak env))))
+(def init-andrewslai-authenticated-user   (fn [_env] (bb/authenticated-backend)))
+(def init-andrewslai-unauthenticated-user (fn [_env] bb/unauthenticated-backend))
+(def init-andrewslai-public-access        (fn [_env] tu/public-access))
+(def init-andrewslai-access-control       (fn [_env] andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST))
+(def init-andrewslai-s3-filesystem        (fn [env] (s3-storage/map->S3 (env->andrewslai-s3 env))))
+(def init-andrewslai-in-memory-filesystem (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)})))
+(def init-andrewslai-local-filesystem     (fn [env] (local-fs/map->LocalFS (env->andrewslai-local-fs env))))
+
+(def init-wedding-keycloak             (fn [env] (bb/keycloak-backend (env->keycloak env))))
+(def init-wedding-authenticated-user   (fn [_env] (bb/authenticated-backend)))
+(def init-wedding-unauthenticated-user (fn [_env] bb/unauthenticated-backend))
+(def init-wedding-public-access        (fn [_env] tu/public-access))
+(def init-wedding-access-control       (fn [_env] wedding/WEDDING-ACCESS-CONTROL-LIST))
+(def init-wedding-s3-filesystem        (fn [env] (s3-storage/map->S3 (env->wedding-s3 env))))
+(def init-wedding-in-memory-filesystem (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)})))
+(def init-wedding-local-filesystem     (fn [env] (local-fs/map->LocalFS (env->andrewslai-local-fs env))))
+
+(def init-postgres-connection          (fn [env] (next/get-datasource (env->pg-conn env))))
+(def init-embedded-postgres-connection (fn [_env] (embedded-pg/fresh-db!)))
+(def init-embedded-h2-connection       (fn [_env] (embedded-h2/fresh-db!)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuration map
@@ -182,55 +180,82 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def database-boot-instructions
-  {database-type {:postgres          init-embedded-postgres-connection
-                  :embedded-h2       init-embedded-h2-connection
-                  :embedded-postgres init-embedded-postgres-connection}})
+  {:name      :database-connection
+   :path      [:database :db-type]
+   :launchers {:postgres          init-postgres-connection
+               :embedded-h2       init-embedded-h2-connection
+               :embedded-postgres init-embedded-postgres-connection}})
 
-(def boot-instructions
-  "How to boot each component"
-  {database-type {:postgres          init-embedded-postgres-connection
-                  :embedded-h2       init-embedded-h2-connection
-                  :embedded-postgres init-embedded-postgres-connection}
+(def andrewslai-authentication-boot-instructions
+  {:name      :andrewslai-authentication
+   :path      [:andrewslai :authentication-type]
+   :launchers {:keycloak                  init-andrewslai-keycloak
+               :always-unauthenticated    init-andrewslai-unauthenticated-user
+               :custom-authenticated-user init-andrewslai-authenticated-user}})
 
-   andrewslai-authentication-type {:keycloak                  init-andrewslai-keycloak
-                                   :always-unauthenticated    init-andrewslai-unauthenticated-user
-                                   :custom-authenticated-user init-andrewslai-authenticated-user}
-   andrewslai-authorization-type  {:public-access           init-andrewslai-public-access
-                                   :use-access-control-list init-andrewslai-access-control}
-   andrewslai-static-content-type {:s3               init-andrewslai-s3-filesystem
-                                   :in-memory        init-andrewslai-in-memory-filesystem
-                                   :local-filesystem init-andrewslai-local-filesystem}
+(def andrewslai-authorization-boot-instructions
+  {:name      :andrewslai-authorization
+   :path      [:andrewslai :authorization-type]
+   :launchers {:public-access           init-andrewslai-public-access
+               :use-access-control-list init-andrewslai-access-control}})
 
-   wedding-authentication-type {:keycloak                  init-wedding-keycloak
-                                :always-unauthenticated    init-wedding-unauthenticated-user
-                                :custom-authenticated-user init-wedding-authenticated-user}
-   wedding-authorization-type  {:public-access           init-wedding-public-access
-                                :use-access-control-list init-wedding-access-control}
-   wedding-static-content-type {:s3               init-wedding-s3-filesystem
-                                :in-memory        init-wedding-in-memory-filesystem
-                                :local-filesystem init-wedding-local-filesystem}
-   })
+(def andrewslai-static-content-adapter-boot-instructions
+  {:name      :andrewslai-static-content-adapter
+   :path      [:andrewslai :static-content-type]
+   :launchers {:none             identity
+               :s3               init-andrewslai-s3-filesystem
+               :in-memory        init-andrewslai-in-memory-filesystem
+               :local-filesystem init-andrewslai-local-filesystem}})
 
-(def system-blueprint
-  {database-type [:database]
+(def wedding-authentication-boot-instructions
+  {:name      :wedding-authentication
+   :path      [:wedding :authentication-type]
+   :launchers {:keycloak                  init-wedding-keycloak
+               :always-unauthenticated    init-wedding-unauthenticated-user
+               :custom-authenticated-user init-wedding-authenticated-user}})
 
-   andrewslai-authentication-type [:andrewslai :authentication-backend]
-   andrewslai-authorization-type  [:andrewslai :authorization]
-   andrewslai-static-content-type [:andrewslai :static-content-adapter]
+(def wedding-authorization-boot-instructions
+  {:name      :wedding-authorization
+   :path      [:wedding :authorization-type]
+   :launchers {:public-access           init-wedding-public-access
+               :use-access-control-list init-wedding-access-control}})
 
-   wedding-authentication-type [:wedding :authentication-backend]
-   wedding-authorization-type  [:wedding :authorization]
-   wedding-static-content-type [:wedding :static-content-adapter]
-   })
+(def wedding-static-content-adapter-boot-instructions
+  {:name      :wedding-static-content-adapter
+   :path      [:wedding :static-content-type]
+   :launchers {:none             identity
+               :s3               init-wedding-s3-filesystem
+               :in-memory        init-wedding-in-memory-filesystem
+               :local-filesystem init-wedding-local-filesystem}})
 
+;; TODO: TEST ME!
 (defn start-system!
   [launch-options env]
-  (reduce-kv (fn [acc lookup-component launcher-map]
-               (let [component-type (lookup-component launch-options)
-                     init-fn        (get launcher-map component-type)]
-                 (assoc-in acc (get system-blueprint lookup-component) (init-fn env))))
-             {}
-             boot-instructions))
+  (reduce (fn [acc {:keys [name path launchers] :as system-component}]
+            (let [init-fn (->> path
+                               (get-in launch-options)
+                               (get launchers))]
+              (log/debugf "Starting %s using %s" name init-fn)
+              (assoc acc path (init-fn env))))
+          {}
+          [database-boot-instructions
+
+           andrewslai-authentication-boot-instructions
+           andrewslai-authorization-boot-instructions
+           andrewslai-static-content-adapter-boot-instructions
+
+           wedding-authentication-boot-instructions
+           wedding-authorization-boot-instructions
+           wedding-static-content-adapter-boot-instructions
+           ]))
+
+
+(comment
+  (start-system! (environment->launch-options {"ANDREWSLAI_DB_TYPE"   "embedded-h2"
+                                               "ANDREWSLAI_AUTH_TYPE" "always-unauthenticated"
+                                               "ANDREWSLAI_WEDDING_AUTH_TYPE" "always-unauthenticated"})
+                 {})
+  )
 
 ;; Updates the Malli schema validation output to only show the errors
 ;; This will:
@@ -247,28 +272,3 @@
 
 
 ;; defn prepare-for-virtual-hosting
-
-(comment
-  (def config
-    (environment->launch-options (System/getenv)))
-
-  (build-config-map config (System/getenv))
-  )
-
-(comment
-
-  (def using-postgres?            (comp postgres?          database-type))
-  (def using-embedded-postgres?   (comp embedded-postgres? database-type))
-  (def using-embedded-h2?         (comp embedded-h2?       database-type))
-
-  (def andrewslai-using-keycloak? (comp keycloak?         andrewslai-authentication-type))
-  (def andrewslai-using-s3?       (comp s3?               andrewslai-static-content-type))
-  (def andrewslai-using-local-fs? (comp local-filesystem? andrewslai-static-content-type))
-
-  (def wedding-using-keycloak? (comp keycloak?         wedding-authentication-type))
-  (def wedding-using-s3?       (comp s3?               wedding-static-content-type))
-  (def wedding-using-local-fs? (comp local-filesystem? wedding-static-content-type))
-
-
-
-  )
