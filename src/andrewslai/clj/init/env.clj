@@ -24,47 +24,47 @@
 ;; the minimal amount of information needed to launch a webserver.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def LaunchOptionsMap
-  "Describes what system components should be started at app startup time."
-  [:map
-   [:port  [:int {:error/message "Invalid port. Set via ANDREWSLAI_PORT environment variable."}]]
-   [:level [:enum {:error/message "Invalid log level. Set via ANDREWSLAI_LOG_LEVEL environment variable."} :trace :debug :info :warn :error :fatal]]
-
-   [:database
+#_(def LaunchOptionsMap
+    "Describes what system components should be started at app startup time."
     [:map
-     [:db-type [:enum {:error/message "Invalid database type. Set via ANDREWSLAI_DB_TYPE environment variable."} :postgres :embedded-h2 :embedded-postgres]]]]
+     [:port  [:int {:error/message "Invalid port. Set via ANDREWSLAI_PORT environment variable."}]]
+     [:level [:enum {:error/message "Invalid log level. Set via ANDREWSLAI_LOG_LEVEL environment variable."} :trace :debug :info :warn :error :fatal]]
 
-   [:andrewslai
-    [:map
-     [:authentication-type [:enum {:error/message "Invalid authentication type. Set via ANDREWSLAI_AUTH_TYPE environment variable."} :keycloak :always-unauthenticated :custom-authenticated-user]]
-     [:authorization-type [:enum {:error/message "Invalid authorization type. Set via ANDREWSLAI_AUTHORIZATION_TYPE environment variable."} :use-access-control-list :public-access]]
-     [:static-content-type [:enum {:error/message "Invalid static content type. Set via ANDREWSLAI_STATIC_CONTENT_TYPE environment variable."} :none :s3 :in-memory :local-filesystem]]]]
+     [:database
+      [:map
+       [:db-type [:enum {:error/message "Invalid database type. Set via ANDREWSLAI_DB_TYPE environment variable."} :postgres :embedded-h2 :embedded-postgres]]]]
 
-   [:wedding
-    [:map
-     [:authentication-type [:enum {:error/message "Invalid authentication type. Set via ANDREWSLAI_AUTH_TYPE environment variable."} :keycloak :always-unauthenticated :custom-authenticated-user]]
-     [:authorization-type [:enum {:error/message "Invalid authorization type. Set via ANDREWSLAI_AUTHORIZATION_TYPE environment variable."} :use-access-control-list :public-access]]
-     [:static-content-type [:enum {:error/message "Invalid static content type. Set via ANDREWSLAI_STATIC_CONTENT_TYPE environment variable."} :none :s3 :in-memory :local-filesystem]]]]
-   ])
+     [:andrewslai
+      [:map
+       [:authentication-type [:enum {:error/message "Invalid authentication type. Set via ANDREWSLAI_AUTH_TYPE environment variable."} :keycloak :always-unauthenticated :custom-authenticated-user]]
+       [:authorization-type [:enum {:error/message "Invalid authorization type. Set via ANDREWSLAI_AUTHORIZATION_TYPE environment variable."} :use-access-control-list :public-access]]
+       [:static-content-type [:enum {:error/message "Invalid static content type. Set via ANDREWSLAI_STATIC_CONTENT_TYPE environment variable."} :none :s3 :in-memory :local-filesystem]]]]
 
-(defn environment->launch-options
-  "Reads the environment to determine what system components should be started at app startup time."
-  {:malli/schema [:=> [:cat :map] LaunchOptionsMap]
-   :malli/scope  #{:output}}
-  [env]
-  (let [kenv (fn [env-var default] (keyword (get env env-var default)))
-        ienv (fn [env-var default] (Integer/parseInt (get env env-var (str default))))]
+     [:wedding
+      [:map
+       [:authentication-type [:enum {:error/message "Invalid authentication type. Set via ANDREWSLAI_AUTH_TYPE environment variable."} :keycloak :always-unauthenticated :custom-authenticated-user]]
+       [:authorization-type [:enum {:error/message "Invalid authorization type. Set via ANDREWSLAI_AUTHORIZATION_TYPE environment variable."} :use-access-control-list :public-access]]
+       [:static-content-type [:enum {:error/message "Invalid static content type. Set via ANDREWSLAI_STATIC_CONTENT_TYPE environment variable."} :none :s3 :in-memory :local-filesystem]]]]
+     ])
 
-    {:port  (ienv "ANDREWSLAI_PORT"      5000)
-     :level (kenv "ANDREWSLAI_LOG_LEVEL" :info)
+#_(defn environment->launch-options
+    "Reads the environment to determine what system components should be started at app startup time."
+    {:malli/schema [:=> [:cat :map] LaunchOptionsMap]
+     :malli/scope  #{:output}}
+    [env]
+    (let [kenv (fn [env-var default]          (keyword (get env env-var default)))
+          ienv (fn [env-var default] (Integer/parseInt (get env env-var (str default))))]
 
-     :database   {:db-type             (kenv "ANDREWSLAI_DB_TYPE"                     :postgres)}
-     :andrewslai {:authentication-type (kenv "ANDREWSLAI_AUTH_TYPE"                   :keycloak)
-                  :authorization-type  (kenv "ANDREWSLAI_AUTHORIZATION_TYPE"          :use-access-control-list)
-                  :static-content-type (kenv "ANDREWSLAI_STATIC_CONTENT_TYPE"         :none)}
-     :wedding    {:authentication-type (kenv "ANDREWSLAI_WEDDING_AUTH_TYPE"           :keycloak)
-                  :authorization-type  (kenv "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  :use-access-control-list)
-                  :static-content-type (kenv "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" :none)}}))
+      {:port  (ienv "ANDREWSLAI_PORT"      5000)
+       :level (kenv "ANDREWSLAI_LOG_LEVEL" :info)
+
+       :database   {:db-type             (kenv "ANDREWSLAI_DB_TYPE"                     :postgres)}
+       :andrewslai {:authentication-type (kenv "ANDREWSLAI_AUTH_TYPE"                   :keycloak)
+                    :authorization-type  (kenv "ANDREWSLAI_AUTHORIZATION_TYPE"          :use-access-control-list)
+                    :static-content-type (kenv "ANDREWSLAI_STATIC_CONTENT_TYPE"         :none)}
+       :wedding    {:authentication-type (kenv "ANDREWSLAI_WEDDING_AUTH_TYPE"           :keycloak)
+                    :authorization-type  (kenv "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  :use-access-control-list)
+                    :static-content-type (kenv "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" :none)}}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot instructions for starting system components from the environment
@@ -152,27 +152,6 @@
 
 
 
-(def init-andrewslai-keycloak             (fn [env] (bb/keycloak-backend (env->keycloak env))))
-(def init-andrewslai-authenticated-user   (fn [_env] (bb/authenticated-backend)))
-(def init-andrewslai-unauthenticated-user (fn [_env] bb/unauthenticated-backend))
-(def init-andrewslai-public-access        (fn [_env] tu/public-access))
-(def init-andrewslai-access-control       (fn [_env] andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST))
-(def init-andrewslai-s3-filesystem        (fn [env] (s3-storage/map->S3 (env->andrewslai-s3 env))))
-(def init-andrewslai-in-memory-filesystem (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)})))
-(def init-andrewslai-local-filesystem     (fn [env] (local-fs/map->LocalFS (env->andrewslai-local-fs env))))
-
-(def init-wedding-keycloak             (fn [env] (bb/keycloak-backend (env->keycloak env))))
-(def init-wedding-authenticated-user   (fn [_env] (bb/authenticated-backend)))
-(def init-wedding-unauthenticated-user (fn [_env] bb/unauthenticated-backend))
-(def init-wedding-public-access        (fn [_env] tu/public-access))
-(def init-wedding-access-control       (fn [_env] wedding/WEDDING-ACCESS-CONTROL-LIST))
-(def init-wedding-s3-filesystem        (fn [env] (s3-storage/map->S3 (env->wedding-s3 env))))
-(def init-wedding-in-memory-filesystem (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)})))
-(def init-wedding-local-filesystem     (fn [env] (local-fs/map->LocalFS (env->andrewslai-local-fs env))))
-
-(def init-postgres-connection          (fn [env] (next/get-datasource (env->pg-conn env))))
-(def init-embedded-postgres-connection (fn [_env] (embedded-pg/fresh-db!)))
-(def init-embedded-h2-connection       (fn [_env] (embedded-h2/fresh-db!)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuration map
@@ -181,79 +160,97 @@
 
 (def database-boot-instructions
   {:name      :database-connection
-   :path      [:database :db-type]
-   :launchers {:postgres          init-postgres-connection
-               :embedded-h2       init-embedded-h2-connection
-               :embedded-postgres init-embedded-postgres-connection}})
+   :path      "ANDREWSLAI_DB_TYPE"
+   :launchers {"postgres"          (fn  [env] (next/get-datasource (env->pg-conn env)))
+               "embedded-h2"       (fn [_env] (embedded-h2/fresh-db!))
+               "embedded-postgres" (fn [_env] (embedded-pg/fresh-db!))}
+   :default   "postgres"})
 
 (def andrewslai-authentication-boot-instructions
   {:name      :andrewslai-authentication
-   :path      [:andrewslai :authentication-type]
-   :launchers {:keycloak                  init-andrewslai-keycloak
-               :always-unauthenticated    init-andrewslai-unauthenticated-user
-               :custom-authenticated-user init-andrewslai-authenticated-user}})
+   :path      "ANDREWSLAI_AUTH_TYPE"
+   :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
+               "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend))}
+   :default   "keycloak"})
 
 (def andrewslai-authorization-boot-instructions
   {:name      :andrewslai-authorization
-   :path      [:andrewslai :authorization-type]
-   :launchers {:public-access           init-andrewslai-public-access
-               :use-access-control-list init-andrewslai-access-control}})
+   :path      "ANDREWSLAI_AUTHORIZATION_TYPE"
+   :launchers {"public-access"           (fn [_env] tu/public-access)
+               "use-access-control-list" (fn [_env] andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST)}
+   :default   "use-access-control-list"})
 
 (def andrewslai-static-content-adapter-boot-instructions
   {:name      :andrewslai-static-content-adapter
-   :path      [:andrewslai :static-content-type]
-   :launchers {:none             identity
-               :s3               init-andrewslai-s3-filesystem
-               :in-memory        init-andrewslai-in-memory-filesystem
-               :local-filesystem init-andrewslai-local-filesystem}})
+   :path      "ANDREWSLAI_STATIC_CONTENT_TYPE"
+   :launchers {"none"             (fn [_env] identity)
+               "s3"               (fn  [env] (s3-storage/map->S3 (env->andrewslai-s3 env)))
+               "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
+               "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->andrewslai-local-fs env)))}
+   :default   "s3"})
+
 
 (def wedding-authentication-boot-instructions
   {:name      :wedding-authentication
-   :path      [:wedding :authentication-type]
-   :launchers {:keycloak                  init-wedding-keycloak
-               :always-unauthenticated    init-wedding-unauthenticated-user
-               :custom-authenticated-user init-wedding-authenticated-user}})
+   :path      "ANDREWSLAI_WEDDING_AUTH_TYPE"
+   :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
+               "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend))}
+   :default   "keycloak"})
 
 (def wedding-authorization-boot-instructions
   {:name      :wedding-authorization
-   :path      [:wedding :authorization-type]
-   :launchers {:public-access           init-wedding-public-access
-               :use-access-control-list init-wedding-access-control}})
+   :path      "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"
+   :launchers {"public-access"           (fn [_env] tu/public-access)
+               "use-access-control-list" (fn [_env] wedding/WEDDING-ACCESS-CONTROL-LIST)}
+   :default   "use-access-control-list"})
 
 (def wedding-static-content-adapter-boot-instructions
   {:name      :wedding-static-content-adapter
-   :path      [:wedding :static-content-type]
-   :launchers {:none             identity
-               :s3               init-wedding-s3-filesystem
-               :in-memory        init-wedding-in-memory-filesystem
-               :local-filesystem init-wedding-local-filesystem}})
+   :path      "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE"
+   :launchers {"none"             (fn [_env] identity)
+               "s3"               (fn  [env] (s3-storage/map->S3 (env->wedding-s3 env)))
+               "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
+               "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->wedding-local-fs env)))}
+   :default   "s3"})
+
+(def DEFAULT-BOOT-INSTRUCTIONS
+  "Instructions for how to boot the entire system"
+  [database-boot-instructions
+
+   andrewslai-authentication-boot-instructions
+   andrewslai-authorization-boot-instructions
+   andrewslai-static-content-adapter-boot-instructions
+
+   wedding-authentication-boot-instructions
+   wedding-authorization-boot-instructions
+   wedding-static-content-adapter-boot-instructions])
+
+(def DEFAULT-BOOT-INSTRUCTIONS
+  "Instructions for how to boot the entire system"
+  {:database {}}
+  )
 
 ;; TODO: TEST ME!
 (defn start-system!
-  [launch-options env]
-  (reduce (fn [acc {:keys [name path launchers] :as system-component}]
-            (let [init-fn (->> path
-                               (get-in launch-options)
-                               (get launchers))]
-              (log/debugf "Starting %s using %s" name init-fn)
-              (assoc acc path (init-fn env))))
-          {}
-          [database-boot-instructions
-
-           andrewslai-authentication-boot-instructions
-           andrewslai-authorization-boot-instructions
-           andrewslai-static-content-adapter-boot-instructions
-
-           wedding-authentication-boot-instructions
-           wedding-authorization-boot-instructions
-           wedding-static-content-adapter-boot-instructions
-           ]))
+  ([boot-instructions env]
+   (reduce (fn [acc {:keys [name path default launchers] :as system-component}]
+             (let [init-fn (->> (get env path default)
+                                (get launchers))]
+               (log/debugf "Starting %s using %s" name init-fn)
+               (assoc acc name (init-fn env))))
+           {}
+           boot-instructions))
+  ([env]
+   (start-system! DEFAULT-BOOT-INSTRUCTIONS
+                  env)))
 
 
 (comment
-  (start-system! (environment->launch-options {"ANDREWSLAI_DB_TYPE"   "embedded-h2"
-                                               "ANDREWSLAI_AUTH_TYPE" "always-unauthenticated"
-                                               "ANDREWSLAI_WEDDING_AUTH_TYPE" "always-unauthenticated"})
+  (start-system! {"ANDREWSLAI_DB_TYPE"   "embedded-h2"
+                  "ANDREWSLAI_AUTH_TYPE" "always-unauthenticated"
+                  "ANDREWSLAI_WEDDING_AUTH_TYPE" "always-unauthenticated"}
                  {})
   )
 
