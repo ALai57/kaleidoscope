@@ -40,12 +40,13 @@
 (defn -main
   "Start a server and run the application"
   [& args]
-  (let [env                               (into {} (System/getenv)) ;; b/c getenv returns java.util.Collections$UnmodifiableMap
-        {:keys [port] :as launch-options} (env/environment->launch-options env)
-        system-components                 (config/initialize-system! launch-options env)]
+  (let [env               (into {} (System/getenv)) ;; b/c getenv returns java.util.Collections$UnmodifiableMap
+        system-components (env/start-system! env)
+        port              5000]
     (log/infof "Hello! Starting andrewslai on port %s" port)
     (initialize-logging!)
     (-> system-components
+        (env/prepare-for-virtual-hosting)
         (config/make-http-handler)
         (http/start-server {:port port}))))
 
@@ -54,7 +55,20 @@
     {:output-fn json-log-output}
     (log/info (->> {:a "bbig long bits of stuff and more and more"
                     :c {:d :foo :e "bar"}
-                    :f {:a "b" :c {:d :foo :e "bar"}}}
+                    :f {:a "b" :c ({:d :foo :e "bar"})}}
                    clojure.pprint/pprint
                    with-out-str)))
+
+  (def x
+    (env/start-system! {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
+                        "ANDREWSLAI_AUTH_TYPE"                   "always-unauthenticated"
+                        "ANDREWSLAI_AUTHORIZATION_TYPE"          "public-access"
+                        "ANDREWSLAI_STATIC_CONTENT_TYPE"         "none"
+                        "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                        "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                        "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none"
+                        }
+                       ))
+
+
   )

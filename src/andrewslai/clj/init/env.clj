@@ -1,70 +1,23 @@
 (ns andrewslai.clj.init.env
   "Parses environment variables into Clojure maps that are used to boot system
   components."
-  (:require [andrewslai.clj.http-api.auth.buddy-backends :as bb]
-            [andrewslai.clj.http-api.andrewslai :as andrewslai]
+  (:require [andrewslai.clj.http-api.andrewslai :as andrewslai]
+            [andrewslai.clj.http-api.auth.buddy-backends :as bb]
+            [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.wedding :as wedding]
-            [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.filesystem.local :as local-fs]
+            [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [andrewslai.clj.test-utils :as tu]
             [malli.core :as m]
-            [malli.error :as me]
             [malli.dev.pretty :as pretty]
             [malli.dev.virhe :as v]
+            [malli.error :as me]
             [malli.instrument :as mi]
             [next.jdbc :as next]
             [taoensso.timbre :as log]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Launch Options Map
-;; Parse environment variables into a map of `launch-options`:
-;; the minimal amount of information needed to launch a webserver.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-#_(def LaunchOptionsMap
-    "Describes what system components should be started at app startup time."
-    [:map
-     [:port  [:int {:error/message "Invalid port. Set via ANDREWSLAI_PORT environment variable."}]]
-     [:level [:enum {:error/message "Invalid log level. Set via ANDREWSLAI_LOG_LEVEL environment variable."} :trace :debug :info :warn :error :fatal]]
-
-     [:database
-      [:map
-       [:db-type [:enum {:error/message "Invalid database type. Set via ANDREWSLAI_DB_TYPE environment variable."} :postgres :embedded-h2 :embedded-postgres]]]]
-
-     [:andrewslai
-      [:map
-       [:authentication-type [:enum {:error/message "Invalid authentication type. Set via ANDREWSLAI_AUTH_TYPE environment variable."} :keycloak :always-unauthenticated :custom-authenticated-user]]
-       [:authorization-type [:enum {:error/message "Invalid authorization type. Set via ANDREWSLAI_AUTHORIZATION_TYPE environment variable."} :use-access-control-list :public-access]]
-       [:static-content-type [:enum {:error/message "Invalid static content type. Set via ANDREWSLAI_STATIC_CONTENT_TYPE environment variable."} :none :s3 :in-memory :local-filesystem]]]]
-
-     [:wedding
-      [:map
-       [:authentication-type [:enum {:error/message "Invalid authentication type. Set via ANDREWSLAI_AUTH_TYPE environment variable."} :keycloak :always-unauthenticated :custom-authenticated-user]]
-       [:authorization-type [:enum {:error/message "Invalid authorization type. Set via ANDREWSLAI_AUTHORIZATION_TYPE environment variable."} :use-access-control-list :public-access]]
-       [:static-content-type [:enum {:error/message "Invalid static content type. Set via ANDREWSLAI_STATIC_CONTENT_TYPE environment variable."} :none :s3 :in-memory :local-filesystem]]]]
-     ])
-
-#_(defn environment->launch-options
-    "Reads the environment to determine what system components should be started at app startup time."
-    {:malli/schema [:=> [:cat :map] LaunchOptionsMap]
-     :malli/scope  #{:output}}
-    [env]
-    (let [kenv (fn [env-var default]          (keyword (get env env-var default)))
-          ienv (fn [env-var default] (Integer/parseInt (get env env-var (str default))))]
-
-      {:port  (ienv "ANDREWSLAI_PORT"      5000)
-       :level (kenv "ANDREWSLAI_LOG_LEVEL" :info)
-
-       :database   {:db-type             (kenv "ANDREWSLAI_DB_TYPE"                     :postgres)}
-       :andrewslai {:authentication-type (kenv "ANDREWSLAI_AUTH_TYPE"                   :keycloak)
-                    :authorization-type  (kenv "ANDREWSLAI_AUTHORIZATION_TYPE"          :use-access-control-list)
-                    :static-content-type (kenv "ANDREWSLAI_STATIC_CONTENT_TYPE"         :none)}
-       :wedding    {:authentication-type (kenv "ANDREWSLAI_WEDDING_AUTH_TYPE"           :keycloak)
-                    :authorization-type  (kenv "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  :use-access-control-list)
-                    :static-content-type (kenv "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" :none)}}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot instructions for starting system components from the environment
@@ -121,7 +74,7 @@
                    [:creds  [:string {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:bucket (get "ANDREWSLAI_BUCKET")
+  {:bucket (get env "ANDREWSLAI_BUCKET")
    :creds  s3-storage/CustomAWSCredentialsProviderChain})
 
 (defn env->wedding-s3
@@ -131,7 +84,7 @@
                    [:creds  [:string {:error/message "Missing Wedding S3 credential provider chain. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:bucket (get "ANDREWSLAI_WEDDING_BUCKET")
+  {:bucket (get env "ANDREWSLAI_WEDDING_BUCKET")
    :creds  s3-storage/CustomAWSCredentialsProviderChain})
 
 (defn env->andrewslai-local-fs
@@ -227,31 +180,70 @@
    wedding-authorization-boot-instructions
    wedding-static-content-adapter-boot-instructions])
 
-(def DEFAULT-BOOT-INSTRUCTIONS
-  "Instructions for how to boot the entire system"
-  {:database {}}
-  )
+(def BootInstruction
+  [:map
+   [:name      [:keyword {:error/message "Invalid Boot Instruction. Missing name."}]]
+   [:path      [:string  {:error/message "Invalid Boot Instruction. Missing path."}]]
+   [:default   [:string  {:error/message "Invalid Boot Instruction. Missing default."}]]
+   [:launchers [:map     {:error/message "Invalid Boot Instruction. Missing launchers."}]]
+   ])
 
 ;; TODO: TEST ME!
+;; TODO: 2023-01-22: Just refactored boot instructions. Need to update tests!
 (defn start-system!
-  ([boot-instructions env]
-   (reduce (fn [acc {:keys [name path default launchers] :as system-component}]
-             (let [init-fn (->> (get env path default)
-                                (get launchers))]
-               (log/debugf "Starting %s using %s" name init-fn)
-               (assoc acc name (init-fn env))))
-           {}
-           boot-instructions))
+  {:malli/schema [:function
+                  [:=> [:cat :map] :map]
+                  [:=> [:cat [:sequential BootInstruction] :map] :map]]}
   ([env]
    (start-system! DEFAULT-BOOT-INSTRUCTIONS
-                  env)))
+                  env))
+  ([boot-instructions env]
+   (reduce (fn [acc {:keys [name path default launchers] :as system-component}]
+             (let [launcher (get env path default)
+                   init-fn  (get launchers launcher)]
+               (if init-fn
+                 (do (log/debugf "Starting %s using %s" name init-fn)
+                     (assoc acc name (init-fn env)))
+                 (throw (ex-info (format "%s had invalid value [%s] for component [%s]. Valid options are: %s"
+                                         path
+                                         launcher
+                                         name
+                                         (keys launchers))
+                                 {})))))
+           {}
+           boot-instructions)))
 
+(defn make-middleware
+  [authentication authorization]
+  (comp mw/standard-stack
+        (mw/auth-stack authentication authorization)))
+
+(defn prepare-for-virtual-hosting
+  [{:keys [database-connection
+           andrewslai-authentication
+           andrewslai-authorization
+           andrewslai-static-content-adapter
+           wedding-authentication
+           wedding-authorization
+           wedding-static-content-adapter
+           ]
+    :as system}]
+  {:andrewslai {:database               database-connection
+                :http-mw                (make-middleware andrewslai-authentication
+                                                         andrewslai-authorization)
+                :static-content-adapter andrewslai-static-content-adapter}
+   :wedding    {:database               database-connection
+                :http-mw                (make-middleware wedding-authentication
+                                                         wedding-authorization)
+                :static-content-adapter wedding-static-content-adapter}}
+  )
 
 (comment
-  (start-system! {"ANDREWSLAI_DB_TYPE"   "embedded-h2"
-                  "ANDREWSLAI_AUTH_TYPE" "always-unauthenticated"
+  (start-system! {"ANDREWSLAI_DB_TYPE"           "embedded-h2"
+                  "ANDREWSLAI_AUTH_TYPE"         "always-unauthenticated"
                   "ANDREWSLAI_WEDDING_AUTH_TYPE" "always-unauthenticated"}
                  {})
+
   )
 
 ;; Updates the Malli schema validation output to only show the errors
