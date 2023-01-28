@@ -1,12 +1,13 @@
 (ns andrewslai.clj.http-api.wedding-test
-  (:require [andrewslai.clj.init.config :as config]
-            [andrewslai.clj.api.albums :as albums-api]
+  (:require [andrewslai.clj.api.albums :as albums-api]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.cache-control :as cc]
             [andrewslai.clj.http-api.wedding :as wedding]
-            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [andrewslai.clj.init.config :as config]
+            [andrewslai.clj.init.env :as env]
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.rdbms :as rdbms]
+            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.utils.core :as util]
             [andrewslai.cljc.specs.albums :refer [example-album example-album-2]]
@@ -25,14 +26,14 @@
     (log/with-log-level :trace
       (f))))
 
-(def example-fs
-  "An in-memory filesystem used for testing"
-  {"media" {"afile" (memory/file {:name     "afile"
-                                  :content  {:qux :quz}
-                                  :metadata {}})
-            "adir"  {"anotherfile" (memory/file {:name     "afile"
-                                                 :content  {:qux :quz}
-                                                 :metadata {}})}}})
+#_(def example-fs
+    "An in-memory filesystem used for testing"
+    {"media" {"afile" (memory/file {:name     "afile"
+                                    :content  {:qux :quz}
+                                    :metadata {}})
+              "adir"  {"anotherfile" (memory/file {:name     "afile"
+                                                   :content  {:qux :quz}
+                                                   :metadata {}})}}})
 
 (def AUTHORIZED-USER
   {:name         "Test User"
@@ -94,11 +95,13 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (-> {:http-mw (-> {:authentication-type :always-unauthenticated
-                                       :authorization-type  :use-access-control-list
-                                       :custom-access-rules wedding/WEDDING-ACCESS-CONTROL-LIST}
-                                      config/make-middleware)}
-                        wedding/wedding-app)]
+      (let [handler (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
+                          "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                          "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                          "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+                         (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
+                         env/prepare-wedding
+                         wedding/wedding-app)]
         (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"
@@ -114,34 +117,34 @@
 ;; HTTP API test
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; TODO: Failing
 (deftest static-content-test
-  (let [in-mem-fs (atom example-fs)
-        app       (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
-                                                    :authorization-type  :public-access}
-                                                   config/make-middleware)
-                       :database               (embedded-h2/fresh-db!)
-                       :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
-                      (wedding/wedding-app)
-                      (tu/wrap-clojure-response))]
+  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
+                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
+                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
+                 env/prepare-wedding
+                 wedding/wedding-app
+                 tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Cache-Control" cc/no-cache}
                  :body    [{:name "afile"} {:name "adir" :type "directory"}]}
                 (app {:request-method :get
-                      :uri            "/media/"
-                      :headers        (tu/auth-header ["wedding"])})))))
+                      :uri            "/media/"})))))
 
 (deftest upload-test
-  (let [in-mem-fs (atom {})
-        database  (embedded-h2/fresh-db!)
-        app       (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
-                                                    :authorization-type  :public-access}
-                                                   config/make-middleware)
-                       :database               database
-                       :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
-                      (wedding/wedding-app))]
+  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
+                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none"}
+                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
+                 env/prepare-wedding
+                 wedding/wedding-app)]
 
     (is (match? {:status 201} (app (make-example-file-upload-request))))
 
+    ;; TODO: Change to use actual HTTP endpoints instead
     (is (match? [{:photo-src   "media/lock.svg"
                   :photo-title nil
                   :id          uuid?
@@ -157,13 +160,14 @@
                 @in-mem-fs))))
 
 (deftest albums-test
-  (let [app (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
-                                              :authorization-type  :public-access}
-                                             config/make-middleware)
-                 :database               (embedded-h2/fresh-db!)}
-                wedding/wedding-app
-                tu/wrap-clojure-response)]
-
+  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
+                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none"}
+                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
+                 env/prepare-wedding
+                 wedding/wedding-app
+                 tu/wrap-clojure-response)]
     (testing "No albums in DB to start"
       (is (match? {:status 200 :body (comp (partial = 3) count)}
                   (app (mock/request :get "/albums")))))
@@ -196,16 +200,14 @@
        (uuid? (java.util.UUID/fromString s))))
 
 (deftest album-contents-test
-  (let [database  (embedded-h2/fresh-db!)
-        in-mem-fs (atom {})
-        app       (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
-                                                    :authorization-type  :public-access}
-                                                   config/make-middleware)
-                       :database               database
-                       :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
-                      wedding/wedding-app
-                      tu/wrap-clojure-response)]
-
+  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
+                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
+                 env/prepare-wedding
+                 wedding/wedding-app
+                 tu/wrap-clojure-response)]
     (let [photo-upload-result (:body (app (make-example-file-upload-request)))
           album-create-result (:body (app (-> (mock/request :post "/albums")
                                               (mock/json-body example-album))))
@@ -243,23 +245,22 @@
         ))))
 
 (deftest contents-retrieval-test
-  (let [database  (embedded-h2/fresh-db!)
-        in-mem-fs (atom {})
-        app       (-> {:http-mw                (-> {:authentication-type :always-unauthenticated
-                                                    :authorization-type  :public-access}
-                                                   config/make-middleware)
-                       :database               database
-                       :static-content-adapter (memory/map->MemFS {:store in-mem-fs})}
-                      wedding/wedding-app
-                      tu/wrap-clojure-response)]
+  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
+                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
+                 env/prepare-wedding
+                 wedding/wedding-app
+                 tu/wrap-clojure-response)]
 
     ;; Add a photo to two separate albums
-    (let [{photo-1-id :id}    (:body (app (make-example-file-upload-request "foo.svg")))
-          {photo-2-id :id}    (:body (app (make-example-file-upload-request "bar.svg")))
-          {album-1-id :id}    (:body (app (-> (mock/request :post "/albums")
-                                              (mock/json-body example-album))))
-          {album-2-id :id}    (:body (app (-> (mock/request :post "/albums")
-                                              (mock/json-body example-album-2))))]
+    (let [{photo-1-id :id} (:body (app (make-example-file-upload-request "foo.svg")))
+          {photo-2-id :id} (:body (app (make-example-file-upload-request "bar.svg")))
+          {album-1-id :id} (:body (app (-> (mock/request :post "/albums")
+                                           (mock/json-body example-album))))
+          {album-2-id :id} (:body (app (-> (mock/request :post "/albums")
+                                           (mock/json-body example-album-2))))]
 
       (testing "Contents are empty to start"
         (is (match? {:status 200 :body []}
@@ -281,12 +282,13 @@
                     (app (-> (mock/request :get "/albums/-/contents"))))) ))))
 
 (deftest albums-auth-test
-  (let [app (-> {:http-mw (-> {:authentication-type       :custom-authenticated-user
-                               :custom-authenticated-user AUTHORIZED-USER
-                               :authorization-type        :use-access-control-list
-                               :custom-access-rules       wedding/WEDDING-ACCESS-CONTROL-LIST}
-                              config/make-middleware)}
-                wedding/wedding-app)]
+  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
+                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
+                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
+                 env/prepare-wedding
+                 wedding/wedding-app)]
     (testing "Default access rules restrict access"
       (is (match? {:status 401}
                   (app (mock/request :get "/albums")))))))

@@ -124,7 +124,7 @@
    :path      "ANDREWSLAI_AUTH_TYPE"
    :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
-               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend))}
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:realm_access {:roles ["andrewslai" "wedding"]}}))}
    :default   "keycloak"})
 
 (def andrewslai-authorization-boot-instructions
@@ -149,7 +149,7 @@
    :path      "ANDREWSLAI_WEDDING_AUTH_TYPE"
    :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
-               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend))}
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:realm_access {:roles ["andrewslai" "wedding"]}}))}
    :default   "keycloak"})
 
 (def wedding-authorization-boot-instructions
@@ -180,6 +180,22 @@
    wedding-authorization-boot-instructions
    wedding-static-content-adapter-boot-instructions])
 
+(def ANDREWSLAI-BOOT-INSTRUCTIONS
+  "Instructions for how to boot the Andrewslai app"
+  [database-boot-instructions
+
+   andrewslai-authentication-boot-instructions
+   andrewslai-authorization-boot-instructions
+   andrewslai-static-content-adapter-boot-instructions])
+
+(def WEDDING-BOOT-INSTRUCTIONS
+  "Instructions for how to boot the Andrewslai app"
+  [database-boot-instructions
+
+   wedding-authentication-boot-instructions
+   wedding-authorization-boot-instructions
+   wedding-static-content-adapter-boot-instructions])
+
 (def BootInstruction
   [:map
    [:name      [:keyword {:error/message "Invalid Boot Instruction. Missing name."}]]
@@ -188,12 +204,15 @@
    [:launchers [:map     {:error/message "Invalid Boot Instruction. Missing launchers."}]]
    ])
 
+(def BootInstructions
+  [:sequential BootInstruction])
+
 ;; TODO: TEST ME!
 ;; TODO: 2023-01-22: Just refactored boot instructions. Need to update tests!
 (defn start-system!
   {:malli/schema [:function
                   [:=> [:cat :map] :map]
-                  [:=> [:cat [:sequential BootInstruction] :map] :map]]}
+                  [:=> [:cat BootInstructions :map] :map]]}
   ([env]
    (start-system! DEFAULT-BOOT-INSTRUCTIONS
                   env))
@@ -202,7 +221,7 @@
              (let [launcher (get env path default)
                    init-fn  (get launchers launcher)]
                (if init-fn
-                 (do (log/debugf "Starting %s using %s" name init-fn)
+                 (do (log/debugf "Starting %s using `%s`launcher: %s" name launcher init-fn)
                      (assoc acc name (init-fn env)))
                  (throw (ex-info (format "%s had invalid value [%s] for component [%s]. Valid options are: %s"
                                          path
@@ -218,25 +237,35 @@
   (comp mw/standard-stack
         (mw/auth-stack authentication authorization)))
 
-(defn prepare-for-virtual-hosting
+
+
+(defn prepare-andrewslai
   [{:keys [database-connection
            andrewslai-authentication
            andrewslai-authorization
            andrewslai-static-content-adapter
-           wedding-authentication
-           wedding-authorization
-           wedding-static-content-adapter
            ]
     :as system}]
-  {:andrewslai {:database               database-connection
-                :http-mw                (make-middleware andrewslai-authentication
-                                                         andrewslai-authorization)
-                :static-content-adapter andrewslai-static-content-adapter}
-   :wedding    {:database               database-connection
-                :http-mw                (make-middleware wedding-authentication
-                                                         wedding-authorization)
-                :static-content-adapter wedding-static-content-adapter}}
-  )
+  {:database               database-connection
+   :http-mw                (make-middleware andrewslai-authentication
+                                            andrewslai-authorization)
+   :static-content-adapter andrewslai-static-content-adapter})
+
+(defn prepare-wedding
+  [{:keys [database-connection
+           wedding-authentication
+           wedding-authorization
+           wedding-static-content-adapter]
+    :as system}]
+  {:database               database-connection
+   :http-mw                (make-middleware wedding-authentication
+                                            wedding-authorization)
+   :static-content-adapter wedding-static-content-adapter})
+
+(defn prepare-for-virtual-hosting
+  [system]
+  {:andrewslai (prepare-andrewslai system)
+   :wedding    (prepare-wedding system)})
 
 ;; Updates the Malli schema validation output to only show the errors
 ;; This will:

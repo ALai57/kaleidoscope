@@ -58,8 +58,14 @@
 
 (def example-fs
   "An in-memory filesystem used for testing"
-  {"index.html" (file {:name    "index.html"
-                       :content "<div>Hello</div>"})})
+  {"media" {"afile" (file {:name     "afile"
+                           :content  {:qux :quz}
+                           :metadata {}})
+            "adir"  {"anotherfile" (file {:name     "afile"
+                                          :content  {:qux :quz}
+                                          :metadata {}})}}}
+  #_{"index.html" (file {:name    "index.html"
+                         :content "<div>Hello</div>"})})
 
 (comment
   (def db (atom {"var" {"afile" (tag-as {:name "afile"
