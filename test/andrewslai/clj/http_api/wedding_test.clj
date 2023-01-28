@@ -26,15 +26,6 @@
     (log/with-log-level :trace
       (f))))
 
-#_(def example-fs
-    "An in-memory filesystem used for testing"
-    {"media" {"afile" (memory/file {:name     "afile"
-                                    :content  {:qux :quz}
-                                    :metadata {}})
-              "adir"  {"anotherfile" (memory/file {:name     "afile"
-                                                   :content  {:qux :quz}
-                                                   :metadata {}})}}})
-
 (def AUTHORIZED-USER
   {:name         "Test User"
    :realm_access {:roles ["wedding"]}})
@@ -119,14 +110,16 @@
 
 ;; TODO: Failing
 (deftest static-content-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
-                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
-                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
-                 env/prepare-wedding
-                 wedding/wedding-app
-                 tu/wrap-clojure-response)]
+  (let [system (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
+                     "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
+                     "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                     "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+                    (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
+                    env/prepare-wedding)
+        app    (->> system
+                    wedding/wedding-app
+                    tu/wrap-clojure-response)]
+    (println system)
     (is (match? {:status  200
                  :headers {"Cache-Control" cc/no-cache}
                  :body    [{:name "afile"} {:name "adir" :type "directory"}]}
@@ -137,27 +130,18 @@
   (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
                   "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
                   "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none"}
+                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
                  env/prepare-wedding
                  wedding/wedding-app)]
 
-    (is (match? {:status 201} (app (make-example-file-upload-request))))
+    (is (match? {:status 201}
+                (app (make-example-file-upload-request))))
 
-    ;; TODO: Change to use actual HTTP endpoints instead
-    (is (match? [{:photo-src   "media/lock.svg"
-                  :photo-title nil
-                  :id          uuid?
-                  :created-at  inst?
-                  :modified-at inst?}]
-                (albums-api/get-photos database {:photo-src "media/lock.svg"})))
-
-    (is (match? {"media" {"lock.svg" {:name     "lock.svg"
-                                      :path     "media/lock.svg"
-                                      :content  tu/file-input-stream?
-                                      :metadata {:filename     "lock.svg"
-                                                 :content-type "image/svg+xml"}}}}
-                @in-mem-fs))))
+    (is (match? {:status  200
+                 :headers {"Content-Type"  "image/svg+xml"
+                           "Cache-Control" cc/cache-30d}}
+                (app (mock/request :get "/media/lock.svg"))))))
 
 (deftest albums-test
   (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"

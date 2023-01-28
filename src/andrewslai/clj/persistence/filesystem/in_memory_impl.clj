@@ -1,7 +1,8 @@
 (ns andrewslai.clj.persistence.filesystem.in-memory-impl
   (:require [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.string :as string]
-            [ring.util.response :as ring-response]))
+            [ring.util.response :as ring-response]
+            [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Core functionality
@@ -38,6 +39,7 @@
                     (get-in @store (string/split path #"/")))))
 
   (get-file [_ path]
+    (log/debugf "Getting from in-memory filesystem %s" path)
     (let [x (get-in @store (string/split path #"/"))]
       (when (file? x)
         (:content x))))
@@ -58,14 +60,14 @@
 
 (def example-fs
   "An in-memory filesystem used for testing"
-  {"media" {"afile" (file {:name     "afile"
-                           :content  {:qux :quz}
-                           :metadata {}})
-            "adir"  {"anotherfile" (file {:name     "afile"
-                                          :content  {:qux :quz}
-                                          :metadata {}})}}}
-  #_{"index.html" (file {:name    "index.html"
-                         :content "<div>Hello</div>"})})
+  {"media"      {"afile" (file {:name     "afile"
+                                :content  {:qux :quz}
+                                :metadata {}})
+                 "adir"  {"anotherfile" (file {:name     "afile"
+                                               :content  {:qux :quz}
+                                               :metadata {}})}}
+   "index.html" (file {:name    "index.html"
+                       :content "<div>Hello</div>"})})
 
 (comment
   (def db (atom {"var" {"afile" (tag-as {:name "afile"

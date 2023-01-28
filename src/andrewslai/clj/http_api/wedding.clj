@@ -39,6 +39,7 @@
 (def default-handler
   (GET "*" {:keys [uri] :as request}
     :components [static-content-adapter]
+    (log/infof "Didn't find route match. Attempting to lookup using static content")
     (if-let [response (fs/get static-content-adapter uri)]
       (cc/cache-control uri (ring-resp/response response))
       (ring-resp/not-found "No matching route"))))

@@ -3,6 +3,7 @@
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.init.config :as config]
+            [andrewslai.clj.init.env :as env]
             [andrewslai.clj.api.articles-test :as a]
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
@@ -19,10 +20,10 @@
     (log/with-log-level :trace
       (f))))
 
-(def example-fs
-  "An in-memory filesystem used for testing"
-  {"index.html" (memory/file {:name    "index.html"
-                              :content "<div>Hello</div>"})})
+#_(def example-fs
+    "An in-memory filesystem used for testing"
+    {"index.html" (memory/file {:name    "index.html"
+                                :content "<div>Hello</div>"})})
 
 (def AUTHORIZED-USER
   {:name         "Test User"
@@ -43,33 +44,41 @@
 ;; Testing HTTP routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (deftest ping-test
-  (let [handler (-> {:http-mw (config/make-middleware {:authentication-type :always-unauthenticated
-                                                       :authorization-type  :public-access}
-                                                      {})}
-                    andrewslai/andrewslai-app
-                    tu/wrap-clojure-response)]
+  (let [handler (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                      "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
+                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+                     (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                     env/prepare-andrewslai
+                     andrewslai/andrewslai-app
+                     tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    {:revision string?}}
                 (handler (mock/request :get "/ping"))))))
 
 (deftest home-test
-  (let [handler (-> {:static-content-adapter (memory/map->MemFS {:store (atom example-fs)})
-                     :http-mw                (config/make-middleware {:authentication-type :always-unauthenticated
-                                                                      :authorization-type  :public-access}
-                                                                     {})}
-                    andrewslai/andrewslai-app)]
+  (let [handler (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                      "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
+                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+                     (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                     env/prepare-andrewslai
+                     andrewslai/andrewslai-app)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"text/html"}
                  :body    "<div>Hello</div>"}
                 (handler (mock/request :get "/"))))))
 
 (deftest swagger-test
-  (let [handler (-> {:http-mw (config/make-middleware {:authentication-type :always-unauthenticated
-                                                       :authorization-type  :public-access}
-                                                      {})}
-                    andrewslai/andrewslai-app
-                    tu/wrap-clojure-response)]
+  (let [handler (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                      "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
+                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+                     (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                     env/prepare-andrewslai
+                     andrewslai/andrewslai-app
+                     tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    map?}
@@ -77,24 +86,26 @@
 
 (deftest admin-routes-test
   (testing "Authenticated and Authorized happy path"
-    (let [app (-> {:http-mw (config/make-middleware {:authentication-type       :custom-authenticated-user
-                                                     :custom-authenticated-user AUTHORIZED-USER
-                                                     :authorization-type        :use-access-control-list
-                                                     :custom-access-rules       andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST}
-                                                    {})}
-                  (andrewslai/andrewslai-app)
-                  (tu/wrap-clojure-response))]
+    (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                    "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
+                    "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                    "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+                   (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                   env/prepare-andrewslai
+                   andrewslai/andrewslai-app
+                   tu/wrap-clojure-response)]
       (is (match? {:status 200 :body {:message "Got to the admin-route!"}}
                   (app (-> (mock/request :get "/admin/")
                            (mock/header "Authorization" "Bearer x")))))))
   (testing "Authenticated but not Authorized cannot access"
-    (let [app (-> {:http-mw (config/make-middleware {:authentication-type       :custom-authenticated-user
-                                                     :custom-authenticated-user {}
-                                                     :authorization-type        :use-access-control-list
-                                                     :custom-access-rules       andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST}
-                                                    {})}
-                  (andrewslai/andrewslai-app)
-                  (tu/wrap-clojure-response))]
+    (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                    "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
+                    "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                    "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+                   (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                   env/prepare-andrewslai
+                   andrewslai/andrewslai-app
+                   tu/wrap-clojure-response)]
       (is (match? {:status 401 :body "Not authorized"}
                   (app (-> (mock/request :get "/admin/")
                            (mock/header "Authorization" "Bearer x"))))))))
@@ -145,11 +156,13 @@
 (deftest published-article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
-      (let [app (-> {:database (embedded-h2/fresh-db!)
-                     :http-mw  (config/make-middleware {:authentication-type :always-unauthenticated
-                                                        :authorization-type  :public-access}
-                                                       {})}
-                    andrewslai/andrewslai-app)]
+      (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                      "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
+                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+                     (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                     env/prepare-andrewslai
+                     andrewslai/andrewslai-app)]
         (is (match? expected
                     (tu/app-request app (mock/request :get endpoint))))))
 
@@ -162,15 +175,14 @@
   (m/pred (fn [x] (= n (count x)))))
 
 (deftest create-article-branch-happy-path
-  (let [app     (-> {:database (embedded-h2/fresh-db!)
-                     :http-mw  (config/make-middleware
-                                {:authentication-type       :custom-authenticated-user
-                                 :custom-authenticated-user AUTHORIZED-USER
-                                 :authorization-type        :use-access-control-list
-                                 :custom-access-rules       andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST}
-                                {})}
-                    andrewslai/andrewslai-app
-                    tu/wrap-clojure-response)
+  (let [app     (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                      "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
+                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+                     (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                     env/prepare-andrewslai
+                     andrewslai/andrewslai-app
+                     tu/wrap-clojure-response)
         article {:article-tags "thoughts"
                  :article-url  "my-test-article"
                  :author       "Andrew Lai"}]
@@ -201,14 +213,14 @@
                              (mock/query-string {:article-id article-id})))))))))
 
 (deftest publish-branch-test
-  (let [app             (-> {:database (embedded-h2/fresh-db!)
-                             :http-mw  (config/make-middleware
-                                        {:authentication-type       :custom-authenticated-user
-                                         :custom-authenticated-user AUTHORIZED-USER
-                                         :authorization-type        :public-access}
-                                        {})}
-                            andrewslai/andrewslai-app
-                            tu/wrap-clojure-response)
+  (let [app             (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                              "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
+                              "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                              "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+                             (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                             env/prepare-andrewslai
+                             andrewslai/andrewslai-app
+                             tu/wrap-clojure-response)
         article         {:article-url "my-test-article"}
         branch          {:branch-name "mybranch"}
         version         {:content "<p>Hi</p>"
@@ -243,14 +255,14 @@
                            (mock/header "Authorization" "Bearer x"))))))))
 
 (deftest get-versions-test
-  (let [app       (-> {:database (embedded-h2/fresh-db!)
-                       :http-mw  (config/make-middleware
-                                  {:authentication-type       :custom-authenticated-user
-                                   :custom-authenticated-user AUTHORIZED-USER
-                                   :authorization-type        :public-access}
-                                  {})}
-                      andrewslai/andrewslai-app
-                      tu/wrap-clojure-response)
+  (let [app       (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                        "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
+                        "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                        "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+                       (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                       env/prepare-andrewslai
+                       andrewslai/andrewslai-app
+                       tu/wrap-clojure-response)
         article   {:article-tags "thoughts"
                    :article-url  "my-test-article"}
         version-1 {:title   "My Title"
@@ -293,12 +305,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest portfolio-test
-  (let [app      (-> {:database (embedded-h2/fresh-db!)
-                      :http-mw  (config/make-middleware {:authentication-type :always-unauthenticated
-                                                         :authorization-type  :public-access}
-                                                        {})}
-                     (andrewslai/andrewslai-app)
-                     (tu/wrap-clojure-response))
+  (let [app      (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                       "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
+                       "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                       "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+                      (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                      env/prepare-andrewslai
+                      andrewslai/andrewslai-app
+                      tu/wrap-clojure-response)
         response (app (mock/request :get "/projects-portfolio"))]
     (is (match? {:status 200 :body portfolio/portfolio?}
                 response)
