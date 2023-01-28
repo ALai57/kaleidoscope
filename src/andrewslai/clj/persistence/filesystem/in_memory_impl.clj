@@ -39,7 +39,6 @@
                     (get-in @store (string/split path #"/")))))
 
   (get-file [_ path]
-    (log/debugf "Getting from in-memory filesystem %s" path)
     (let [x (get-in @store (string/split path #"/"))]
       (when (file? x)
         (:content x))))

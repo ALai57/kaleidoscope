@@ -20,15 +20,6 @@
     (log/with-log-level :trace
       (f))))
 
-(def example-fs
-  "An in-memory filesystem used for testing"
-  {"index.html" (memory/file {:name    "index.html"
-                              :content "<div>Hello</div>"})})
-
-(def AUTHORIZED-USER
-  {:name         "Test User"
-   :realm_access {:roles ["andrewslai"]}})
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Predicates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -237,13 +228,15 @@
 
     (testing "Publish article"
       (is (match? {:status 200 :body [(merge article branch)]}
-                  (app (mock/request :put (format "/articles/%s/branches/%s/publish"
-                                                  (:article-url article)
-                                                  (get-in create-response [:body 0 :branch-name])))))))
+                  (app (-> (mock/request :put (format "/articles/%s/branches/%s/publish"
+                                                      (:article-url article)
+                                                      (get-in create-response [:body 0 :branch-name])))
+                           (mock/header "Authorization" "Bearer x"))))))
 
     (testing "Can retrieve an published article by `/compositions` endpoint"
       (is (match? {:status 200 :body (merge article branch version {:author "Test User"})}
-                  (app (mock/request :get published-url)))))
+                  (app (-> (mock/request :get published-url)
+                           (mock/header "Authorization" "Bearer x"))))))
 
     (testing "Cannot commit to published branch"
       (is (match? {:status 409 :body "Cannot change a published branch"}
@@ -286,14 +279,16 @@
                   (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
                                                        (:article-url article)
                                                        "branch-1"))
-                           (mock/json-body version-1)))))
+                           (mock/json-body version-1)
+                           (mock/header "Authorization" "Bearer x")))))
       (is (match? {:status 200 :body [(merge version-2
                                              article
                                              {:branch-name "branch-1"})]}
                   (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
                                                        (:article-url article)
                                                        "branch-1"))
-                           (mock/json-body version-2)))))
+                           (mock/json-body version-2)
+                           (mock/header "Authorization" "Bearer x")))))
       (is (match? {:status 200 :body (has-count 2)}
                   (app (mock/request :get (format "/branches/%s/versions"
                                                   (:branch-id article-branch)))))))

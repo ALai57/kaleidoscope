@@ -26,10 +26,6 @@
     (log/with-log-level :trace
       (f))))
 
-(def AUTHORIZED-USER
-  {:name         "Test User"
-   :realm_access {:roles ["wedding"]}})
-
 (defn make-example-file-upload-request
   "A function because the body is an input stream, which is consumable and must
   be regenerated each request"
@@ -111,7 +107,6 @@
 ;; HTTP API test
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: Failing
 (deftest static-content-test
   (let [system (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
                      "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
@@ -122,11 +117,11 @@
         app    (->> system
                     wedding/wedding-app
                     tu/wrap-clojure-response)]
-    (println system)
     (is (match? {:status  200
                  :headers {"Cache-Control" cc/no-cache}
                  :body    [{:name "afile"} {:name "adir" :type "directory"}]}
                 (app {:request-method :get
+                      :headers        {"Authorization" "Bearer x"}
                       :uri            "/media/"})))))
 
 (deftest upload-test

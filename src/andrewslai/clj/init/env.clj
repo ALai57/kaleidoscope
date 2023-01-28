@@ -124,7 +124,8 @@
    :path      "ANDREWSLAI_AUTH_TYPE"
    :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
-               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:realm_access {:roles ["andrewslai" "wedding"]}}))}
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name "Test User"
+                                                                                 :realm_access {:roles ["andrewslai" "wedding"]}}))}
    :default   "keycloak"})
 
 (def andrewslai-authorization-boot-instructions
@@ -149,7 +150,8 @@
    :path      "ANDREWSLAI_WEDDING_AUTH_TYPE"
    :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
-               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:realm_access {:roles ["andrewslai" "wedding"]}}))}
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name "Test User"
+                                                                                 :realm_access {:roles ["andrewslai" "wedding"]}}))}
    :default   "keycloak"})
 
 (def wedding-authorization-boot-instructions
