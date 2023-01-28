@@ -238,14 +238,6 @@
                 :static-content-adapter wedding-static-content-adapter}}
   )
 
-(comment
-  (start-system! {"ANDREWSLAI_DB_TYPE"           "embedded-h2"
-                  "ANDREWSLAI_AUTH_TYPE"         "always-unauthenticated"
-                  "ANDREWSLAI_WEDDING_AUTH_TYPE" "always-unauthenticated"}
-                 {})
-
-  )
-
 ;; Updates the Malli schema validation output to only show the errors
 ;; This will:
 ;; (1) Make sure we don't log secrets
@@ -258,6 +250,3 @@
 
 (mi/collect! {:ns 'andrewslai.clj.init.env})
 (mi/instrument! {:report (pretty/thrower)})
-
-
-;; defn prepare-for-virtual-hosting

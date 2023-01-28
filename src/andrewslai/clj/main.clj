@@ -37,11 +37,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn -main
-  "Start a server and run the application"
-  [& args]
-  (let [env               (into {} (System/getenv)) ;; b/c getenv returns java.util.Collections$UnmodifiableMap
-        system-components (env/start-system! env)
+(defn start-application!
+  [env]
+  (let [system-components (env/start-system! env)
         port              5000]
     (log/infof "Hello! Starting andrewslai on port %s" port)
     (initialize-logging!)
@@ -49,6 +47,12 @@
         (env/prepare-for-virtual-hosting)
         (config/make-http-handler)
         (http/start-server {:port port}))))
+
+(defn -main
+  "Start a server and run the application"
+  [& args]
+  (start-application! (into {} (System/getenv))) ;; b/c getenv returns java.util.Collections$UnmodifiableMap
+  )
 
 (comment
   (log/with-merged-config
@@ -61,14 +65,15 @@
 
   (def x
     (env/start-system! {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                        "ANDREWSLAI_AUTH_TYPE"                   "always-unauthenticated"
+                        "ANDREWSLAI_AUTH_TYPE"                   "custom-authenticated-user"
                         "ANDREWSLAI_AUTHORIZATION_TYPE"          "public-access"
                         "ANDREWSLAI_STATIC_CONTENT_TYPE"         "none"
-                        "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                        "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
                         "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
                         "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none"
                         }
                        ))
 
+  (env/prepare-for-virtual-hosting x)
 
   )
