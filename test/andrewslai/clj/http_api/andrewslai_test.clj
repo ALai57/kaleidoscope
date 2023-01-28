@@ -20,10 +20,10 @@
     (log/with-log-level :trace
       (f))))
 
-#_(def example-fs
-    "An in-memory filesystem used for testing"
-    {"index.html" (memory/file {:name    "index.html"
-                                :content "<div>Hello</div>"})})
+(def example-fs
+  "An in-memory filesystem used for testing"
+  {"index.html" (memory/file {:name    "index.html"
+                              :content "<div>Hello</div>"})})
 
 (def AUTHORIZED-USER
   {:name         "Test User"
@@ -113,14 +113,13 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (-> {:static-content-adapter (memory/map->MemFS {:store (atom example-fs)})
-                         :database               (embedded-h2/fresh-db!)
-                         :http-mw                (config/make-middleware
-                                                  {:authentication-type :always-unauthenticated
-                                                   :authorization-type  :use-access-control-list
-                                                   :custom-access-rules andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST}
-                                                  {})}
-                        andrewslai/andrewslai-app)]
+      (let [handler (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                          "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
+                          "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                          "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+                         (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                         env/prepare-andrewslai
+                         andrewslai/andrewslai-app)]
         (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"
