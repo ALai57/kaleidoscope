@@ -34,5 +34,5 @@
     (log/infof "Loading test namespaces...")
     (apply require TEST-NSES)
     (binding [*test-log-level* (:level options)]
-      (log/with-level (:level options)
+      (log/with-min-level (:level options)
         (t/run-all-tests #"andrewslai.*")))))

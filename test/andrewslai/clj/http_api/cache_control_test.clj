@@ -6,7 +6,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level tm/*test-log-level*
+    (log/with-min-level tm/*test-log-level*
       (f))))
 
 (deftest cache-control-header-test

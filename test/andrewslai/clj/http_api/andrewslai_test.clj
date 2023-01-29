@@ -18,7 +18,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level tm/*test-log-level*
+    (log/with-min-level tm/*test-log-level*
       (f))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -240,12 +240,13 @@
                            (mock/header "Authorization" "Bearer x"))))))
 
     (testing "Cannot commit to published branch"
-      (is (match? {:status 409 :body "Cannot change a published branch"}
-                  (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
-                                                       (:article-url article)
-                                                       (:branch-name branch)))
-                           (mock/json-body (merge article version))
-                           (mock/header "Authorization" "Bearer x"))))))))
+      (log/with-min-level :fatal
+        (is (match? {:status 409 :body "Cannot change a published branch"}
+                    (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
+                                                         (:article-url article)
+                                                         (:branch-name branch)))
+                             (mock/json-body (merge article version))
+                             (mock/header "Authorization" "Bearer x")))))))))
 
 (deftest get-versions-test
   (let [app       (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"

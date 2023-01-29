@@ -16,7 +16,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level tm/*test-log-level*
+    (log/with-min-level tm/*test-log-level*
       (f))))
 
 (defn get-host
@@ -82,7 +82,8 @@
   (let [app (vh/host-based-routing
              {#"foo.com" {:priority 100 :app (dummy-app :foo)}})]
 
-    (is (thrown? IllegalArgumentException (app {:scheme         "https"
-                                                :request-method :get
-                                                :uri            "/"
-                                                :headers        {"host" "bad"}})))))
+    (log/with-min-level :fatal
+      (is (thrown? IllegalArgumentException (app {:scheme         "https"
+                                                  :request-method :get
+                                                  :uri            "/"
+                                                  :headers        {"host" "bad"}}))))))

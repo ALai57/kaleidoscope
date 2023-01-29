@@ -11,7 +11,7 @@
         ;; For some reason, need to create a new connection from this datasource
         ;; before migrating. I think it's because Migratus closes the connection.
         conn       (next/get-connection datasource)]
-    (log/with-level :warn
+    (log/with-min-level :warn
       (migratus/migrate {:migration-dirs "migrations"
                          :store          :database
                          :db             {:datasource datasource}}))

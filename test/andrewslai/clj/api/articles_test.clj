@@ -9,7 +9,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level tm/*test-log-level*
+    (log/with-min-level tm/*test-log-level*
       (f))))
 
 (def example-article
@@ -163,7 +163,7 @@
       (is (= 2 (count (articles/get-branches database {:article-id article-id})))))
 
     (testing "Cannot create two branches with the same name for the same article"
-      (log/with-level :fatal
+      (log/with-min-level :fatal
         (is (thrown? clojure.lang.ExceptionInfo
                      (articles/create-branch! database
                                               (assoc article-branch
