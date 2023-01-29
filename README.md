@@ -80,12 +80,14 @@ lein run
 ```
 
 #### Run with Docker
-After docker build and setting up `.env.local` with correct environment
+After docker build and setting up `.env.docker.local` with correct environment
 
 ``` bash
-docker run --env-file=.env.local -p 5000:5000 andrewslai
+docker run --env-file=.env.docker.local -p 5000:5000 andrewslai
 ```
 
+To serve a local copy of the Andrewslai frontend, mount a volume to the Docker
+container.
 ``` bash
 docker run --env-file=.env.docker.local \
             -p 5000:5000 \
