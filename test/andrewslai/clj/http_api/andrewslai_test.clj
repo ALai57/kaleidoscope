@@ -291,9 +291,9 @@
                            (mock/json-body version-2)
                            (mock/header "Authorization" "Bearer x")))))
       (is (match? {:status 200 :body (has-count 2)}
-                  (app (mock/request :get (format "/branches/%s/versions"
-                                                  (:branch-id article-branch)))))))
-    ))
+                  (app (-> (mock/request :get (format "/branches/%s/versions"
+                                                      (:branch-id article-branch)))
+                           (mock/header "Authorization" "Bearer x"))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Resume API

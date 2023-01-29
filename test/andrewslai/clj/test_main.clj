@@ -6,7 +6,7 @@
             [clojure.java.io :as io]))
 
 (def ^:dynamic *test-log-level*
-  :info)
+  :warn)
 
 (def PROJECT-DIR
   (System/getProperty "user.dir"))

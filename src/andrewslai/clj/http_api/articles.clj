@@ -177,7 +177,8 @@
                             401 {:description "Unauthorized"
                                  :schema      ::error-message}}}
       (try
-        (ok (articles-api/create-branch! database (:body-params request)))
+        (ok (articles-api/create-branch! database (assoc (:body-params request)
+                                                         :author (oidc/get-full-name (:identity request)))))
         (catch Exception e
           (log/error "Caught exception " e))))
 
