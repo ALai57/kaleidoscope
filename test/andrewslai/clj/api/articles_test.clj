@@ -163,10 +163,11 @@
       (is (= 2 (count (articles/get-branches database {:article-id article-id})))))
 
     (testing "Cannot create two branches with the same name for the same article"
-      (is (thrown? clojure.lang.ExceptionInfo
-                   (articles/create-branch! database
-                                            (assoc article-branch
-                                                   :branch-name "my-old-branch")))))))
+      (log/with-level :fatal
+        (is (thrown? clojure.lang.ExceptionInfo
+                     (articles/create-branch! database
+                                              (assoc article-branch
+                                                     :branch-name "my-old-branch"))))))))
 
 (deftest get-published-articles-test
   (let [database       (embedded-h2/fresh-db!)
