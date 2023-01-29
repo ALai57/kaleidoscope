@@ -75,16 +75,24 @@ docker build -t andrewslai .
 ```
 
 #### Run without Docker
-``` clojure
+``` bash
 lein run
 ```
 
 #### Run with Docker
 After docker build and setting up `.env.local` with correct environment
 
-``` clojure
+``` bash
 docker run --env-file=.env.local -p 5000:5000 andrewslai
 ```
+
+``` bash
+docker run --env-file=.env.docker.local \
+            -p 5000:5000 \
+            -v /Users/alai/spl/andrewslai-frontend/resources/public:/andrewslai-frontend/resources/public \
+            andrewslai
+```
+
 
 ## Development
 For local development, see [local-development.md](./docs/local-development.md)

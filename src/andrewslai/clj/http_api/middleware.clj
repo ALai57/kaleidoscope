@@ -11,7 +11,6 @@
             [ring.util.response :as resp]
             [ring.util.http-response :refer [unauthorized]]
             [taoensso.timbre :as log]
-            [ring.mock.request :as mock]
             [lambdaisland.deep-diff2 :as ddiff])
   (:import [lambdaisland.deep_diff2.diff_impl Mismatch Deletion Insertion]))
 
@@ -101,6 +100,7 @@
       modified-x)))
 
 (comment
+  (require '[ring.mock.request :as mock])
   ((log-transformation-diffs {:name    :Hello
                               :handler add-request-identifier})
    (mock/request :get "/endpoint")))
@@ -226,5 +226,4 @@
                                          (unauthorized)
                                          (resp/content-type "application/text")))}))}
 
-  (require '[ring.mock.request :as mock])
   (ring-request-pipeline (mock/request :get "/endpoint")))
