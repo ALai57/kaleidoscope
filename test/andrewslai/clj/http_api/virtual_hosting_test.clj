@@ -2,6 +2,7 @@
   (:require [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.http-api.virtual-hosting :as vh]
             [andrewslai.generators.networking :as gen-net]
+            [andrewslai.clj.test-main :as tm]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [clojure.test :refer [are deftest is use-fixtures]]
@@ -15,7 +16,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :fatal
+    (log/with-log-level tm/*test-log-level*
       (f))))
 
 (defn get-host

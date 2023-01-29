@@ -15,7 +15,8 @@
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
             [ring.mock.request :as mock]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [andrewslai.clj.test-main :as tm]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Fixtures and setup
@@ -23,7 +24,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :trace
+    (log/with-log-level tm/*test-log-level*
       (f))))
 
 (defn make-example-file-upload-request

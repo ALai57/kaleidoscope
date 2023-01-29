@@ -74,8 +74,11 @@
                                   [migratus "1.4.9"]
                                   [ring/ring-mock "0.4.0"]
                                   [nubank/matcher-combinators "3.7.2"]
+                                  [org.clojure/tools.cli "1.0.214"]
+                                  [org.clojure/tools.namespace "1.3.0"]
                                   ]
-                   :aliases      {"migratus" ["run" "-m" andrewslai.clj.persistence.rdbms.migrations]}}}
+                   :aliases      {"migratus" ["run" "-m" andrewslai.clj.persistence.rdbms.migrations]
+                                  "test"     ["run" "-m" andrewslai.clj.test-main]}}}
 
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]

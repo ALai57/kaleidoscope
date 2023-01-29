@@ -4,6 +4,7 @@
             [andrewslai.clj.persistence.filesystem.s3-impl :refer :all]
             [andrewslai.generators.files :as gen-file]
             [andrewslai.generators.s3 :as gen-s3]
+            [andrewslai.clj.test-main :as tm]
             [biiwide.sandboxica.alpha :as sandbox]
             [clojure.test :refer [is use-fixtures]]
             [clojure.test.check.clojure-test :refer [defspec]]
@@ -14,7 +15,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :fatal
+    (log/with-log-level tm/*test-log-level*
       (f))))
 
 (defspec put-object-spec

@@ -8,6 +8,7 @@
             [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [andrewslai.clj.test-utils :as tu]
+            [andrewslai.clj.test-main :as tm]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.test]
@@ -17,7 +18,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :trace
+    (log/with-log-level tm/*test-log-level*
       (f))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

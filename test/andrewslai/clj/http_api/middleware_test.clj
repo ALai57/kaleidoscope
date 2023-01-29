@@ -4,6 +4,7 @@
             [andrewslai.clj.http-api.middleware :as sut]
             [andrewslai.clj.persistence.filesystem.s3-impl :as s3-storage]
             [andrewslai.clj.test-utils :as tu]
+            [andrewslai.clj.test-main :as tm]
             [biiwide.sandboxica.alpha :as sandbox]
             [cheshire.core :as json]
             [clojure.test :refer :all]
@@ -17,7 +18,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :fatal
+    (log/with-log-level tm/*test-log-level*
       (f))))
 
 (deftest remove-unchanged-basic-test

@@ -2,6 +2,7 @@
   (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.api.albums :as albums-api]
             [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [andrewslai.clj.test-main :as tm]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log])
@@ -9,7 +10,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :fatal
+    (log/with-log-level tm/*test-log-level*
       (f))))
 
 (def example-album

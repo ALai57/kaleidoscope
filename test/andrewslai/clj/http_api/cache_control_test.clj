@@ -1,11 +1,12 @@
 (ns andrewslai.clj.http-api.cache-control-test
   (:require [andrewslai.clj.http-api.cache-control :as cc]
+            [andrewslai.clj.test-main :as tm]
             [clojure.test :refer [are deftest is use-fixtures]]
             [taoensso.timbre :as log]))
 
 (use-fixtures :once
   (fn [f]
-    (log/with-log-level :fatal
+    (log/with-log-level tm/*test-log-level*
       (f))))
 
 (deftest cache-control-header-test
