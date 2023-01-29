@@ -143,6 +143,43 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test of Blogging API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn create-branch
+  [article]
+  (-> (mock/request :post "/branches")
+      (mock/json-body article)
+      (mock/header "Authorization" "Bearer x")))
+
+(defn get-branches
+  ([]
+   (get-branches nil))
+  ([query]
+   (cond-> (mock/request :get "/branches")
+     true  (mock/header "Authorization" "Bearer x")
+     query (mock/query-string query))))
+
+(defn create-version
+  [article-url branch version]
+  (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
+                                  article-url
+                                  branch))
+      (mock/json-body version)
+      (mock/header "Authorization" "Bearer x")))
+
+(defn get-version
+  [branch-id]
+  (-> (mock/request :get (format "/branches/%s/versions" branch-id))
+      (mock/header "Authorization" "Bearer x")))
+
+(defn get-composition
+  [article-url]
+  (mock/request :get (format "/compositions/%s" article-url)))
+
+(defn publish-branch
+  [article-url branch-name]
+  (-> (mock/request :put (format "/articles/%s/branches/%s/publish"
+                                 article-url
+                                 branch-name))
+      (mock/header "Authorization" "Bearer x")))
 
 (deftest published-article-retrieval-test
   (are [endpoint expected]
@@ -178,9 +215,7 @@
                  :article-url  "my-test-article"
                  :author       "Andrew Lai"}]
 
-    (let [create-result          (app (-> (mock/request :post "/branches")
-                                          (mock/json-body (assoc article :branch-name "branch-1"))
-                                          (mock/header "Authorization" "Bearer x")))
+    (let [create-result          (app (create-branch (assoc article :branch-name "branch-1")))
           [{:keys [article-id]}] (:body create-result)]
       (testing "Article creation succeeds for branch 1"
         (is (match? {:status 200 :body [{:article-id some?
@@ -190,18 +225,13 @@
       (testing "Article creation succeeds for branch 2"
         (is (match? {:status 200 :body [{:article-id some?
                                          :branch-id  some?}]}
-                    (app (-> (mock/request :post "/branches")
-                             (mock/json-body (assoc article
-                                                    :branch-name "branch-2"
-                                                    :article-id  article-id))
-                             (mock/header "Authorization" "Bearer x"))))))
+                    (app (create-branch (assoc article
+                                               :branch-name "branch-2"
+                                               :article-id  article-id))))))
 
-      ;; PICK BACK UP HERE
       (testing "The 2 branches were created"
         (is (match? {:status 200 :body (has-count 2)}
-                    (app (-> (mock/request :get "/branches")
-                             (mock/header "Authorization" "Bearer x")
-                             (mock/query-string {:article-id article-id})))))))))
+                    (app (get-branches {:article-id article-id}))))))))
 
 (deftest publish-branch-test
   (let [app             (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
@@ -216,37 +246,29 @@
         branch          {:branch-name "mybranch"}
         version         {:content "<p>Hi</p>"
                          :title   "My Article"}
-        create-response (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
-                                                             (:article-url article)
-                                                             (:branch-name branch)))
-                                 (mock/json-body (merge article version))
-                                 (mock/header "Authorization" "Bearer x")))
-        published-url   (format "/compositions/%s" (:article-url article))]
+        create-response (app (create-version (:article-url article)
+                                             (:branch-name branch)
+                                             (merge article version)))]
 
     (testing "Cannot retrieve an unpublished article by `/compositions` endpoint"
       (is (match? {:status 404}
-                  (app (mock/request :get published-url)))))
+                  (app (get-composition (:article-url article))))))
 
     (testing "Publish article"
       (is (match? {:status 200 :body [(merge article branch)]}
-                  (app (-> (mock/request :put (format "/articles/%s/branches/%s/publish"
-                                                      (:article-url article)
-                                                      (get-in create-response [:body 0 :branch-name])))
-                           (mock/header "Authorization" "Bearer x"))))))
+                  (app (publish-branch (:article-url article)
+                                       (get-in create-response [:body 0 :branch-name]))))))
 
     (testing "Can retrieve an published article by `/compositions` endpoint"
       (is (match? {:status 200 :body (merge article branch version {:author "Test User"})}
-                  (app (-> (mock/request :get published-url)
-                           (mock/header "Authorization" "Bearer x"))))))
+                  (app (get-composition (:article-url article))))))
 
     (testing "Cannot commit to published branch"
       (log/with-min-level :fatal
         (is (match? {:status 409 :body "Cannot change a published branch"}
-                    (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
-                                                         (:article-url article)
-                                                         (:branch-name branch)))
-                             (mock/json-body (merge article version))
-                             (mock/header "Authorization" "Bearer x")))))))))
+                    (app (create-version (:article-url article)
+                                         (:branch-name branch)
+                                         (merge article version)))))))))
 
 (deftest get-versions-test
   (let [app       (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
@@ -259,42 +281,23 @@
                        tu/wrap-clojure-response)
         article   {:article-tags "thoughts"
                    :article-url  "my-test-article"}
-        version-1 {:title   "My Title"
-                   :content "<p>Hello</p>"}
-        version-2 {:title   "My Title 2"
-                   :content "<p>Hello</p>"}
+        version-1 {:title "My Title" :content "<p>Hello</p>"}
+        version-2 {:title "My Title 2" :content "<p>Hello</p>"}
 
-        {[article-branch] :body :as create-result} (app (-> (mock/request :post "/branches")
-                                                            (mock/json-body (assoc article :branch-name "branch-1"))
-                                                            (mock/header "Authorization" "Bearer x")))
+        {[article-branch] :body :as create-result} (app (create-branch (assoc article :branch-name "branch-1")))
         ]
 
     (testing "Create article branch"
-      (is (match? {:status 200 :body [{:article-id some?
-                                       :branch-id  some?}]}
+      (is (match? {:status 200 :body [{:article-id some? :branch-id some?}]}
                   create-result)))
 
     (testing "Commit to branch twice"
-      (is (match? {:status 200 :body [(merge version-1
-                                             article
-                                             {:branch-name "branch-1"})]}
-                  (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
-                                                       (:article-url article)
-                                                       "branch-1"))
-                           (mock/json-body version-1)
-                           (mock/header "Authorization" "Bearer x")))))
-      (is (match? {:status 200 :body [(merge version-2
-                                             article
-                                             {:branch-name "branch-1"})]}
-                  (app (-> (mock/request :post (format "/articles/%s/branches/%s/versions"
-                                                       (:article-url article)
-                                                       "branch-1"))
-                           (mock/json-body version-2)
-                           (mock/header "Authorization" "Bearer x")))))
+      (is (match? {:status 200 :body [(merge version-1 article)]}
+                  (app (create-version (:article-url article) "branch-1" version-1))))
+      (is (match? {:status 200 :body [(merge version-2 article)]}
+                  (app (create-version (:article-url article) "branch-1" version-2))))
       (is (match? {:status 200 :body (has-count 2)}
-                  (app (-> (mock/request :get (format "/branches/%s/versions"
-                                                      (:branch-id article-branch)))
-                           (mock/header "Authorization" "Bearer x"))))))))
+                  (app (get-version (:branch-id article-branch))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Resume API
