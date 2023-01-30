@@ -18,6 +18,9 @@ jobs:
             
     - name: Install dependencies
       run: lein deps
-      
+
+    - name: Compile
+      run: lein compile
+
     - name: Run tests
       run: lein test
