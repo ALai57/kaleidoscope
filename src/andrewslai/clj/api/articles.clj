@@ -99,19 +99,3 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def get-published-articles
   (rdbms/make-finder :published-articles))
-
-
-(comment
-
-  (require '[andrewslai.clj.init.config :as config])
-
-  (def database
-    (config/make-database-connection {:database/type :postgres}
-                                     (System/getenv)))
-
-  (get-articles database)
-
-  (create-article! database {:article_tags "thoughts"
-                             :article_url  "my-test-article"
-                             :author       "Andrew Lai"})
-  )

@@ -1,13 +1,8 @@
 (ns andrewslai.clj.http-api.wedding-test
-  (:require [andrewslai.clj.api.albums :as albums-api]
-            [andrewslai.clj.http-api.auth.buddy-backends :as bb]
-            [andrewslai.clj.http-api.cache-control :as cc]
+  (:require [andrewslai.clj.http-api.cache-control :as cc]
             [andrewslai.clj.http-api.wedding :as wedding]
-            [andrewslai.clj.init.config :as config]
             [andrewslai.clj.init.env :as env]
-            [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
-            [andrewslai.clj.persistence.rdbms :as rdbms]
-            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [andrewslai.clj.test-main :as tm]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.utils.core :as util]
             [andrewslai.cljc.specs.albums :refer [example-album example-album-2]]
@@ -15,8 +10,7 @@
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
             [ring.mock.request :as mock]
-            [taoensso.timbre :as log]
-            [andrewslai.clj.test-main :as tm]))
+            [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Fixtures and setup

@@ -1,17 +1,11 @@
 (ns andrewslai.clj.http-api.andrewslai-test
   (:require [andrewslai.clj.api.portfolio :as portfolio]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
-            [andrewslai.clj.http-api.auth.buddy-backends :as bb]
-            [andrewslai.clj.init.config :as config]
             [andrewslai.clj.init.env :as env]
-            [andrewslai.clj.api.articles-test :as a]
-            [andrewslai.clj.persistence.filesystem.in-memory-impl :as memory]
-            [andrewslai.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.test-main :as tm]
+            [andrewslai.clj.test-utils :as tu]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
-            [matcher-combinators.test]
             [matcher-combinators.matchers :as m]
             [ring.mock.request :as mock]
             [taoensso.timbre :as log]))

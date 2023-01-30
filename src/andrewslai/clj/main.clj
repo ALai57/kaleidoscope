@@ -45,7 +45,7 @@
     (initialize-logging!)
     (-> system-components
         (env/prepare-for-virtual-hosting)
-        (config/make-http-handler)
+        (env/make-http-handler)
         (http/start-server {:port port}))))
 
 (defn -main

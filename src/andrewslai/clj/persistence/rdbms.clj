@@ -115,9 +115,6 @@
                       {:subtype ex-subtype}))))))
 
 (comment
-  (require '[andrewslai.clj.init.config :as config])
-  (require '[honeysql.helpers :as hh])
-
   (def example-user
     {:id         #uuid "f5778c59-e57d-46f0-b5e5-516e5d36481c"
      :first_name "Andrew"
@@ -125,9 +122,4 @@
      :username   "alai"
      :avatar     nil
      :email      "andrew@andrew.com"})
-
-  (def database
-    (config/make-database-connection {:database/type :postgres}
-                                     (System/getenv)))
-
   )
