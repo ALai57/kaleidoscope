@@ -1,4 +1,5 @@
 # andrewslai
+![master](https://github.com/ALai57/andrewslai/actions/workflows/clojure.yml/badge.svg?branch=master)
 
 Welcome to my personal website! It is currently hosted at https://andrewslai.com.  
 
