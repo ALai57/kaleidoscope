@@ -218,6 +218,7 @@ resource "aws_ecs_task_definition" "keycloak_task" {
   {
     "name": "keycloak",
     "image": "758589815425.dkr.ecr.us-east-1.amazonaws.com/keycloak_ecr:latest",
+    "command": ["start"],
     "essential": true,
     "portMappings": [
       {
@@ -234,7 +235,7 @@ resource "aws_ecs_task_definition" "keycloak_task" {
       {"name": "KC_DB_PASSWORD", "value": "${var.KC_DB_PASSWORD}"},
 
       {"name": "KC_HOSTNAME_STRICT", "value": "false"},
-      {"name": "KC_EDGE"           , "value": "proxy"},
+      {"name": "KC_PROXY"          , "value": "edge"},
       {"name": "KC_HTTP_ENABLED"   , "value": "true"},
       {"name": "KC_FEATURES"       , "value": "token-exchange"},
 

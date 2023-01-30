@@ -1,3 +1,6 @@
+# Be aware of multi-architecture builds! Tagging can go awry
+# use `docker image ls`
+# use `docker image inspect ID` to see arch.
 aws ecr get-login-password \
   --region us-east-1 | \
 docker login \
