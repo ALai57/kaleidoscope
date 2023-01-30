@@ -117,6 +117,11 @@ HTTP traffic.
 
 ;; TODO: TRY THIS WITH ANOTHER VERSION OF KEYCLOAK - V18 perhaps? Use environment vars instead
 ```bash 
+export DB_VENDOR=postgres
+export DB_URL=localhost
+export DB_USER=andrewslai
+export DB_PASSWORD=andrewslai
+
 docker run --network host \
             -p 8443:8443 \
             -e KEYCLOAK_USER=admin \
@@ -131,6 +136,21 @@ docker run --network host \
             --db-url=$DB_URL \
             --db-username=$DB_USER \
             --db-password=$DB_PASSWORD 
+
+# https://stackoverflow.com/questions/72512938/keycloak-18-0-with-postgres-10-21
+docker run -p 8080:8080 \
+    -e KC_DB=postgres \
+    -e KC_DB_URL_HOST="${KEYCLOAK_DB_HOST}" \
+    -e KC_DB_DATABASE="keycloak" \
+    -e KC_DB_USERNAME=$KEYCLOAK_DB_USER \
+    -e KC_DB_PASSWORD="${KEYCLOAK_DB_PASSWORD:q}" \
+    -e KC_HOSTNAME_STRICT=false \
+    -e KC_EDGE=proxy \
+    -e KC_HTTP_ENABLED=true \
+    -e KC_FEATURES=token-exchange \
+    quay.io/keycloak/keycloak:20.0.3 start
+
+
 ```
 
 #### Confirming Keycloak is running

@@ -4,23 +4,23 @@
 # Variables
 ##############################################################
 
-variable "DB_PASSWORD" {
+variable "KC_DB_PASSWORD" {
   description = "Database password"
 }
 
-variable "DB_USER" {
+variable "KC_DB_USERNAME" {
   description = "Database username"
 }
 
-variable "DB_DATABASE" {
+variable "KC_DB_DATABASE" {
   description = "Database"
 }
 
-variable "DB_ADDR" {
+variable "KC_DB_URL_HOST" {
   description = "Database host url"
 }
 
-variable "DB_VENDOR" {
+variable "KC_DB" {
   description = "Database vendor"
 }
 
@@ -39,8 +39,11 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_subnet_ids" "all" {
-  vpc_id = "${data.aws_vpc.default.id}"
+data "aws_subnets" "all" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
 }
 
 data "aws_security_group" "default" {
@@ -192,6 +195,11 @@ resource "aws_lb_listener_rule" "host_based_routing" {
 
 resource "aws_ecs_cluster" "keycloak_cluster" {
   name = "keycloak"
+}
+
+resource "aws_ecs_cluster_capacity_providers" "keycloak" {
+  cluster_name = aws_ecs_cluster.keycloak_cluster.name
+
   capacity_providers = ["FARGATE"]
 }
 
@@ -219,38 +227,19 @@ resource "aws_ecs_task_definition" "keycloak_task" {
       }
     ],
     "environment": [
-      {
-        "name": "DB_PASSWORD",
-        "value": "${var.DB_PASSWORD}"
-      },
-      {
-        "name": "DB_USER",
-        "value": "${var.DB_USER}"
-      },
-      {
-        "name": "DB_DATABASE",
-        "value": "${var.DB_DATABASE}"
-      },
-      {
-        "name": "DB_ADDR",
-        "value": "${var.DB_ADDR}"
-      },
-      {
-        "name": "DB_VENDOR",
-        "value": "${var.DB_VENDOR}"
-      },
-      {
-        "name": "KEYCLOAK_USER",
-        "value": "${var.KEYCLOAK_USER}"
-      },
-      {
-        "name": "KEYCLOAK_PASSWORD",
-        "value": "${aws_secretsmanager_secret_version.keycloak_admin_password.secret_string}"
-      },
-      { 
-        "name": "PROXY_ADDRESS_FORWARDING",
-        "value": "true"
-      }
+      {"name": "KC_DB"         , "value": "${var.KC_DB}"},
+      {"name": "KC_DB_URL_HOST", "value": "${var.KC_DB_URL_HOST}"},
+      {"name": "KC_DB_DATABASE", "value": "${var.KC_DB_DATABASE}"},
+      {"name": "KC_DB_USERNAME", "value": "${var.KC_DB_USERNAME}"},
+      {"name": "KC_DB_PASSWORD", "value": "${var.KC_DB_PASSWORD}"},
+
+      {"name": "KC_HOSTNAME_STRICT", "value": "false"},
+      {"name": "KC_EDGE"           , "value": "proxy"},
+      {"name": "KC_HTTP_ENABLED"   , "value": "true"},
+      {"name": "KC_FEATURES"       , "value": "token-exchange"},
+
+      {"name": "KEYCLOAK_USER"    , "value": "${var.KEYCLOAK_USER}"},
+      {"name": "KEYCLOAK_PASSWORD", "value": "${aws_secretsmanager_secret_version.keycloak_admin_password.secret_string}"}
     ],
     "logConfiguration": {
       "logDriver": "awslogs",
@@ -274,7 +263,7 @@ resource "aws_ecs_service" "keycloak_service" {
 
   network_configuration {
     security_groups  = ["${data.aws_security_group.default.id}", "${aws_security_group.keycloak_allow_http_https.id}"]
-    subnets          = ["${data.aws_subnet_ids.all.ids}"]
+    subnets          = data.aws_subnets.all.ids
     assign_public_ip = "true"
   }
 
