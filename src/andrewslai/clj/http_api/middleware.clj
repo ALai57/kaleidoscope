@@ -49,8 +49,9 @@
   (with-out-str (ddiff/pretty-print (remove-unchanged (ddiff/diff x y))
                                     (ddiff/printer {:print-color false}))))
 
-(string-diff {:a :b}
-             {:c :d})
+(comment
+  (string-diff {:a :b}
+               {:c :d}))
 
 
 (def ^:dynamic *request-id*
@@ -216,14 +217,14 @@
 
 
 (comment
-  {:name       :enforce-access-rules
-   :handler    (fn [request]
-                 (ar/wrap-access-rules
-                  request
-                  {:rules          access-rules
-                   :reject-handler (fn [& args]
-                                     (-> "Not authorized"
-                                         (unauthorized)
-                                         (resp/content-type "application/text")))}))}
+  {:name    :enforce-access-rules
+   :handler (fn [request]
+              (ar/wrap-access-rules
+               request
+               {:rules          access-rules
+                :reject-handler (fn [& args]
+                                  (-> "Not authorized"
+                                      (unauthorized)
+                                      (resp/content-type "application/text")))}))}
 
   (ring-request-pipeline (mock/request :get "/endpoint")))

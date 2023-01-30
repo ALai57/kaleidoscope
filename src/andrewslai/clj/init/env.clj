@@ -246,8 +246,7 @@
   [{:keys [database-connection
            andrewslai-authentication
            andrewslai-authorization
-           andrewslai-static-content-adapter
-           ]
+           andrewslai-static-content-adapter]
     :as system}]
   {:database               database-connection
    :http-mw                (make-middleware andrewslai-authentication
