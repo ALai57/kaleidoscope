@@ -2,12 +2,11 @@
   (:gen-class)
   (:require [aleph.http :as http]
             [andrewslai.clj.http-api.middleware :as mw]
-            [andrewslai.clj.init.config :as config]
+            [andrewslai.clj.init.env :as env]
             [cheshire.core :as json]
             [clojure.string :as string]
             [taoensso.timbre :as log]
-            [taoensso.timbre.appenders.core :as appenders]
-            [andrewslai.clj.init.env :as env]))
+            [taoensso.timbre.appenders.core :as appenders]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Logging
