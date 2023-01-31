@@ -35,3 +35,5 @@ crash.log
 .idea*
 pom.xml*
 .repl.*
+
+.terraform.*
