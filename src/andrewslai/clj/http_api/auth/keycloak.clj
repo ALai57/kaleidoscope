@@ -42,7 +42,7 @@
         (when (validate-token keycloak token)
           (jwt/body token))
         (catch Exception e
-          (log/error "Authentication exception" e))))))
+          (log/error "Authentication exception" (pr-str e)))))))
 
 (comment
 
