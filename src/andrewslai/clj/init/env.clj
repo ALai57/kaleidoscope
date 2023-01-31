@@ -72,7 +72,7 @@
   {:malli/schema [:=> [:cat :map]
                   [:map
                    [:bucket [:string {:error/message "Missing S3 bucket. Set via ANDREWSLAI_BUCKET environment variable."}]]
-                   [:creds  [:string {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
+                   [:creds  [:any {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
   {:bucket (get env "ANDREWSLAI_BUCKET")
@@ -82,7 +82,7 @@
   {:malli/schema [:=> [:cat :map]
                   [:map
                    [:bucket [:string {:error/message "Missing Wedding S3 bucket. Set via ANDREWSLAI_WEDDING_BUCKET environment variable."}]]
-                   [:creds  [:string {:error/message "Missing Wedding S3 credential provider chain. Set in code. Should never happen."}]]]]
+                   [:creds  [:any {:error/message "Missing Wedding S3 credential provider chain. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
   {:bucket (get env "ANDREWSLAI_WEDDING_BUCKET")
