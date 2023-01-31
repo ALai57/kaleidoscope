@@ -491,12 +491,7 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
       }
     ],
     "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-group": "/fargate/service/andrewslai-production",
-        "awslogs-region": "us-east-1",
-        "awslogs-stream-prefix": "ecs"
-      }
+      "logDriver": "awsfirelens"
     }
   }
 ]
