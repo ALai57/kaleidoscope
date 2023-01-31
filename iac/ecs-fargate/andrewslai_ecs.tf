@@ -34,9 +34,6 @@ variable "ANDREWSLAI_STATIC_CONTENT_TYPE" {description = "How to serve static co
 variable "ANDREWSLAI_BUCKET" {description = "Where to serve andrewslai app from"}
 
 variable "ANDREWSLAI_WEDDING_AUTH_TYPE" {description = "Type of Authentication"}
-variable "ANDREWSLAI_WEDDING_AUTH_REALM" {description = "Keycloak realm to auth into"}
-variable "ANDREWSLAI_WEDDING_AUTH_URL" {description = "Keycloak URL"}
-variable "ANDREWSLAI_WEDDING_AUTH_CLIENT" {description = "Keycloak client id"}
 variable "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE" {description = "What type of Authorization scheme to use"}
 variable "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" {description = "How to serve static content"}
 variable "ANDREWSLAI_WEDDING_BUCKET" {description = "Where to serve wedding app from"}
@@ -474,18 +471,17 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
       {"name": "ANDREWSLAI_DB_NAME", "value": "${var.ANDREWSLAI_DB_NAME}"},
       {"name": "ANDREWSLAI_DB_HOST", "value": "${var.ANDREWSLAI_DB_HOST}"},
       {"name": "ANDREWSLAI_DB_PORT", "value": "${var.ANDREWSLAI_DB_PORT}"},
-      {"name": "ANDREWSLAI_AUTH_TYPE"  , "value": "${var.ANDREWSLAI_AUTH_TYPE}"},
+
       {"name": "ANDREWSLAI_AUTH_REALM" , "value": "${var.ANDREWSLAI_AUTH_REALM}"},
       {"name": "ANDREWSLAI_AUTH_URL"   , "value": "${var.ANDREWSLAI_AUTH_URL}"},
       {"name": "ANDREWSLAI_AUTH_CLIENT", "value": "${var.ANDREWSLAI_AUTH_CLIENT}"},
+
+      {"name": "ANDREWSLAI_AUTH_TYPE"  , "value": "${var.ANDREWSLAI_AUTH_TYPE}"},
       {"name": "ANDREWSLAI_AUTHORIZATION_TYPE", "value": "${var.ANDREWSLAI_AUTHORIZATION_TYPE}"},
       {"name": "ANDREWSLAI_STATIC_CONTENT_TYPE", "value": "${var.ANDREWSLAI_STATIC_CONTENT_TYPE}"},
       {"name": "ANDREWSLAI_BUCKET", "value": "${var.ANDREWSLAI_BUCKET}"},
 
       {"name": "ANDREWSLAI_WEDDING_AUTH_TYPE"  , "value": "${var.ANDREWSLAI_WEDDING_AUTH_TYPE}"},
-      {"name": "ANDREWSLAI_WEDDING_AUTH_REALM" , "value": "${var.ANDREWSLAI_WEDDING_AUTH_REALM}"},
-      {"name": "ANDREWSLAI_WEDDING_AUTH_URL"   , "value": "${var.ANDREWSLAI_WEDDING_AUTH_URL}"},
-      {"name": "ANDREWSLAI_WEDDING_AUTH_CLIENT", "value": "${var.ANDREWSLAI_WEDDING_AUTH_CLIENT}"},
       {"name": "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE", "value": "${var.ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE}"},
       {"name": "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE", "value": "${var.ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE}"},
       {"name": "ANDREWSLAI_WEDDING_BUCKET", "value": "${var.ANDREWSLAI_WEDDING_BUCKET}"},
