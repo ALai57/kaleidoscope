@@ -115,7 +115,6 @@ traffic to Keycloak via HTTP instead of over HTTPS. However, newer versions of K
 want to be running on HTTPS, so we need to figure out how to run the container and accept
 HTTP traffic.
 
-;; TODO: TRY THIS WITH ANOTHER VERSION OF KEYCLOAK - V18 perhaps? Use environment vars instead
 ```bash 
 export DB_VENDOR=postgres
 export DB_URL=localhost
@@ -217,3 +216,6 @@ Edit the `.env.aws` file to provide the correct environment variables.
 ```bash
 docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai
 ```
+
+TODO: 2023-01-31: Deploy and check to make sure andrewslai is still working
+Troubleshoot `/branches` auth error

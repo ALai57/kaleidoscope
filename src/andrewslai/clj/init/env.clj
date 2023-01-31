@@ -40,7 +40,7 @@
                    [:client-id         [:string {:error/message "Missing Keycloak client id. Set via ANDREWSLAI_AUTH_CLIENT environment variable."}]]
                    [:client-secret     [:string {:error/message "Missing Keycloak secret. Set via ANDREWSLAI_AUTH_SECRET environment variable."}]]
                    [:ssl-required      [:string {:error/message "Missing Keycloak ssl requirement. Set in code. Should never happen."}]]
-                   [:confidential-port [:string {:error/message "Missing Keycloak confidential port. Set in code. Should never happen."}]]]]
+                   [:confidential-port [:int {:error/message "Missing Keycloak confidential port. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
   {:realm             (get env "ANDREWSLAI_AUTH_REALM")
