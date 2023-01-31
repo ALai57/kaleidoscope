@@ -4,8 +4,8 @@
 # Variables
 ##############################################################
 
-variable "ANDREWSLAI_DB_PASSWORD" {
-  description = "Database password"
+variable "ANDREWSLAI_DB_TYPE" {
+  description = "Database username"
 }
 
 variable "ANDREWSLAI_DB_USER" {
@@ -24,25 +24,22 @@ variable "ANDREWSLAI_DB_PORT" {
   description = "Database port"
 }
 
-variable "ANDREWSLAI_AUTH_REALM" {
-  description = "Keycloak realm to auth into"
-}
 
-variable "ANDREWSLAI_AUTH_URL" {
-  description = "Keycloak URL"
-}
+variable "ANDREWSLAI_AUTH_TYPE" {description = "Type of Authentication"}
+variable "ANDREWSLAI_AUTH_REALM" {description = "Keycloak realm to auth into"}
+variable "ANDREWSLAI_AUTH_URL" {description = "Keycloak URL"}
+variable "ANDREWSLAI_AUTH_CLIENT" {description = "Keycloak client id"}
+variable "ANDREWSLAI_AUTHORIZATION_TYPE" {description = "What type of Authorization scheme to use"}
+variable "ANDREWSLAI_STATIC_CONTENT_TYPE" {description = "How to serve static content"}
+variable "ANDREWSLAI_BUCKET" {description = "Where to serve andrewslai app from"}
 
-variable "ANDREWSLAI_AUTH_CLIENT" {
-  description = "Keycloak client id"
-}
-
-variable "ANDREWSLAI_AUTH_SECRET" {
-  description = "Keycloak client secret"
-}
-
-variable "ANDREWSLAI_STATIC_CONTENT_TYPE" {
-  description = "How to serve static content"
-}
+variable "ANDREWSLAI_WEDDING_AUTH_TYPE" {description = "Type of Authentication"}
+variable "ANDREWSLAI_WEDDING_AUTH_REALM" {description = "Keycloak realm to auth into"}
+variable "ANDREWSLAI_WEDDING_AUTH_URL" {description = "Keycloak URL"}
+variable "ANDREWSLAI_WEDDING_AUTH_CLIENT" {description = "Keycloak client id"}
+variable "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE" {description = "What type of Authorization scheme to use"}
+variable "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" {description = "How to serve static content"}
+variable "ANDREWSLAI_WEDDING_BUCKET" {description = "Where to serve wedding app from"}
 
 # Necessary because it seems like the DefaultRegionProviderChain walks down a chain of
 # providers to find its region. If it cannot find the AWS region in environment, etc
@@ -279,7 +276,7 @@ resource "aws_alb_target_group" "main" {
   health_check {
      interval = 45
      unhealthy_threshold = 4
-     path = "/"
+     path = "/ping"
   }
 
   lifecycle {
@@ -472,45 +469,38 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
       }
      ],
     "environment": [
-      {
-        "name": "ANDREWSLAI_DB_USER",
-        "value": "${var.ANDREWSLAI_DB_USER}"
-      },
-      {
-        "name": "ANDREWSLAI_DB_NAME",
-        "value": "${var.ANDREWSLAI_DB_NAME}"
-      },
-      {
-        "name": "ANDREWSLAI_DB_HOST",
-        "value": "${var.ANDREWSLAI_DB_HOST}"
-      },
-      {
-        "name": "ANDREWSLAI_DB_PORT",
-        "value": "${var.ANDREWSLAI_DB_PORT}"
-      },
-      {
-        "name": "ANDREWSLAI_AUTH_REALM",
-        "value": "${var.ANDREWSLAI_AUTH_REALM}"
-      },
-      {
-        "name": "ANDREWSLAI_AUTH_URL",
-        "value": "${var.ANDREWSLAI_AUTH_URL}"
-      },
-      {
-        "name": "ANDREWSLAI_AUTH_CLIENT",
-        "value": "${var.ANDREWSLAI_AUTH_CLIENT}"
-      },
-      {
-        "name": "ANDREWSLAI_STATIC_CONTENT_TYPE",
-        "value": "${var.ANDREWSLAI_STATIC_CONTENT_TYPE}"
-      },
+      {"name": "ANDREWSLAI_DB_TYPE", "value": "${var.ANDREWSLAI_DB_TYPE}"},
+      {"name": "ANDREWSLAI_DB_USER", "value": "${var.ANDREWSLAI_DB_USER}"},
+      {"name": "ANDREWSLAI_DB_NAME", "value": "${var.ANDREWSLAI_DB_NAME}"},
+      {"name": "ANDREWSLAI_DB_HOST", "value": "${var.ANDREWSLAI_DB_HOST}"},
+      {"name": "ANDREWSLAI_DB_PORT", "value": "${var.ANDREWSLAI_DB_PORT}"},
+      {"name": "ANDREWSLAI_AUTH_TYPE"  , "value": "${var.ANDREWSLAI_AUTH_TYPE}"},
+      {"name": "ANDREWSLAI_AUTH_REALM" , "value": "${var.ANDREWSLAI_AUTH_REALM}"},
+      {"name": "ANDREWSLAI_AUTH_URL"   , "value": "${var.ANDREWSLAI_AUTH_URL}"},
+      {"name": "ANDREWSLAI_AUTH_CLIENT", "value": "${var.ANDREWSLAI_AUTH_CLIENT}"},
+      {"name": "ANDREWSLAI_AUTHORIZATION_TYPE", "value": "${var.ANDREWSLAI_AUTHORIZATION_TYPE}"},
+      {"name": "ANDREWSLAI_STATIC_CONTENT_TYPE", "value": "${var.ANDREWSLAI_STATIC_CONTENT_TYPE}"},
+      {"name": "ANDREWSLAI_BUCKET", "value": "${var.ANDREWSLAI_BUCKET}"},
+
+      {"name": "ANDREWSLAI_WEDDING_AUTH_TYPE"  , "value": "${var.ANDREWSLAI_WEDDING_AUTH_TYPE}"},
+      {"name": "ANDREWSLAI_WEDDING_AUTH_REALM" , "value": "${var.ANDREWSLAI_WEDDING_AUTH_REALM}"},
+      {"name": "ANDREWSLAI_WEDDING_AUTH_URL"   , "value": "${var.ANDREWSLAI_WEDDING_AUTH_URL}"},
+      {"name": "ANDREWSLAI_WEDDING_AUTH_CLIENT", "value": "${var.ANDREWSLAI_WEDDING_AUTH_CLIENT}"},
+      {"name": "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE", "value": "${var.ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE}"},
+      {"name": "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE", "value": "${var.ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE}"},
+      {"name": "ANDREWSLAI_WEDDING_BUCKET", "value": "${var.ANDREWSLAI_WEDDING_BUCKET}"},
       {
         "name": "AWS_DEFAULT_REGION",
         "value": "${var.AWS_DEFAULT_REGION}"
       }
     ],
     "logConfiguration": {
-      "logDriver": "awsfirelens"
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/fargate/service/andrewslai-production",
+        "awslogs-region": "us-east-1",
+        "awslogs-stream-prefix": "ecs"
+      }
     }
   }
 ]
