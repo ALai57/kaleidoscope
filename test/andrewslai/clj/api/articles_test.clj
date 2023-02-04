@@ -228,4 +228,12 @@
                           :article-id article-id
                           :branch-id  new-branch-id
                           :version-id new-version-id)]
-                  (articles/get-published-articles database {:article-url (:article-url article-branch)}))))))
+                  (articles/get-published-articles database {:article-url (:article-url article-branch)}))))
+
+    (testing "Can unpublish branch"
+      (is (match? [{:published-at nil?}]
+                  (articles/unpublish-branch! database old-branch-id)))
+      (is (match? [{:published-at nil?}]
+                  (articles/unpublish-branch! database new-branch-id)))
+      (is (empty? (articles/get-published-articles database {:article-url (:article-url article-branch)}))))
+    ))

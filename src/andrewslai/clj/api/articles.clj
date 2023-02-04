@@ -57,6 +57,17 @@
      (log/infof "Published Branch: %s" result)
      result)))
 
+(defn unpublish-branch!
+  [db branch-id]
+  (log/infof "Unpublishing Branch: %s" branch-id)
+  (let [result (rdbms/update! db :article-branches
+                              {:published-at nil}
+                              [:= :id branch-id]
+                              :ex-subtype :UnableToUnPublishBranch)
+        result (get-branches db {:branch-id branch-id})]
+    (log/infof "Unpublished Branch: %s" result)
+    result))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Versions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
