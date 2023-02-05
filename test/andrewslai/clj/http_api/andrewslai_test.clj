@@ -3,7 +3,9 @@
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.init.env :as env]
             [andrewslai.clj.test-main :as tm]
+            [andrewslai.clj.utils.core :as util]
             [andrewslai.clj.test-utils :as tu]
+            [clojure.java.io :as io]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.matchers :as m]
@@ -310,3 +312,47 @@
     (is (match? {:status 200 :body portfolio/portfolio?}
                 response)
         (s/explain-str :andrewslai/portfolio (:body response)))))
+
+
+(defn make-example-file-upload-request
+  "A function because the body is an input stream, which is consumable and must
+  be regenerated each request"
+  ([]
+   (make-example-file-upload-request "lock.svg"))
+  ([fname]
+   (util/deep-merge {:headers        (tu/auth-header ["wedding"])
+                     :request-method :post
+                     :uri            "/media/"}
+                    (tu/assemble-multipart "my boundary here"
+                                           [{:part-name    "file-contents"
+                                             :file-name    fname
+                                             :content-type "image/svg+xml"
+                                             :content      (-> "public/images/lock.svg"
+                                                               io/resource
+                                                               slurp)}]))))
+
+(deftest content-upload-and-retrieve-test
+  (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                  "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
+                  "ANDREWSLAI_AUTHORIZATION_TYPE"  "public-access"
+                  "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                 env/prepare-andrewslai
+                 andrewslai/andrewslai-app
+                 tu/wrap-clojure-response)]
+
+    (testing "Image does not exist"
+      (is (match? {:status 404}
+                  (app (mock/request :get "/media/foo.svg")))))
+
+    (let [response (app (make-example-file-upload-request "foo.svg"))]
+      (testing "Upload works"
+        (is (match? {:status  201
+                     :headers {"Location" "/media/foo.svg"}
+                     :body    {:id string?}}
+                    response)))
+
+      (testing "Retrieval works"
+        (is (match? {:status  200
+                     :headers {"Content-Type" "image/svg+xml"}}
+                    (app (mock/request :get "/media/foo.svg"))))))))

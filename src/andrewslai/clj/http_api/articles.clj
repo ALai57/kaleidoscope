@@ -100,6 +100,7 @@
               (catch Exception e
                 (log/error "Caught exception " e))))
 
+          ;; Should probably be POST `publish-date`
           (PUT "/publish" request
             :swagger {:summary   "Publish an article branch"
                       :produces  #{"application/json"}

@@ -4,6 +4,7 @@
             [andrewslai.clj.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
+            [andrewslai.clj.http-api.photo :refer [photo-routes]]
             [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
             [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.stacktrace :as stacktrace]
@@ -63,6 +64,7 @@
        portfolio-routes
        admin-routes
        swagger-ui-routes
+       photo-routes
        default-handler))
 
 
