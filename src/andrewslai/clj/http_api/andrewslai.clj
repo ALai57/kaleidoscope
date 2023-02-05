@@ -22,6 +22,9 @@
    {:pattern #"^/$"              :handler public-access}
    {:pattern #"^/index.html$"    :handler public-access}
    {:pattern #"^/ping"           :handler public-access}
+
+   {:pattern #"^/media.*" :request-method :post :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/media.*" :request-method :get  :handler public-access}
    #_{:pattern #"^/.*" :handler (constantly false)}])
 
 (defn exception-handler

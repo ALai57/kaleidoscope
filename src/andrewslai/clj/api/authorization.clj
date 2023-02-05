@@ -5,7 +5,7 @@
 
 (defn require-role
   [role {:keys [identity uri] :as request}]
-  (log/debug "Checking if user %s has access to endpoint %s" identity uri)
+  (log/debugf "Checking if user %s has access to endpoint %s" identity uri)
   (if (contains? (oidc/get-realm-roles identity) role)
     true
     (ar/error (format "Unauthorized for role: %s (valid roles: %s)"

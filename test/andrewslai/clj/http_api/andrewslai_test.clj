@@ -320,7 +320,7 @@
   ([]
    (make-example-file-upload-request "lock.svg"))
   ([fname]
-   (util/deep-merge {:headers        (tu/auth-header ["wedding"])
+   (util/deep-merge {:headers        (tu/auth-header ["andrewslai"])
                      :request-method :post
                      :uri            "/media/"}
                     (tu/assemble-multipart "my boundary here"
@@ -331,10 +331,24 @@
                                                                io/resource
                                                                slurp)}]))))
 
-(deftest content-upload-and-retrieve-test
+(deftest content-upload-authorization-test
   (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
                   "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
-                  "ANDREWSLAI_AUTHORIZATION_TYPE"  "public-access"
+                  "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                 env/prepare-andrewslai
+                 andrewslai/andrewslai-app
+                 tu/wrap-clojure-response)]
+
+    (testing "Unauthenticated upload fails"
+      (is (match? {:status 401}
+                  (app (make-example-file-upload-request "foo.svg")))))))
+
+(deftest content-upload-and-retrieve-test
+  (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                  "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
+                  "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
                   "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                  env/prepare-andrewslai
