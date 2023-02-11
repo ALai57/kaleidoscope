@@ -2,9 +2,10 @@
   (:require [andrewslai.clj.api.authorization :as auth]
             [andrewslai.clj.http-api.admin :refer [admin-routes]]
             [andrewslai.clj.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
+            [andrewslai.clj.http-api.cache-control :as cc]
+            [andrewslai.clj.http-api.photo :refer [photo-routes]]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
-            [andrewslai.clj.http-api.photo :refer [photo-routes]]
             [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
             [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.stacktrace :as stacktrace]
@@ -50,8 +51,9 @@
   (GET "*" {:keys [uri] :as request}
     :components [static-content-adapter]
     (if-let [response (fs/get static-content-adapter uri)]
-      {:status 200
-       :body   response}
+      (cc/cache-control uri
+                        {:status 200
+                         :body   response})
       {:status 404})))
 
 (defn andrewslai-app

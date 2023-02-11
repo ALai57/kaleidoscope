@@ -1,14 +1,16 @@
 (ns andrewslai.clj.http-api.andrewslai-test
   (:require [andrewslai.clj.api.portfolio :as portfolio]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
+            [andrewslai.clj.http-api.cache-control :as cc]
             [andrewslai.clj.init.env :as env]
             [andrewslai.clj.test-main :as tm]
-            [andrewslai.clj.utils.core :as util]
             [andrewslai.clj.test-utils :as tu]
+            [andrewslai.clj.utils.core :as util]
             [clojure.java.io :as io]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [matcher-combinators.matchers :as m]
+            [matcher-combinators.test]
             [ring.mock.request :as mock]
             [taoensso.timbre :as log]))
 
@@ -355,6 +357,11 @@
                  andrewslai/andrewslai-app
                  tu/wrap-clojure-response)]
 
+    (testing "Folders are not cached"
+      (is (match? {:status  200
+                   :headers {"Cache-Control" cc/no-cache}}
+                  (app (mock/request :get "/media/")))))
+
     (testing "Image does not exist"
       (is (match? {:status 404}
                   (app (mock/request :get "/media/foo.svg")))))
@@ -368,5 +375,6 @@
 
       (testing "Retrieval works"
         (is (match? {:status  200
-                     :headers {"Content-Type" "image/svg+xml"}}
+                     :headers {"Content-Type"  "image/svg+xml"
+                               "Cache-Control" cc/cache-30d}}
                     (app (mock/request :get "/media/foo.svg"))))))))
