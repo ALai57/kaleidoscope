@@ -6,11 +6,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def no-cache  "max-age=0,no-cache,no-store")
 (def cache-30d "public,max-age=2592000,s-maxage=2592000")
+(def cache-10d "public,max-age=864000,s-maxage=864000")
 
 (def url-caching-policy
   [[#"\.png$" cache-30d]
    [#"\.jpg$" cache-30d]
-   [#"\.svg$" cache-30d]])
+   [#"\.svg$" cache-30d]
+   [#"\.css$" cache-10d]
+   ])
 
 (defn find-first-match
   "Searches through a collection of potential matches to find the first matching
