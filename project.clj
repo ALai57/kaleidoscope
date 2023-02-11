@@ -21,6 +21,7 @@
    [com.h2database/h2 "2.1.214"]
    [com.taoensso/timbre "6.0.4"]
    [com.twelvemonkeys.servlet/servlet "3.9.4"]
+   [com.zaxxer/HikariCP "3.3.1"]
    [honeysql "1.0.461"]
    [io.zonky.test/embedded-postgres "1.2.6"]
    [javax.servlet/servlet-api "2.5"]

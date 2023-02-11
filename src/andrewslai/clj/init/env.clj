@@ -18,7 +18,10 @@
             [malli.dev.virhe :as v]
             [malli.instrument :as mi]
             [next.jdbc :as next]
-            [taoensso.timbre :as log]))
+            [next.jdbc.connection :as connection]
+            [taoensso.timbre :as log])
+  (:import (com.zaxxer.hikari HikariDataSource))
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot instructions for starting system components from the environment
@@ -56,7 +59,7 @@
                    [:dbname   [:string {:error/message "Missing DB name. Set via ANDREWSLAI_DB_NAME environment variable."}]]
                    [:db-port  [:string {:error/message "Missing DB port. Set via ANDREWSLAI_DB_PORT environment variable."}]]
                    [:host     [:string {:error/message "Missing DB host. Set via ANDREWSLAI_DB_HOST environment variable."}]]
-                   [:user     [:string {:error/message "Missing DB user. Set via ANDREWSLAI_DB_USER environment variable."}]]
+                   [:username [:string {:error/message "Missing DB user. Set via ANDREWSLAI_DB_USER environment variable."}]]
                    [:password [:string {:error/message "Missing DB pass. Set via ANDREWSLAI_DB_PASSWORD environment variable."}]]
                    [:dbtype   [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
@@ -64,7 +67,7 @@
   {:dbname   (get env "ANDREWSLAI_DB_NAME")
    :db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
    :host     (get env "ANDREWSLAI_DB_HOST")
-   :user     (get env "ANDREWSLAI_DB_USER")
+   :username (get env "ANDREWSLAI_DB_USER")
    :password (get env "ANDREWSLAI_DB_PASSWORD")
    :dbtype   "postgresql"})
 
@@ -112,10 +115,23 @@
 ;; Parse environment variables into a map of config values:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+(defn initialize-connection-pool!
+  "this code initializes the pool and performs a validation check:
+  It prevents us from having the first db request need to initialize the pool"
+  [^HikariDataSource ds]
+  (log/info "Initializing connection pool!")
+  (.close (next/get-connection ds))
+  (log/info "Connection pool initialized!"))
+
 (def database-boot-instructions
   {:name      :database-connection
    :path      "ANDREWSLAI_DB_TYPE"
-   :launchers {"postgres"          (fn  [env] (next/get-datasource (env->pg-conn env)))
+   :launchers {"postgres"          (fn  [env]
+                                     (let [ds (connection/->pool HikariDataSource
+                                                                 (env->pg-conn env))]
+                                       (initialize-connection-pool! ds)
+                                       ds))
                "embedded-h2"       (fn [_env] (embedded-h2/fresh-db!))
                "embedded-postgres" (fn [_env] (embedded-pg/fresh-db!))}
    :default   "postgres"})
