@@ -11,6 +11,7 @@
   :dependencies
   [[aleph "0.6.0"]
    [amazonica "0.3.162"]
+   [bk/ring-gzip "0.3.0"]
    [buddy/buddy-auth "3.0.323"]
    [camel-snake-kebab "0.4.3"]
    [cheshire "5.10.0"]

@@ -16,9 +16,10 @@
   (= 'file (type x)))
 
 (defn file
-  [{:keys [name content metadata]}]
+  [{:keys [name content metadata version]}]
   (tag-as {:name     name
            :content  content
+           :version  version
            :metadata metadata
            :type     :file}
           'file))
@@ -27,8 +28,8 @@
 ;; Add protocol as the first argument to the FilesysteM?
 ;; Configuration map as first argument and extract other args from there?
 (defrecord MemFS [store]
-  fs/FileSystem
-  (ls [_ path]
+  fs/DistributedFileSystem
+  (ls [_ path options]
     (seq (reduce-kv (fn [xs entry v]
                       (conj xs (if (file? v)
                                  v
@@ -37,17 +38,19 @@
                                   :type :directory})))
                     []
                     (get-in @store (string/split path #"/")))))
-
-  (get-file [_ path]
+  (get-file [_ path options]
     (let [x (get-in @store (string/split path #"/"))]
-      (when (file? x)
-        (:content x))))
+      (cond
+        (nil? x)  fs/does-not-exist-response
+        (file? x) (fs/object {:content (:content x)
+                              :version (:version x)}))))
   (put-file [_ path input-stream metadata]
     (let [p    (remove empty? (string/split path #"/+"))
           file (tag-as {:name     (last p)
                         :path     path
                         :content  input-stream
                         :metadata metadata
+                        :version  (fs/md5 path)
                         :type     :file}
                        'file)]
       (swap! store assoc-in p file)
@@ -61,12 +64,16 @@
   "An in-memory filesystem used for testing"
   {"media"      {"afile" (file {:name     "afile"
                                 :content  {:qux :quz}
+                                :version  "1.2"
                                 :metadata {}})
                  "adir"  {"anotherfile" (file {:name     "afile"
                                                :content  {:qux :quz}
+                                               :version  "2.3"
                                                :metadata {}})}}
    "index.html" (file {:name    "index.html"
-                       :content "<div>Hello</div>"})})
+                       :content "<div>Hello</div>"
+                       :version "3.4"
+                       })})
 
 (comment
   (def db (atom {"var" {"afile" (tag-as {:name "afile"

@@ -19,17 +19,18 @@
 (deftest memfs-test
   (let [db    (atom {})
         memfs (map->MemFS {:store db})]
-    (is (nil? (fs/get memfs "var")))
-    (is (match? {:name "afile.txt"
-                 :path "var/afile.txt"
-                 :content buffered-input-stream?
+    (is (fs/does-not-exist? (fs/get memfs "var")))
+    (is (match? {:name     "afile.txt"
+                 :path     "var/afile.txt"
+                 :version  "dfdfea2387423d4e92fcd1aa5f93c5f1"
+                 :content  buffered-input-stream?
                  :metadata {:content-type "text/html"}}
                 (fs/put-file memfs
                              "var/afile.txt"
                              (io/input-stream (.getBytes "<h1>Hello</h1>"))
                              {:content-type "text/html"})))
-    (is (match? buffered-input-stream?
-                (fs/get-file memfs "var/afile.txt")))))
+    (is (match? {:content buffered-input-stream?}
+                (fs/get memfs "var/afile.txt")))))
 
 (defspec memfs-spec
   (prop/for-all [path     gen-file/gen-path
@@ -45,6 +46,6 @@
                     :path     fullpath
                     :content  content
                     :metadata metadata}]
-      (is (nil? (fs/get memfs "var")))
+      (is (fs/does-not-exist? (fs/get memfs "var")))
       (is (match? file (fs/put-file memfs fullpath content metadata)))
-      (is (match? content (fs/get memfs fullpath))))))
+      (is (match? {:content content} (fs/get memfs fullpath))))))

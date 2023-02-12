@@ -4,6 +4,7 @@
             [buddy.auth.middleware :as ba]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.file :refer [wrap-file]]
+            [ring.middleware.gzip :refer [wrap-gzip]]
             [ring.middleware.json :as json-mw :refer [wrap-json-response]]
             [ring.middleware.multipart-params :as mp :refer [wrap-multipart-params]]
             [ring.middleware.params :as params :refer [wrap-params]]
@@ -141,6 +142,7 @@
 (def standard-stack
   "Stack is applied from top down"
   (apply comp [wrap-request-identifier
+               wrap-gzip
                wrap-content-type
                wrap-json-response
                wrap-multipart-params

@@ -20,7 +20,7 @@
   (are [expected url]
     (= {:status  200
         :headers {"Cache-Control" expected}}
-       (cc/cache-control url {:status 200}))
+       (cc/cache-control {:status 200} url))
 
     cc/no-cache  "hello.html"
     cc/no-cache  "hello/"
@@ -30,4 +30,4 @@
 
 (deftest cache-control-with-non-200-test
   (is (= {:status 400}
-         (cc/cache-control "Hello.html" {:status 400}))))
+         (cc/cache-control {:status 400} "Hello.html"))))

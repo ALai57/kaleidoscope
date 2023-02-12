@@ -10,6 +10,8 @@
             [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.stacktrace :as stacktrace]
             [compojure.api.sweet :refer [api context GET]]
+            [ring.util.response :as ring.response]
+            [ring.util.http-response :refer [not-found not-modified]]
             [taoensso.timbre :as log]))
 
 (def public-access
@@ -40,21 +42,29 @@
       :components [static-content-adapter]
       {:status  200
        :headers {"Content-Type" "text/html"}
-       :body    (fs/get static-content-adapter "index.html")})
+       :body    (fs/object-content (fs/get static-content-adapter "index.html"))})
     (GET "/index.html" []
       :components [static-content-adapter]
       {:status  200
        :headers {"Content-Type" "text/html"}
-       :body    (fs/get static-content-adapter "index.html")})))
+       :body    (fs/object-content (fs/get static-content-adapter "index.html"))})))
 
 (def default-handler
   (GET "*" {:keys [uri] :as request}
     :components [static-content-adapter]
-    (if-let [response (fs/get static-content-adapter uri)]
-      (cc/cache-control uri
-                        {:status 200
-                         :body   response})
-      {:status 404})))
+    ;; Also create a link to editor from homepage
+    ;; Also create a link to homepage from editor
+    (let [result (fs/get static-content-adapter uri)]
+      (cond
+        (fs/folder? uri)            (-> {:status 200
+                                         :body   result}
+                                        (cc/cache-control uri))
+        (fs/does-not-exist? result) (not-found)
+        (fs/not-modified? result)   (not-modified)
+        :else                       (-> {:status  200
+                                         :headers {"ETag" (fs/object-version result)}
+                                         :body    (fs/object-content result)}
+                                        (cc/cache-control uri))))))
 
 (defn andrewslai-app
   [{:keys [http-mw] :as components}]

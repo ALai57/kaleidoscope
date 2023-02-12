@@ -3,6 +3,7 @@
             [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.cache-control :as cc]
             [andrewslai.clj.init.env :as env]
+            [andrewslai.clj.persistence.filesystem :as fs]
             [andrewslai.clj.test-main :as tm]
             [andrewslai.clj.test-utils :as tu]
             [andrewslai.clj.utils.core :as util]
@@ -377,4 +378,10 @@
         (is (match? {:status  200
                      :headers {"Content-Type"  "image/svg+xml"
                                "Cache-Control" cc/cache-30d}}
-                    (app (mock/request :get "/media/foo.svg"))))))))
+                    (app (mock/request :get "/media/foo.svg")))))
+
+      (testing "Etags work"
+        (is (match? {:status 304}
+                    (app (-> (mock/request :get "/media/foo.svg")
+                             (mock/header "ETag" (fs/md5 "/media/foo.svg")))))))
+      )))

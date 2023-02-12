@@ -11,6 +11,7 @@
             [clojure.stacktrace :as stacktrace]
             [compojure.api.sweet :refer [api context GET]]
             [ring.util.response :as ring-resp]
+            [ring.util.http-response :refer [not-found not-modified]]
             [taoensso.timbre :as log]))
 
 (def WEDDING-ACCESS-CONTROL-LIST
@@ -40,9 +41,17 @@
   (GET "*" {:keys [uri] :as request}
     :components [static-content-adapter]
     (log/infof "Didn't find route match. Attempting to lookup using static content")
-    (if-let [response (fs/get static-content-adapter uri)]
-      (cc/cache-control uri (ring-resp/response response))
-      (ring-resp/not-found "No matching route"))))
+    (let [result (fs/get static-content-adapter uri)]
+      (cond
+        (fs/folder? uri)            (-> {:status 200
+                                         :body   result}
+                                        (cc/cache-control uri))
+        (fs/does-not-exist? result) (ring-resp/not-found "No matching route")
+        (fs/not-modified? result)   (not-modified)
+        :else                       (-> {:status  200
+                                         :headers {"ETag" (fs/object-version result)}
+                                         :body    (fs/object-content result)}
+                                        (cc/cache-control uri))))))
 
 (defn wedding-app
   [{:keys [http-mw] :as components}]

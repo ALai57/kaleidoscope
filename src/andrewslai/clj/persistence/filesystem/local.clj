@@ -41,13 +41,16 @@
     (io/copy in out)))
 
 (defrecord LocalFS [root]
-  fs/FileSystem
-  (ls [_ path]
+  fs/DistributedFileSystem
+  (ls [_ path options]
     (map clojurize (.listFiles (io/file (format "%s/%s" root path)))))
-  (get-file [_ path]
-    (io/input-stream (format "%s/%s" root path)))
-  (put-file [_ path input-stream _metadata]
-    (write-stream! input-stream path)))
+  (get-file [_ path options]
+    (let [result (io/input-stream (format "%s/%s" root path))]
+      (fs/object {:content result
+                  :version (fs/md5 path)})))
+  (put-file [this path input-stream _metadata]
+    (write-stream! input-stream path)
+    (fs/get this path)))
 
 (comment
   (def fs

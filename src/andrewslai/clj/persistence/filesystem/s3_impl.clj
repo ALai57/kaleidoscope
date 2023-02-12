@@ -2,12 +2,16 @@
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
             [andrewslai.clj.persistence.filesystem :as fs]
+            [andrewslai.clj.models.s3.get-response :as s3.get]
+            [andrewslai.clj.models.s3.put-response :as s3.put]
+            [andrewslai.clj.models.s3.ls-response :as s3.ls]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [ring.util.http-response :refer [internal-server-error not-found]]
             [ring.util.mime-type :as mt]
             [ring.util.response :as ring-response]
-            [taoensso.timbre :as log])
+            [taoensso.timbre :as log]
+            [clojure.set :as set])
   (:import
    [com.amazonaws.auth AWSCredentialsProviderChain ContainerCredentialsProvider EnvironmentVariableCredentialsProvider]
    com.amazonaws.auth.profile.ProfileCredentialsProvider))
@@ -68,68 +72,63 @@
             :content-type   content-type}
            (when-not (empty? user-meta) {:user-metadata user-meta}))))
 
-(def FOLDER-DELIMITER "/")
+(defn no-such-key?
+  [amazon-ex-map]
+  (= "NoSuchKey" (:error-code amazon-ex-map)))
 
-(defn folder?
-  ([s]
-   (folder? s FOLDER-DELIMITER))
-  ([s delim]
-   (= delim (str (last s)))))
+(defn get-response->fs-object
+  [s3-response]
+  (fs/object {:version  (s3.get/etag s3-response)
+              :metadata (s3.get/metadata s3-response)
+              :content  (s3.get/content s3-response)}))
 
-(defn extract-name
-  [path s]
-  (let [x (last (string/split s (re-pattern FOLDER-DELIMITER)))]
-    (cond
-      (= path s)  ""
-      (folder? s) (str x FOLDER-DELIMITER)
-      :else       x)))
+(defn put-response->fs-object
+  [input-stream response]
+  (fs/object {:version  (s3.put/etag response)
+              :metadata (s3.put/metadata response)
+              :content  input-stream}))
 
-(defn summary->file
-  [path {:keys [key] :as summary}]
-  (assoc summary
-         :name (extract-name path key)
-         :path key
-         :type (if (folder? key)
-                 :directory
-                 :file)))
-
-(defn prefix->file
-  [path prefix]
-  {:name (extract-name path prefix)
-   :path prefix
-   :type :directory})
+(defn ls-response->fs-metadata
+  [path result]
+  (concat (map (partial s3.ls/summary->file path) (:object-summaries result))
+          (map (partial s3.ls/prefix->file path) (:common-prefixes result))))
 
 ;; Add wrapper functions that are spec'ed out
 (defrecord S3 [bucket creds protocol]
-  fs/FileSystem
-  (ls [_ path]
-    (log/infof "S3 List Objects `%s/%s`" bucket path)
+  fs/DistributedFileSystem
+  (ls [_ path options]
+    (log/infof "S3 List Objects `%s/%s` with options %s" bucket path options)
     (let [result (s3/list-objects-v2 creds
                                      {:bucket-name bucket
                                       :prefix      path
-                                      :delimiter   FOLDER-DELIMITER})]
-      (:object-summaries result)
-      (concat (map (partial summary->file path) (:object-summaries result))
-              (map (partial prefix->file path) (:common-prefixes result)))))
-  (get-file [_ path]
-    (log/infof "S3 Get Object `%s/%s`" bucket path)
+                                      :delimiter   s3.ls/FOLDER-DELIMITER})]
+      (ls-response->fs-metadata path result)))
+  (get-file [_ path options]
+    (log/infof "S3 Get Object `%s/%s` with options %s" bucket path options)
     (try
-      (-> (s3/get-object creds {:bucket-name bucket :key path})
-          :input-stream)
+      (if-let [response (s3/get-object creds (cond-> {:bucket-name bucket
+                                                      :key         path}
+                                               (:version options) (assoc :nonmatching-e-tag-constraints [(:version options)])))]
+        (get-response->fs-object response)
+        fs/not-modified-response)
       (catch Exception e
-        (log/warn "Could not retrieve object" (amazon/ex->map e))
-        (exception-response (amazon/ex->map e)))))
-  (put-file [_ path input-stream metadata]
+        (let [ex (amazon/ex->map e)]
+          (log/warn "Could not retrieve object" ex)
+          (cond
+            (no-such-key? ex) fs/does-not-exist-response
+            :else             (throw e))))))
+  (put-file [this path input-stream metadata]
     (log/infof "S3 Put Object `%s/%s`" bucket path)
     (try
-      (s3/put-object creds
-                     {:bucket-name  bucket
-                      :key          path
-                      :input-stream input-stream
-                      :metadata     (prepare-metadata metadata)})
+      (let [response (s3/put-object creds
+                                    {:bucket-name  bucket
+                                     :key          path
+                                     :input-stream input-stream
+                                     :metadata     (prepare-metadata metadata)})]
+        (fs/get this path {:etag (s3.put/etag response)}))
       (catch Exception e
         (log/error "Could not put object" e)
-        (exception-response (amazon/ex->map e))))))
+        fs/does-not-exist-response))))
 
 (comment ;; Playing with S3
 
@@ -143,31 +142,37 @@
         (.getBytes)))
 
   (fs/put-file (map->S3 {:bucket "andrewslai"
-                         :creds CustomAWSCredentialsProviderChain})
+                         :creds  CustomAWSCredentialsProviderChain})
                "lock.svg"
                (java.io.ByteArrayInputStream. b)
-               {:content-type "image/svg"
+               {:content-type   "image/svg"
                 :content-length (count b)
-                :something "some"})
+                :something      "some"})
 
   (def c
     (clojure.java.io/file "resources/public/images/lock.svg"))
 
   (fs/put-file (map->S3 {:bucket "andrewslai"
-                         :creds CustomAWSCredentialsProviderChain})
+                         :creds  CustomAWSCredentialsProviderChain})
                "lock.svg"
                (clojure.java.io/input-stream c)
-               {:content-type "image/svg"
+               {:content-type   "image/svg"
                 :content-length (.length c)
-                :something "some"})
+                :something      "some"})
+
 
   (s3/put-object CustomAWSCredentialsProviderChain
                  {:bucket-name  "andrewslai"
                   :key          "lock.svg"
                   :input-stream (java.io.ByteArrayInputStream. b)
-                  :metadata     {:content-type "image/svg"
+                  :metadata     {:content-type   "image/svg"
                                  :content-length (count b)
-                                 :user-metadata {:something "some-value"}}})
+                                 :user-metadata  {:something "some-value"}}})
+
+  (s3/get-object CustomAWSCredentialsProviderChain
+                 {:bucket-name "andrewslai"
+                  :key         "lock.svg"})
+
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;  Just basic play
@@ -182,7 +187,7 @@
   ;;  LIST files
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (fs/get (map->S3 {:bucket "andrewslai-wedding"
-                    :creds CustomAWSCredentialsProviderChain})
+                    :creds  CustomAWSCredentialsProviderChain})
           "public/")
   ;; => ({:path "public/css/",
   ;;      :key "public/css/",
@@ -203,13 +208,51 @@
   ;;      :size 1121,
   ;;      :bucket-name "andrewslai-wedding"})
 
+  (s3/list-objects-v2 CustomAWSCredentialsProviderChain
+                      {:bucket-name "andrewslai-wedding"
+                       :prefix      "public/"
+                       :delimiter   s3.ls/FOLDER-DELIMITER})
+  ;; => {:object-summaries
+  ;;     [{:key "public/",
+  ;;       :size 0,
+  ;;       :last-modified #clj-time/date-time "2021-05-27T18:30:07.000Z",
+  ;;       :storage-class "STANDARD",
+  ;;       :bucket-name "andrewslai-wedding",
+  ;;       :etag "d41d8cd98f00b204e9800998ecf8427e"}],
+  ;;     :key-count 4,
+  ;;     :truncated? false,
+  ;;     :delimiter "/",
+  ;;     :bucket-name "andrewslai-wedding",
+  ;;     :common-prefixes ["public/assets/" "public/css/" "public/images/"],
+  ;;     :max-keys 1000,
+  ;;     :prefix "public/"}
+
+
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;  GET file
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (fs/get-file (map->S3 {:bucket "andrewslai-wedding"
-                         :creds CustomAWSCredentialsProviderChain})
+                         :creds  CustomAWSCredentialsProviderChain})
                "index.html")
+
   ;; => #object[com.amazonaws.services.s3.model.S3ObjectInputStream 0x2fdbe8b5 "com.amazonaws.services.s3.model.S3ObjectInputStream@2fdbe8b5"]
+  (s3/get-object CustomAWSCredentialsProviderChain
+                 {:bucket-name "andrewslai-wedding"
+                  :key         "index.html"})
+
+  (s3/get-object CustomAWSCredentialsProviderChain
+                 {:bucket-name                   "andrewslai-wedding"
+                  :key                           "index.html"
+                  :sdk-client-execution-timeout  10000
+                  :nonmatching-e-tag-constraints ["8ac49aade040081e110a1137cc9f09da"]
+                  })
+
+
+  (fs/get (map->S3 {:bucket "andrewslai-wedding"
+                    :creds  CustomAWSCredentialsProviderChain})
+          "index.html"
+          {:sdk-client-execution-timeout 10000
+           :version                      "8ac49aade040081e110a1137cc9f09da"})
 
   )
 
