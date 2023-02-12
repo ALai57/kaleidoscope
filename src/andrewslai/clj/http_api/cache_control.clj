@@ -5,6 +5,7 @@
 ;; Cache control helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def no-cache      "max-age=0,no-cache,no-store")
+(def revalidate-0s "max-age=0,must-revalidate")
 (def revalidate-1d "max-age=86400,must-revalidate")
 (def cache-30d     "public,max-age=2592000,s-maxage=2592000")
 (def cache-10d     "public,max-age=864000,s-maxage=864000")
@@ -14,8 +15,8 @@
    [#"\.jpg$"  cache-30d]
    [#"\.svg$"  cache-30d]
    [#"\.css$"  cache-10d]
-   [#"\.html$" revalidate-1d]
-   [#"\.js$"   revalidate-1d]
+   [#"\.html$" revalidate-0s]
+   [#"\.js$"   revalidate-0s]
    ])
 
 (defn find-first-match
@@ -34,7 +35,7 @@
   Useful because we are serving static content from S3 - so some content should have
   long caching (images) while others should not (actual site)."
   [url]
-  (find-first-match url-caching-policy url revalidate))
+  (find-first-match url-caching-policy url revalidate-0s))
 
 (defn cache-control
   "Add Cache Control Headers for successful responses"
