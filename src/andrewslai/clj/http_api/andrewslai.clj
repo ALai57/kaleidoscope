@@ -54,7 +54,9 @@
     :components [static-content-adapter]
     ;; Also create a link to editor from homepage
     ;; Also create a link to homepage from editor
-    (let [result (fs/get static-content-adapter uri)]
+    (let [result (fs/get static-content-adapter uri (if-let [version (get-in request [:headers "If-None-Match"])]
+                                                      {:version version}
+                                                      {}))]
       (cond
         (fs/folder? uri)            (-> {:status 200
                                          :body   result}

@@ -1,7 +1,8 @@
 (ns andrewslai.clj.persistence.filesystem.local
   (:require [andrewslai.clj.persistence.filesystem :as fs]
             [clojure.string :as string]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [taoensso.timbre :as log]))
 
 (def ROOT
   (System/getProperty "user.dir"))
@@ -45,9 +46,14 @@
   (ls [_ path options]
     (map clojurize (.listFiles (io/file (format "%s/%s" root path)))))
   (get-file [_ path options]
-    (let [result (io/input-stream (format "%s/%s" root path))]
-      (fs/object {:content result
-                  :version (fs/md5 path)})))
+    (let [result  (io/input-stream (format "%s/%s" root path))
+          version (fs/md5 (slurp (io/input-stream (format "%s/%s" root path))))]
+      (if (= version (:version options))
+        (do (log/infof "File %s has not changed. Not modified response" path)
+            fs/not-modified-response)
+        (do (log/infof "File %s has changed. Resending" path)
+            (fs/object {:content result
+                        :version version})))))
   (put-file [this path input-stream _metadata]
     (write-stream! input-stream path)
     (fs/get this path)))
