@@ -64,12 +64,33 @@ NOTE: The "host.docker.internal" host is a Docker DNS entry that allows the
       Keycloak container to connect to the Postgres instance on the host.
 NOTE: The `KEYCLOAK_ADMIN` related env vars create a new Keycloak admin user
       that you can use to administer the Realms.
+NOTE: Make sure the database is serving IP traffic by changing the database configuration
+
+### If you're on a Mac
 ```
 docker run -p 8080:8080 \
-    # If you're on a Mac
     --platform linux/arm64 \
     -e KC_DB=postgres \
     -e KC_DB_URL_HOST="host.docker.internal" \
+    -e KC_DB_DATABASE="keycloak" \
+    -e KC_DB_USERNAME="keycloak" \
+    -e KC_DB_PASSWORD="keycloak" \
+    -e KC_HOSTNAME_STRICT=false \
+    -e KC_EDGE=proxy \
+    -e KC_HTTP_ENABLED=true \
+    -e KC_FEATURES=token-exchange \
+    -e KEYCLOAK_ADMIN=keycloak \
+    -e KEYCLOAK_ADMIN_PASSWORD=keycloak \
+    quay.io/keycloak/keycloak:20.0.3 start
+```
+
+### On Linux
+For the Linux solution use https://stackoverflow.com/a/55270528
+```
+docker run -p 8080:8080 \
+    --network=host \
+    -e KC_DB=postgres \
+    -e KC_DB_URL_HOST="127.0.0.1" \
     -e KC_DB_DATABASE="keycloak" \
     -e KC_DB_USERNAME="keycloak" \
     -e KC_DB_PASSWORD="keycloak" \
