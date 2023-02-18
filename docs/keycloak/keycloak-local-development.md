@@ -100,7 +100,7 @@ docker run -p 8080:8080 \
     -e KC_FEATURES=token-exchange \
     -e KEYCLOAK_ADMIN=keycloak \
     -e KEYCLOAK_ADMIN_PASSWORD=keycloak \
-    quay.io/keycloak/keycloak:20.0.3 start
+    quay.io/keycloak/keycloak:20.0.3 start --log-level=debug
 ```
 
 TODO: Set up test realm!!
