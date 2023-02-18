@@ -8,6 +8,8 @@
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
             [andrewslai.clj.http-api.swagger :refer [swagger-ui-routes]]
             [andrewslai.clj.persistence.filesystem :as fs]
+            [camel-snake-kebab.core :as csk]
+            [camel-snake-kebab.extras :as cske]
             [clojure.stacktrace :as stacktrace]
             [compojure.api.sweet :refer [api context GET]]
             [ring.util.response :as ring.response]
@@ -50,13 +52,15 @@
        :body    (fs/object-content (fs/get static-content-adapter "index.html"))})))
 
 (def default-handler
-  (GET "*" {:keys [uri] :as request}
+  (GET "*" {:keys [uri headers] :as request}
     :components [static-content-adapter]
     ;; Also create a link to editor from homepage
     ;; Also create a link to homepage from editor
-    (let [result (fs/get static-content-adapter uri (if-let [version (get-in request [:headers "If-None-Match"])]
-                                                      {:version version}
-                                                      {}))]
+    (let [request (cond-> request
+                    headers (assoc :headers (cske/transform-keys csk/->kebab-case-keyword headers)))
+          result  (fs/get static-content-adapter uri (if-let [version (get-in request [:headers :if-none-match])]
+                                                       {:version version}
+                                                       {}))]
       (cond
         (fs/folder? uri)            (-> {:status 200
                                          :body   result}

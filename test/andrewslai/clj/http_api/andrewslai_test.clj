@@ -360,7 +360,7 @@
 
     (testing "Folders are not cached"
       (is (match? {:status  200
-                   :headers {"Cache-Control" cc/no-cache}}
+                   :headers {"Cache-Control" cc/revalidate-0s}}
                   (app (mock/request :get "/media/")))))
 
     (testing "Image does not exist"
@@ -383,5 +383,5 @@
       (testing "Etags work"
         (is (match? {:status 304}
                     (app (-> (mock/request :get "/media/foo.svg")
-                             (mock/header "ETag" (fs/md5 "/media/foo.svg")))))))
+                             (mock/header "If-None-Match" "4e01010375136452500f6f7f043839a2"))))))
       )))

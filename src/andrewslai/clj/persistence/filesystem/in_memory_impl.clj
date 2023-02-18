@@ -24,6 +24,11 @@
            :type     :file}
           'file))
 
+(defn version
+  {:pre [(file? file)]}
+  [file]
+  (:version file))
+
 ;; Should persistence depend on teh protocols? i.e. should persistence need to know about URLs.. etc?
 ;; Add protocol as the first argument to the FilesysteM?
 ;; Configuration map as first argument and extract other args from there?
@@ -39,11 +44,15 @@
                     []
                     (get-in @store (string/split path #"/")))))
   (get-file [_ path options]
+    (log/debugf "Getting %s from in-memory store with options %s" path options)
     (let [x (get-in @store (string/split path #"/"))]
+      (log/debugf "Found %s with metadata %s" x (meta x))
       (cond
-        (nil? x)  fs/does-not-exist-response
-        (file? x) (fs/object {:content (:content x)
-                              :version (:version x)}))))
+        (and (file? x)
+             (= (:version options) (version x))) fs/not-modified-response
+        (nil? x)                                 fs/does-not-exist-response
+        (file? x)                                (fs/object {:content (:content x)
+                                                             :version (:version x)}))))
   (put-file [_ path input-stream metadata]
     (let [p    (remove empty? (string/split path #"/+"))
           file (tag-as {:name     (last p)
