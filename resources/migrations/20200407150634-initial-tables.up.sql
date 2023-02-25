@@ -1,11 +1,14 @@
+-- Start with 1000 to allow space for seeders
 CREATE SEQUENCE articles_id_seq START WITH 1000;
 
 --;;
 
+-- Start with 1000 to allow space for seeders
 CREATE SEQUENCE article_branches_id_seq START WITH 1000;
 
 --;;
 
+-- Start with 1000 to allow space for seeders
 CREATE SEQUENCE article_versions_id_seq START WITH 1000;
 
 --;;

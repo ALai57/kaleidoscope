@@ -49,7 +49,13 @@
       :components [static-content-adapter]
       {:status  200
        :headers {"Content-Type" "text/html"}
-       :body    (fs/object-content (fs/get static-content-adapter "index.html"))})))
+       :body    (fs/object-content (fs/get static-content-adapter "index.html"))})
+    (GET "/silent-check-sso.html" []
+      :components [static-content-adapter]
+      {:status  200
+       :headers {"Content-Type" "text/html"}
+       :body    (fs/object-content (fs/get static-content-adapter "silent-check-sso.html"))})
+    ))
 
 (def default-handler
   (GET "*" {:keys [uri headers] :as request}
