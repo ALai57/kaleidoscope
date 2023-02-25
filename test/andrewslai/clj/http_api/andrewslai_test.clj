@@ -397,7 +397,7 @@
                  andrewslai/andrewslai-app
                  tu/wrap-clojure-response)]
 
-    (testing "Retrieve group"
+    (testing "No groups to start"
       (is (match? {:status 200
                    :body   empty?}
                   (app (-> (mock/request :get "/groups")
@@ -425,12 +425,14 @@
                     response))
         (is (= 1 (count (:body response))))))
 
+    (testing "I can only delete groups I own"
+      (is (match? {:status 401}
+                  (app (-> (mock/request :delete "/groups/other-users-group")
+                           (mock/header "Authorization" "Bearer user first-user"))))))
+
     (testing "Deleted group doesn't exist"
-      (app (-> (mock/request :delete "/groups/first-users-group")
-               (mock/header "Authorization" "Bearer user first-user")))
-      (is (match? {:status 200}
+      (is (match? {:status 204}
                   (app (-> (mock/request :delete "/groups/first-users-group")
                            (mock/header "Authorization" "Bearer user first-user")))))
       (is (= 0 (count (:body (app (-> (mock/request :get "/groups")
-                                      (mock/header "Authorization" "Bearer user first-user")))))))
-      )))
+                                      (mock/header "Authorization" "Bearer user first-user"))))))))))

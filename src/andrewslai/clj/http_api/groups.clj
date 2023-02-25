@@ -1,8 +1,4 @@
 (ns andrewslai.clj.http-api.groups
-  (:require [taoensso.timbre :as log]))
-
-
-(ns andrewslai.clj.http-api.groups
   (:require [andrewslai.clj.api.groups :as groups-api]
             [andrewslai.clj.api.authentication :as oidc]
             [andrewslai.cljc.specs.articles] ;; Install specs
@@ -11,7 +7,7 @@
             [clojure.spec.alpha :as s]
             [compojure.api.meta :as compojure-meta]
             [compojure.api.sweet :refer [context GET POST PUT DELETE]]
-            [ring.util.http-response :refer [not-found ok conflict]]
+            [ring.util.http-response :refer [not-found ok conflict no-content unauthorized]]
             [taoensso.timbre :as log]))
 
 (s/def ::message string?)
@@ -95,25 +91,22 @@
           (catch Exception e
             (log/error "Caught exception " e)))
         )
-      (DELETE "/" []
+      (DELETE "/" request
         :swagger {:summary   "Delete a group"
                   :produces  #{"application/json"}
                   :security  [{:andrewslai-pkce ["roles" "profile"]}]
                   ;;:request   :andrewslai.article/article
-                  :responses {200 {:description ""
+                  :responses {204 {:description "Success deleting the group"
                                    ;;:schema      :andrewslai.article/article
                                    :schema      any?}
                               401 {:description "Unauthorized"
                                    :schema      ::error-message}}}
         (try
-          (log/info "Attempting to delete group!" group-id)
-          ;; TODO next
-          ;; IF user ID = owner id, then allow delete
-          (let [group (assoc (:body-params request)
-                             :id       group-id
-                             :owner-id (oidc/get-user-id (:identity request)))]
-            (ok (doto (groups-api/delete-group! database group)
-                  log/info)))
+          (let [user-id (oidc/get-user-id (:identity request))]
+            (log/infof "User %s attempting to delete group %s!" user-id group-id)
+            (if-let [result (groups-api/delete-group! database user-id group-id)]
+              (no-content)
+              (unauthorized)))
           (catch Exception e
             (log/error "Caught exception " e)))
 

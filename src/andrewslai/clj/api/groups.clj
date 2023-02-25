@@ -1,7 +1,16 @@
 (ns andrewslai.clj.api.groups
   (:require [andrewslai.clj.persistence.rdbms :as rdbms]
             [andrewslai.clj.utils.core :as utils]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [taoensso.timbre :as log]))
+
+(defn get-id
+  [group]
+  (:id group))
+
+(defn get-owner
+  [group]
+  (:owner-id group))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Groups
@@ -19,11 +28,19 @@
                                       :id          (or id (utils/uuid)))
                    :ex-subtype :UnableToCreateAlbum)))
 
+(defn owns?
+  [database user-id group-id]
+  (= user-id (get-owner (first (get-groups database {:id group-id})))))
+
 (defn delete-group!
-  [database group-id]
-  (rdbms/delete! database
-                 :groups     group-id
-                 :ex-subtype :UnableToDeleteGroup))
+  "Only allow a user to delete a group if they are the owner.
+  The `user-id` is the identity of the user requesting the operation."
+  [database user-id group-id]
+  (if (owns? database user-id group-id)
+    (rdbms/delete! database
+                   :groups     group-id
+                   :ex-subtype :UnableToDeleteGroup)
+    (log/warnf "User %s does not have permissions to delete the group %s" user-id group-id)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums

@@ -21,12 +21,23 @@
     (testing "example-group doesn't exist in the database"
       (is (empty? (groups/get-groups database example-group))))
 
-    (testing "Insert the example-group"
-      (is (groups/create-group! database example-group)))
+    (let [[{group-id :id} :as result] (groups/create-group! database example-group)]
+      (testing "Insert the example-group"
+        (is (not-empty result)))
 
-    (testing "Can retrieve example-group from the DB"
-      (is (match? [example-group]
-                  (groups/get-groups database example-group))))))
+      (testing "Can retrieve example-group from the DB"
+        (is (match? [example-group]
+                    (groups/get-groups database example-group))))
+
+      (testing "Ownership predicate"
+        (is (groups/owns? database "user-1" group-id)))
+
+      (testing "Non-owner cannot delete the group"
+        (is (nil? (groups/delete-group! database "not-the-owner" group-id))))
+
+      (testing "Group owner can delete the group"
+        (is (= [] (groups/delete-group! database "user-1" group-id)))
+        (is (empty? (groups/get-groups database example-group)))))))
 
 (deftest create-and-retrieve-group-memberships-test
   (let [database (embedded-h2/fresh-db!)]
