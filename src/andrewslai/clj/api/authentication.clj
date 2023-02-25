@@ -16,6 +16,10 @@
   [id-token]
   (:name id-token))
 
+(defn get-user-id
+  [id-token]
+  (:sub id-token))
+
 (comment
   (def example-oidc-token
     {:acr                "1",

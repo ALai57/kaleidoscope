@@ -3,6 +3,7 @@
             [andrewslai.clj.http-api.admin :refer [admin-routes]]
             [andrewslai.clj.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
             [andrewslai.clj.http-api.cache-control :as cc]
+            [andrewslai.clj.http-api.groups :refer [groups-routes]]
             [andrewslai.clj.http-api.photo :refer [photo-routes]]
             [andrewslai.clj.http-api.ping :refer [ping-routes]]
             [andrewslai.clj.http-api.portfolio :refer [portfolio-routes]]
@@ -28,8 +29,11 @@
    {:pattern #"^/index.html$"    :handler public-access}
    {:pattern #"^/ping"           :handler public-access}
 
+   {:pattern #"^/groups.*"       :handler (partial auth/require-role "andrewslai")}
+
    {:pattern #"^/media.*" :request-method :post :handler (partial auth/require-role "andrewslai")}
    {:pattern #"^/media.*" :request-method :get  :handler public-access}
+
    #_{:pattern #"^/.*" :handler (constantly false)}])
 
 (defn exception-handler
@@ -92,6 +96,7 @@
        admin-routes
        swagger-ui-routes
        photo-routes
+       groups-routes
        default-handler))
 
 

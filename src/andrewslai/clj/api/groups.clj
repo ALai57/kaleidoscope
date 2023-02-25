@@ -10,12 +10,13 @@
   (rdbms/make-finder :groups))
 
 (defn create-group!
-  [database group]
+  [database {:keys [id] :as group}]
   (let [now (utils/now)]
     (rdbms/insert! database
                    :groups     (assoc group
                                       :created-at  now
-                                      :modified-at now)
+                                      :modified-at now
+                                      :id          (or id (utils/uuid)))
                    :ex-subtype :UnableToCreateAlbum)))
 
 (defn delete-group!
@@ -34,7 +35,8 @@
   [database group-id user-ids]
   (let [now-time    (utils/now)
         memberships (vec (for [user-id (if (seq? user-ids) user-ids [user-ids])]
-                           {:user-id    user-id
+                           {:id         (utils/uuid)
+                            :user-id    user-id
                             :group-id   group-id
                             :created-at now-time}))]
     (vec (rdbms/insert! database

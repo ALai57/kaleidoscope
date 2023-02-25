@@ -142,6 +142,7 @@
    :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
                "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name "Test User"
+                                                                                 :sub  "my-user-id"
                                                                                  :realm_access {:roles ["andrewslai" "wedding"]}}))}
    :default   "keycloak"})
 

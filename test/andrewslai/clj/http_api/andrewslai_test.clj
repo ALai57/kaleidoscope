@@ -385,3 +385,52 @@
                     (app (-> (mock/request :get "/media/foo.svg")
                              (mock/header "If-None-Match" "4e01010375136452500f6f7f043839a2"))))))
       )))
+
+
+(deftest create-and-remove-group-test
+  (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                  "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
+                  "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
+                 env/prepare-andrewslai
+                 andrewslai/andrewslai-app
+                 tu/wrap-clojure-response)]
+
+    (testing "Retrieve group"
+      (is (match? {:status 200
+                   :body   empty?}
+                  (app (-> (mock/request :get "/groups")
+                           (mock/header "Authorization" "Bearer user first-user"))))))
+
+    (testing "Create group"
+      (is (match? {:status 200
+                   :body   [{:id "first-users-group"}]}
+                  (app (-> (mock/request :put "/groups/first-users-group")
+                           (mock/header "Authorization" "Bearer user first-user")
+                           (mock/json-body {:display-name "my-display-name"}))))))
+
+    (testing "A different user ID creates a second group"
+      (is (match? {:status 200
+                   :body   [{:id "other-users-group"}]}
+                  (app (-> (mock/request :put "/groups/other-users-group")
+                           (mock/header "Authorization" "Bearer user second-user")
+                           (mock/json-body {:display-name "my-display-name"}))))))
+
+    (testing "I can only retrieve groups I own"
+      (let [response (app (-> (mock/request :get "/groups")
+                              (mock/header "Authorization" "Bearer user first-user")))]
+        (is (match? {:status 200
+                     :body   [{:id "first-users-group"}]}
+                    response))
+        (is (= 1 (count (:body response))))))
+
+    (testing "Deleted group doesn't exist"
+      (app (-> (mock/request :delete "/groups/first-users-group")
+               (mock/header "Authorization" "Bearer user first-user")))
+      (is (match? {:status 200}
+                  (app (-> (mock/request :delete "/groups/first-users-group")
+                           (mock/header "Authorization" "Bearer user first-user")))))
+      (is (= 0 (count (:body (app (-> (mock/request :get "/groups")
+                                      (mock/header "Authorization" "Bearer user first-user")))))))
+      )))

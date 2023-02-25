@@ -1,6 +1,7 @@
 (ns andrewslai.clj.http-api.auth.buddy-backends
   (:require [andrewslai.clj.http-api.auth.keycloak :as keycloak]
             [buddy.auth.backends.token :as token]
+            [clojure.string :as string]
             [ring.util.http-response :refer [unauthorized]]
             [taoensso.timbre :as log]))
 
@@ -22,9 +23,16 @@
   ([] (authenticated-backend true))
   ([id-token]
    (log/debugf "Creating Authenticated backend with identity: %s" id-token)
-   (bearer-token-backend (fn [& args]
+   (bearer-token-backend (fn [request bearer-token]
                            (log/infof "[authenticated-backend]: Authenticated with user %s" id-token)
-                           id-token))))
+                           ;; For testing purposes allow us to change the user
+                           ;; identity by putting in a specific string.
+
+                           (if (string/starts-with? bearer-token "user ")
+                             (let [new-identity (second (string/split bearer-token #" "))]
+                               (log/debugf "Overriding user identity with %s" new-identity)
+                               (assoc id-token :sub new-identity))
+                             id-token)))))
 
 (defn keycloak-backend
   [keycloak-config-map]
