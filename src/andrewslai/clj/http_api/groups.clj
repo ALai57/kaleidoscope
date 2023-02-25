@@ -50,25 +50,6 @@
                 :responses {200 {:description "A collection of groups the user owns"
                                  :schema      any?}}}
       (ok (groups-api/get-groups database {:owner-id (oidc/get-user-id (:identity request))})))
-
-    (POST "/" request
-      :swagger {:summary   "Create a group"
-                :consumes  #{"application/json"}
-                :produces  #{"application/json"}
-                :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                ;;:request   :andrewslai.article/article
-                :responses {200 {:description "The group that was created"
-                                 ;;:schema      :andrewslai.article/article
-                                 :schema      any?}
-                            401 {:description "Unauthorized"
-                                 :schema      ::error-message}}}
-      (try
-
-        (let [group (assoc (:body-params request) :owner-id (oidc/get-user-id (:identity request)))]
-          (ok (doto (groups-api/create-group! database group)
-                log/info)))
-        (catch Exception e
-          (log/error "Caught exception " e))))
     (context "/:group-id" [group-id]
       (PUT "/" request
         :swagger {:summary   "Create a group"
