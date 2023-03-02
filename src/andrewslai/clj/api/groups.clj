@@ -26,21 +26,21 @@
                                       :created-at  now
                                       :modified-at now
                                       :id          (or id (utils/uuid)))
-                   :ex-subtype :UnableToCreateAlbum)))
+                   :ex-subtype :UnableToCreateGroup)))
 
 (defn owns?
-  [database user-id group-id]
-  (= user-id (get-owner (first (get-groups database {:id group-id})))))
+  [database requester-id group-id]
+  (= requester-id (get-owner (first (get-groups database {:id group-id})))))
 
 (defn delete-group!
   "Only allow a user to delete a group if they are the owner.
   The `user-id` is the identity of the user requesting the operation."
-  [database user-id group-id]
-  (if (owns? database user-id group-id)
+  [database requester-id group-id]
+  (if (owns? database requester-id group-id)
     (rdbms/delete! database
                    :groups     group-id
                    :ex-subtype :UnableToDeleteGroup)
-    (log/warnf "User %s does not have permissions to delete the group %s" user-id group-id)))
+    (log/warnf "User %s does not have permissions to delete the group %s" requester-id group-id)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums
@@ -49,22 +49,26 @@
   (rdbms/make-finder :user-group-memberships))
 
 (defn add-users-to-group!
-  [database group-id user-ids]
-  (let [now-time    (utils/now)
-        memberships (vec (for [user-id (if (seq? user-ids) user-ids [user-ids])]
-                           {:id         (utils/uuid)
-                            :user-id    user-id
-                            :group-id   group-id
-                            :created-at now-time}))]
-    (vec (rdbms/insert! database
-                        :user-group-memberships memberships
-                        :ex-subtype             :UnableToAddUserToGroup))))
+  [database requester-id group-id user-ids]
+  (if (owns? database requester-id group-id)
+    (let [now-time    (utils/now)
+          memberships (vec (for [user-id (if (seq? user-ids) user-ids [user-ids])]
+                             {:id         (utils/uuid)
+                              :user-id    user-id
+                              :group-id   group-id
+                              :created-at now-time}))]
+      (vec (rdbms/insert! database
+                          :user-group-memberships memberships
+                          :ex-subtype             :UnableToAddUserToGroup)))
+    (log/warnf "User %s does not have permissions to add users to group %s" requester-id group-id)))
 
 (defn remove-user-from-group!
-  [database user-group-membership-id]
-  (rdbms/delete! database
-                 :user-group-memberships user-group-membership-id
-                 :ex-subtype :UnableToDeletePhotoFromAlbum))
+  [database requester-id group-id user-group-membership-id]
+  (if (owns? database requester-id group-id)
+    (rdbms/delete! database
+                   :user-group-memberships user-group-membership-id
+                   :ex-subtype :UnableToDeleteUserFromGroup)
+    (log/warnf "User %s does not have permissions to delete users from group %s" requester-id group-id)))
 
 (comment
 

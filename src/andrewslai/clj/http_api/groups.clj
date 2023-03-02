@@ -8,7 +8,8 @@
             [compojure.api.meta :as compojure-meta]
             [compojure.api.sweet :refer [context GET POST PUT DELETE]]
             [ring.util.http-response :refer [not-found ok conflict no-content unauthorized]]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log])
+  (:import java.util.UUID))
 
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))
@@ -50,6 +51,27 @@
                 :responses {200 {:description "A collection of groups the user owns"
                                  :schema      any?}}}
       (ok (groups-api/get-groups database {:owner-id (oidc/get-user-id (:identity request))})))
+
+    (POST "/" request
+      :swagger {:summary   "Create a group"
+                :consumes  #{"application/json"}
+                :produces  #{"application/json"}
+                :security  [{:andrewslai-pkce ["roles" "profile"]}]
+                ;;:request   :andrewslai.article/article
+                :responses {200 {:description "The group that was created"
+                                 ;;:schema      :andrewslai.article/article
+                                 :schema      any?}
+                            401 {:description "Unauthorized"
+                                 :schema      ::error-message}}}
+      (try
+        (log/info "Creating group!" (:body-params request))
+        (let [group (assoc (:body-params request)
+                           :owner-id (oidc/get-user-id (:identity request)))]
+          (ok (doto (groups-api/create-group! database group)
+                log/info)))
+        (catch Exception e
+          (log/error "Caught exception " e))))
+
     (context "/:group-id" [group-id]
       (PUT "/" request
         :swagger {:summary   "Create a group"
@@ -70,8 +92,7 @@
             (ok (doto (groups-api/create-group! database group)
                   log/info)))
           (catch Exception e
-            (log/error "Caught exception " e)))
-        )
+            (log/error "Caught exception " e))))
       (DELETE "/" request
         :swagger {:summary   "Delete a group"
                   :produces  #{"application/json"}
@@ -83,14 +104,34 @@
                               401 {:description "Unauthorized"
                                    :schema      ::error-message}}}
         (try
-          (let [user-id (oidc/get-user-id (:identity request))]
-            (log/infof "User %s attempting to delete group %s!" user-id group-id)
-            (if-let [result (groups-api/delete-group! database user-id group-id)]
+          (let [requester-id (oidc/get-user-id (:identity request))]
+            (log/infof "User %s attempting to delete group %s!" requester-id group-id)
+            (if-let [result (groups-api/delete-group! database requester-id group-id)]
               (no-content)
               (unauthorized)))
           (catch Exception e
-            (log/error "Caught exception " e)))
+            (log/error "Caught exception " e))))
 
-        )
-      )
+      ;; Todo: Pick up here~!
+      (context "/members" []
+        (POST "/" request
+          :swagger {:summary   "Add a member"
+                    :consumes  #{"application/json"}
+                    :produces  #{"application/json"}
+                    :security  [{:andrewslai-pkce ["roles" "profile"]}]
+                    ;;:request   :andrewslai.article/article
+                    :responses {200 {:description "The member that was added"
+                                     ;;:schema      :andrewslai.article/article
+                                     :schema      any?}
+                                401 {:description "Unauthorized"
+                                     :schema      ::error-message}}}
+          (try
+            (log/info "Adding member!" (:body-params request))
+            (let [requester-id (oidc/get-user-id (:identity request))
+                  member       (:body-params request)]
+              (ok (doto (groups-api/add-users-to-group! database requester-id group-id member)
+                    log/info)))
+            (catch Exception e
+              (log/error "Caught exception " e)))
+          )))
     ))
