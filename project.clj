@@ -14,7 +14,7 @@
    [bk/ring-gzip "0.3.0"]
    [buddy/buddy-auth "3.0.323"]
    [camel-snake-kebab "0.4.3"]
-   [cheshire "5.10.0"]
+   [cheshire "5.11.0"]
    [clj-http "3.12.3"]
    [com.amazonaws/aws-java-sdk-s3 "1.12.385"]
    [com.fzakaria/slf4j-timbre "0.3.21"] ;; Intercept logging to Apache Commons Logging (introduced by AWS SDK)
@@ -23,6 +23,7 @@
    [com.taoensso/timbre "6.0.4"]
    [com.twelvemonkeys.servlet/servlet "3.9.4"]
    [com.zaxxer/HikariCP "3.3.1"]
+   [com.fasterxml.jackson.datatype/jackson-datatype-joda "2.13.3"] ;; For compatibility
    [honeysql "1.0.461"]
    [io.zonky.test/embedded-postgres "1.2.6"]
    [javax.servlet/servlet-api "2.5"]
@@ -32,11 +33,11 @@
    [metosin/spec-tools "0.10.3"]
    [migratus "1.4.9"]
    [org.clojure/clojure "1.11.1"]
-   [org.keycloak/keycloak-adapter-core "12.0.3"]
-   [org.keycloak/keycloak-adapter-spi "12.0.3"]
-   [org.keycloak/keycloak-admin-client "12.0.3"]
-   [org.keycloak/keycloak-common "12.0.3"]
-   [org.keycloak/keycloak-core "12.0.3" :exclusions [com.fasterxml.jackson.core/jackson-annotations com.fasterxml.jackson.core/jackson-core]]
+   [org.keycloak/keycloak-adapter-core "21.0.1"]
+   [org.keycloak/keycloak-adapter-spi "21.0.1"]
+   [org.keycloak/keycloak-admin-client "21.0.1"]
+   [org.keycloak/keycloak-common "21.0.1"]
+   [org.keycloak/keycloak-core "21.0.1"]
    [org.postgresql/postgresql "42.5.1"]
    [org.slf4j/log4j-over-slf4j "1.7.30"] ;; Bridges between different logging libs and SLF4J
    [ring "1.9.6" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
