@@ -29,7 +29,7 @@
 (defn disable-json-logging?
   "Useful when running locally to avoid JSON structured logs."
   [env]
-  (parse-boolean (get env "DISABLE_JSON_LOGGING")))
+  (parse-boolean (get env "DISABLE_JSON_LOGGING" "false")))
 
 (defn initialize-logging!
   [env]
