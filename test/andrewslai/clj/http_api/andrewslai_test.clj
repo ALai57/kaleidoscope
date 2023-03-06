@@ -439,8 +439,6 @@
         (is (= 0 (count (:body (app (-> (mock/request :get "/groups")
                                         (mock/header "Authorization" "Bearer user first-user")))))))))))
 
-
-;; Todo: Pick up here~!
 (deftest retrieve-group-test
   (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
                   "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
