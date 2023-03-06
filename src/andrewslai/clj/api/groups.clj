@@ -83,12 +83,15 @@
        (group-by group-key)
        (reduce-kv (fn [acc group-key memberships]
                     (conj acc (-> group-key
-                                  (assoc :memberships (map select-membership-keys memberships)))))
+                                  (assoc :memberships (if (some :membership-id memberships)
+                                                        (map select-membership-keys memberships)
+                                                        [])))))
                   [])))
 
 (defn get-users-groups
   "Only return the groups owned by the requesting user"
   [database requester-id]
+  (log/infof "Getting groups that user `%s` owns" requester-id)
   (normalize-memberships (get-group-memberships database {:owner-id requester-id})))
 
 (defn add-users-to-group!

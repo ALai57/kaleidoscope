@@ -34,5 +34,5 @@ SELECT
        ugm.email,
        ugm.alias,
        ugm.created_at as membership_created_at
-FROM groups g INNER JOIN
+FROM groups g LEFT JOIN
      user_group_memberships ugm ON g.id = ugm.group_id

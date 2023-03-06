@@ -49,9 +49,9 @@
     (let [result  (io/input-stream (format "%s/%s" root path))
           version (fs/md5 (slurp (io/input-stream (format "%s/%s" root path))))]
       (if (= version (:version options))
-        (do (log/infof "File %s has not changed. Not modified response" path)
+        (do (log/tracef "File %s has not changed. Not modified response" path)
             fs/not-modified-response)
-        (do (log/infof "File %s has changed. Resending" path)
+        (do (log/tracef "File %s has changed. Resending" path)
             (fs/object {:content result
                         :version version})))))
   (put-file [this path input-stream _metadata]
