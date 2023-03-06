@@ -451,31 +451,36 @@
                  andrewslai/andrewslai-app
                  tu/wrap-clojure-response)]
 
-    (let [result (app (-> (mock/request :post "/groups")
-                          (mock/header "Authorization" "Bearer user first-user")
-                          (mock/json-body {:display-name "my-display-name"})))
-          id     (get-in result [:body 0 :id])]
+    (let [result   (app (-> (mock/request :post "/groups")
+                            (mock/header "Authorization" "Bearer user first-user")
+                            (mock/json-body {:display-name "my-display-name"})))
+          group-id (get-in result [:body 0 :id])]
 
       (testing "Create group"
         (is (match? {:status 200
-                     :body   [{:id string?}]}
+                     :body   [{:id group-id}]}
                     result)))
 
-      (testing "Add members"
-        (is (match? {:status 200
-                     :body   [{:id "first-users-group"}]}
-                    (app (-> (mock/request :post (format "/groups/%s/members" id))
-                             (mock/header "Authorization" "Bearer user first-user")
-                             (mock/json-body {:email "my-email@email.com"}))))))
+      (let [add-member-result (app (-> (mock/request :post (format "/groups/%s/members" group-id))
+                                       (mock/header "Authorization" "Bearer user first-user")
+                                       (mock/json-body {:email "my-email@email.com"
+                                                        :alias "Androo"})))]
+        (testing "Add members"
+          (is (match? {:status 200
+                       :body   [{:id string?}]}
+                      add-member-result))))
 
-      #_(testing "Retrieve group with members"
-          (let [response (app (-> (mock/request :get "/groups")
-                                  (mock/header "Authorization" "Bearer user first-user")))]
-            (is (match? {:status 200
-                         :body   [{:id           "first-users-group"
-                                   :display-name "xxx"
-                                   :members      [{:id "me" :name "Andrew"}]}]}
-                        response)))))
+      (testing "Retrieve group with members"
+        (let [response (app (-> (mock/request :get "/groups")
+                                (mock/header "Authorization" "Bearer user first-user")))]
+          (is (match? {:status 200
+                       :body   [{:group-id     group-id
+                                 :display-name "my-display-name"
+                                 :memberships  [{:membership-id         string?
+                                                 :membership-created-at string?
+                                                 :alias                 "Androo"
+                                                 :email                 "my-email@email.com"}]}]}
+                      response)))))
 
 
     ))

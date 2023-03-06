@@ -50,7 +50,7 @@
                 :security  [{:andrewslai-pkce ["roles" "profile"]}]
                 :responses {200 {:description "A collection of groups the user owns"
                                  :schema      any?}}}
-      (ok (groups-api/get-groups database {:owner-id (oidc/get-user-id (:identity request))})))
+      (ok (groups-api/get-users-groups database (oidc/get-user-id (:identity request)))))
 
     (POST "/" request
       :swagger {:summary   "Create a group"
@@ -112,7 +112,6 @@
           (catch Exception e
             (log/error "Caught exception " e))))
 
-      ;; Todo: Pick up here~!
       (context "/members" []
         (POST "/" request
           :swagger {:summary   "Add a member"

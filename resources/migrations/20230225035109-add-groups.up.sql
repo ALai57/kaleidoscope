@@ -13,11 +13,26 @@ CREATE TABLE groups(
 
 CREATE TABLE user_group_memberships(
        id                VARCHAR (36) PRIMARY KEY, --uuid
-       -- This corresponds to the `sub` field in a Keycloak access token.
-       -- The `sub` field is the users UUID.
-       user_id           VARCHAR (36), --uuid
-       group_id          VARCHAR (36), --uuid
+       email             VARCHAR,        -- this is the users id
+       alias             VARCHAR,        -- nickname
+       group_id          VARCHAR (36),   -- uuid
        created_at        TIMESTAMP,
 
-       UNIQUE(user_id, group_id)
+       UNIQUE(group_id, email)
 );
+
+--;;
+
+CREATE VIEW full_memberships AS
+SELECT
+       g.id as group_id,
+       g.created_at as group_created_at,
+       g.modified_at as group_modified_at,
+       g.display_name,
+       g.owner_id,
+       ugm.id as membership_id,
+       ugm.email,
+       ugm.alias,
+       ugm.created_at as membership_created_at
+FROM groups g INNER JOIN
+     user_group_memberships ugm ON g.id = ugm.group_id
