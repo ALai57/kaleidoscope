@@ -26,12 +26,18 @@
                            :line       (format "%s:%s" ns-name line-num)
                            :message    (string/replace event #"\n" " ")})))
 
+(defn disable-json-logging?
+  "Useful when running locally to avoid JSON structured logs."
+  [env]
+  (parse-boolean (get env "DISABLE_JSON_LOGGING")))
+
 (defn initialize-logging!
-  []
+  [env]
   (log/merge-config!
-   {:min-level :info
-    :output-fn json-log-output
-    :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}))
+   (cond-> {:min-level :info
+            :output-fn json-log-output
+            :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}
+     (disable-json-logging? env) (dissoc :output-fn))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
@@ -41,7 +47,7 @@
   (let [system-components (env/start-system! env)
         port              5000]
     (log/infof "Hello! Starting andrewslai on port %s" port)
-    (initialize-logging!)
+    (initialize-logging! env)
     (-> system-components
         (env/prepare-for-virtual-hosting)
         (env/make-http-handler)
