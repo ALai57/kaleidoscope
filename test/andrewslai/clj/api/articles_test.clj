@@ -15,6 +15,7 @@
 (def example-article
   {:article-tags "thoughts"
    :article-url  "my-test-article"
+   :hostname     "andrewslai.com"
    :author       "Andrew Lai"})
 
 (deftest create-and-retrieve-articles-test

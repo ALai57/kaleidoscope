@@ -96,13 +96,13 @@
 
 (defn new-version!
   [db article-branch article-version]
-  (let [existing-branch (first (get-branches db article-branch))]
+  (let [existing-branch (first (get-branches db (dissoc article-branch :hostname)))]
     (if (published? existing-branch)
       (throw (ex-info "Cannot change a published branch" existing-branch))
       (next/with-transaction [tx db]
         (when-not existing-branch
           (create-branch! tx article-branch))
-        (let [[branch] (get-branches tx article-branch)]
+        (let [[branch] (get-branches tx (dissoc article-branch :hostname))]
           (create-version! tx branch article-version))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

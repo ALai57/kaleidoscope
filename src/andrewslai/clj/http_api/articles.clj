@@ -16,8 +16,9 @@
 (defn ->article [article-url {:keys [body-params] :as request}]
   (-> body-params
       (select-keys [:article-name])
-      (assoc :article-url article-url)
-      (assoc :author (oidc/get-full-name (:identity request)))))
+      (assoc :article-url article-url
+             :hostname    (:server-name request)
+             :author      (oidc/get-full-name (:identity request)))))
 
 (defn ->commit [{:keys [body-params] :as request}]
   (select-keys body-params [:branch-id :title :content :created-at :modified-at]))
@@ -134,6 +135,7 @@
                 (let [commit (->commit request)
                       result (articles-api/new-version! database
                                                         {:branch-name  branch-name
+                                                         :hostname     (:server-name request)
                                                          :article-url  article-url
                                                          :article-tags (get-in request [:body :article-tags] "thoughts")
                                                          :author       (oidc/get-full-name (:identity request))}
@@ -179,7 +181,8 @@
                                  :schema      ::error-message}}}
       (try
         (ok (articles-api/create-branch! database (assoc (:body-params request)
-                                                         :author (oidc/get-full-name (:identity request)))))
+                                                         :hostname (:server-name request)
+                                                         :author   (oidc/get-full-name (:identity request)))))
         (catch Exception e
           (log/error "Caught exception " e))))
 

@@ -423,7 +423,7 @@
         (let [response (app (-> (mock/request :get "/groups")
                                 (mock/header "Authorization" "Bearer user first-user")))]
           (is (match? {:status 200
-                       :body   [{:id id}]}
+                       :body   [{:group-id id}]}
                       response))
           (is (= 1 (count (:body response))))))
 
