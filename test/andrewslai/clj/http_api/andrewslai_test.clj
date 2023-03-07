@@ -201,7 +201,7 @@
   [n]
   (m/pred (fn [x] (= n (count x)))))
 
-(deftest create-article-branch-happy-path
+(deftest create-branch-happy-path-test
   (let [app     (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
                       "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
                       "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
@@ -214,7 +214,10 @@
                  :article-url  "my-test-article"
                  :author       "Andrew Lai"}]
 
-    (let [create-result          (app (create-branch (assoc article :branch-name "branch-1")))
+    (let [create-result          (app (-> article
+                                          (assoc :branch-name "branch-1")
+                                          create-branch
+                                          (assoc :server-name "myhost")))
           [{:keys [article-id]}] (:body create-result)]
       (testing "Article creation succeeds for branch 1"
         (is (match? {:status 200 :body [{:article-id some?
@@ -224,47 +227,56 @@
       (testing "Article creation succeeds for branch 2"
         (is (match? {:status 200 :body [{:article-id some?
                                          :branch-id  some?}]}
-                    (app (create-branch (assoc article
-                                               :branch-name "branch-2"
-                                               :article-id  article-id))))))
+                    (app (-> article
+                             (assoc :branch-name "branch-2"
+                                    :article-id  article-id)
+                             create-branch)))))
 
       (testing "The 2 branches were created"
         (is (match? {:status 200 :body (has-count 2)}
-                    (app (get-branches {:article-id article-id}))))))))
+                    (app (-> {:article-id article-id}
+                             get-branches
+                             (assoc :server-name "myhost"))))))
+
+      (testing "The branches can't be viewed when asking wrong host"
+        (is (match? {:status 404}
+                    (app (-> {:article-id article-id}
+                             get-branches
+                             (assoc :server-name "a-different-host")))))))))
 
 (deftest publish-branch-test
-  (let [app             (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                              "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
-                              "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                              "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+    (let [app             (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
+                               "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
+                               "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
+                               "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
                              (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                              env/prepare-andrewslai
                              andrewslai/andrewslai-app
                              tu/wrap-clojure-response)
-        article         {:article-url "my-test-article"}
-        branch          {:branch-name "mybranch"}
-        version         {:content "<p>Hi</p>"
-                         :title   "My Article"}
-        create-response (app (create-version (:article-url article)
+         article         {:article-url "my-test-article"}
+         branch          {:branch-name "mybranch"}
+         version         {:content "<p>Hi</p>"
+                          :title   "My Article"}
+         create-response (app (create-version (:article-url article)
                                              (:branch-name branch)
                                              (merge article version)))]
 
-    (testing "Cannot retrieve an unpublished article by `/compositions` endpoint"
-      (is (match? {:status 404}
+     (testing "Cannot retrieve an unpublished article by `/compositions` endpoint"
+       (is (match? {:status 404}
                   (app (get-composition (:article-url article))))))
 
     (testing "Publish article"
-      (is (match? {:status 200 :body [(merge article branch)]}
+       (is (match? {:status 200 :body [(merge article branch)]}
                   (app (publish-branch (:article-url article)
                                        (get-in create-response [:body 0 :branch-name]))))))
 
     (testing "Can retrieve an published article by `/compositions` endpoint"
-      (is (match? {:status 200 :body (merge article branch version {:author "Test User"})}
+       (is (match? {:status 200 :body (merge article branch version {:author "Test User"})}
                   (app (get-composition (:article-url article))))))
 
     (testing "Cannot commit to published branch"
-      (log/with-min-level :fatal
-        (is (match? {:status 409 :body "Cannot change a published branch"}
+       (log/with-min-level :fatal
+         (is (match? {:status 409 :body "Cannot change a published branch"}
                     (app (create-version (:article-url article)
                                          (:branch-name branch)
                                          (merge article version)))))))))

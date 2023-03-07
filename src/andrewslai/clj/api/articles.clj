@@ -33,7 +33,7 @@
     (let [now    (utils/now)
           [{article-id :id :as article}] (if article-id
                                            (get-articles tx {:id article-id})
-                                           (create-article! tx (select-keys article-branch [:author :article-url :article-tags])))
+                                           (create-article! tx (select-keys article-branch [:author :article-url :article-tags :hostname])))
           [{branch-id :id :as branch}]   (rdbms/insert! tx
                                                         :article-branches {:branch-name branch-name
                                                                            :article-id  article-id

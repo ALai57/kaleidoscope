@@ -53,13 +53,13 @@
     :components  [database]
     :tags        ["articles"]
 
-    (GET "/" []
+    (GET "/" request
       :swagger {:summary   "Retrieve all articles"
                 :produces  #{"application/json"}
                 :security  [{:andrewslai-pkce ["roles" "profile"]}]
                 :responses {200 {:description "A collection of all articles"
                                  :schema      :andrewslai.article/articles}}}
-      (ok (articles-api/get-articles database)))
+      (ok (articles-api/get-articles database {:hostname (:server-name request)})))
 
     (context "/:article-url" [article-url]
       (GET "/" request
@@ -164,7 +164,7 @@
                 :produces #{"application/json"}}
       (let [query-params (select-keys (cske/transform-keys csk/->kebab-case-keyword (:query-params request))
                                       [:article-id :article-url])
-            branches     (articles-api/get-branches database query-params)]
+            branches     (articles-api/get-branches database (assoc query-params :hostname (:server-name request)))]
         (if (empty? branches)
           (not-found {:reason "Missing"})
           (ok branches))))
