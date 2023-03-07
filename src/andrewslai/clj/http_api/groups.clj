@@ -132,5 +132,25 @@
                     log/info)))
             (catch Exception e
               (log/error "Caught exception " e)))
-          )))
+          )
+        (context "/:membership-id" [membership-id]
+          (DELETE "/" request
+            :swagger {:summary   "Delete a member from a group"
+                      :produces  #{"application/json"}
+                      :security  [{:andrewslai-pkce ["roles" "profile"]}]
+                      ;;:request   :andrewslai.article/article
+                      :responses {204 {:description "Success deleting the member"
+                                       ;;:schema      :andrewslai.article/article
+                                       :schema      any?}
+                                  401 {:description "Unauthorized"
+                                       :schema      ::error-message}}}
+            (try
+              (let [requester-id (oidc/get-user-id (:identity request))]
+                (log/infof "User %s attempting to remove member %s from group %s!" requester-id membership-id group-id)
+                (if-let [result (groups-api/remove-user-from-group! database requester-id group-id membership-id)]
+                  (no-content)
+                  (unauthorized)))
+              (catch Exception e
+                (log/error "Caught exception " e)))))
+        ))
     ))

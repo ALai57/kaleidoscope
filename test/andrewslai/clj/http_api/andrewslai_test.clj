@@ -462,23 +462,32 @@
       (let [add-member-result (app (-> (mock/request :post (format "/groups/%s/members" group-id))
                                        (mock/header "Authorization" "Bearer user first-user")
                                        (mock/json-body {:email "my-email@email.com"
-                                                        :alias "Androo"})))]
+                                                        :alias "Androo"})))
+            member-id         (get-in add-member-result [:body 0 :id])]
         (testing "Add members"
           (is (match? {:status 200
                        :body   [{:id string?}]}
-                      add-member-result))))
+                      add-member-result)))
 
-      (testing "Retrieve group with members"
-        (let [response (app (-> (mock/request :get "/groups")
-                                (mock/header "Authorization" "Bearer user first-user")))]
-          (is (match? {:status 200
-                       :body   [{:group-id     group-id
-                                 :display-name "my-display-name"
-                                 :memberships  [{:membership-id         string?
-                                                 :membership-created-at string?
-                                                 :alias                 "Androo"
-                                                 :email                 "my-email@email.com"}]}]}
-                      response)))))
+        (testing "Retrieve group with members"
+          (let [response (app (-> (mock/request :get "/groups")
+                                  (mock/header "Authorization" "Bearer user first-user")))]
+            (is (match? {:status 200
+                         :body   [{:group-id     group-id
+                                   :display-name "my-display-name"
+                                   :memberships  [{:membership-id         string?
+                                                   :membership-created-at string?
+                                                   :alias                 "Androo"
+                                                   :email                 "my-email@email.com"}]}]}
+                        response))))
 
-
-    ))
+        (testing "Remove member from group"
+          (let [response (app (-> (mock/request :delete (format "/groups/%s/members/%s" group-id member-id))
+                                  (mock/header "Authorization" "Bearer user first-user")))]
+            (is (match? {:status 204}
+                        response))
+            (is (match? {:status 200
+                         :body   [{:memberships empty?}]}
+                        (app (-> (mock/request :get "/groups")
+                                 (mock/header "Authorization" "Bearer user first-user")))))
+            ))))))
