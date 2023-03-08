@@ -143,18 +143,23 @@
 ;; Test of Blogging API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn create-branch
-  [article]
-  (-> (mock/request :post "/branches")
-      (mock/json-body article)
-      (mock/header "Authorization" "Bearer x")))
+  ([article]
+   (create-branch article ""))
+  ([article host]
+   (-> (mock/request :post (str host "/branches"))
+       (mock/json-body article)
+       (mock/header "Authorization" "Bearer x"))))
 
 (defn get-branches
   ([]
    (get-branches nil))
   ([query]
-   (cond-> (mock/request :get "/branches")
+   (get-branches query ""))
+  ([query host]
+   (cond-> (mock/request :get (str host "/branches"))
      true  (mock/header "Authorization" "Bearer x")
-     query (mock/query-string query))))
+     query (mock/query-string query)))
+  )
 
 (defn create-version
   [article-url branch version]
@@ -216,8 +221,7 @@
 
     (let [create-result          (app (-> article
                                           (assoc :branch-name "branch-1")
-                                          create-branch
-                                          (assoc :server-name "myhost")))
+                                          (create-branch "http://myhost.com")))
           [{:keys [article-id]}] (:body create-result)]
       (testing "Article creation succeeds for branch 1"
         (is (match? {:status 200 :body [{:article-id some?
@@ -230,19 +234,17 @@
                     (app (-> article
                              (assoc :branch-name "branch-2"
                                     :article-id  article-id)
-                             create-branch)))))
+                             (create-branch "http://myhost.com"))))))
 
       (testing "The 2 branches were created"
         (is (match? {:status 200 :body (has-count 2)}
                     (app (-> {:article-id article-id}
-                             get-branches
-                             (assoc :server-name "myhost"))))))
+                             (get-branches "http://myhost.com"))))))
 
       (testing "The branches can't be viewed when asking wrong host"
         (is (match? {:status 404}
                     (app (-> {:article-id article-id}
-                             get-branches
-                             (assoc :server-name "a-different-host")))))))))
+                             (get-branches "http://other-host.com")))))))))
 
 (deftest publish-branch-test
     (let [app             (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
