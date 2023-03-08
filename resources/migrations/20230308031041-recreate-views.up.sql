@@ -1,5 +1,13 @@
 
-ALTER TABLE articles DROP COLUMN hostname;
+DROP VIEW IF EXISTS published_articles;
+
+--;;
+
+DROP VIEW IF EXISTS full_versions;
+
+--;;
+
+DROP VIEW IF EXISTS full_branches;
 
 --;;
 
@@ -19,6 +27,7 @@ SELECT
     a.author,
     a.article_url,
     a.article_tags,
+    a.hostname,
     a.created_at AS article_created_at,
     a.modified_at AS article_modified_at
 FROM article_versions av
@@ -38,7 +47,17 @@ SELECT
     a.author,
     a.article_url,
     a.article_tags,
+    a.hostname,
     a.created_at AS article_created_at,
     a.modified_at AS article_modified_at
 FROM article_branches ab
      JOIN articles a ON a.id = ab.article_id
+
+--;;
+
+CREATE OR REPLACE VIEW published_articles AS
+SELECT *
+FROM (SELECT *, RANK() OVER (PARTITION BY article_id ORDER BY published_at DESC, created_at DESC) AS rank
+     FROM full_versions
+     WHERE published_at IS NOT NULL) AS sq
+WHERE rank = 1
