@@ -3,6 +3,14 @@ ALTER TABLE articles ADD hostname VARCHAR;
 
 --;;
 
+UPDATE articles SET hostname = 'ip6-localhost' WHERE id IN (1,2);
+
+--;;
+
+UPDATE articles SET hostname = 'localhost' WHERE id IN (3,4);
+
+--;;
+
 CREATE OR REPLACE VIEW full_versions AS
 SELECT
     av.id AS version_id,
@@ -44,3 +52,12 @@ SELECT
     a.modified_at AS article_modified_at
 FROM article_branches ab
      JOIN articles a ON a.id = ab.article_id
+
+--;;
+
+CREATE OR REPLACE VIEW published_articles AS
+SELECT *
+FROM (SELECT *, RANK() OVER (PARTITION BY article_id ORDER BY published_at DESC, created_at DESC) AS rank
+     FROM full_versions
+     WHERE published_at IS NOT NULL) AS sq
+WHERE rank = 1

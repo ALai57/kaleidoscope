@@ -212,14 +212,14 @@
     :components [database]
     :tags ["compositions"]
 
-    (GET "/" []
+    (GET "/" request
       :swagger {:summary     "Retrieve all published articles"
                 :description (str "This endpoint retrieves all published articles. "
                                   "The endpoint is currently not paginated")
                 :produces    #{"application/json"}
                 :responses   {200 {:description "A collection of all published articles"
                                    :schema      :andrewslai.article/articles}}}
-      (ok (articles-api/get-published-articles database)))
+      (ok (articles-api/get-published-articles database {:hostname (:server-name request)})))
 
     (GET "/:article-url" [article-url :as request]
       :swagger {:summary    "Retrieve a single published article"
