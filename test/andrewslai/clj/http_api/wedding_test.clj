@@ -113,7 +113,7 @@
                     wedding/wedding-app
                     tu/wrap-clojure-response)]
     (is (match? {:status  200
-                 :headers {"Cache-Control" cc/no-cache}
+                 :headers {"Cache-Control" cc/revalidate-0s}
                  :body    [{:name "afile"} {:name "adir" :type "directory"}]}
                 (app {:request-method :get
                       :headers        {"Authorization" "Bearer x"}
