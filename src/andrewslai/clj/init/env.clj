@@ -89,7 +89,7 @@
                    [:creds  [:any {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:bucket (get env "ANDREWSLAI_CAHERIAGUILAR_BUCKET")
+  {:bucket (get env "ANDREWSLAI_CAHERIAGUILAR_BUCKET" "caheriaguilar")
    :creds  s3-storage/CustomAWSCredentialsProviderChain})
 
 (defn env->wedding-s3
@@ -200,7 +200,7 @@
 
 (def caheriaguilar-static-content-adapter-boot-instructions
   {:name      :caheriaguilar-static-content-adapter
-   :path      "CAHERIAGUILAR_STATIC_CONTENT_TYPE"
+   :path      "ANDREWSLAI_CAHERIAGUILAR_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
                "s3"               (fn  [env] (s3-storage/map->S3 (env->caheriaguilar-s3 env)))
                "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
