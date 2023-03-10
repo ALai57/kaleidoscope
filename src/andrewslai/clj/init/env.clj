@@ -3,6 +3,7 @@
   components."
   (:require [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
+            [andrewslai.clj.http-api.caheriaguilar :as caheriaguilar]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.virtual-hosting :as vh]
             [andrewslai.clj.http-api.wedding :as wedding]
@@ -81,6 +82,16 @@
   {:bucket (get env "ANDREWSLAI_BUCKET")
    :creds  s3-storage/CustomAWSCredentialsProviderChain})
 
+(defn env->caheriaguilar-s3
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:bucket [:string {:error/message "Missing S3 bucket. Set via ANDREWSLAI_CAHERIAGUILAR_BUCKET environment variable."}]]
+                   [:creds  [:any {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:bucket (get env "ANDREWSLAI_CAHERIAGUILAR_BUCKET")
+   :creds  s3-storage/CustomAWSCredentialsProviderChain})
+
 (defn env->wedding-s3
   {:malli/schema [:=> [:cat :map]
                   [:map
@@ -98,6 +109,14 @@
    :malli/scope  #{:output}}
   [env]
   {:root (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER")})
+
+(defn env->caheriaguilar-local-fs
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:root [:string {:error/message "Missing Local FS root path. Set via ANDREWSLAI_CAHERIAGUILAR_STATIC_CONTENT_FOLDER environment variable."}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:root (get env "ANDREWSLAI_CAHERIAGUILAR_STATIC_CONTENT_FOLDER")})
 
 (defn env->wedding-local-fs
   {:malli/schema [:=> [:cat :map]
@@ -162,6 +181,31 @@
                "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->andrewslai-local-fs env)))}
    :default   "s3"})
 
+(def caheriaguilar-authentication-boot-instructions
+  {:name      :caheriaguilar-authentication
+   :path      "ANDREWSLAI_CAHERIAGUILAR_AUTH_TYPE"
+   :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
+               "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
+                                                                                 :sub          "my-user-id"
+                                                                                 :realm_access {:roles ["andrewslai" "wedding" "caheriaguilar"]}}))}
+   :default   "keycloak"})
+
+(def caheriaguilar-authorization-boot-instructions
+  {:name      :caheriaguilar-authorization
+   :path      "ANDREWSLAI_CAHERIAGUILAR_AUTHORIZATION_TYPE"
+   :launchers {"public-access"           (fn [_env] tu/public-access)
+               "use-access-control-list" (fn [_env] caheriaguilar/CAHERIAGUILAR-ACCESS-CONTROL-LIST)}
+   :default   "use-access-control-list"})
+
+(def caheriaguilar-static-content-adapter-boot-instructions
+  {:name      :caheriaguilar-static-content-adapter
+   :path      "CAHERIAGUILAR_STATIC_CONTENT_TYPE"
+   :launchers {"none"             (fn [_env] identity)
+               "s3"               (fn  [env] (s3-storage/map->S3 (env->caheriaguilar-s3 env)))
+               "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
+               "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->caheriaguilar-local-fs env)))}
+   :default   "s3"})
 
 (def wedding-authentication-boot-instructions
   {:name      :wedding-authentication
@@ -195,6 +239,10 @@
    andrewslai-authentication-boot-instructions
    andrewslai-authorization-boot-instructions
    andrewslai-static-content-adapter-boot-instructions
+
+   caheriaguilar-authentication-boot-instructions
+   caheriaguilar-authorization-boot-instructions
+   caheriaguilar-static-content-adapter-boot-instructions
 
    wedding-authentication-boot-instructions
    wedding-authorization-boot-instructions
@@ -257,8 +305,6 @@
   (comp mw/standard-stack
         (mw/auth-stack authentication authorization)))
 
-
-
 (defn prepare-andrewslai
   [{:keys [database-connection
            andrewslai-authentication
@@ -269,6 +315,17 @@
    :http-mw                (make-middleware andrewslai-authentication
                                             andrewslai-authorization)
    :static-content-adapter andrewslai-static-content-adapter})
+
+(defn prepare-caheriaguilar
+  [{:keys [database-connection
+           caheriaguilar-authentication
+           caheriaguilar-authorization
+           caheriaguilar-static-content-adapter]
+    :as system}]
+  {:database               database-connection
+   :http-mw                (make-middleware caheriaguilar-authentication
+                                            caheriaguilar-authorization)
+   :static-content-adapter caheriaguilar-static-content-adapter})
 
 (defn prepare-wedding
   [{:keys [database-connection
@@ -283,14 +340,17 @@
 
 (defn prepare-for-virtual-hosting
   [system]
-  {:andrewslai (prepare-andrewslai system)
-   :wedding    (prepare-wedding system)})
+  {:andrewslai    (prepare-andrewslai system)
+   :wedding       (prepare-wedding system)
+   :caheriaguilar (prepare-caheriaguilar system)})
 
 (defn make-http-handler
-  [{:keys [andrewslai wedding] :as components}]
+  [{:keys [andrewslai caheriaguilar wedding] :as components}]
   (vh/host-based-routing
    {#"caheriaguilar.and.andrewslai.com" {:priority 0
                                          :app      (wedding/wedding-app wedding)}
+    #"caheriaguilar.com"                {:priority 0
+                                         :app      (caheriaguilar/caheriaguilar-app caheriaguilar)}
     #".*"                               {:priority 100
                                          :app      (andrewslai/andrewslai-app andrewslai)}}))
 
