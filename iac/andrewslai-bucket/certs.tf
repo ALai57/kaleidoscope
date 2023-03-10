@@ -26,6 +26,7 @@ data "aws_alb_target_group" "main" {
 }
 
 # Add SSL Cert for caheriaguilar.com to existing LB
+# Manually added an A record to Route53 to redirect traffic to ELB
 resource "aws_lb_listener_certificate" "caheriaguilar_cert" {
   listener_arn    = "${data.aws_lb_listener.main.arn}"
   certificate_arn = "${data.aws_acm_certificate.issued.arn}"
