@@ -1,4 +1,4 @@
-(ns andrewslai.clj.http-api.sahiltalkingscents
+(ns andrewslai.clj.http-api.sahiltalkingcents
   (:require [andrewslai.clj.api.authorization :as auth]
             [andrewslai.clj.http-api.andrewslai :as andrewslai]))
 

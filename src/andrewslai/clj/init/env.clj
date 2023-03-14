@@ -4,6 +4,7 @@
   (:require [andrewslai.clj.http-api.andrewslai :as andrewslai]
             [andrewslai.clj.http-api.auth.buddy-backends :as bb]
             [andrewslai.clj.http-api.caheriaguilar :as caheriaguilar]
+            [andrewslai.clj.http-api.sahiltalkingcents :as sahiltalkingcents]
             [andrewslai.clj.http-api.middleware :as mw]
             [andrewslai.clj.http-api.virtual-hosting :as vh]
             [andrewslai.clj.http-api.wedding :as wedding]
@@ -239,7 +240,7 @@
   {:name      :sahiltalkingcents-authorization
    :path      "ANDREWSLAI_SAHILTALKINGCENTS_AUTHORIZATION_TYPE"
    :launchers {"public-access"           (fn [_env] tu/public-access)
-               "use-access-control-list" (fn [_env] sahiltalkingcents/sahiltalkingcents-ACCESS-CONTROL-LIST)}
+               "use-access-control-list" (fn [_env] sahiltalkingcents/SAHILTALKINGCENTS-ACCESS-CONTROL-LIST)}
    :default   "use-access-control-list"})
 
 (def sahiltalkingcents-static-content-adapter-boot-instructions
@@ -406,7 +407,7 @@
    })
 
 (defn make-http-handler
-  [{:keys [andrewslai caheriaguilar wedding] :as components}]
+  [{:keys [andrewslai caheriaguilar sahiltalkingcents wedding] :as components}]
   (vh/host-based-routing
    {#"caheriaguilar.and.andrewslai.com" {:priority 0
                                          :app      (wedding/wedding-app wedding)}
