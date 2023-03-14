@@ -92,6 +92,16 @@
   {:bucket (get env "ANDREWSLAI_CAHERIAGUILAR_BUCKET" "caheriaguilar")
    :creds  s3-storage/CustomAWSCredentialsProviderChain})
 
+(defn env->sahiltalkingcents-s3
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:bucket [:string {:error/message "Missing S3 bucket. Set via ANDREWSLAI_SAHILTALKINGCENTS_BUCKET environment variable."}]]
+                   [:creds  [:any {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:bucket (get env "ANDREWSLAI_SAHILTALKINGCENTS_BUCKET" "sahiltalkingcents")
+   :creds  s3-storage/CustomAWSCredentialsProviderChain})
+
 (defn env->wedding-s3
   {:malli/schema [:=> [:cat :map]
                   [:map
@@ -117,6 +127,14 @@
    :malli/scope  #{:output}}
   [env]
   {:root (get env "ANDREWSLAI_CAHERIAGUILAR_STATIC_CONTENT_FOLDER")})
+
+(defn env->sahiltalkingcents-local-fs
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:root [:string {:error/message "Missing Local FS root path. Set via ANDREWSLAI_SAHILTALKINGCENTS_STATIC_CONTENT_FOLDER environment variable."}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:root (get env "ANDREWSLAI_SAHILTALKINGCENTS_STATIC_CONTENT_FOLDER")})
 
 (defn env->wedding-local-fs
   {:malli/schema [:=> [:cat :map]
@@ -207,6 +225,32 @@
                "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->caheriaguilar-local-fs env)))}
    :default   "s3"})
 
+(def sahiltalkingcents-authentication-boot-instructions
+  {:name      :sahiltalkingcents-authentication
+   :path      "ANDREWSLAI_SAHILTALKINGCENTS_AUTH_TYPE"
+   :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
+               "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
+                                                                                 :sub          "my-user-id"
+                                                                                 :realm_access {:roles ["andrewslai" "wedding" "sahiltalkingcents"]}}))}
+   :default   "keycloak"})
+
+(def sahiltalkingcents-authorization-boot-instructions
+  {:name      :sahiltalkingcents-authorization
+   :path      "ANDREWSLAI_SAHILTALKINGCENTS_AUTHORIZATION_TYPE"
+   :launchers {"public-access"           (fn [_env] tu/public-access)
+               "use-access-control-list" (fn [_env] sahiltalkingcents/sahiltalkingcents-ACCESS-CONTROL-LIST)}
+   :default   "use-access-control-list"})
+
+(def sahiltalkingcents-static-content-adapter-boot-instructions
+  {:name      :sahiltalkingcents-static-content-adapter
+   :path      "ANDREWSLAI_SAHILTALKINGCENTS_STATIC_CONTENT_TYPE"
+   :launchers {"none"             (fn [_env] identity)
+               "s3"               (fn  [env] (s3-storage/map->S3 (env->sahiltalkingcents-s3 env)))
+               "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
+               "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->sahiltalkingcents-local-fs env)))}
+   :default   "s3"})
+
 (def wedding-authentication-boot-instructions
   {:name      :wedding-authentication
    :path      "ANDREWSLAI_WEDDING_AUTH_TYPE"
@@ -243,6 +287,10 @@
    caheriaguilar-authentication-boot-instructions
    caheriaguilar-authorization-boot-instructions
    caheriaguilar-static-content-adapter-boot-instructions
+
+   sahiltalkingcents-authentication-boot-instructions
+   sahiltalkingcents-authorization-boot-instructions
+   sahiltalkingcents-static-content-adapter-boot-instructions
 
    wedding-authentication-boot-instructions
    wedding-authorization-boot-instructions
@@ -327,6 +375,17 @@
                                             caheriaguilar-authorization)
    :static-content-adapter caheriaguilar-static-content-adapter})
 
+(defn prepare-sahiltalkingcents
+  [{:keys [database-connection
+           sahiltalkingcents-authentication
+           sahiltalkingcents-authorization
+           sahiltalkingcents-static-content-adapter]
+    :as system}]
+  {:database               database-connection
+   :http-mw                (make-middleware sahiltalkingcents-authentication
+                                            sahiltalkingcents-authorization)
+   :static-content-adapter sahiltalkingcents-static-content-adapter})
+
 (defn prepare-wedding
   [{:keys [database-connection
            wedding-authentication
@@ -340,9 +399,11 @@
 
 (defn prepare-for-virtual-hosting
   [system]
-  {:andrewslai    (prepare-andrewslai system)
-   :wedding       (prepare-wedding system)
-   :caheriaguilar (prepare-caheriaguilar system)})
+  {:andrewslai        (prepare-andrewslai system)
+   :wedding           (prepare-wedding system)
+   :caheriaguilar     (prepare-caheriaguilar system)
+   :sahiltalkingcents (prepare-sahiltalkingcents system)
+   })
 
 (defn make-http-handler
   [{:keys [andrewslai caheriaguilar wedding] :as components}]
@@ -351,6 +412,8 @@
                                          :app      (wedding/wedding-app wedding)}
     #"caheriaguilar.com"                {:priority 0
                                          :app      (caheriaguilar/caheriaguilar-app caheriaguilar)}
+    #"sahiltalkingcents.com"            {:priority 0
+                                         :app      (sahiltalkingcents/sahiltalkingcents-app sahiltalkingcents)}
     #".*"                               {:priority 100
                                          :app      (andrewslai/andrewslai-app andrewslai)}}))
 

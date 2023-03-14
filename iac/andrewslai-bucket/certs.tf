@@ -31,3 +31,18 @@ resource "aws_lb_listener_certificate" "caheriaguilar_cert" {
   listener_arn    = "${data.aws_lb_listener.main.arn}"
   certificate_arn = "${data.aws_acm_certificate.issued.arn}"
 }
+
+
+data "aws_acm_certificate" "sahiltalkingcents" {
+  domain   = "sahiltalkingcents.com"
+  statuses = ["ISSUED"]
+}
+
+# Add SSL Cert for sahiltalkingcents.com to existing LB
+# Go to AWS Certificate Manager. Request new cert for site.
+# Then go to Route53 and add an A record that redirects to the Load balancer
+# Manually added an A record to Route53 to redirect traffic to ELB
+resource "aws_lb_listener_certificate" "sahiltalkingcents_cert" {
+  listener_arn    = "${data.aws_lb_listener.main.arn}"
+  certificate_arn = "${data.aws_acm_certificate.sahiltalkingcents.arn}"
+}
