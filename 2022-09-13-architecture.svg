@@ -27,7 +27,7 @@
 <g id="clust4" class="cluster">
 <title>cluster15072</title>
 <polygon fill="#03c2fc" stroke="black" points="1036,-685.9 1036,-760.9 1209,-760.9 1209,-685.9 1036,-685.9"/>
-<text text-anchor="middle" x="1122.5" y="-745.7" font-family="Monospace" font-size="14.00">andrewslai.clj.main</text>
+<text text-anchor="middle" x="1122.5" y="-745.7" font-family="Monospace" font-size="14.00">kaleidoscope.clj.main</text>
 </g>
 <g id="clust5" class="cluster">
 <title>cluster15074</title>
@@ -37,7 +37,7 @@
 <g id="clust6" class="cluster">
 <title>cluster15078</title>
 <polygon fill="#03c2fc" stroke="black" points="1007,-585.16 1007,-677.9 1238,-677.9 1238,-585.16 1007,-585.16"/>
-<text text-anchor="middle" x="1122.5" y="-662.7" font-family="Monospace" font-size="14.00">andrewslai.clj.init.config</text>
+<text text-anchor="middle" x="1122.5" y="-662.7" font-family="Monospace" font-size="14.00">kaleidoscope.clj.init.config</text>
 </g>
 <g id="clust7" class="cluster">
 <title>cluster15080</title>

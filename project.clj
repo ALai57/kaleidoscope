@@ -66,7 +66,7 @@
   :uberjar-name "andrewslai.jar"
   :uberjar-exclusions [#"public/.*" #".txz"]
 
-  :main andrewslai.clj.main
+  :main kaleidoscope.clj.main
 
   ;; Speeds up Docker builds, see https://docs.docker.com/develop/develop-images/build_enhancements/
   :shell {:env {"DOCKER_BUILDKIT" "1"}}
@@ -81,8 +81,8 @@
                                   [org.clojure/tools.cli "1.0.214"]
                                   [org.clojure/tools.namespace "1.3.0"]
                                   ]
-                   :aliases      {"migratus" ["run" "-m" andrewslai.clj.persistence.rdbms.migrations]
-                                  "test"     ["run" "-m" andrewslai.clj.test-main]}}}
+                   :aliases      {"migratus" ["run" "-m" kaleidoscope.clj.persistence.rdbms.migrations]
+                                  "test"     ["run" "-m" kaleidoscope.clj.test-main]}}}
 
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]
