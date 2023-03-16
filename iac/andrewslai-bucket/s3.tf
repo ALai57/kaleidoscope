@@ -3,7 +3,7 @@ resource "aws_s3_bucket" "blog_buckets" {
   bucket = each.key
 }
 
-## The Email receiving was configured all by hand in SES
+## The Email receiving must be configured by hand in SES
 resource "aws_s3_bucket_policy" "allow_access_from_ses" {
   for_each = aws_s3_bucket.blog_buckets
   bucket = each.value.id
