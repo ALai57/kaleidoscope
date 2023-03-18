@@ -74,7 +74,7 @@
                 :produces  #{"application/json"}
                 :security  [{:andrewslai-pkce ["roles" "profile"]}]
                 :responses {200 {:description "A collection of all articles"
-                                 :schema      :andrewslai.article/articles}}}
+                                 :schema      :kaleidoscope.article/articles}}}
       (ok (articles-api/get-articles database {:hostname (get-host request)})))
 
     (context "/:article-url" [article-url]
@@ -82,9 +82,9 @@
         :swagger {:summary    "Retrieve a single article"
                   :produces   #{"application/json"}
                   :security   [{:andrewslai-pkce ["roles" "profile"]}]
-                  :parameters {:path {:article-url :andrewslai.article/article-url}}
+                  :parameters {:path {:article-url :kaleidoscope.article/article-url}}
                   :responses  {200 {:description "A single article"
-                                    :schema      :andrewslai.article/article}}}
+                                    :schema      :kaleidoscope.article/article}}}
         (if-let [article (articles-api/get-articles database {:article-url article-url})]
           (ok article)
           (not-found {:reason "Missing"})))
@@ -104,9 +104,9 @@
                       :consumes  #{"application/json"}
                       :produces  #{"application/json"}
                       :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                      :request   :andrewslai.article/article
+                      :request   :kaleidoscope.article/article
                       :responses {200 {:description "The article branch that was created"
-                                       :schema      :andrewslai.article/article}
+                                       :schema      :kaleidoscope.article/article}
                                   401 {:description "Unauthorized"
                                        :schema      ::error-message}}}
             (try
@@ -123,7 +123,7 @@
                       :produces  #{"application/json"}
                       :security  [{:andrewslai-pkce ["roles" "profile"]}]
                       :responses {200 {:description "The article branch that was created"
-                                       :schema      :andrewslai.article/article}
+                                       :schema      :kaleidoscope.article/article}
                                   401 {:description "Unauthorized"
                                        :schema      ::error-message}}}
             (try
@@ -142,9 +142,9 @@
                         :consumes  #{"application/json"}
                         :produces  #{"application/json"}
                         :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                        :request   :andrewslai.article/article
+                        :request   :kaleidoscope.article/article
                         :responses {200 {:description "The version that was created"
-                                         :schema      :andrewslai.article/article}
+                                         :schema      :kaleidoscope.article/article}
                                     401 {:description "Unauthorized"
                                          :schema      ::error-message}}}
               (try
@@ -190,9 +190,9 @@
                 :consumes  #{"application/json"}
                 :produces  #{"application/json"}
                 :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                :request   :andrewslai.article/article-branch
+                :request   :kaleidoscope.article/article-branch
                 :responses {200 {:description "The branch that was created"
-                                 :schema      :andrewslai.article/article-branch}
+                                 :schema      :kaleidoscope.article/article-branch}
                             401 {:description "Unauthorized"
                                  :schema      ::error-message}}}
       (try
@@ -209,7 +209,7 @@
                   :produces  #{"application/json"}
                   :security  [{:andrewslai-pkce ["roles" "profile"]}]
                   :responses {200 {:description "The version that was created"
-                                   :schema      :andrewslai.article/article-branch}
+                                   :schema      :kaleidoscope.article/article-branch}
                               401 {:description "Unauthorized"
                                    :schema      ::error-message}}}
         (let [branches (articles-api/get-versions database {:branch-id (Integer/parseInt branch-id)})]
@@ -234,16 +234,16 @@
                                   "The endpoint is currently not paginated")
                 :produces    #{"application/json"}
                 :responses   {200 {:description "A collection of all published articles"
-                                   :schema      :andrewslai.article/articles}}}
+                                   :schema      :kaleidoscope.article/articles}}}
       (log/infof "Getting compositions for host `%s`" (get-host request))
       (ok (articles-api/get-published-articles database {:hostname (get-host request)})))
 
     (GET "/:article-url" [article-url :as request]
       :swagger {:summary    "Retrieve a single published article"
                 :produces   #{"application/json"}
-                :parameters {:path {:article-url :andrewslai.article/article-url}}
+                :parameters {:path {:article-url :kaleidoscope.article/article-url}}
                 :responses  {200 {:description "A single published article"
-                                  :schema      :andrewslai.article/article}}}
+                                  :schema      :kaleidoscope.article/article}}}
       (let [result (articles-api/get-published-articles database {:article-url article-url})]
         (if (empty? result)
           (not-found {:reason "Missing"})

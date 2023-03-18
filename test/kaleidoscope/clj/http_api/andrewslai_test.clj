@@ -25,11 +25,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn article?
   [x]
-  (s/valid? :andrewslai.article/article x))
+  (s/valid? :kaleidoscope.article/article x))
 
 (defn articles?
   [x]
-  (s/valid? :andrewslai.article/articles x))
+  (s/valid? :kaleidoscope.article/articles x))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing HTTP routes

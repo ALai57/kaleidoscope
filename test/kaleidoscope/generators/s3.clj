@@ -1,7 +1,7 @@
-(ns andrewslai.generators.s3
+(ns kaleidoscope.generators.s3
   (:require [kaleidoscope.clj.persistence.filesystem.s3-impl]
-            [andrewslai.generators.networking :as gen-net]
-            [andrewslai.generators.files :as gen-file]
+            [kaleidoscope.generators.networking :as gen-net]
+            [kaleidoscope.generators.files :as gen-file]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [clojure.test.check.generators :as gen]))

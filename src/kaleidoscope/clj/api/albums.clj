@@ -62,31 +62,31 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Album contents
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(s/def :andrewslai.albums.contents/album-id uuid?)
-(s/def :andrewslai.albums.contents/album-content-id uuid?)
-(s/def :andrewslai.albums.contents/added-to-album-at inst?)
-(s/def :andrewslai.albums.contents/photo-id uuid?)
-(s/def :andrewslai.albums.contents/photo-src string?)
-(s/def :andrewslai.albums.contents/photo-title string?)
-(s/def :andrewslai.albums.contents/album-name string?)
-(s/def :andrewslai.albums.contents/album-description string?)
-(s/def :andrewslai.albums.contents/cover-photo-id uuid?)
-(s/def :andrewslai.albums.contents/cover-photo-src string?)
+(s/def :kaleidoscope.albums.contents/album-id uuid?)
+(s/def :kaleidoscope.albums.contents/album-content-id uuid?)
+(s/def :kaleidoscope.albums.contents/added-to-album-at inst?)
+(s/def :kaleidoscope.albums.contents/photo-id uuid?)
+(s/def :kaleidoscope.albums.contents/photo-src string?)
+(s/def :kaleidoscope.albums.contents/photo-title string?)
+(s/def :kaleidoscope.albums.contents/album-name string?)
+(s/def :kaleidoscope.albums.contents/album-description string?)
+(s/def :kaleidoscope.albums.contents/cover-photo-id uuid?)
+(s/def :kaleidoscope.albums.contents/cover-photo-src string?)
 
-(s/def :andrewslai.albums.contents/album-content
-  (s/keys :req-un [:andrewslai.albums.contents/album-id
-                   :andrewslai.albums.contents/album-content-id
-                   :andrewslai.albums.contents/added-to-album-at
-                   :andrewslai.albums.contents/photo-id
-                   :andrewslai.albums.contents/photo-src
-                   :andrewslai.albums.contents/photo-title
-                   :andrewslai.albums.contents/album-name
-                   :andrewslai.albums.contents/album-description
-                   :andrewslai.albums.contents/cover-photo-id
-                   :andrewslai.albums.contents/cover-photo-src]))
+(s/def :kaleidoscope.albums.contents/album-content
+  (s/keys :req-un [:kaleidoscope.albums.contents/album-id
+                   :kaleidoscope.albums.contents/album-content-id
+                   :kaleidoscope.albums.contents/added-to-album-at
+                   :kaleidoscope.albums.contents/photo-id
+                   :kaleidoscope.albums.contents/photo-src
+                   :kaleidoscope.albums.contents/photo-title
+                   :kaleidoscope.albums.contents/album-name
+                   :kaleidoscope.albums.contents/album-description
+                   :kaleidoscope.albums.contents/cover-photo-id
+                   :kaleidoscope.albums.contents/cover-photo-src]))
 
-(s/def :andrewslai.albums.contents/album-contents
-  (s/coll-of :andrewslai.albums.contents/album-content))
+(s/def :kaleidoscope.albums.contents/album-contents
+  (s/coll-of :kaleidoscope.albums.contents/album-content))
 
 (def get-album-contents
   (rdbms/make-finder :album-contents))
@@ -94,7 +94,7 @@
 
 (comment
   ;; Example album content
-  (s/explain-str :andrewslai.albums.contents/album-content
+  (s/explain-str :kaleidoscope.albums.contents/album-content
                  {:added-to-album-at #inst "2022-11-01T01:48:16.144313000-00:00",
                   :photo-src         "https://caheriaguilar.and.andrewslai.com/media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg",
                   :album-name        "My first album",

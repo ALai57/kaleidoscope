@@ -16,7 +16,7 @@
       :swagger {:summary   "Retrieve all albums"
                 :produces  #{"application/json"}
                 :responses {200 {:description "A collection of all albums"
-                                 :schema      :andrewslai.albums/albums}}}
+                                 :schema      :kaleidoscope.albums/albums}}}
       (log/info "Getting albums")
       (ok (albums-api/get-albums database)))
 
@@ -25,7 +25,7 @@
       :swagger {:summary   "Retrieve contents from all albums"
                 :produces  #{"application/json"}
                 :responses {200 {:description "All album contents"
-                                 :schema      :andrewslai.albums.contents/album-contents}}}
+                                 :schema      :kaleidoscope.albums.contents/album-contents}}}
       (log/info "Getting contents")
       (ok (albums-api/get-album-contents database)))
 
@@ -33,9 +33,9 @@
       :swagger {:summary   "Add an album"
                 :consumes  #{"application/json"}
                 :produces  #{"application/json"}
-                :request   :andrewslai.albums/album
+                :request   :kaleidoscope.albums/album
                 :responses {200 {:description "Success!"
-                                 :schema      :andrewslai.albums/album}}}
+                                 :schema      :kaleidoscope.albums/album}}}
       (log/info "Creating album" params)
       (ok (first (albums-api/create-album! database params))))
 
@@ -44,7 +44,7 @@
         :swagger {:summary   "Retrieve album by ID"
                   :produces  #{"application/json"}
                   :responses {200 {:description "An album"
-                                   :schema      :andrewslai.albums/album}}}
+                                   :schema      :kaleidoscope.albums/album}}}
         (log/infof "Getting album: %s" id)
         (ok (first (albums-api/get-albums database {:id id}))))
 
@@ -53,7 +53,7 @@
                   :consumes  #{"application/json"}
                   :produces  #{"application/json"}
                   :responses {200 {:description "An album"
-                                   :schema      :andrewslai.albums/album}}}
+                                   :schema      :kaleidoscope.albums/album}}}
         (log/infof "Updating album: %s with: %s" id params)
         (ok (first (albums-api/update-album! database params))))
 
@@ -63,7 +63,7 @@
           :swagger {:summary   "Retrieve an album's contents"
                     :produces  #{"application/json"}
                     :responses {200 {:description "An album"
-                                     :schema      :andrewslai.albums.contents/album-contents}}}
+                                     :schema      :kaleidoscope.albums.contents/album-contents}}}
           (log/infof "Getting album contents from album: %s" id)
           (ok (albums-api/get-album-contents database {:album-id id})))
 
@@ -72,7 +72,7 @@
           :swagger {:summary   "Delete an album's contents"
                     :produces  #{"application/json"}
                     :responses {200 {:description "An album"
-                                     :schema      :andrewslai.albums.contents/album-content}}}
+                                     :schema      :kaleidoscope.albums.contents/album-content}}}
           (let [content-ids (map :id params)]
             (log/infof "Removing contents %s from album %s" content-ids id)
             (albums-api/remove-content-album-link! database content-ids)
@@ -86,7 +86,7 @@
                     :consumes    #{"application/json"}
                     :produces    #{"application/json"}
                     :responses   {200 {:description "An album"
-                                       :schema      :andrewslai.albums.contents/album-contents}}}
+                                       :schema      :kaleidoscope.albums.contents/album-contents}}}
           (let [photo-ids (map :id params)]
             (log/infof "Adding photo: %s to album: %s" photo-ids id)
             (ok (albums-api/add-photos-to-album! database id photo-ids))))
@@ -97,7 +97,7 @@
             :swagger {:summary   "Retrieve content from album by ID"
                       :produces  #{"application/json"}
                       :responses {200 {:description "An album"
-                                       :schema      :andrewslai.albums.contents/album-content}}}
+                                       :schema      :kaleidoscope.albums.contents/album-content}}}
             (log/infof "Getting album content %s for album: %s" content-id id)
             (let [[result] (albums-api/get-album-contents database {:album-id         id
                                                                     :album-content-id content-id})]
@@ -110,7 +110,7 @@
             :swagger {:summary   "Remove content from an album"
                       :produces  #{"application/json"}
                       :responses {200 {:description "An album"
-                                       :schema      :andrewslai.albums.contents/album-content}}}
+                                       :schema      :kaleidoscope.albums.contents/album-content}}}
             (log/infof "Removing content: %s from album: %s" content-id id)
             (albums-api/remove-content-album-link! database content-id)
             (no-content)))

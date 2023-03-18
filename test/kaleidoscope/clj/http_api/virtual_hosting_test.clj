@@ -1,7 +1,7 @@
 (ns kaleidoscope.clj.http-api.virtual-hosting-test
   (:require [kaleidoscope.clj.test-utils :as tu]
             [kaleidoscope.clj.http-api.virtual-hosting :as vh]
-            [andrewslai.generators.networking :as gen-net]
+            [kaleidoscope.generators.networking :as gen-net]
             [kaleidoscope.clj.test-main :as tm]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]

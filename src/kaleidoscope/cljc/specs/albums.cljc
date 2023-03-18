@@ -9,19 +9,19 @@
 
 (def timestamp (s/or :date spec/inst? :string spec/string?))
 
-(s/def :andrewslai.albums/id spec/integer?)
-(s/def :andrewslai.albums/album-name spec/string?)
-(s/def :andrewslai.albums/created-at timestamp)
-(s/def :andrewslai.albums/modified-at timestamp)
+(s/def :kaleidoscope.albums/id spec/integer?)
+(s/def :kaleidoscope.albums/album-name spec/string?)
+(s/def :kaleidoscope.albums/created-at timestamp)
+(s/def :kaleidoscope.albums/modified-at timestamp)
 
-(s/def :andrewslai.albums/album
-  (s/keys :req-un [:andrewslai.albums/album-name]
-          :opt-un [:andrewslai.albums/id
-                   :andrewslai.albums/created-at
-                   :andrewslai.albums/modified-at]))
+(s/def :kaleidoscope.albums/album
+  (s/keys :req-un [:kaleidoscope.albums/album-name]
+          :opt-un [:kaleidoscope.albums/id
+                   :kaleidoscope.albums/created-at
+                   :kaleidoscope.albums/modified-at]))
 
-(s/def :andrewslai.albums/albums
-  (s/coll-of :andrewslai.albums/album))
+(s/def :kaleidoscope.albums/albums
+  (s/coll-of :kaleidoscope.albums/album))
 
 (def example-album
   {:album-name     "hello"
@@ -40,7 +40,7 @@
 (comment
   ;; Example data for article spec
 
-  (gen/sample (s/gen :andrewslai.albums/album))
+  (gen/sample (s/gen :kaleidoscope.albums/album))
 
-  (s/valid? :andrewslai.albums/album example-album)
+  (s/valid? :kaleidoscope.albums/album example-album)
   )

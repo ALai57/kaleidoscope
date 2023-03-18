@@ -1,5 +1,5 @@
-(ns andrewslai.generators.files
-  (:require [andrewslai.generators.networking :as gen-net]
+(ns kaleidoscope.generators.files
+  (:require [kaleidoscope.generators.networking :as gen-net]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [clojure.test.check.generators :as gen]))

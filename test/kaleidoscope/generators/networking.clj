@@ -1,4 +1,4 @@
-(ns andrewslai.generators.networking
+(ns kaleidoscope.generators.networking
   (:require [kaleidoscope.clj.http-api.virtual-hosting]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]

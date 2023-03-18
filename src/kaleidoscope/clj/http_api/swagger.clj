@@ -11,7 +11,7 @@
             [spec-tools.swagger.core :as st]))
 
 (def example-data-2
-  {:andrewslai.article/article {:summary "An example article"
+  {:kaleidoscope.article/article {:summary "An example article"
                                 :value   {:id           10
                                           :article_tags "thoughts"
                                           :article_url  "my-test-article"
@@ -89,7 +89,7 @@
             ok)))))
 
 (def example-wedding-data
-  {:andrewslai.albums/album {:summary "An example album"
+  {:kaleidoscope.albums/album {:summary "An example album"
                              :value   {:id             1
                                        :album-name     "my album"
                                        :created-at     "2022-10-01T02:55:27Z"

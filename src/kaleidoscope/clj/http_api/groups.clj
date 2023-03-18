@@ -57,9 +57,9 @@
                 :consumes  #{"application/json"}
                 :produces  #{"application/json"}
                 :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                ;;:request   :andrewslai.article/article
+                ;;:request   :kaleidoscope.article/article
                 :responses {200 {:description "The group that was created"
-                                 ;;:schema      :andrewslai.article/article
+                                 ;;:schema      :kaleidoscope.article/article
                                  :schema      any?}
                             401 {:description "Unauthorized"
                                  :schema      ::error-message}}}
@@ -78,9 +78,9 @@
                   :consumes  #{"application/json"}
                   :produces  #{"application/json"}
                   :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                  ;;:request   :andrewslai.article/article
+                  ;;:request   :kaleidoscope.article/article
                   :responses {200 {:description "The group that was created"
-                                   ;;:schema      :andrewslai.article/article
+                                   ;;:schema      :kaleidoscope.article/article
                                    :schema      any?}
                               401 {:description "Unauthorized"
                                    :schema      ::error-message}}}
@@ -97,9 +97,9 @@
         :swagger {:summary   "Delete a group"
                   :produces  #{"application/json"}
                   :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                  ;;:request   :andrewslai.article/article
+                  ;;:request   :kaleidoscope.article/article
                   :responses {204 {:description "Success deleting the group"
-                                   ;;:schema      :andrewslai.article/article
+                                   ;;:schema      :kaleidoscope.article/article
                                    :schema      any?}
                               401 {:description "Unauthorized"
                                    :schema      ::error-message}}}
@@ -118,9 +118,9 @@
                     :consumes  #{"application/json"}
                     :produces  #{"application/json"}
                     :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                    ;;:request   :andrewslai.article/article
+                    ;;:request   :kaleidoscope.article/article
                     :responses {200 {:description "The member that was added"
-                                     ;;:schema      :andrewslai.article/article
+                                     ;;:schema      :kaleidoscope.article/article
                                      :schema      any?}
                                 401 {:description "Unauthorized"
                                      :schema      ::error-message}}}
@@ -138,9 +138,9 @@
             :swagger {:summary   "Delete a member from a group"
                       :produces  #{"application/json"}
                       :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                      ;;:request   :andrewslai.article/article
+                      ;;:request   :kaleidoscope.article/article
                       :responses {204 {:description "Success deleting the member"
-                                       ;;:schema      :andrewslai.article/article
+                                       ;;:schema      :kaleidoscope.article/article
                                        :schema      any?}
                                   401 {:description "Unauthorized"
                                        :schema      ::error-message}}}

@@ -9,41 +9,41 @@
 
 (def timestamp (s/or :date spec/inst? :string spec/string?))
 
-(s/def :andrewslai.article/id spec/integer?)
-(s/def :andrewslai.article/article-name spec/string?)
-(s/def :andrewslai.article/title spec/string?)
-(s/def :andrewslai.article/article-tags spec/string?)
-(s/def :andrewslai.article/article-url spec/string?)
-(s/def :andrewslai.article/author spec/string?)
-(s/def :andrewslai.article/content spec/string?)
+(s/def :kaleidoscope.article/id spec/integer?)
+(s/def :kaleidoscope.article/article-name spec/string?)
+(s/def :kaleidoscope.article/title spec/string?)
+(s/def :kaleidoscope.article/article-tags spec/string?)
+(s/def :kaleidoscope.article/article-url spec/string?)
+(s/def :kaleidoscope.article/author spec/string?)
+(s/def :kaleidoscope.article/content spec/string?)
 
-(s/def :andrewslai.article/article
-  (s/keys :req-un [:andrewslai.article/article-tags
-                   :andrewslai.article/author
-                   :andrewslai.article/article-url]
-          :opt-un [:andrewslai.article/id
-                   :andrewslai.article/content
-                   :andrewslai.article/title]))
+(s/def :kaleidoscope.article/article
+  (s/keys :req-un [:kaleidoscope.article/article-tags
+                   :kaleidoscope.article/author
+                   :kaleidoscope.article/article-url]
+          :opt-un [:kaleidoscope.article/id
+                   :kaleidoscope.article/content
+                   :kaleidoscope.article/title]))
 
-(s/def :andrewslai.branch/id spec/string?)
-(s/def :andrewslai.branch/branch-id spec/string?)
-(s/def :andrewslai.branch/article-id spec/string?)
-(s/def :andrewslai.branch/published-at timestamp)
-(s/def :andrewslai.branch/branch-name spec/string?)
-(s/def :andrewslai.branch/created-at timestamp)
-(s/def :andrewslai.branch/modified-at timestamp)
+(s/def :kaleidoscope.branch/id spec/string?)
+(s/def :kaleidoscope.branch/branch-id spec/string?)
+(s/def :kaleidoscope.branch/article-id spec/string?)
+(s/def :kaleidoscope.branch/published-at timestamp)
+(s/def :kaleidoscope.branch/branch-name spec/string?)
+(s/def :kaleidoscope.branch/created-at timestamp)
+(s/def :kaleidoscope.branch/modified-at timestamp)
 
-(s/def :andrewslai.article/article-branch
-  (s/keys :req-un [:andrewslai.branch/branch-name]
-          :opt-un [:andrewslai.branch/article-id
-                   :andrewslai.branch/published-at
-                   :andrewslai.branch/branch-id
-                   :andrewslai.article/author
-                   :andrewslai.article/article-url
-                   :andrewslai.article/article-tags]))
+(s/def :kaleidoscope.article/article-branch
+  (s/keys :req-un [:kaleidoscope.branch/branch-name]
+          :opt-un [:kaleidoscope.branch/article-id
+                   :kaleidoscope.branch/published-at
+                   :kaleidoscope.branch/branch-id
+                   :kaleidoscope.article/author
+                   :kaleidoscope.article/article-url
+                   :kaleidoscope.article/article-tags]))
 
-(s/def :andrewslai.article/articles
-  (s/coll-of :andrewslai.article/article))
+(s/def :kaleidoscope.article/articles
+  (s/coll-of :kaleidoscope.article/article))
 
 (def example-article
   {:id           4
@@ -57,7 +57,7 @@
 (comment
   ;; Example data for article spec
 
-  (gen/sample :andrewslai.article/article)
+  (gen/sample :kaleidoscope.article/article)
 
-  (s/valid? :andrewslai.article/article example-article)
+  (s/valid? :kaleidoscope.article/article example-article)
   )

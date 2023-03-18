@@ -29,7 +29,7 @@
                 :description "Add a new image"
                 :produces    #{"application/json"}
                 :responses   {200 {:description "An album"
-                                   :schema      :andrewslai.albums/album}}}
+                                   :schema      :kaleidoscope.albums/album}}}
       (let [{:keys [filename tempfile] :as file-contents} (get params "file-contents")
             file-path                                     (format "%s/%s" (if (clojure.string/ends-with? uri "/")
                                                                             (subs uri 1 (dec (count uri)))
