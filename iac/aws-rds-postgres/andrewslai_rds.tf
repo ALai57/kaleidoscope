@@ -21,14 +21,9 @@ data "aws_security_group" "default" {
 ##############################################################
 
 variable "andrewslai_db_username" {}
-
 variable "andrewslai_db_password" {}
-
-variable "andrewslai_home_ip" {}
-
-variable "andrewslai_db_port" {
-  default = "5432"
-}
+variable "andrewslai_home_ip"     {}
+variable "andrewslai_db_port"     {default = "5432"}
 
 ##############################################################
 # Security Groups

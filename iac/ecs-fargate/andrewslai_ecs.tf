@@ -4,39 +4,25 @@
 # Variables
 ##############################################################
 
-variable "KALEIDOSCOPE_DB_TYPE" {
-  description = "Database username"
-}
+variable "KALEIDOSCOPE_DB_TYPE" {description = "Database type"}
+variable "KALEIDOSCOPE_DB_USER" {description = "Database username"}
+variable "KALEIDOSCOPE_DB_NAME" {description = "Database name"}
+variable "KALEIDOSCOPE_DB_HOST" {description = "Database host url"}
+variable "KALEIDOSCOPE_DB_PORT" {description = "Database port"}
 
-variable "KALEIDOSCOPE_DB_USER" {
-  description = "Database username"
-}
+variable "KALEIDOSCOPE_AUTH_TYPE"           {description = "Type of Authentication"}
+variable "KALEIDOSCOPE_AUTH_REALM"          {description = "Keycloak realm to auth into"}
+variable "KALEIDOSCOPE_AUTH_URL"            {description = "Keycloak URL"}
+variable "KALEIDOSCOPE_AUTH_CLIENT"         {description = "Keycloak client id"}
 
-variable "KALEIDOSCOPE_DB_NAME" {
-  description = "Database password"
-}
-
-variable "KALEIDOSCOPE_DB_HOST" {
-  description = "Database host url"
-}
-
-variable "KALEIDOSCOPE_DB_PORT" {
-  description = "Database port"
-}
-
-
-variable "KALEIDOSCOPE_AUTH_TYPE" {description = "Type of Authentication"}
-variable "KALEIDOSCOPE_AUTH_REALM" {description = "Keycloak realm to auth into"}
-variable "KALEIDOSCOPE_AUTH_URL" {description = "Keycloak URL"}
-variable "KALEIDOSCOPE_AUTH_CLIENT" {description = "Keycloak client id"}
-variable "KALEIDOSCOPE_AUTHORIZATION_TYPE" {description = "What type of Authorization scheme to use"}
+variable "KALEIDOSCOPE_AUTHORIZATION_TYPE"  {description = "What type of Authorization scheme to use"}
 variable "KALEIDOSCOPE_STATIC_CONTENT_TYPE" {description = "How to serve static content"}
-variable "KALEIDOSCOPE_BUCKET" {description = "Where to serve andrewslai app from"}
+variable "KALEIDOSCOPE_BUCKET"              {description = "Where to serve kaleidoscope app from"}
 
-variable "KALEIDOSCOPE_WEDDING_AUTH_TYPE" {description = "Type of Authentication"}
-variable "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE" {description = "What type of Authorization scheme to use"}
+variable "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           {description = "Type of Authentication"}
+variable "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  {description = "What type of Authorization scheme to use"}
 variable "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" {description = "How to serve static content"}
-variable "KALEIDOSCOPE_WEDDING_BUCKET" {description = "Where to serve wedding app from"}
+variable "KALEIDOSCOPE_WEDDING_BUCKET"              {description = "Where to serve wedding app from"}
 
 # Necessary because it seems like the DefaultRegionProviderChain walks down a chain of
 # providers to find its region. If it cannot find the AWS region in environment, etc
@@ -117,21 +103,25 @@ resource "aws_security_group" "ecs_allow_http_https" {
 # Secret values
 ##############################################################
 
+# Adding the new secret defaults will cause TF to detect a
+# secret_version change and recreate the resource
 variable "example_secrets" {
   default = {
     andrewslai_auth_secret = "FILLMEIN"
     andrewslai_db_password = "FILLMEIN"
+    #andrewslai_loki_password = "FILLMEIN"
+    #andrewslai_sumo_password = "FILLMEIN"
   }
 
   type = map(string)
 }
 
-resource "aws_secretsmanager_secret" "andrewslai_secrets" {
+resource "aws_secretsmanager_secret" "kaleidoscope_secrets" {
   name = "andrewslai-secrets"
 }
 
-resource "aws_secretsmanager_secret_version" "andrewslai_secret_version" {
-  secret_id     = aws_secretsmanager_secret.andrewslai_secrets.id
+resource "aws_secretsmanager_secret_version" "kaleidoscope_secret_version" {
+  secret_id     = aws_secretsmanager_secret.kaleidoscope_secrets.id
   secret_string = jsonencode(var.example_secrets)
 }
 
@@ -183,7 +173,7 @@ resource "aws_iam_role_policy" "ecsTaskExecutionRolePolicy" {
                 "secretsmanager:GetSecretValue"
         ],
         "Effect": "Allow",
-        "Resource": ["${aws_secretsmanager_secret.andrewslai_secrets.arn}"]
+        "Resource": ["${aws_secretsmanager_secret.kaleidoscope_secrets.arn}"]
       }
     ]
   }
@@ -421,9 +411,9 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
     ],
     "secrets": [
         {"name":  "HTTP_PASSWORD",
-         "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_loki_password::"},
+         "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:andrewslai_loki_password::"},
         {"name":  "SUMO_PASSWORD",
-         "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_sumo_password::"}
+         "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:andrewslai_sumo_password::"}
      ],
     "firelensConfiguration": {
         "type": "fluentbit",
@@ -457,15 +447,46 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
     ],
     "secrets": [
       {
+        "name": "ANDREWSLAI_DB_PASSWORD",
+        "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:andrewslai_db_password::"
+      },
+      {
+        "name": "ANDREWSLAI_AUTH_SECRET",
+        "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:andrewslai_auth_secret::"
+      },
+      {
         "name": "KALEIDOSCOPE_DB_PASSWORD",
-        "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_db_password::"
+        "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:andrewslai_db_password::"
       },
       {
         "name": "KALEIDOSCOPE_AUTH_SECRET",
-        "valueFrom": "${aws_secretsmanager_secret.andrewslai_secrets.arn}:andrewslai_auth_secret::"
+        "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:andrewslai_auth_secret::"
       }
      ],
     "environment": [
+      {"name": "ANDREWSLAI_DB_TYPE", "value": "${var.KALEIDOSCOPE_DB_TYPE}"},
+      {"name": "ANDREWSLAI_DB_USER", "value": "${var.KALEIDOSCOPE_DB_USER}"},
+      {"name": "ANDREWSLAI_DB_NAME", "value": "${var.KALEIDOSCOPE_DB_NAME}"},
+      {"name": "ANDREWSLAI_DB_HOST", "value": "${var.KALEIDOSCOPE_DB_HOST}"},
+      {"name": "ANDREWSLAI_DB_PORT", "value": "${var.KALEIDOSCOPE_DB_PORT}"},
+
+      {"name": "ANDREWSLAI_AUTH_REALM" , "value": "${var.KALEIDOSCOPE_AUTH_REALM}"},
+      {"name": "ANDREWSLAI_AUTH_URL"   , "value": "${var.KALEIDOSCOPE_AUTH_URL}"},
+      {"name": "ANDREWSLAI_AUTH_CLIENT", "value": "${var.KALEIDOSCOPE_AUTH_CLIENT}"},
+
+      {"name": "ANDREWSLAI_AUTH_TYPE"  , "value": "${var.KALEIDOSCOPE_AUTH_TYPE}"},
+      {"name": "ANDREWSLAI_AUTHORIZATION_TYPE", "value": "${var.KALEIDOSCOPE_AUTHORIZATION_TYPE}"},
+      {"name": "ANDREWSLAI_STATIC_CONTENT_TYPE", "value": "${var.KALEIDOSCOPE_STATIC_CONTENT_TYPE}"},
+      {"name": "ANDREWSLAI_BUCKET", "value": "${var.KALEIDOSCOPE_BUCKET}"},
+
+      {"name": "ANDREWSLAI_WEDDING_AUTH_TYPE"  , "value": "${var.KALEIDOSCOPE_WEDDING_AUTH_TYPE}"},
+      {"name": "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE", "value": "${var.KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE}"},
+      {"name": "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE", "value": "${var.KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE}"},
+      {"name": "ANDREWSLAI_WEDDING_BUCKET", "value": "${var.KALEIDOSCOPE_WEDDING_BUCKET}"},
+
+
+
+
       {"name": "KALEIDOSCOPE_DB_TYPE", "value": "${var.KALEIDOSCOPE_DB_TYPE}"},
       {"name": "KALEIDOSCOPE_DB_USER", "value": "${var.KALEIDOSCOPE_DB_USER}"},
       {"name": "KALEIDOSCOPE_DB_NAME", "value": "${var.KALEIDOSCOPE_DB_NAME}"},

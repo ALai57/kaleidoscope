@@ -1,9 +1,10 @@
 (ns kaleidoscope.clj.test-main
-  (:require [clojure.test :as t]
+  "This test main allows the user to control the logging level."
+  (:require [clojure.java.io :as io]
+            [clojure.test :as t]
             [clojure.tools.cli :as cli]
             [clojure.tools.namespace.find :as ns.find]
-            [taoensso.timbre :as log]
-            [clojure.java.io :as io]))
+            [taoensso.timbre :as log]))
 
 (def ^:dynamic *test-log-level*
   :warn)
@@ -35,4 +36,4 @@
     (apply require TEST-NSES)
     (binding [*test-log-level* (:level options)]
       (log/with-min-level (:level options)
-        (t/run-all-tests #"andrewslai.*")))))
+        (t/run-all-tests #"kaleidoscope.*")))))

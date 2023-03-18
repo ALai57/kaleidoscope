@@ -1,5 +1,5 @@
 
-resource "aws_ecr_repository" "andrewslai_ecr" {
+resource "aws_ecr_repository" "kaleidoscope_ecr" {
   name                 = "andrewslai_ecr"
   image_tag_mutability = "MUTABLE"
 
@@ -8,7 +8,7 @@ resource "aws_ecr_repository" "andrewslai_ecr" {
   }
 }
 
-resource "aws_ecr_repository" "andrewslai_fluentbit_ecr" {
+resource "aws_ecr_repository" "kaleidoscope_fluentbit_ecr" {
   name                 = "andrewslai_fluentbit_ecr"
   image_tag_mutability = "MUTABLE"
 
