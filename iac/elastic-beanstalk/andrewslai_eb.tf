@@ -2,23 +2,23 @@
 # Variables
 ##############################################################
 
-variable "ANDREWSLAI_DB_PASSWORD" {
+variable "KALEIDOSCOPE_DB_PASSWORD" {
   description = "Database password"
 }
 
-variable "ANDREWSLAI_DB_USER" {
+variable "KALEIDOSCOPE_DB_USER" {
   description = "Database username"
 }
 
-variable "ANDREWSLAI_DB_NAME" {
+variable "KALEIDOSCOPE_DB_NAME" {
   description = "Database password"
 }
 
-variable "ANDREWSLAI_DB_HOST" {
+variable "KALEIDOSCOPE_DB_HOST" {
   description = "Database host url"
 }
 
-variable "ANDREWSLAI_DB_PORT" {
+variable "KALEIDOSCOPE_DB_PORT" {
   description = "Database port"
 }
 
@@ -246,28 +246,28 @@ resource "aws_elastic_beanstalk_environment" "andrewslai_env" {
   }
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "ANDREWSLAI_DB_PASSWORD"
-    value     = "${var.ANDREWSLAI_DB_PASSWORD}"
+    name      = "KALEIDOSCOPE_DB_PASSWORD"
+    value     = "${var.KALEIDOSCOPE_DB_PASSWORD}"
   }
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "ANDREWSLAI_DB_USER"
-    value     = "${var.ANDREWSLAI_DB_USER}"
+    name      = "KALEIDOSCOPE_DB_USER"
+    value     = "${var.KALEIDOSCOPE_DB_USER}"
   }
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "ANDREWSLAI_DB_NAME"
-    value     = "${var.ANDREWSLAI_DB_NAME}"
+    name      = "KALEIDOSCOPE_DB_NAME"
+    value     = "${var.KALEIDOSCOPE_DB_NAME}"
   }
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "ANDREWSLAI_DB_HOST"
-    value     = "${var.ANDREWSLAI_DB_HOST}"
+    name      = "KALEIDOSCOPE_DB_HOST"
+    value     = "${var.KALEIDOSCOPE_DB_HOST}"
   }
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "ANDREWSLAI_DB_PORT"
-    value     = "${var.ANDREWSLAI_DB_PORT}"
+    name      = "KALEIDOSCOPE_DB_PORT"
+    value     = "${var.KALEIDOSCOPE_DB_PORT}"
   }
 
 }

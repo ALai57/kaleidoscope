@@ -53,37 +53,37 @@
                                             (mock/header "Authorization" "Bearer x")))))))
 
       "Public-access routes can be reached by unauthenticated user"
-      {:status 200} {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                     "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                     "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                     "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none"}
+      {:status 200} {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                     "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                     "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                     "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"}
 
       "Restricted-access routes can be reached by authorized user"
-      {:status 200} {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                     "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
-                     "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                     "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none"}
+      {:status 200} {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                     "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
+                     "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                     "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"}
 
       #_#_#_"Restricted-access routes cannot be reached by unauthorized user"
-      {:status 401} {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                     "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                     "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                     "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+      {:status 401} {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                     "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                     "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                     "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
 
       #_#_#_"Restricted-access routes cannot be reached by unauthenticated user"
-      {:status 401} {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                     "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                     "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                     "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+      {:status 401} {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                     "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                     "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                     "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
       ))
 
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                          "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                          "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                          "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+      (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                          "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                          "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                          "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
                          (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
                          env/prepare-wedding
                          wedding/wedding-app)]
@@ -103,10 +103,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest static-content-test
-  (let [system (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                     "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
-                     "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                     "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [system (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                     "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
+                     "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                     "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
                     (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
                     env/prepare-wedding)
         app    (->> system
@@ -120,10 +120,10 @@
                       :uri            "/media/"})))))
 
 (deftest upload-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                  "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                  "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
                  env/prepare-wedding
                  wedding/wedding-app)]
@@ -137,10 +137,10 @@
                 (app (mock/request :get "/media/lock.svg"))))))
 
 (deftest albums-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none"}
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                  "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                  "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"}
                  (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
                  env/prepare-wedding
                  wedding/wedding-app
@@ -177,10 +177,10 @@
        (uuid? (java.util.UUID/fromString s))))
 
 (deftest album-contents-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                  "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                  "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
                  env/prepare-wedding
                  wedding/wedding-app
@@ -222,10 +222,10 @@
         ))))
 
 (deftest contents-retrieval-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                  "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                  "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
                  env/prepare-wedding
                  wedding/wedding-app
@@ -259,10 +259,10 @@
                     (app (-> (mock/request :get "/albums/-/contents"))))) ))))
 
 (deftest albums-auth-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                  "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
-                  "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                  "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
                  env/prepare-wedding
                  wedding/wedding-app)]

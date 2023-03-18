@@ -1,7 +1,7 @@
 #!/bin/bash
 
-PGPASSWORD=$ANDREWSLAI_DB_PASSWORD \
-psql --username=$ANDREWSLAI_DB_USER \
-     --dbname=$ANDREWSLAI_DB_NAME \
-     --host=$ANDREWSLAI_DB_HOST \
-     --port=$ANDREWSLAI_DB_PORT
+PGPASSWORD=$KALEIDOSCOPE_DB_PASSWORD \
+psql --username=$KALEIDOSCOPE_DB_USER \
+     --dbname=$KALEIDOSCOPE_DB_NAME \
+     --host=$KALEIDOSCOPE_DB_HOST \
+     --port=$KALEIDOSCOPE_DB_PORT

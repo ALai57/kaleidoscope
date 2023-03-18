@@ -40,47 +40,47 @@
 (defn env->keycloak
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:realm             [:string {:error/message "Missing Keycloak realm. Set via ANDREWSLAI_AUTH_REALM environment variable."}]]
-                   [:auth-server-url   [:string {:error/message "Missing Keycloak auth server url. Set via ANDREWSLAI_AUTH_URL environment variable."}]]
-                   [:client-id         [:string {:error/message "Missing Keycloak client id. Set via ANDREWSLAI_AUTH_CLIENT environment variable."}]]
-                   [:client-secret     [:string {:error/message "Missing Keycloak secret. Set via ANDREWSLAI_AUTH_SECRET environment variable."}]]
+                   [:realm             [:string {:error/message "Missing Keycloak realm. Set via KALEIDOSCOPE_AUTH_REALM environment variable."}]]
+                   [:auth-server-url   [:string {:error/message "Missing Keycloak auth server url. Set via KALEIDOSCOPE_AUTH_URL environment variable."}]]
+                   [:client-id         [:string {:error/message "Missing Keycloak client id. Set via KALEIDOSCOPE_AUTH_CLIENT environment variable."}]]
+                   [:client-secret     [:string {:error/message "Missing Keycloak secret. Set via KALEIDOSCOPE_AUTH_SECRET environment variable."}]]
                    [:ssl-required      [:string {:error/message "Missing Keycloak ssl requirement. Set in code. Should never happen."}]]
                    [:confidential-port [:int {:error/message "Missing Keycloak confidential port. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:realm             (get env "ANDREWSLAI_AUTH_REALM")
-   :auth-server-url   (get env "ANDREWSLAI_AUTH_URL")
-   :client-id         (get env "ANDREWSLAI_AUTH_CLIENT")
-   :client-secret     (get env "ANDREWSLAI_AUTH_SECRET")
+  {:realm             (get env "KALEIDOSCOPE_AUTH_REALM")
+   :auth-server-url   (get env "KALEIDOSCOPE_AUTH_URL")
+   :client-id         (get env "KALEIDOSCOPE_AUTH_CLIENT")
+   :client-secret     (get env "KALEIDOSCOPE_AUTH_SECRET")
    :ssl-required      "external"
    :confidential-port 0})
 
 (defn env->pg-conn
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:dbname   [:string {:error/message "Missing DB name. Set via ANDREWSLAI_DB_NAME environment variable."}]]
-                   [:db-port  [:string {:error/message "Missing DB port. Set via ANDREWSLAI_DB_PORT environment variable."}]]
-                   [:host     [:string {:error/message "Missing DB host. Set via ANDREWSLAI_DB_HOST environment variable."}]]
-                   [:username [:string {:error/message "Missing DB user. Set via ANDREWSLAI_DB_USER environment variable."}]]
-                   [:password [:string {:error/message "Missing DB pass. Set via ANDREWSLAI_DB_PASSWORD environment variable."}]]
+                   [:dbname   [:string {:error/message "Missing DB name. Set via KALEIDOSCOPE_DB_NAME environment variable."}]]
+                   [:db-port  [:string {:error/message "Missing DB port. Set via KALEIDOSCOPE_DB_PORT environment variable."}]]
+                   [:host     [:string {:error/message "Missing DB host. Set via KALEIDOSCOPE_DB_HOST environment variable."}]]
+                   [:username [:string {:error/message "Missing DB user. Set via KALEIDOSCOPE_DB_USER environment variable."}]]
+                   [:password [:string {:error/message "Missing DB pass. Set via KALEIDOSCOPE_DB_PASSWORD environment variable."}]]
                    [:dbtype   [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:dbname   (get env "ANDREWSLAI_DB_NAME")
-   :db-port  (get env "ANDREWSLAI_DB_PORT" "5432")
-   :host     (get env "ANDREWSLAI_DB_HOST")
-   :username (get env "ANDREWSLAI_DB_USER")
-   :password (get env "ANDREWSLAI_DB_PASSWORD")
+  {:dbname   (get env "KALEIDOSCOPE_DB_NAME")
+   :db-port  (get env "KALEIDOSCOPE_DB_PORT" "5432")
+   :host     (get env "KALEIDOSCOPE_DB_HOST")
+   :username (get env "KALEIDOSCOPE_DB_USER")
+   :password (get env "KALEIDOSCOPE_DB_PASSWORD")
    :dbtype   "postgresql"})
 
 (defn env->andrewslai-s3
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:bucket [:string {:error/message "Missing S3 bucket. Set via ANDREWSLAI_BUCKET environment variable."}]]
+                   [:bucket [:string {:error/message "Missing S3 bucket. Set via KALEIDOSCOPE_BUCKET environment variable."}]]
                    [:creds  [:any {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:bucket (get env "ANDREWSLAI_BUCKET")
+  {:bucket (get env "KALEIDOSCOPE_BUCKET")
    :creds  s3-storage/CustomAWSCredentialsProviderChain})
 
 (defn env->caheriaguilar-s3
@@ -106,20 +106,20 @@
 (defn env->wedding-s3
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:bucket [:string {:error/message "Missing Wedding S3 bucket. Set via ANDREWSLAI_WEDDING_BUCKET environment variable."}]]
+                   [:bucket [:string {:error/message "Missing Wedding S3 bucket. Set via KALEIDOSCOPE_WEDDING_BUCKET environment variable."}]]
                    [:creds  [:any {:error/message "Missing Wedding S3 credential provider chain. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:bucket (get env "ANDREWSLAI_WEDDING_BUCKET")
+  {:bucket (get env "KALEIDOSCOPE_WEDDING_BUCKET")
    :creds  s3-storage/CustomAWSCredentialsProviderChain})
 
 (defn env->andrewslai-local-fs
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:root [:string {:error/message "Missing Local FS root path. Set via ANDREWSLAI_STATIC_CONTENT_FOLDER environment variable."}]]]]
+                   [:root [:string {:error/message "Missing Local FS root path. Set via KALEIDOSCOPE_STATIC_CONTENT_FOLDER environment variable."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:root (get env "ANDREWSLAI_STATIC_CONTENT_FOLDER")})
+  {:root (get env "KALEIDOSCOPE_STATIC_CONTENT_FOLDER")})
 
 (defn env->caheriaguilar-local-fs
   {:malli/schema [:=> [:cat :map]
@@ -140,10 +140,10 @@
 (defn env->wedding-local-fs
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:root [:string {:error/message "Missing Local FS root path. Set via ANDREWSLAI_WEDDING_STATIC_CONTENT_FOLDER environment variable."}]]]]
+                   [:root [:string {:error/message "Missing Local FS root path. Set via KALEIDOSCOPE_WEDDING_STATIC_CONTENT_FOLDER environment variable."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:root (get env "ANDREWSLAI_WEDDING_STATIC_CONTENT_FOLDER")})
+  {:root (get env "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_FOLDER")})
 
 
 
@@ -164,7 +164,7 @@
 
 (def database-boot-instructions
   {:name      :database-connection
-   :path      "ANDREWSLAI_DB_TYPE"
+   :path      "KALEIDOSCOPE_DB_TYPE"
    :launchers {"postgres"          (fn  [env]
                                      (let [ds (connection/->pool HikariDataSource
                                                                  (env->pg-conn env))]
@@ -176,7 +176,7 @@
 
 (def andrewslai-authentication-boot-instructions
   {:name      :andrewslai-authentication
-   :path      "ANDREWSLAI_AUTH_TYPE"
+   :path      "KALEIDOSCOPE_AUTH_TYPE"
    :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
                "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name "Test User"
@@ -186,14 +186,14 @@
 
 (def andrewslai-authorization-boot-instructions
   {:name      :andrewslai-authorization
-   :path      "ANDREWSLAI_AUTHORIZATION_TYPE"
+   :path      "KALEIDOSCOPE_AUTHORIZATION_TYPE"
    :launchers {"public-access"           (fn [_env] tu/public-access)
                "use-access-control-list" (fn [_env] andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST)}
    :default   "use-access-control-list"})
 
 (def andrewslai-static-content-adapter-boot-instructions
   {:name      :andrewslai-static-content-adapter
-   :path      "ANDREWSLAI_STATIC_CONTENT_TYPE"
+   :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
                "s3"               (fn  [env] (s3-storage/map->S3 (env->andrewslai-s3 env)))
                "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
@@ -254,7 +254,7 @@
 
 (def wedding-authentication-boot-instructions
   {:name      :wedding-authentication
-   :path      "ANDREWSLAI_WEDDING_AUTH_TYPE"
+   :path      "KALEIDOSCOPE_WEDDING_AUTH_TYPE"
    :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
                "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name "Test User"
@@ -263,14 +263,14 @@
 
 (def wedding-authorization-boot-instructions
   {:name      :wedding-authorization
-   :path      "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"
+   :path      "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"
    :launchers {"public-access"           (fn [_env] tu/public-access)
                "use-access-control-list" (fn [_env] wedding/WEDDING-ACCESS-CONTROL-LIST)}
    :default   "use-access-control-list"})
 
 (def wedding-static-content-adapter-boot-instructions
   {:name      :wedding-static-content-adapter
-   :path      "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE"
+   :path      "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
                "s3"               (fn  [env] (s3-storage/map->S3 (env->wedding-s3 env)))
                "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))

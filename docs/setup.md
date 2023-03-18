@@ -16,11 +16,11 @@ Create a superuser with permissions on the database
 Set environment variables to allow you to connect to the database.
 An example configuration is below
 ```
-ANDREWSLAI_DB_HOST=localhost
-ANDREWSLAI_DB_USER=andrewslai
-ANDREWSLAI_DB_PASSWORD=andrewslai
-ANDREWSLAI_DB_NAME=andrewslai
-ANDREWSLAI_DB_PORT=5432
+KALEIDOSCOPE_DB_HOST=localhost
+KALEIDOSCOPE_DB_USER=andrewslai
+KALEIDOSCOPE_DB_PASSWORD=andrewslai
+KALEIDOSCOPE_DB_NAME=andrewslai
+KALEIDOSCOPE_DB_PORT=5432
 ```
 
 On Linux, if you just installed postgresql, you may need to change some

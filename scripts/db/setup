@@ -16,9 +16,9 @@
 ##########################################
 # Setup
 ##########################################
-export ANDREWSLAI_DB_NAME="andrewslai_db"
-export ANDREWSLAI_DB_USER="andrewslai"
-export ANDREWSLAI_DB_PASSWORD="andrewslai"
+export KALEIDOSCOPE_DB_NAME="andrewslai_db"
+export KALEIDOSCOPE_DB_USER="andrewslai"
+export KALEIDOSCOPE_DB_PASSWORD="andrewslai"
 # POSTGRES_USER_PASSWORD exported  FROM .bashrc
 export PGPASSWORD=$POSTGRES_USER_PASSWORD
 
@@ -40,13 +40,13 @@ setup_user () {
   if ($does_user_exist); then
       overwrite_user_prompt
       create_new_db_user
-      grant_db_permissions $ANDREWSLAI_DB_USER $ANDREWSLAI_DB_NAME
+      grant_db_permissions $KALEIDOSCOPE_DB_USER $KALEIDOSCOPE_DB_NAME
   fi
 }
 
 overwrite_user_prompt () {
   echo "****************";
-  echo "Do you want to overwrite the existing user: $ANDREWSLAI_DB_USER? (Y, N)"
+  echo "Do you want to overwrite the existing user: $KALEIDOSCOPE_DB_USER? (Y, N)"
   read input_variable;
   case $input_variable in
       Y ) echo "Yes - Continuing";;
@@ -60,22 +60,22 @@ populate_default_database () {
   for f in ./defaults/*
   do
       #cat $f
-      PGPASSWORD=$ANDREWSLAI_DB_PASSWORD psql -U $ANDREWSLAI_DB_USER -d $ANDREWSLAI_DB_NAME -f $f >> db_init_log.txt
+      PGPASSWORD=$KALEIDOSCOPE_DB_PASSWORD psql -U $KALEIDOSCOPE_DB_USER -d $KALEIDOSCOPE_DB_NAME -f $f >> db_init_log.txt
       echo "Added $f to database"
   done
-  # psql -U postgres -d $ANDREWSLAI_DB_NAME -f "./defaults/fruit.sql"
-  # psql -U postgres -d $ANDREWSLAI_DB_NAME -f "./defaults/articles.sql"
+  # psql -U postgres -d $KALEIDOSCOPE_DB_NAME -f "./defaults/fruit.sql"
+  # psql -U postgres -d $KALEIDOSCOPE_DB_NAME -f "./defaults/articles.sql"
 }
 
 create_new_db_user () {
   echo "Creating user... "
-  echo "username: $ANDREWSLAI_DB_USER"
-  echo "password: $ANDREWSLAI_DB_PASSWORD";
+  echo "username: $KALEIDOSCOPE_DB_USER"
+  echo "password: $KALEIDOSCOPE_DB_PASSWORD";
 
-  psql -U postgres -d $ANDREWSLAI_DB_NAME -c \
-       "DROP USER IF EXISTS $ANDREWSLAI_DB_USER;
-       CREATE USER $ANDREWSLAI_DB_USER
-              WITH ENCRYPTED PASSWORD '$ANDREWSLAI_DB_PASSWORD';"
+  psql -U postgres -d $KALEIDOSCOPE_DB_NAME -c \
+       "DROP USER IF EXISTS $KALEIDOSCOPE_DB_USER;
+       CREATE USER $KALEIDOSCOPE_DB_USER
+              WITH ENCRYPTED PASSWORD '$KALEIDOSCOPE_DB_PASSWORD';"
 }
 
 grant_db_permissions () {
@@ -90,8 +90,8 @@ grant_db_permissions () {
 }
 
 does_user_exist () {
-  if  psql -U postgres -d $ANDREWSLAI_DB_NAME -c "\du" |
-          cut -d \| -f 1 | grep -qw $ANDREWSLAI_DB_USER; then
+  if  psql -U postgres -d $KALEIDOSCOPE_DB_NAME -c "\du" |
+          cut -d \| -f 1 | grep -qw $KALEIDOSCOPE_DB_USER; then
       echo "****************";
       echo "User exists"
       echo 1
@@ -106,19 +106,19 @@ does_user_exist () {
 # Helper fcns 
 ##########################################
 delete_database () {
-   psql -U postgres -c "DROP DATABASE $ANDREWSLAI_DB_NAME;"
+   psql -U postgres -c "DROP DATABASE $KALEIDOSCOPE_DB_NAME;"
 }
 
 create_database () {
-   psql -U postgres -c "CREATE DATABASE $ANDREWSLAI_DB_NAME;"
+   psql -U postgres -c "CREATE DATABASE $KALEIDOSCOPE_DB_NAME;"
 }
 
 ##########################################
 # Main executable commands
 ##########################################
 echo "****************"
-echo "Checking if DB exists:: $ANDREWSLAI_DB_NAME"
-if  psql -U postgres -lqt | cut -d \| -f 1 | grep -qw $ANDREWSLAI_DB_NAME; then
+echo "Checking if DB exists:: $KALEIDOSCOPE_DB_NAME"
+if  psql -U postgres -lqt | cut -d \| -f 1 | grep -qw $KALEIDOSCOPE_DB_NAME; then
   echo "Database found!"
   overwrite_db_prompt
   delete_database

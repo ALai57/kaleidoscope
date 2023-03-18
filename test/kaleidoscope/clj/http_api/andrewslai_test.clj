@@ -35,10 +35,10 @@
 ;; Testing HTTP routes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (deftest ping-test
-  (let [handler (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                      "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
-                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+  (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                      "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                      "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                      (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                      env/prepare-andrewslai
                      andrewslai/andrewslai-app
@@ -49,10 +49,10 @@
                 (handler (mock/request :get "/ping"))))))
 
 (deftest home-test
-  (let [handler (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                      "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
-                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                      "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                      "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                      (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                      env/prepare-andrewslai
                      andrewslai/andrewslai-app)]
@@ -62,10 +62,10 @@
                 (handler (mock/request :get "/"))))))
 
 (deftest swagger-test
-  (let [handler (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                      "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
-                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+  (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                      "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                      "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                      (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                      env/prepare-andrewslai
                      andrewslai/andrewslai-app
@@ -77,10 +77,10 @@
 
 (deftest admin-routes-test
   (testing "Authenticated and Authorized happy path"
-    (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                    "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
-                    "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                    "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+    (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                    "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                    "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                    "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                    (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                    env/prepare-andrewslai
                    andrewslai/andrewslai-app
@@ -89,10 +89,10 @@
                   (app (-> (mock/request :get "/admin/")
                            (mock/header "Authorization" "Bearer x")))))))
   (testing "Authenticated but not Authorized cannot access"
-    (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                    "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
-                    "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                    "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+    (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                    "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                    "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                    "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                    (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                    env/prepare-andrewslai
                    andrewslai/andrewslai-app
@@ -104,10 +104,10 @@
 (deftest access-rule-configuration-test
   (are [description expected request]
     (testing description
-      (let [handler (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                          "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
-                          "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                          "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+      (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                          "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                          "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                          "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                          (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                          env/prepare-andrewslai
                          andrewslai/andrewslai-app)]
@@ -188,10 +188,10 @@
 (deftest published-article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
-      (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                      "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
-                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+      (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                      "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                      "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                      (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                      env/prepare-andrewslai
                      andrewslai/andrewslai-app)]
@@ -207,10 +207,10 @@
   (m/pred (fn [x] (= n (count x)))))
 
 (deftest create-branch-happy-path-test
-  (let [app     (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                      "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
-                      "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                      "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+  (let [app     (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                      "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                      "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                      (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                      env/prepare-andrewslai
                      andrewslai/andrewslai-app
@@ -247,10 +247,10 @@
                              (get-branches "http://other-host.com")))))))))
 
 (deftest publish-branch-test
-    (let [app             (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                               "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
-                               "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                               "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+    (let [app             (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                               "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                               "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                               "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                              (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                              env/prepare-andrewslai
                              andrewslai/andrewslai-app
@@ -284,10 +284,10 @@
                                          (merge article version)))))))))
 
 (deftest get-versions-test
-  (let [app       (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                        "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
-                        "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                        "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+  (let [app       (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                        "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                        "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                        "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                        (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                        env/prepare-andrewslai
                        andrewslai/andrewslai-app
@@ -317,10 +317,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest portfolio-test
-  (let [app      (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                       "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
-                       "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                       "ANDREWSLAI_STATIC_CONTENT_TYPE" "none"}
+  (let [app      (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                       "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                       "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                       "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                       (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                       env/prepare-andrewslai
                       andrewslai/andrewslai-app
@@ -349,10 +349,10 @@
                                                                slurp)}]))))
 
 (deftest content-upload-authorization-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                  "ANDREWSLAI_AUTH_TYPE"           "always-unauthenticated"
-                  "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                  env/prepare-andrewslai
                  andrewslai/andrewslai-app
@@ -363,10 +363,10 @@
                   (app (make-example-file-upload-request "foo.svg")))))))
 
 (deftest content-upload-and-retrieve-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                  "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
-                  "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                  env/prepare-andrewslai
                  andrewslai/andrewslai-app
@@ -402,10 +402,10 @@
 
 
 (deftest create-and-remove-group-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                  "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
-                  "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                  env/prepare-andrewslai
                  andrewslai/andrewslai-app
@@ -454,10 +454,10 @@
                                         (mock/header "Authorization" "Bearer user first-user")))))))))))
 
 (deftest retrieve-group-test
-  (let [app (->> {"ANDREWSLAI_DB_TYPE"             "embedded-h2"
-                  "ANDREWSLAI_AUTH_TYPE"           "custom-authenticated-user"
-                  "ANDREWSLAI_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "ANDREWSLAI_STATIC_CONTENT_TYPE" "in-memory"}
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/ANDREWSLAI-BOOT-INSTRUCTIONS)
                  env/prepare-andrewslai
                  andrewslai/andrewslai-app

@@ -46,11 +46,11 @@ sudo su - postgres
 Set environment variables to allow you to connect to the database.
 An example configuration is below
 ```
-ANDREWSLAI_DB_HOST=localhost
-ANDREWSLAI_DB_USER=andrewslai
-ANDREWSLAI_DB_PASSWORD=andrewslai
-ANDREWSLAI_DB_NAME=andrewslai
-ANDREWSLAI_DB_PORT=5432
+KALEIDOSCOPE_DB_HOST=localhost
+KALEIDOSCOPE_DB_USER=andrewslai
+KALEIDOSCOPE_DB_PASSWORD=andrewslai
+KALEIDOSCOPE_DB_NAME=andrewslai
+KALEIDOSCOPE_DB_PORT=5432
 ```
 
 ## Locally running app connected to locally running services
@@ -77,7 +77,7 @@ docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai
 There is a template for what the `.env.local` in `env.local.example`
 
 ```bash
-ANDREWSLAI_AUTH_TYPE=none ANDREWSLAI_DB_TYPE=embedded-h2 ANDREWSLAI_STATIC_CONTENT_TYPE=local ANDREWSLAI_STATIC_CONTENT_FOLDER='../andrewslai-frontend/resources/public' lein run
+KALEIDOSCOPE_AUTH_TYPE=none KALEIDOSCOPE_DB_TYPE=embedded-h2 KALEIDOSCOPE_STATIC_CONTENT_TYPE=local KALEIDOSCOPE_STATIC_CONTENT_FOLDER='../andrewslai-frontend/resources/public' lein run
 
 ```
 

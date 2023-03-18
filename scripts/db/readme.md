@@ -17,9 +17,9 @@ CONNECT TO REMOTE DB
 ```
 use_db aws
 psql \
-   --host=$ANDREWSLAI_DB_HOST \
-   --port=$ANDREWSLAI_DB_PORT \
-   --username=$ANDREWSLAI_DB_USER \
-   --dbname=$ANDREWSLAI_DB_NAME \
+   --host=$KALEIDOSCOPE_DB_HOST \
+   --port=$KALEIDOSCOPE_DB_PORT \
+   --username=$KALEIDOSCOPE_DB_USER \
+   --dbname=$KALEIDOSCOPE_DB_NAME \
    --password
 ```

@@ -69,13 +69,13 @@
                    with-out-str)))
 
   (def x
-    (env/start-system! {"ANDREWSLAI_DB_TYPE"                     "embedded-h2"
-                        "ANDREWSLAI_AUTH_TYPE"                   "custom-authenticated-user"
-                        "ANDREWSLAI_AUTHORIZATION_TYPE"          "public-access"
-                        "ANDREWSLAI_STATIC_CONTENT_TYPE"         "none"
-                        "ANDREWSLAI_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
-                        "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                        "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE" "none"
+    (env/start-system! {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+                        "KALEIDOSCOPE_AUTH_TYPE"                   "custom-authenticated-user"
+                        "KALEIDOSCOPE_AUTHORIZATION_TYPE"          "public-access"
+                        "KALEIDOSCOPE_STATIC_CONTENT_TYPE"         "none"
+                        "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
+                        "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
+                        "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"
                         }
                        ))
 
