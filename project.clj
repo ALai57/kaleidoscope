@@ -1,7 +1,7 @@
 (def COMPILE-TIME-LOG-LEVEL
   :debug)
 
-(defproject org.clojars.alai57/kaleidoscope "0.0.100-SNAPSHOT"
+(defproject org.clojars.alai57/kaleidoscope "0.1.1-SNAPSHOT"
   :url "https://github.com/ALai57/kaleidoscope"
   :license {:name         "Eclipse Public License - v 1.0"
             :url          "http://www.eclipse.org/legal/epl-v10.html"
@@ -93,9 +93,9 @@
 
                   ;; Necessary for dockerizing on M1:
                   ;; https://stackoverflow.com/questions/67361936/exec-user-process-caused-exec-format-error-in-aws-fargate-service
-                  ["shell" "docker" "buildx" "build" "--platform=linux/amd64" "-t" "andrewslai" "."]
-                  ["shell" "docker" "tag" "andrewslai:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
-                  ["shell" "docker" "push" "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr"]
+                  ["shell" "docker" "buildx" "build" "--platform=linux/amd64" "-t" "kaleidoscope" "."]
+                  ["shell" "docker" "tag" "kaleidoscope:latest" "758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_ecr"]
+                  ["shell" "docker" "push" "758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_ecr"]
                   ["change" "version" "leiningen.release/bump-version"]
                   ["vcs" "commit"]
                   ["vcs" "push"]])
