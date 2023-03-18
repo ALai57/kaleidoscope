@@ -180,13 +180,16 @@
 (def ring-request-pipeline-config
   [{:name       :add-request-identifier
     :handler    add-request-identifier
-    :log-diffs? true}
+    ;;:log-diffs? true
+    }
    {:name       :add-params-to-request
     :handler    params/params-request
-    :log-diffs? true}
+    ;;:log-diffs? true
+    }
    {:name       :add-multipart-params-to-request
     :handler    mp/multipart-params-request
-    :log-diffs? true}])
+    ;;:log-diffs? true
+    }])
 
 (defn ring-auth-pipeline-config
   [authentication-backend access-rules]
