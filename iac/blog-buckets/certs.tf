@@ -16,7 +16,7 @@ data "aws_lb_listener" "main" {
 # Created this manually in AWS console - go to AWS Certificate Manager
 # to request a cert. Then create DNS records using the AWS console.
 data "aws_acm_certificate" "blog_certs" {
-  for_each = toset(["caheriaguilar.com", "sahiltalkingcents.com"])
+  for_each = toset(["caheriaguilar.com", "sahiltalkingcents.com", "andrewslai.com"])
   domain   = each.key
   statuses = ["ISSUED"]
 }

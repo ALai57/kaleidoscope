@@ -145,7 +145,7 @@ data "aws_iam_policy_document" "assume_role_policy" {
 # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html
 resource "aws_iam_role" "ecsTaskExecutionRole" {
   name               = "kaleidoscope-production-ecs"
-  assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
+  assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }
 
 resource "aws_iam_role_policy" "ecsTaskExecutionRolePolicy" {
@@ -183,7 +183,7 @@ resource "aws_iam_role_policy" "ecsTaskExecutionRolePolicy" {
 ## For the actual task that is running
 resource "aws_iam_role" "ecsTaskRole" {
   name               = "kaleidoscope-task"
-  assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
+  assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }
 
 resource "aws_iam_role_policy" "ecsTaskRolePolicy" {
@@ -290,8 +290,11 @@ resource "aws_lb_listener" "http_listener" {
   }
 }
 
+
+# Created this manually in AWS console - go to AWS Certificate Manager
+# to request a cert. Then create DNS records using the AWS console.
 data "aws_acm_certificate" "issued" {
-  domain   = "andrewslai.com"
+  domain   = "kaleidoscope.pub"
   statuses = ["ISSUED"]
 }
 
@@ -335,7 +338,7 @@ resource "aws_lb_listener_rule" "host_based_routing" {
 ##############################################################
 
 resource "aws_ecs_cluster" "kaleidoscope_cluster" {
-  name = "andrewslai"
+  name = "kaleidoscope"
 }
 
 resource "aws_ecs_cluster_capacity_providers" "kaleidoscope_provider" {
@@ -356,13 +359,13 @@ resource "aws_ecs_cluster_capacity_providers" "kaleidoscope_provider" {
 ## https://aws.amazon.com/blogs/containers/choosing-container-logging-options-to-avoid-backpressure/
 ##  https://aws.amazon.com/blogs/containers/how-to-set-fluentd-and-fluent-bit-input-parameters-in-firelens/
 resource "aws_ecs_task_definition" "kaleidoscope_task" {
-  family                = "andrewslai-site"
+  family                   = "kaleidoscope"
   requires_compatibilities = ["FARGATE"]
-  network_mode          = "awsvpc"
-  cpu                   = "256"
-  memory                = "512"
-  execution_role_arn    = "${aws_iam_role.ecsTaskExecutionRole.arn}"
-  task_role_arn         = "${aws_iam_role.ecsTaskRole.arn}"
+  network_mode             = "awsvpc"
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecsTaskExecutionRole.arn
+  task_role_arn            = aws_iam_role.ecsTaskRole.arn
 
   # NOTE: 2022-11-06 The `log_router` container definition is causing problems.
   # It is consistently getting shut down with exit code 137, with unknown root
@@ -505,7 +508,7 @@ DEFINITION
 }
 
 resource "aws_ecs_service" "kaleidoscope_service" {
-  name            = "andrewslai-service"
+  name            = "kaleidoscope-service"
   cluster         = aws_ecs_cluster.kaleidoscope_cluster.id
   launch_type     = "FARGATE"
   task_definition = aws_ecs_task_definition.kaleidoscope_task.arn
@@ -534,7 +537,7 @@ resource "aws_ecs_service" "kaleidoscope_service" {
 }
 
 resource "aws_cloudwatch_log_group" "logs" {
-  name              = "/fargate/service/andrewslai-production"
+  name              = "/fargate/service/kaleidoscope/app"
   retention_in_days = 90
 }
 
