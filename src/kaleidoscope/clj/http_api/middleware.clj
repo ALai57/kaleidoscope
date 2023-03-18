@@ -119,7 +119,7 @@
     (let [request-id (str (java.util.UUID/randomUUID))]
       (binding [*request-id* request-id]
         (handler (let [modified-request (assoc request :request-id request-id)]
-                   (ddiff/pretty-print (remove-unchanged (ddiff/diff request modified-request)))
+                   ;;(ddiff/pretty-print (remove-unchanged (ddiff/diff request modified-request)))
                    (log/debugf "Adding request-id %s to ring request" request-id)
                    modified-request))))))
 
@@ -196,7 +196,8 @@
   [{:name       :authenticate-user
     :handler    (fn [request]
                   (apply ba/authentication-request request authentication-backend))
-    :log-diffs? true}])
+    ;;:log-diffs? true
+    }])
 
 (def ring-request-pipeline
   (compose-xforms ring-request-pipeline-config))
@@ -209,13 +210,16 @@
   [{:name       :convert-response-to-json
     :handler    (fn [response]
                   (json-mw/json-response response {}))
-    :log-diffs? true}
+    ;;:log-diffs? true
+    }
    {:name       :add-content-type-headers
     :handler    identity
-    :log-diffs? true}
+    ;;:log-diffs? true
+    }
    {:name       :add-cache-control-headers
     :handler    identity
-    :log-diffs? true}])
+    ;;:log-diffs? true
+    }])
 
 (def ring-response-pipeline
   (compose-xforms ring-response-pipeline-config))
