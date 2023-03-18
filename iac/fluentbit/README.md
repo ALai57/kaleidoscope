@@ -12,11 +12,11 @@ https://aws.amazon.com/blogs/containers/how-to-set-fluentd-and-fluent-bit-input-
 https://github.com/aws/containers-roadmap/issues/964
 
 Build the Docker container for Fluentbit. We must build and push the container
-to ECR so it can be downloaded and run when we start the `andrewslai` ECS service.
+to ECR so it can be downloaded and run when we start the `kaleidoscope` ECS service.
 This is due to the fact that the ECR service pulls the image from a private ECR repo
 (my repo) - this was the only way to customize FluentBit the way I wanted in ECS.
 ``` sh
-docker build -t andrewslai_fluentbit .
+docker build -t kaleidoscope_fluentbit .
 ```
 
 Run the Docker image we just built locally.
@@ -24,10 +24,10 @@ Run the Docker image we just built locally.
 docker run -p 2020:2020 \
            --env FLUENT_BIT_METRICS_LOG_GROUP=fluent-bit-metrics-firelens-example-parsed \
            --env FLUENT_BIT_METRICS_LOG_REGION=us-east-1 \
-           --env FLB_LOG_LEVEL=debug \
+           --env FLB_LOG_LEVEL=info \
            --env HOSTNAME=local-testing \
             --mount type=bind,source="/home/andrew/.aws",target="/root/.aws" \
-           andrewslai_fluentbit
+           kaleidoscope_fluentbit
 ```
 
 Talk to the Docker image we just built over HTTP. This is not the normal mode by which
@@ -60,7 +60,7 @@ aws ecr get-login-password \
 docker login \
   --username AWS \
   --password-stdin 758589815425.dkr.ecr.us-east-1.amazonaws.com
-docker tag andrewslai_fluentbit:latest 758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_fluentbit_ecr
-docker push 758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_fluentbit_ecr
+docker tag kaleidoscope_fluentbit:latest 758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_fluentbit_ecr
+docker push 758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_fluentbit_ecr
 
 ```

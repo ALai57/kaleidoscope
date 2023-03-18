@@ -6,7 +6,7 @@
             [taoensso.timbre :as log]))
 
 (def pom-path
-  "META-INF/maven/org.clojars.alai57/andrewslai/pom.properties")
+  "META-INF/maven/org.clojars.alai57/kaleidoscope/pom.properties")
 
 (defn parse-pom
   [pom-path]

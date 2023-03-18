@@ -387,7 +387,7 @@ resource "aws_ecs_task_definition" "kaleidoscope_task" {
 [
  {
     "essential": false,
-    "image": "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_fluentbit_ecr:latest",
+    "image": "758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_fluentbit_ecr:latest",
     "name": "log_router",
     "environment": [
         {"name":  "FLB_LOG_LEVEL",
@@ -414,7 +414,7 @@ resource "aws_ecs_task_definition" "kaleidoscope_task" {
     "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-            "awslogs-group": "/fargate/service/andrewslai-production-firelens",
+            "awslogs-group": "/fargate/service/kaleidoscope/firelens-sidecar",
             "awslogs-region": "us-east-1",
             "awslogs-create-group": "true",
             "awslogs-stream-prefix": "firelens"
@@ -423,8 +423,8 @@ resource "aws_ecs_task_definition" "kaleidoscope_task" {
     "memoryReservation": 128
   },
   {
-    "name": "andrewslai",
-    "image": "758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr:latest",
+    "name": "kaleidoscope",
+    "image": "758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_ecr:latest",
     "essential": true,
     "portMappings": [
       {
@@ -522,7 +522,7 @@ resource "aws_ecs_service" "kaleidoscope_service" {
 
   load_balancer {
     target_group_arn = aws_alb_target_group.main.id
-    container_name   = "andrewslai"
+    container_name   = "kaleidoscope"
     container_port   = "5000"
   }
 
