@@ -4,33 +4,14 @@
 # Variables
 ##############################################################
 
-variable "KC_DB_PASSWORD" {
-  description = "Database password"
-}
+variable "KC_DB_PASSWORD"    {description = "Database password"}
+variable "KC_DB_USERNAME"    {description = "Database username"}
+variable "KC_DB_DATABASE"    {description = "Database"}
+variable "KC_DB_URL_HOST"    {description = "Database host url"}
+variable "KC_DB"             {description = "Database vendor"}
 
-variable "KC_DB_USERNAME" {
-  description = "Database username"
-}
-
-variable "KC_DB_DATABASE" {
-  description = "Database"
-}
-
-variable "KC_DB_URL_HOST" {
-  description = "Database host url"
-}
-
-variable "KC_DB" {
-  description = "Database vendor"
-}
-
-variable "KEYCLOAK_USER" {
-  description = "Keycloak admin username"
-}
-
-variable "KEYCLOAK_PASSWORD" {
-  description = "Keycloak admin password"
-}
+variable "KEYCLOAK_USER"     {description = "Keycloak admin username"}
+variable "KEYCLOAK_PASSWORD" {description = "Keycloak admin password"}
 
 ##############################################################
 # Data sources to get VPC, subnets and security group details
