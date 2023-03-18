@@ -36,6 +36,3 @@ resource "aws_ecr_repository" "kaleidoscope_fluentbit_ecr_new" {
     scan_on_push = true
   }
 }
-
-## TODO: Release to new Clojars repo
-## TODO: Release to new ECR repo
