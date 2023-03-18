@@ -144,7 +144,7 @@ data "aws_iam_policy_document" "assume_role_policy" {
 
 # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html
 resource "aws_iam_role" "ecsTaskExecutionRole" {
-  name               = "andrewslai-production-ecs"
+  name               = "kaleidoscope-production-ecs"
   assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
 }
 
@@ -182,7 +182,7 @@ resource "aws_iam_role_policy" "ecsTaskExecutionRolePolicy" {
 
 ## For the actual task that is running
 resource "aws_iam_role" "ecsTaskRole" {
-  name               = "andrewslai-task"
+  name               = "kaleidoscope-task"
   assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
 }
 
