@@ -1,7 +1,7 @@
 #!/bin/bash
 
 aws ecs update-service \
-  --cluster andrewslai \
-  --service andrewslai-service \
+  --cluster kaleidoscope \
+  --service kaleidoscope-service \
   --force-new-deployment &&
 watch -n 5 "curl https://andrewslai.com/ping | jq ."

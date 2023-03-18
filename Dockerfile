@@ -12,6 +12,9 @@ COPY target/kaleidoscope.jar .
 #COPY resources/public/index.html assets/public/index.html
 #COPY resources/public/js assets/public/js
 
-CMD java -jar kaleidoscope.jar -Xmx256m
+# Configuring max and min heap sizes to be identical is a
+# best practice for optimizing GC performance.
+CMD java -jar kaleidoscope.jar -Xms256m -Xmx256m
+
 
 EXPOSE 5000
