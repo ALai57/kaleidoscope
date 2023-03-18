@@ -334,13 +334,12 @@ resource "aws_lb_listener_rule" "host_based_routing" {
 # ECS
 ##############################################################
 
-resource "aws_ecs_cluster" "andrewslai_cluster" {
+resource "aws_ecs_cluster" "kaleidoscope_cluster" {
   name = "andrewslai"
 }
 
-resource "aws_ecs_cluster_capacity_providers" "example" {
-  cluster_name = aws_ecs_cluster.andrewslai_cluster.name
-
+resource "aws_ecs_cluster_capacity_providers" "kaleidoscope_provider" {
+  cluster_name       = aws_ecs_cluster.kaleidoscope_cluster.name
   capacity_providers = ["FARGATE"]
 }
 
@@ -356,7 +355,7 @@ resource "aws_ecs_cluster_capacity_providers" "example" {
 ##
 ## https://aws.amazon.com/blogs/containers/choosing-container-logging-options-to-avoid-backpressure/
 ##  https://aws.amazon.com/blogs/containers/how-to-set-fluentd-and-fluent-bit-input-parameters-in-firelens/
-resource "aws_ecs_task_definition" "andrewslai_task" {
+resource "aws_ecs_task_definition" "kaleidoscope_task" {
   family                = "andrewslai-site"
   requires_compatibilities = ["FARGATE"]
   network_mode          = "awsvpc"
@@ -505,11 +504,11 @@ resource "aws_ecs_task_definition" "andrewslai_task" {
 DEFINITION
 }
 
-resource "aws_ecs_service" "andrewslai_service" {
+resource "aws_ecs_service" "kaleidoscope_service" {
   name            = "andrewslai-service"
-  cluster         = aws_ecs_cluster.andrewslai_cluster.id
+  cluster         = aws_ecs_cluster.kaleidoscope_cluster.id
   launch_type     = "FARGATE"
-  task_definition = aws_ecs_task_definition.andrewslai_task.arn
+  task_definition = aws_ecs_task_definition.kaleidoscope_task.arn
   desired_count   = 1
 
   network_configuration {
@@ -566,9 +565,9 @@ EOF
 }
 
 resource "aws_cloudwatch_event_target" "loggroup" {
-  rule= aws_cloudwatch_event_rule.ecs_kill.name
-  target_id="SendToCloudWatchLog"
-  arn=aws_cloudwatch_log_group.stopped_task_logs.arn
+  rule      = aws_cloudwatch_event_rule.ecs_kill.name
+  target_id = "SendToCloudWatchLog"
+  arn       = aws_cloudwatch_log_group.stopped_task_logs.arn
 }
 
 data "aws_iam_policy_document" "eventbridge-log-publishing"{
