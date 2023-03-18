@@ -1,13 +1,13 @@
 (def COMPILE-TIME-LOG-LEVEL
   :debug)
 
-(defproject org.clojars.alai57/andrewslai "0.0.100-SNAPSHOT"
-  :url "https://github.com/ALai57/andrewslai"
+(defproject org.clojars.alai57/kaleidoscope "0.0.100-SNAPSHOT"
+  :url "https://github.com/ALai57/kaleidoscope"
   :license {:name         "Eclipse Public License - v 1.0"
             :url          "http://www.eclipse.org/legal/epl-v10.html"
             :distribution :repo
             :comments     "same as Clojure"}
-  :description "The backend for ALai57's blogging app"
+  :description "A blogging platform/CMS"
   :dependencies
   [[aleph "0.6.0"]
    [amazonica "0.3.162"]
@@ -63,7 +63,7 @@
 
   :aot :all
 
-  :uberjar-name "andrewslai.jar"
+  :uberjar-name "kaleidoscope.jar"
   :uberjar-exclusions [#"public/.*" #".txz"]
 
   :main kaleidoscope.clj.main
