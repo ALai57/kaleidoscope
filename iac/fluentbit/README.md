@@ -64,3 +64,69 @@ docker tag kaleidoscope_fluentbit:latest 758589815425.dkr.ecr.us-east-1.amazonaw
 docker push 758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_fluentbit_ecr
 
 ```
+
+
+
+# Testing Fluentbit with OpenTelemetry
+
+Fluentbit would need to receive incoming traces and also export traces to the
+various collector endpoints at Sumologic, Grafana, etc.  Unfortunately, there's
+a problem with the Fluentbit setup. Fluentbit only uses a plain HTTP exporter
+for Opentelemetry whereas Grafana can only receive gRPC.
+
+Per the information on the `traces` config section of the Grafana agent:
+https://grafana.com/docs/agent/latest/configuration/traces-config/
+Controls what protocol to use when exporting traces.
+Only "gRPC" is supported in Grafana Cloud.
+
+Here are useful commands, if you'd like to revisit that work.
+
+Build the Fluentbit container
+``` sh
+docker build -t kaleidoscope_fluentbit .
+```
+
+Add the following to extra.conf
+```
+# HTTP Open Telemetry inputs
+[INPUT]
+    Name   opentelemetry
+    Alias  opentelemetry_ingest
+    Listen 0.0.0.0
+    Tag    otel
+    Port   4318
+
+# Output - doesn't use gRPC - only HTTP
+[OUTPUT]
+    Name                 opentelemetry
+    Alias                grafana_tempo_output
+    Match                *
+    Host                 tempo-us-central1.grafana.net
+    Port                 443
+    Log_response_payload True
+    Tls                  On
+    Tls.verify           Off
+    http_user            ${GRAFANA_TEMPO_USER}
+    http_passwd          ${GRAFANA_TEMPO_PASSWORD}
+    net.keepalive        false
+    add_label            app kaleidoscope
+    add_label            color blue
+```
+
+
+Run the Docker image we just built locally.
+``` sh
+docker run -p 4318:4318 \
+    --env-file=.env.fluentbit \
+    --mount type=bind,source="/home/andrew/.aws",target="/root/.aws" \
+    kaleidoscope_fluentbit
+```
+
+Send a curl to the running Fluentbit service
+``` sh
+curl -v --header "Content-Type: application/json" --request POST --data @example-trace.json   http://localhost:4318/v1/traces
+```
+
+It also seems like Sumologic Otel has the same problem. Although I couldn't
+exactly determine why, I was able to get Otel working with gRPC easily, and the
+HTTP was difficult/not working.

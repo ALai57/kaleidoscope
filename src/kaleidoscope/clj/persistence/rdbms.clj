@@ -9,6 +9,7 @@
             [next.jdbc.result-set :as rs]
             [next.jdbc.sql :as next.sql]
             [slingshot.slingshot :refer [throw+ try+]]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log])
   (:import
    org.postgresql.util.PGobject))
@@ -42,18 +43,20 @@
 
 (defn find-by-keys
   ([database table query-map]
-   (next.sql/find-by-keys database
-                          (csk/->snake_case_keyword table)
-                          (cske/transform-keys csk/->snake_case_keyword query-map)
-                          {:builder-fn rs/as-unqualified-kebab-maps})))
+   (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
+     (next.sql/find-by-keys database
+                            (csk/->snake_case_keyword table)
+                            (cske/transform-keys csk/->snake_case_keyword query-map)
+                            {:builder-fn rs/as-unqualified-kebab-maps}))))
 
 (defn make-finder
   [table]
   (fn getter
     ([database]
-     (next/execute! database
-                    [(format "SELECT * FROM %s" (csk/->snake_case_string table))]
-                    {:builder-fn rs/as-unqualified-kebab-maps}))
+     (span/with-span! {:name (format "kaleidoscope.db.get.%s" table)}
+       (next/execute! database
+                      [(format "SELECT * FROM %s" (csk/->snake_case_string table))]
+                      {:builder-fn rs/as-unqualified-kebab-maps})))
     ([database query-map]
      (if (empty? query-map)
        (getter database)
@@ -63,56 +66,59 @@
                                           input-validation]}]
   (when input-validation
     (validate input-validation m :IllegalArgumentException))
-  (try+
-   (transact! database (-> (hh/insert-into table)
-                           (hh/values (if (map? m)
-                                        [m]
-                                        m))
-                           hsql/format))
-   (catch org.postgresql.util.PSQLException e
-     (log/errorf "Caught Exception while inserting: %s" e)
-     (throw+ (merge {:type    :PersistenceException
-                     :message {:data   (select-keys m [:username :email])
-                               :reason (.getMessage e)}}
-                    (when ex-subtype
-                      {:subtype ex-subtype}))))
-   (catch Object e
-     (log/errorf "Caught Exception while inserting: %s" e)
-     (throw+ (merge {:type    :PersistenceException
-                     :message {:data   (select-keys m [:username :email])
-                               :reason (.getMessage e)}}
-                    (when ex-subtype
-                      {:subtype ex-subtype}))))))
+  (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
+    (try+
+     (transact! database (-> (hh/insert-into table)
+                             (hh/values (if (map? m)
+                                          [m]
+                                          m))
+                             hsql/format))
+     (catch org.postgresql.util.PSQLException e
+       (log/errorf "Caught Exception while inserting: %s" e)
+       (throw+ (merge {:type    :PersistenceException
+                       :message {:data   (select-keys m [:username :email])
+                                 :reason (.getMessage e)}}
+                      (when ex-subtype
+                        {:subtype ex-subtype}))))
+     (catch Object e
+       (log/errorf "Caught Exception while inserting: %s" e)
+       (throw+ (merge {:type    :PersistenceException
+                       :message {:data   (select-keys m [:username :email])
+                                 :reason (.getMessage e)}}
+                      (when ex-subtype
+                        {:subtype ex-subtype})))))))
 
 (defn update! [database table m where & {:keys [ex-subtype
                                                 input-validation]}]
   (when input-validation
     (validate input-validation m :IllegalArgumentException))
-  (try+
-   (transact! database (-> (hh/update table)
-                           (hh/sset m)
-                           (hh/where where)
-                           hsql/format))
-   (catch org.postgresql.util.PSQLException e
-     (throw+ (merge {:type    :PersistenceException
-                     :message {:data   m
-                               :reason (.getMessage e)}}
-                    (when ex-subtype
-                      {:subtype ex-subtype}))))))
+  (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
+    (try+
+     (transact! database (-> (hh/update table)
+                             (hh/sset m)
+                             (hh/where where)
+                             hsql/format))
+     (catch org.postgresql.util.PSQLException e
+       (throw+ (merge {:type    :PersistenceException
+                       :message {:data   m
+                                 :reason (.getMessage e)}}
+                      (when ex-subtype
+                        {:subtype ex-subtype})))))))
 
 (defn delete! [database table ids & {:keys [ex-subtype]}]
-  (try+
-   (transact! database (-> (hh/delete-from table)
-                           (hh/where [:in :id (if (coll? ids)
-                                                ids
-                                                [ids])])
-                           hsql/format))
-   (catch org.postgresql.util.PSQLException e
-     (throw+ (merge {:type    :PersistenceException
-                     :message {:data   ids
-                               :reason (.getMessage e)}}
-                    (when ex-subtype
-                      {:subtype ex-subtype}))))))
+  (span/with-span! {:name (format "kaleidoscope.db.delete.%s" table)}
+    (try+
+     (transact! database (-> (hh/delete-from table)
+                             (hh/where [:in :id (if (coll? ids)
+                                                  ids
+                                                  [ids])])
+                             hsql/format))
+     (catch org.postgresql.util.PSQLException e
+       (throw+ (merge {:type    :PersistenceException
+                       :message {:data   ids
+                                 :reason (.getMessage e)}}
+                      (when ex-subtype
+                        {:subtype ex-subtype})))))))
 
 (comment
   (def example-user

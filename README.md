@@ -72,7 +72,7 @@ lein do clean, uberjar
 #### Build: Docker
 ```bash
 lein do clean, uberjar
-docker build -t andrewslai .
+docker build -t kaleidoscope .
 ```
 
 #### Run without Docker

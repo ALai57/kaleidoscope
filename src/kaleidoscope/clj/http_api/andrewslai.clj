@@ -1,5 +1,9 @@
 (ns kaleidoscope.clj.http-api.andrewslai
-  (:require [kaleidoscope.clj.api.authorization :as auth]
+  (:require [camel-snake-kebab.core :as csk]
+            [camel-snake-kebab.extras :as cske]
+            [clojure.stacktrace :as stacktrace]
+            [compojure.api.sweet :refer [api context GET]]
+            [kaleidoscope.clj.api.authorization :as auth]
             [kaleidoscope.clj.http-api.admin :refer [admin-routes]]
             [kaleidoscope.clj.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
             [kaleidoscope.clj.http-api.cache-control :as cc]
@@ -9,12 +13,9 @@
             [kaleidoscope.clj.http-api.portfolio :refer [portfolio-routes]]
             [kaleidoscope.clj.http-api.swagger :refer [swagger-ui-routes]]
             [kaleidoscope.clj.persistence.filesystem :as fs]
-            [camel-snake-kebab.core :as csk]
-            [camel-snake-kebab.extras :as cske]
-            [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [api context GET]]
-            [ring.util.response :as ring.response]
             [ring.util.http-response :refer [not-found not-modified]]
+            [ring.util.response :as ring.response]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
 (def public-access
@@ -46,19 +47,22 @@
   (context "/" []
     (GET "/" []
       :components [static-content-adapter]
-      {:status  200
-       :headers {"Content-Type" "text/html"}
-       :body    (fs/object-content (fs/get static-content-adapter "index.html"))})
+      (span/with-span! {:name (format "kaleidoscope.index.get")}
+        {:status  200
+         :headers {"Content-Type" "text/html"}
+         :body    (fs/object-content (fs/get static-content-adapter "index.html"))}))
     (GET "/index.html" []
       :components [static-content-adapter]
-      {:status  200
-       :headers {"Content-Type" "text/html"}
-       :body    (fs/object-content (fs/get static-content-adapter "index.html"))})
+      (span/with-span! {:name (format "kaleidoscope.index.get")}
+        {:status  200
+         :headers {"Content-Type" "text/html"}
+         :body    (fs/object-content (fs/get static-content-adapter "index.html"))}))
     (GET "/silent-check-sso.html" []
       :components [static-content-adapter]
-      {:status  200
-       :headers {"Content-Type" "text/html"}
-       :body    (fs/object-content (fs/get static-content-adapter "silent-check-sso.html"))})
+      (span/with-span! {:name (format "kaleidoscope.silent-check-sso.get")}
+        {:status  200
+         :headers {"Content-Type" "text/html"}
+         :body    (fs/object-content (fs/get static-content-adapter "silent-check-sso.html"))}))
     ))
 
 (def default-handler
@@ -66,21 +70,22 @@
     :components [static-content-adapter]
     ;; Also create a link to editor from homepage
     ;; Also create a link to homepage from editor
-    (let [request (cond-> request
-                    headers (assoc :headers (cske/transform-keys csk/->kebab-case-keyword headers)))
-          result  (fs/get static-content-adapter uri (if-let [version (get-in request [:headers :if-none-match])]
-                                                       {:version version}
-                                                       {}))]
-      (cond
-        (fs/folder? uri)            (-> {:status 200
-                                         :body   result}
-                                        (cc/cache-control uri))
-        (fs/does-not-exist? result) (not-found)
-        (fs/not-modified? result)   (not-modified)
-        :else                       (-> {:status  200
-                                         :headers {"ETag" (fs/object-version result)}
-                                         :body    (fs/object-content result)}
-                                        (cc/cache-control uri))))))
+    (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
+      (let [request (cond-> request
+                      headers (assoc :headers (cske/transform-keys csk/->kebab-case-keyword headers)))
+            result  (fs/get static-content-adapter uri (if-let [version (get-in request [:headers :if-none-match])]
+                                                         {:version version}
+                                                         {}))]
+        (cond
+          (fs/folder? uri)            (-> {:status 200
+                                           :body   result}
+                                          (cc/cache-control uri))
+          (fs/does-not-exist? result) (not-found)
+          (fs/not-modified? result)   (not-modified)
+          :else                       (-> {:status  200
+                                           :headers {"ETag" (fs/object-version result)}
+                                           :body    (fs/object-content result)}
+                                          (cc/cache-control uri)))))))
 
 (defn andrewslai-app
   [{:keys [http-mw] :as components}]

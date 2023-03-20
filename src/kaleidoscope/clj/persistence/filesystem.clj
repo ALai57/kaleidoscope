@@ -35,7 +35,7 @@
    (get filesystem path {}))
   ([filesystem path options]
    (let [uri (canonical-url path)]
-     (log/infof "Looking up content at path %s in Filesystem %s" uri filesystem)
+     (log/debugf "Looking up content at path %s in Filesystem %s" uri filesystem)
      (cond
        (folder? uri) (ls filesystem uri options)
        :else         (get-file filesystem uri options)))))

@@ -1,7 +1,9 @@
 (ns kaleidoscope.clj.http-api.middleware
-  (:require [kaleidoscope.clj.http-api.cache-control :as cc]
-            [buddy.auth.accessrules :as ar]
+  (:require [buddy.auth.accessrules :as ar]
             [buddy.auth.middleware :as ba]
+            [clojure.string :as string]
+            [kaleidoscope.clj.http-api.cache-control :as cc]
+            [lambdaisland.deep-diff2 :as ddiff]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.file :refer [wrap-file]]
             [ring.middleware.gzip :refer [wrap-gzip]]
@@ -9,10 +11,10 @@
             [ring.middleware.multipart-params :as mp :refer [wrap-multipart-params]]
             [ring.middleware.params :as params :refer [wrap-params]]
             [ring.middleware.resource :refer [wrap-resource]]
-            [ring.util.response :as resp]
             [ring.util.http-response :refer [unauthorized]]
-            [taoensso.timbre :as log]
-            [lambdaisland.deep-diff2 :as ddiff])
+            [ring.util.response :as resp]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
+            [taoensso.timbre :as log])
   (:import [lambdaisland.deep_diff2.diff_impl Mismatch Deletion Insertion]))
 
 ;; https://gist.github.com/hsartoris-bard/856d79d3a13f6cafaaa6e5079c76cd97
@@ -63,17 +65,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn log-request! [handler]
   (fn [request]
-    (handler (do (log/infof "Request received\n %s"
-                            (-> request
-                                (select-keys [:request-method
-                                              :uri
-                                              :body
-                                              :params
-                                              :multipart-params
-                                              :request-id])
-                                clojure.pprint/pprint
-                                with-out-str))
-                 request))))
+    (span/with-span! {:name "kaleidoscope.middleware.log-request"}
+      (handler (do (log/infof "Request received\n %s"
+                              (-> request
+                                  (select-keys [:request-method
+                                                :uri
+                                                :body
+                                                :params
+                                                :multipart-params
+                                                :request-id])
+                                  clojure.pprint/pprint
+                                  with-out-str))
+                   request)))))
 
 (defn debug-log-request!
   "A logging tool that is useful for debugging"
@@ -136,12 +139,21 @@
          (cache-control-log!)
          (cc/cache-control uri))))
 
+(defn wrap-trace
+  [handler]
+  (fn [{:keys [uri request-method] :as request}]
+    (span/with-span! {:name (format "kaleidoscope%s.%s"
+                                    (string/replace uri "/" ".")
+                                    request-method)}
+      (handler request))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def standard-stack
   "Stack is applied from top down"
   (apply comp [wrap-request-identifier
+               wrap-trace
                wrap-gzip
                wrap-content-type
                wrap-json-response

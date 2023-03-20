@@ -1,10 +1,13 @@
 (ns kaleidoscope.clj.main
   (:gen-class)
-  (:require [aleph.http :as http]
+  (:require [cheshire.core :as json]
+            [clojure.string :as string]
             [kaleidoscope.clj.http-api.middleware :as mw]
             [kaleidoscope.clj.init.env :as env]
-            [cheshire.core :as json]
-            [clojure.string :as string]
+            [ring.adapter.jetty :as jetty]
+            [steffan-westcott.clj-otel.exporter.otlp.http.trace :as otlp-http-trace]
+            [steffan-westcott.clj-otel.resource.resources :as res]
+            [steffan-westcott.clj-otel.sdk.otel-sdk :as sdk]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
 
@@ -39,6 +42,19 @@
             :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}
      (disable-json-logging? env) (dissoc :output-fn))))
 
+
+(defn init-otel! []
+  (sdk/init-otel-sdk! "kaleidoscope"
+                      {:resources [(res/host-resource)
+                                   (res/os-resource)
+                                   (res/process-resource)
+                                   (res/process-runtime-resource)
+                                   ]
+                       :tracer-provider {:span-processors [{:exporters [(otlp-http-trace/span-exporter)]}]}}))
+
+(defn close-otel! []
+  (sdk/close-otel-sdk!))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -48,10 +64,11 @@
         port              5000]
     (log/infof "Hello! Starting andrewslai on port %s" port)
     (initialize-logging! env)
+    (init-otel!)
     (-> system-components
         (env/prepare-for-virtual-hosting)
         (env/make-http-handler)
-        (http/start-server {:port port}))))
+        (jetty/run-jetty {:port port}))))
 
 (defn -main
   "Start a server and run the application"

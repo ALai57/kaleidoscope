@@ -9,8 +9,7 @@
             :comments     "same as Clojure"}
   :description "A blogging platform/CMS"
   :dependencies
-  [[aleph "0.6.0"]
-   [amazonica "0.3.162"]
+  [[amazonica "0.3.162"]
    [bk/ring-gzip "0.3.0"]
    [buddy/buddy-auth "3.0.323"]
    [camel-snake-kebab "0.4.3"]
@@ -19,6 +18,19 @@
    [com.amazonaws/aws-java-sdk-s3 "1.12.385"]
    [com.fzakaria/slf4j-timbre "0.3.21"] ;; Intercept logging to Apache Commons Logging (introduced by AWS SDK)
    [com.github.seancorfield/next.jdbc "1.3.847"]
+   [com.github.steffan-westcott/clj-otel-api "0.1.5"]
+   [com.github.steffan-westcott/clj-otel-sdk "0.1.5"]
+   [com.github.steffan-westcott/clj-otel-exporter-otlp "0.1.5"]
+   [com.github.steffan-westcott/clj-otel-sdk-extension-resources "0.1.5"]
+
+   [io.opentelemetry/opentelemetry-sdk-extension-autoconfigure "1.17.0-alpha"]
+   [io.opentelemetry/opentelemetry-sdk-extension-resources     "1.17.0"]
+   [io.opentelemetry/opentelemetry-exporter-otlp               "1.17.0"]
+   [io.grpc/grpc-netty-shaded                                  "1.49.0"]
+   [io.grpc/grpc-protobuf                                      "1.49.0"]
+   [io.grpc/grpc-stub                                          "1.49.0"]
+
+   [io.grpc/grpc-protobuf "1.49.0"]
    [com.h2database/h2 "2.1.214"]
    [com.taoensso/timbre "6.0.4"]
    [com.twelvemonkeys.servlet/servlet "3.9.4"]
@@ -40,7 +52,7 @@
    [org.keycloak/keycloak-core "21.0.1"]
    [org.postgresql/postgresql "42.5.1"]
    [org.slf4j/log4j-over-slf4j "1.7.30"] ;; Bridges between different logging libs and SLF4J
-   [ring "1.9.6" :exclusions [ring/ring-codec org.clojure/java.classpath ring/ring-jetty-adapter]]
+   [ring "1.9.6" :exclusions [ring/ring-codec org.clojure/java.classpath]]
    [ring/ring-json "0.5.1"]
    [slingshot "0.12.2"]
    ]

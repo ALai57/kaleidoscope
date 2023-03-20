@@ -1,8 +1,9 @@
 (ns kaleidoscope.clj.http-api.auth.buddy-backends
-  (:require [kaleidoscope.clj.http-api.auth.keycloak :as keycloak]
-            [buddy.auth.backends.token :as token]
+  (:require [buddy.auth.backends.token :as token]
             [clojure.string :as string]
+            [kaleidoscope.clj.http-api.auth.keycloak :as keycloak]
             [ring.util.http-response :refer [unauthorized]]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
 (defn bearer-token-backend
@@ -27,12 +28,12 @@
                            (log/infof "[authenticated-backend]: Authenticated with user %s" id-token)
                            ;; For testing purposes allow us to change the user
                            ;; identity by putting in a specific string.
-
-                           (if (string/starts-with? bearer-token "user ")
-                             (let [new-identity (second (string/split bearer-token #" "))]
-                               (log/debugf "Overriding user identity with `%s`" new-identity)
-                               (assoc id-token :sub new-identity))
-                             id-token)))))
+                           (span/with-span! {:name "kaleidoscope.authentication.token-backend"}
+                             (if (string/starts-with? bearer-token "user ")
+                               (let [new-identity (second (string/split bearer-token #" "))]
+                                 (log/debugf "Overriding user identity with `%s`" new-identity)
+                                 (assoc id-token :sub new-identity))
+                               id-token))))))
 
 (defn keycloak-backend
   [keycloak-config-map]

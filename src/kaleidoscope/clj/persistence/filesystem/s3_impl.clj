@@ -1,17 +1,18 @@
 (ns kaleidoscope.clj.persistence.filesystem.s3-impl
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
-            [kaleidoscope.clj.persistence.filesystem :as fs]
-            [kaleidoscope.clj.models.s3.get-response :as s3.get]
-            [kaleidoscope.clj.models.s3.put-response :as s3.put]
-            [kaleidoscope.clj.models.s3.ls-response :as s3.ls]
+            [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
+            [kaleidoscope.clj.models.s3.get-response :as s3.get]
+            [kaleidoscope.clj.models.s3.ls-response :as s3.ls]
+            [kaleidoscope.clj.models.s3.put-response :as s3.put]
+            [kaleidoscope.clj.persistence.filesystem :as fs]
             [ring.util.http-response :refer [internal-server-error not-found]]
             [ring.util.mime-type :as mt]
             [ring.util.response :as ring-response]
-            [taoensso.timbre :as log]
-            [clojure.set :as set])
+            [steffan-westcott.clj-otel.api.trace.span :as span]
+            [taoensso.timbre :as log])
   (:import
    [com.amazonaws.auth AWSCredentialsProviderChain ContainerCredentialsProvider EnvironmentVariableCredentialsProvider]
    com.amazonaws.auth.profile.ProfileCredentialsProvider))
@@ -98,37 +99,40 @@
   fs/DistributedFileSystem
   (ls [_ path options]
     (log/infof "S3 List Objects `%s/%s` with options %s" bucket path options)
-    (let [result (s3/list-objects-v2 creds
-                                     {:bucket-name bucket
-                                      :prefix      path
-                                      :delimiter   s3.ls/FOLDER-DELIMITER})]
-      (ls-response->fs-metadata path result)))
+    (span/with-span! {:name "kaleidoscope.s3.ls"}
+      (let [result (s3/list-objects-v2 creds
+                                       {:bucket-name bucket
+                                        :prefix      path
+                                        :delimiter   s3.ls/FOLDER-DELIMITER})]
+        (ls-response->fs-metadata path result))))
   (get-file [_ path options]
     (log/infof "S3 Get Object `%s/%s` with options %s" bucket path options)
-    (try
-      (if-let [response (s3/get-object creds (cond-> {:bucket-name bucket
-                                                      :key         path}
-                                               (:version options) (assoc :nonmatching-e-tag-constraints [(:version options)])))]
-        (get-response->fs-object response)
-        fs/not-modified-response)
-      (catch Exception e
-        (let [ex (amazon/ex->map e)]
-          (log/warn "Could not retrieve object" ex)
-          (cond
-            (no-such-key? ex) fs/does-not-exist-response
-            :else             (throw e))))))
+    (span/with-span! {:name "kaleidoscope.s3.get"}
+      (try
+        (if-let [response (s3/get-object creds (cond-> {:bucket-name bucket
+                                                        :key         path}
+                                                 (:version options) (assoc :nonmatching-e-tag-constraints [(:version options)])))]
+          (get-response->fs-object response)
+          fs/not-modified-response)
+        (catch Exception e
+          (let [ex (amazon/ex->map e)]
+            (log/warn "Could not retrieve object" ex)
+            (cond
+              (no-such-key? ex) fs/does-not-exist-response
+              :else             (throw e)))))))
   (put-file [this path input-stream metadata]
     (log/infof "S3 Put Object `%s/%s`" bucket path)
-    (try
-      (let [response (s3/put-object creds
-                                    {:bucket-name  bucket
-                                     :key          path
-                                     :input-stream input-stream
-                                     :metadata     (prepare-metadata metadata)})]
-        (fs/get this path {:etag (s3.put/etag response)}))
-      (catch Exception e
-        (log/error "Could not put object" e)
-        fs/does-not-exist-response))))
+    (span/with-span! {:name "kaleidoscope.s3.put"}
+      (try
+        (let [response (s3/put-object creds
+                                      {:bucket-name  bucket
+                                       :key          path
+                                       :input-stream input-stream
+                                       :metadata     (prepare-metadata metadata)})]
+          (fs/get this path {:etag (s3.put/etag response)}))
+        (catch Exception e
+          (log/error "Could not put object" e)
+          fs/does-not-exist-response)))))
 
 (comment ;; Playing with S3
 

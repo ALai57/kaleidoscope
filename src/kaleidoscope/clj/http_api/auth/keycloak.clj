@@ -1,6 +1,7 @@
 (ns kaleidoscope.clj.http-api.auth.keycloak
-  (:require [kaleidoscope.clj.http-api.auth.jwt :as jwt]
-            [clj-http.client :as http]
+  (:require [clj-http.client :as http]
+            [kaleidoscope.clj.http-api.auth.jwt :as jwt]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log])
   (:import org.keycloak.adapters.KeycloakDeploymentBuilder
            org.keycloak.adapters.rotation.AdapterTokenVerifier
@@ -35,16 +36,17 @@
   (let [keycloak (make-adapter config)]
     (fn authfn
       [{:keys [request-id] :as request} token]
-      (try
-        (log/infof "Validating jwt token:\n %s" (-> {:header     (jwt/header token)
-                                                     :body       (jwt/body token)
-                                                     :request-id request-id}
-                                                    clojure.pprint/pprint
-                                                    with-out-str))
-        (when (validate-token keycloak token)
-          (jwt/body token))
-        (catch Exception e
-          (log/error "Authentication exception" (pr-str e)))))))
+      (span/with-span! {:name "kaleidoscope.authentication.keycloak.verifier"}
+        (try
+          (log/infof "Validating jwt token:\n %s" (-> {:header     (jwt/header token)
+                                                       :body       (jwt/body token)
+                                                       :request-id request-id}
+                                                      clojure.pprint/pprint
+                                                      with-out-str))
+          (when (validate-token keycloak token)
+            (jwt/body token))
+          (catch Exception e
+            (log/error "Authentication exception" (pr-str e))))))))
 
 ;; Set up a Keycloak serice user
 (comment

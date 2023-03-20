@@ -449,6 +449,10 @@ resource "aws_ecs_task_definition" "kaleidoscope_task" {
       {
         "name": "KALEIDOSCOPE_AUTH_SECRET",
         "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:andrewslai_auth_secret::"
+      },
+      {
+        "name": "SUMOLOGIC_OTLP_URL",
+        "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:sumologic_otlp_url::"
       }
      ],
     "environment": [

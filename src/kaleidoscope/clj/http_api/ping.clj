@@ -3,6 +3,7 @@
             [clojure.string :refer [trim]]
             [compojure.api.sweet :refer [defroutes GET]]
             [ring.util.http-response :refer [ok]]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
 (def pom-path
