@@ -261,8 +261,8 @@ resource "aws_alb_target_group" "main" {
   target_type          = "ip"
 
   health_check {
-     interval            = 45
-     unhealthy_threshold = 4
+     interval            = 60
+     unhealthy_threshold = 6
      path                = "/ping"
   }
 
@@ -517,6 +517,7 @@ resource "aws_ecs_service" "kaleidoscope_service" {
   launch_type     = "FARGATE"
   task_definition = aws_ecs_task_definition.kaleidoscope_task.arn
   desired_count   = 1
+  health_check_grace_period_seconds = 300
 
   network_configuration {
     security_groups  = ["${data.aws_security_group.default.id}", "${aws_security_group.ecs_allow_http_https.id}"]
