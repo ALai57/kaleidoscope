@@ -1,9 +1,9 @@
-# andrewslai
+# Kaleidoscope
 ![master](https://github.com/ALai57/kaleidoscope/actions/workflows/clojure.yml/badge.svg?branch=master)
 
-Welcome to my personal website! It is currently hosted at https://andrewslai.com.  
+[Kaleidoscope](https://kaleidoscope.pub) is a content management system for blogging.  
 
-This repository is the website backend. It contains:
+This repository is the backend. It contains:
 
 - **Backend**: Clojure web server that uses Virtual Hosting to serve two different apps: 
                a blog (andrewslai), and a photo viewer app  
@@ -102,5 +102,3 @@ For local development, see [local-development.md](./docs/local-development.md)
 
 ## Deployment
 To deploy, follow instructions in [deployment.md](./docs/deployment.md)
-
-lein uberjar && docker build -t kaleidoscope . && docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope

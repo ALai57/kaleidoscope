@@ -171,7 +171,6 @@
                                                                (unauthorized)
                                                                (resp/content-type "application/text")))})]))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; NEW -- Trying to convert middleware to processing chains
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

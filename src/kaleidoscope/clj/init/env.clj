@@ -4,6 +4,7 @@
   (:require [kaleidoscope.clj.http-api.andrewslai :as andrewslai]
             [kaleidoscope.clj.http-api.auth.buddy-backends :as bb]
             [kaleidoscope.clj.http-api.caheriaguilar :as caheriaguilar]
+            [kaleidoscope.clj.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.clj.http-api.middleware :as mw]
             [kaleidoscope.clj.http-api.sahiltalkingcents :as sahiltalkingcents]
             [kaleidoscope.clj.http-api.virtual-hosting :as vh]
@@ -24,6 +25,12 @@
             [taoensso.timbre :as log])
   (:import (com.zaxxer.hikari HikariDataSource))
   )
+
+(def domains
+  #{"andrewslai.com"
+    "sahiltalkingcents.com"
+    "caheriaguilar.com"
+    "caheriaguilar.and.andrewslai.com"})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot instructions for starting system components from the environment
@@ -73,78 +80,13 @@
    :password (get env "KALEIDOSCOPE_DB_PASSWORD")
    :dbtype   "postgresql"})
 
-(defn env->andrewslai-s3
-  {:malli/schema [:=> [:cat :map]
-                  [:map
-                   [:bucket [:string {:error/message "Missing S3 bucket. Set via KALEIDOSCOPE_BUCKET environment variable."}]]
-                   [:creds  [:any {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
-   :malli/scope  #{:output}}
-  [env]
-  {:bucket (get env "KALEIDOSCOPE_BUCKET")
-   :creds  s3-storage/CustomAWSCredentialsProviderChain})
-
-(defn env->caheriaguilar-s3
-  {:malli/schema [:=> [:cat :map]
-                  [:map
-                   [:bucket [:string {:error/message "Missing S3 bucket. Set via CAHERIAGUILAR_BUCKET environment variable."}]]
-                   [:creds  [:any {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
-   :malli/scope  #{:output}}
-  [env]
-  {:bucket (get env "CAHERIAGUILAR_BUCKET" "caheriaguilar")
-   :creds  s3-storage/CustomAWSCredentialsProviderChain})
-
-(defn env->sahiltalkingcents-s3
-  {:malli/schema [:=> [:cat :map]
-                  [:map
-                   [:bucket [:string {:error/message "Missing S3 bucket. Set via SAHILTALKINGCENTS_BUCKET environment variable."}]]
-                   [:creds  [:any {:error/message "Missing S3 credential provider chain. Set in code. Should never happen."}]]]]
-   :malli/scope  #{:output}}
-  [env]
-  {:bucket (get env "SAHILTALKINGCENTS_BUCKET" "sahiltalkingcents")
-   :creds  s3-storage/CustomAWSCredentialsProviderChain})
-
-(defn env->wedding-s3
-  {:malli/schema [:=> [:cat :map]
-                  [:map
-                   [:bucket [:string {:error/message "Missing Wedding S3 bucket. Set via KALEIDOSCOPE_WEDDING_BUCKET environment variable."}]]
-                   [:creds  [:any {:error/message "Missing Wedding S3 credential provider chain. Set in code. Should never happen."}]]]]
-   :malli/scope  #{:output}}
-  [env]
-  {:bucket (get env "KALEIDOSCOPE_WEDDING_BUCKET")
-   :creds  s3-storage/CustomAWSCredentialsProviderChain})
-
-(defn env->andrewslai-local-fs
+(defn env->kaleidoscope-local-fs
   {:malli/schema [:=> [:cat :map]
                   [:map
                    [:root [:string {:error/message "Missing Local FS root path. Set via KALEIDOSCOPE_STATIC_CONTENT_FOLDER environment variable."}]]]]
    :malli/scope  #{:output}}
   [env]
   {:root (get env "KALEIDOSCOPE_STATIC_CONTENT_FOLDER")})
-
-(defn env->caheriaguilar-local-fs
-  {:malli/schema [:=> [:cat :map]
-                  [:map
-                   [:root [:string {:error/message "Missing Local FS root path. Set via CAHERIAGUILAR_STATIC_CONTENT_FOLDER environment variable."}]]]]
-   :malli/scope  #{:output}}
-  [env]
-  {:root (get env "CAHERIAGUILAR_STATIC_CONTENT_FOLDER")})
-
-(defn env->sahiltalkingcents-local-fs
-  {:malli/schema [:=> [:cat :map]
-                  [:map
-                   [:root [:string {:error/message "Missing Local FS root path. Set via SAHILTALKINGCENTS_STATIC_CONTENT_FOLDER environment variable."}]]]]
-   :malli/scope  #{:output}}
-  [env]
-  {:root (get env "SAHILTALKINGCENTS_STATIC_CONTENT_FOLDER")})
-
-(defn env->wedding-local-fs
-  {:malli/schema [:=> [:cat :map]
-                  [:map
-                   [:root [:string {:error/message "Missing Local FS root path. Set via KALEIDOSCOPE_WEDDING_STATIC_CONTENT_FOLDER environment variable."}]]]]
-   :malli/scope  #{:output}}
-  [env]
-  {:root (get env "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_FOLDER")})
-
 
 
 
@@ -174,25 +116,29 @@
                "embedded-postgres" (fn [_env] (embedded-pg/fresh-db!))}
    :default   "postgres"})
 
-(def andrewslai-authentication-boot-instructions
-  {:name      :andrewslai-authentication
+
+(def kaleidoscope-authentication-boot-instructions
+  {:name      :kaleidoscope-authentication
    :path      "KALEIDOSCOPE_AUTH_TYPE"
    :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
-               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name "Test User"
-                                                                                 :sub  "my-user-id"
-                                                                                 :realm_access {:roles ["andrewslai" "wedding"]}}))}
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
+                                                                                 :sub          "my-user-id"
+                                                                                 :realm_access {:roles ["andrewslai.com:admin"
+                                                                                                        "sahiltalkingcents.com:admin"
+                                                                                                        "caheriaguilar.com:admin"
+                                                                                                        "caheriaguilar.and.andrewslai.com:admin"]}}))}
    :default   "keycloak"})
 
-(def andrewslai-authorization-boot-instructions
-  {:name      :andrewslai-authorization
+(def kaleidoscope-authorization-boot-instructions
+  {:name      :kaleidoscope-authorization
    :path      "KALEIDOSCOPE_AUTHORIZATION_TYPE"
    :launchers {"public-access"           (fn [_env] tu/public-access)
-               "use-access-control-list" (fn [_env] andrewslai/ANDREWSLAI-ACCESS-CONTROL-LIST)}
+               "use-access-control-list" (fn [_env] kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST)}
    :default   "use-access-control-list"})
 
-(def andrewslai-static-content-adapter-boot-instructions
-  {:name      :andrewslai-static-content-adapter
+(def kaleidoscope-static-content-adapter-boot-instructions
+  {:name      :kaleidoscope-static-content-adapter
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
                "s3"               (fn  [env] (s3-storage/map->S3 (env->andrewslai-s3 env)))
@@ -200,118 +146,13 @@
                "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->andrewslai-local-fs env)))}
    :default   "s3"})
 
-(def caheriaguilar-authentication-boot-instructions
-  {:name      :caheriaguilar-authentication
-   :path      "CAHERIAGUILAR_AUTH_TYPE"
-   :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
-               "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
-               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
-                                                                                 :sub          "my-user-id"
-                                                                                 :realm_access {:roles ["andrewslai" "wedding" "caheriaguilar"]}}))}
-   :default   "keycloak"})
-
-(def caheriaguilar-authorization-boot-instructions
-  {:name      :caheriaguilar-authorization
-   :path      "CAHERIAGUILAR_AUTHORIZATION_TYPE"
-   :launchers {"public-access"           (fn [_env] tu/public-access)
-               "use-access-control-list" (fn [_env] caheriaguilar/CAHERIAGUILAR-ACCESS-CONTROL-LIST)}
-   :default   "use-access-control-list"})
-
-(def caheriaguilar-static-content-adapter-boot-instructions
-  {:name      :caheriaguilar-static-content-adapter
-   :path      "CAHERIAGUILAR_STATIC_CONTENT_TYPE"
-   :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn  [env] (s3-storage/map->S3 (env->caheriaguilar-s3 env)))
-               "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
-               "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->caheriaguilar-local-fs env)))}
-   :default   "s3"})
-
-(def sahiltalkingcents-authentication-boot-instructions
-  {:name      :sahiltalkingcents-authentication
-   :path      "SAHILTALKINGCENTS_AUTH_TYPE"
-   :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
-               "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
-               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
-                                                                                 :sub          "my-user-id"
-                                                                                 :realm_access {:roles ["andrewslai" "wedding" "sahiltalkingcents"]}}))}
-   :default   "keycloak"})
-
-(def sahiltalkingcents-authorization-boot-instructions
-  {:name      :sahiltalkingcents-authorization
-   :path      "SAHILTALKINGCENTS_AUTHORIZATION_TYPE"
-   :launchers {"public-access"           (fn [_env] tu/public-access)
-               "use-access-control-list" (fn [_env] sahiltalkingcents/SAHILTALKINGCENTS-ACCESS-CONTROL-LIST)}
-   :default   "use-access-control-list"})
-
-(def sahiltalkingcents-static-content-adapter-boot-instructions
-  {:name      :sahiltalkingcents-static-content-adapter
-   :path      "SAHILTALKINGCENTS_STATIC_CONTENT_TYPE"
-   :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn  [env] (s3-storage/map->S3 (env->sahiltalkingcents-s3 env)))
-               "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
-               "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->sahiltalkingcents-local-fs env)))}
-   :default   "s3"})
-
-(def wedding-authentication-boot-instructions
-  {:name      :wedding-authentication
-   :path      "KALEIDOSCOPE_WEDDING_AUTH_TYPE"
-   :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
-               "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
-               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name "Test User"
-                                                                                 :realm_access {:roles ["andrewslai" "wedding"]}}))}
-   :default   "keycloak"})
-
-(def wedding-authorization-boot-instructions
-  {:name      :wedding-authorization
-   :path      "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"
-   :launchers {"public-access"           (fn [_env] tu/public-access)
-               "use-access-control-list" (fn [_env] wedding/WEDDING-ACCESS-CONTROL-LIST)}
-   :default   "use-access-control-list"})
-
-(def wedding-static-content-adapter-boot-instructions
-  {:name      :wedding-static-content-adapter
-   :path      "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE"
-   :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn  [env] (s3-storage/map->S3 (env->wedding-s3 env)))
-               "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
-               "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->wedding-local-fs env)))}
-   :default   "s3"})
-
 (def DEFAULT-BOOT-INSTRUCTIONS
   "Instructions for how to boot the entire system"
   [database-boot-instructions
 
-   andrewslai-authentication-boot-instructions
-   andrewslai-authorization-boot-instructions
-   andrewslai-static-content-adapter-boot-instructions
-
-   caheriaguilar-authentication-boot-instructions
-   caheriaguilar-authorization-boot-instructions
-   caheriaguilar-static-content-adapter-boot-instructions
-
-   sahiltalkingcents-authentication-boot-instructions
-   sahiltalkingcents-authorization-boot-instructions
-   sahiltalkingcents-static-content-adapter-boot-instructions
-
-   wedding-authentication-boot-instructions
-   wedding-authorization-boot-instructions
-   wedding-static-content-adapter-boot-instructions])
-
-(def ANDREWSLAI-BOOT-INSTRUCTIONS
-  "Instructions for how to boot the Andrewslai app"
-  [database-boot-instructions
-
-   andrewslai-authentication-boot-instructions
-   andrewslai-authorization-boot-instructions
-   andrewslai-static-content-adapter-boot-instructions])
-
-(def WEDDING-BOOT-INSTRUCTIONS
-  "Instructions for how to boot the Andrewslai app"
-  [database-boot-instructions
-
-   wedding-authentication-boot-instructions
-   wedding-authorization-boot-instructions
-   wedding-static-content-adapter-boot-instructions])
+   kaleidoscope-authentication-boot-instructions
+   kaleidoscope-authorization-boot-instructions
+   kaleidoscope-static-content-adapter-boot-instructions])
 
 (def BootInstruction
   [:map
@@ -354,70 +195,26 @@
   (comp mw/standard-stack
         (mw/auth-stack authentication authorization)))
 
-(defn prepare-andrewslai
+(defn prepare-kaleidoscope
   [{:keys [database-connection
-           andrewslai-authentication
-           andrewslai-authorization
-           andrewslai-static-content-adapter]
+           kaleidoscope-authentication
+           kaleidoscope-authorization
+           kaleidoscope-static-content-adapter]
     :as system}]
   {:database               database-connection
-   :http-mw                (make-middleware andrewslai-authentication
-                                            andrewslai-authorization)
-   :static-content-adapter andrewslai-static-content-adapter})
-
-(defn prepare-caheriaguilar
-  [{:keys [database-connection
-           caheriaguilar-authentication
-           caheriaguilar-authorization
-           caheriaguilar-static-content-adapter]
-    :as system}]
-  {:database               database-connection
-   :http-mw                (make-middleware caheriaguilar-authentication
-                                            caheriaguilar-authorization)
-   :static-content-adapter caheriaguilar-static-content-adapter})
-
-(defn prepare-sahiltalkingcents
-  [{:keys [database-connection
-           sahiltalkingcents-authentication
-           sahiltalkingcents-authorization
-           sahiltalkingcents-static-content-adapter]
-    :as system}]
-  {:database               database-connection
-   :http-mw                (make-middleware sahiltalkingcents-authentication
-                                            sahiltalkingcents-authorization)
-   :static-content-adapter sahiltalkingcents-static-content-adapter})
-
-(defn prepare-wedding
-  [{:keys [database-connection
-           wedding-authentication
-           wedding-authorization
-           wedding-static-content-adapter]
-    :as system}]
-  {:database               database-connection
-   :http-mw                (make-middleware wedding-authentication
-                                            wedding-authorization)
-   :static-content-adapter wedding-static-content-adapter})
+   :http-mw                (make-middleware kaleidoscope-authentication
+                                            kaleidoscope-authorization)
+   :static-content-adapter kaleidoscope-static-content-adapter})
 
 (defn prepare-for-virtual-hosting
   [system]
-  {:andrewslai        (prepare-andrewslai system)
-   :wedding           (prepare-wedding system)
-   :caheriaguilar     (prepare-caheriaguilar system)
-   :sahiltalkingcents (prepare-sahiltalkingcents system)
-   })
+  {:wedding      (prepare-wedding system)
+   :kaleidoscope (prepare-kaleidoscope system)})
 
-;; Refactor so we only have one blogging app: kaleidoscope.
 (defn make-http-handler
-  [{:keys [andrewslai caheriaguilar sahiltalkingcents wedding] :as components}]
-  (vh/host-based-routing
-   {#"caheriaguilar.and.andrewslai.com" {:priority 0
-                                         :app      (wedding/wedding-app wedding)}
-    #"caheriaguilar.com"                {:priority 0
-                                         :app      (caheriaguilar/caheriaguilar-app caheriaguilar)}
-    #"sahiltalkingcents.com"            {:priority 0
-                                         :app      (sahiltalkingcents/sahiltalkingcents-app sahiltalkingcents)}
-    #".*"                               {:priority 100
-                                         :app      (andrewslai/andrewslai-app andrewslai)}}))
+  [{:keys [kaleidoscope wedding] :as components}]
+  (vh/host-based-routing {#".*" {:priority 100
+                                 :app      (kaleidoscope/kaleidoscope-app kaleidoscope)}}))
 
 ;; Updates the Malli schema validation output to only show the errors
 ;; This will:

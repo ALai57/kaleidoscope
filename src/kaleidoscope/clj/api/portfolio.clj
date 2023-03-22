@@ -34,13 +34,13 @@
 (s/def :kaleidoscope.portfolio/links
   (s/coll-of :kaleidoscope.portfolio/link))
 
-(s/def :andrewslai/portfolio
+(s/def :kaleidoscope/portfolio
   (s/keys :req-un [:kaleidoscope.portfolio/nodes
                    :kaleidoscope.portfolio/links]))
 
 (defn portfolio?
   [x]
-  (s/valid? :andrewslai/portfolio x))
+  (s/valid? :kaleidoscope/portfolio x))
 
 (def get-nodes
   (rdbms/make-finder :portfolio-entries))

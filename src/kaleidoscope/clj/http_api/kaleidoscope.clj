@@ -1,39 +1,39 @@
-(ns kaleidoscope.clj.http-api.andrewslai
-  (:require [camel-snake-kebab.core :as csk]
-            [camel-snake-kebab.extras :as cske]
-            [clojure.stacktrace :as stacktrace]
-            [compojure.api.sweet :refer [api context GET]]
-            [kaleidoscope.clj.api.authorization :as auth]
-            [kaleidoscope.clj.http-api.admin :refer [admin-routes]]
-            [kaleidoscope.clj.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
-            [kaleidoscope.clj.http-api.cache-control :as cc]
-            [kaleidoscope.clj.http-api.groups :refer [groups-routes]]
-            [kaleidoscope.clj.http-api.photo :refer [photo-routes]]
-            [kaleidoscope.clj.http-api.ping :refer [ping-routes]]
-            [kaleidoscope.clj.http-api.portfolio :refer [portfolio-routes]]
-            [kaleidoscope.clj.http-api.swagger :refer [swagger-ui-routes]]
-            [kaleidoscope.clj.persistence.filesystem :as fs]
-            [ring.util.http-response :refer [not-found not-modified]]
-            [ring.util.response :as ring.response]
-            [steffan-westcott.clj-otel.api.trace.span :as span]
-            [taoensso.timbre :as log]))
+(ns kaleidoscope.clj.http-api.kaleidoscope
+  (:require
+   [camel-snake-kebab.core :as csk]
+   [camel-snake-kebab.extras :as cske]
+   [clojure.stacktrace :as stacktrace]
+   [compojure.api.sweet :refer [api context GET]]
+   [kaleidoscope.clj.http-api.admin :refer [admin-routes]]
+   [kaleidoscope.clj.http-api.album :refer [album-routes]]
+   [kaleidoscope.clj.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
+   [kaleidoscope.clj.http-api.cache-control :as cc]
+   [kaleidoscope.clj.http-api.groups :refer [groups-routes]]
+   [kaleidoscope.clj.http-api.photo :refer [photo-routes]]
+   [kaleidoscope.clj.http-api.ping :refer [ping-routes]]
+   [kaleidoscope.clj.http-api.portfolio :refer [portfolio-routes]]
+   [kaleidoscope.clj.http-api.swagger :refer [swagger-ui-routes]]
+   [kaleidoscope.clj.persistence.filesystem :as fs]
+   [ring.util.http-response :refer [not-found not-modified]]
+   [steffan-westcott.clj-otel.api.trace.span :as span]
+   [taoensso.timbre :as log]
+   [kaleidoscope.clj.api.authorization :as auth]))
 
-(def public-access
-  (constantly true))
+(def KALEIDOSCOPE-ACCESS-CONTROL-LIST
+  [{:pattern #"^/admin.*"        :handler auth/require-*-admin}
+   {:pattern #"^/articles.*"     :handler auth/require-*-writer}
+   {:pattern #"^/branches.*"     :handler auth/require-*-writer}
+   {:pattern #"^/compositions.*" :handler auth/public-access}
+   {:pattern #"^/$"              :handler auth/public-access}
+   {:pattern #"^/index.html$"    :handler auth/public-access}
+   {:pattern #"^/ping"           :handler auth/public-access}
 
-(def ANDREWSLAI-ACCESS-CONTROL-LIST
-  [{:pattern #"^/admin.*"        :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/articles.*"     :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/branches.*"     :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/compositions.*" :handler public-access}
-   {:pattern #"^/$"              :handler public-access}
-   {:pattern #"^/index.html$"    :handler public-access}
-   {:pattern #"^/ping"           :handler public-access}
+   {:pattern #"^/groups.*"       :handler auth/require-*-writer}
 
-   {:pattern #"^/groups.*"       :handler (partial auth/require-role "andrewslai")}
+   {:pattern #"^/media.*" :request-method :post :handler auth/require-*-writer}
+   {:pattern #"^/media.*" :request-method :get  :handler auth/public-access}
 
-   {:pattern #"^/media.*" :request-method :post :handler (partial auth/require-role "andrewslai")}
-   {:pattern #"^/media.*" :request-method :get  :handler public-access}
+   {:pattern #"^/albums.*"       :handler auth/require-*-admin}
 
    #_{:pattern #"^/.*" :handler (constantly false)}])
 
@@ -68,8 +68,6 @@
 (def default-handler
   (GET "*" {:keys [uri headers] :as request}
     :components [static-content-adapter]
-    ;; Also create a link to editor from homepage
-    ;; Also create a link to homepage from editor
     (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
       (let [request (cond-> request
                       headers (assoc :headers (cske/transform-keys csk/->kebab-case-keyword headers)))
@@ -87,7 +85,7 @@
                                            :body    (fs/object-content result)}
                                           (cc/cache-control uri)))))))
 
-(defn andrewslai-app
+(defn kaleidoscope-app
   [{:keys [http-mw] :as components}]
   (api {:components components
         :exceptions {:handlers {:compojure.api.exception/default exception-handler}}
@@ -100,13 +98,14 @@
        portfolio-routes
        admin-routes
        swagger-ui-routes
+       album-routes
        photo-routes
        groups-routes
        default-handler))
 
 
 (comment
-  ((andrewslai-app {:auth           identity
-                    :static-content nil})
+  ((kaleidoscope-app {:auth           identity
+                      :static-content nil})
    {:request-method :get
     :uri    "hi"}))
