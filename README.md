@@ -1,5 +1,5 @@
 # andrewslai
-![master](https://github.com/ALai57/andrewslai/actions/workflows/clojure.yml/badge.svg?branch=master)
+![master](https://github.com/ALai57/kaleidoscope/actions/workflows/clojure.yml/badge.svg?branch=master)
 
 Welcome to my personal website! It is currently hosted at https://andrewslai.com.  
 
@@ -84,7 +84,7 @@ lein run
 After docker build and setting up `.env.docker.local` with correct environment
 
 ``` bash
-docker run --env-file=.env.docker.local -p 5000:5000 andrewslai
+docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope
 ```
 
 To serve a local copy of the Andrewslai frontend, mount a volume to the Docker
@@ -93,7 +93,7 @@ container.
 docker run --env-file=.env.docker.local \
             -p 5000:5000 \
             -v /Users/alai/spl/andrewslai-frontend/resources/public:/andrewslai-frontend/resources/public \
-            andrewslai
+            kaleidoscope
 ```
 
 
@@ -103,4 +103,4 @@ For local development, see [local-development.md](./docs/local-development.md)
 ## Deployment
 To deploy, follow instructions in [deployment.md](./docs/deployment.md)
 
-## TODO: Opentelemetry!
+lein uberjar && docker build -t kaleidoscope . && docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope
