@@ -25,7 +25,7 @@ CMD java -Xms512m -Xmx512m \
     -Dotel.resource.attributes=service.name=kaleidoscope \
     -Dotel.exporter.otlp.protocol=http/protobuf \
     -Dotel.exporter.otlp.endpoint=${SUMOLOGIC_OTLP_URL} \
-    -Dotel.javaagent.debug=true \
+    -Dotel.javaagent.debug=false \
     -jar kaleidoscope.jar
 
 

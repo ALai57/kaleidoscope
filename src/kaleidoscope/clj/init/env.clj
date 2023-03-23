@@ -1,20 +1,15 @@
 (ns kaleidoscope.clj.init.env
   "Parses environment variables into Clojure maps that are used to boot system
   components."
-  (:require [kaleidoscope.clj.http-api.andrewslai :as andrewslai]
-            [kaleidoscope.clj.http-api.auth.buddy-backends :as bb]
-            [kaleidoscope.clj.http-api.caheriaguilar :as caheriaguilar]
+  (:require [kaleidoscope.clj.http-api.auth.buddy-backends :as bb]
             [kaleidoscope.clj.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.clj.http-api.middleware :as mw]
-            [kaleidoscope.clj.http-api.sahiltalkingcents :as sahiltalkingcents]
             [kaleidoscope.clj.http-api.virtual-hosting :as vh]
-            [kaleidoscope.clj.http-api.wedding :as wedding]
             [kaleidoscope.clj.persistence.filesystem.in-memory-impl :as memory]
             [kaleidoscope.clj.persistence.filesystem.local :as local-fs]
             [kaleidoscope.clj.persistence.filesystem.s3-impl :as s3-storage]
             [kaleidoscope.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [kaleidoscope.clj.persistence.rdbms.embedded-postgres-impl
-             :as embedded-pg]
+            [kaleidoscope.clj.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [kaleidoscope.clj.test-utils :as tu]
             [malli.core :as m]
             [malli.dev.pretty :as pretty]
@@ -148,8 +143,7 @@
                                               "sahiltalkingcents"            (s3-storage/map->S3 {:bucket "sahiltalkingcents"
                                                                                                   :creds  s3-storage/CustomAWSCredentialsProviderChain})
                                               "caheriaguilar.and.andrewslai" (s3-storage/map->S3 {:bucket "wedding"
-                                                                                                  :creds  s3-storage/CustomAWSCredentialsProviderChain})
-                                              })
+                                                                                                  :creds  s3-storage/CustomAWSCredentialsProviderChain})})
                "in-memory"        (fn [_env] {"andrewslai"                   (memory/map->MemFS {:store (atom memory/example-fs)})
                                               "caheriaguilar"                (memory/map->MemFS {:store (atom memory/example-fs)})
                                               "sahiltalkingcents"            (memory/map->MemFS {:store (atom memory/example-fs)})
