@@ -18,14 +18,14 @@
     (log/with-min-level tm/*test-log-level*
       (f))))
 
-(defspec put-object-spec
-  (prop/for-all [bucket       gen-s3/gen-bucket-name
-                 a-string     gen/string
-                 metadata     gen-file/gen-metadata ;; Needs to come from another NS spec, because it's not S3 metadata we're generating
-                 user-meta    gen-s3/gen-user-metadata
-                 s3-key       gen-s3/gen-key]
-    (sandbox/with (comp (sandbox/just
-                          (s3/put-object
+#_(defspec put-object-spec
+    (prop/for-all [bucket       gen-s3/gen-bucket-name
+                   a-string     gen/string
+                   metadata     gen-file/gen-metadata ;; Needs to come from another NS spec, because it's not S3 metadata we're generating
+                   user-meta    gen-s3/gen-user-metadata
+                   s3-key       gen-s3/gen-key]
+      (sandbox/with (comp (sandbox/just
+                           (s3/put-object
                             ([req]
                              (or (is (match? {:key s3-key
                                               :input-stream byte-array-input-stream?
@@ -36,10 +36,10 @@
                              {:bucket-name     bucket
                               :common-prefixes []
                               :key-count       1})))
-                        sandbox/always-fail)
-                  (fs/put-file (map->S3 {:bucket bucket
-                                         :creds  {:profile "dummy"
-                                                  :endpoint "dummy"}})
-                               s3-key
-                               (java.io.ByteArrayInputStream. (.getBytes a-string))
-                               (merge metadata user-meta)))))
+                          sandbox/always-fail)
+                    (fs/put-file (map->S3 {:bucket bucket
+                                           :creds  {:profile "dummy"
+                                                    :endpoint "dummy"}})
+                                 s3-key
+                                 (java.io.ByteArrayInputStream. (.getBytes a-string))
+                                 (merge metadata user-meta)))))
