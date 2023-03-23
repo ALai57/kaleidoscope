@@ -138,12 +138,26 @@
    :default   "use-access-control-list"})
 
 (def kaleidoscope-static-content-adapter-boot-instructions
-  {:name      :kaleidoscope-static-content-adapter
+  {:name      :kaleidoscope-static-content-adapters
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn  [env] (s3-storage/map->S3 (env->andrewslai-s3 env)))
-               "in-memory"        (fn [_env] (memory/map->MemFS {:store (atom memory/example-fs)}))
-               "local-filesystem" (fn  [env] (local-fs/map->LocalFS (env->andrewslai-local-fs env)))}
+               "s3"               (fn  [env] {"andrewslai"                   (s3-storage/map->S3 {:bucket "andrewslai"
+                                                                                                  :creds  s3-storage/CustomAWSCredentialsProviderChain})
+                                              "caheriaguilar"                (s3-storage/map->S3 {:bucket "caheriaguilar"
+                                                                                                  :creds  s3-storage/CustomAWSCredentialsProviderChain})
+                                              "sahiltalkingcents"            (s3-storage/map->S3 {:bucket "sahiltalkingcents"
+                                                                                                  :creds  s3-storage/CustomAWSCredentialsProviderChain})
+                                              "caheriaguilar.and.andrewslai" (s3-storage/map->S3 {:bucket "wedding"
+                                                                                                  :creds  s3-storage/CustomAWSCredentialsProviderChain})
+                                              })
+               "in-memory"        (fn [_env] {"andrewslai"                   (memory/map->MemFS {:store (atom memory/example-fs)})
+                                              "caheriaguilar"                (memory/map->MemFS {:store (atom memory/example-fs)})
+                                              "sahiltalkingcents"            (memory/map->MemFS {:store (atom memory/example-fs)})
+                                              "caheriaguilar.and.andrewslai" (memory/map->MemFS {:store (atom memory/example-fs)})})
+               "local-filesystem" (fn  [env] {"andrewslai"                   (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
+                                              "caheriaguilar"                (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
+                                              "sahiltalkingcents"            (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
+                                              "caheriaguilar.and.andrewslai" (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))})}
    :default   "s3"})
 
 (def DEFAULT-BOOT-INSTRUCTIONS
@@ -199,20 +213,19 @@
   [{:keys [database-connection
            kaleidoscope-authentication
            kaleidoscope-authorization
-           kaleidoscope-static-content-adapter]
-    :as system}]
-  {:database               database-connection
-   :http-mw                (make-middleware kaleidoscope-authentication
-                                            kaleidoscope-authorization)
-   :static-content-adapter kaleidoscope-static-content-adapter})
+           kaleidoscope-static-content-adapters]
+    :as   system}]
+  {:database                database-connection
+   :http-mw                 (make-middleware kaleidoscope-authentication
+                                             kaleidoscope-authorization)
+   :static-content-adapters kaleidoscope-static-content-adapters})
 
 (defn prepare-for-virtual-hosting
   [system]
-  {:wedding      (prepare-wedding system)
-   :kaleidoscope (prepare-kaleidoscope system)})
+  {:kaleidoscope (prepare-kaleidoscope system)})
 
 (defn make-http-handler
-  [{:keys [kaleidoscope wedding] :as components}]
+  [{:keys [kaleidoscope] :as components}]
   (vh/host-based-routing {#".*" {:priority 100
                                  :app      (kaleidoscope/kaleidoscope-app kaleidoscope)}}))
 

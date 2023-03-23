@@ -18,7 +18,7 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-min-level :debug
+    (log/with-min-level tm/*test-log-level*
       (f))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -60,7 +60,7 @@
     (is (match? {:status  200
                  :headers {"Content-Type" #"text/html"}
                  :body    "<div>Hello</div>"}
-                (handler (mock/request :get "/"))))))
+                (handler (mock/request :get "https://andrewslai.com/"))))))
 
 (deftest swagger-test
   (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -115,31 +115,31 @@
         (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"
-    {:status 200} (mock/request :get "/ping")
+    {:status 200} (mock/request :get "https://andrewslai.com/ping")
 
     "GET `/` is publicly accessible"
-    {:status 200} (mock/request :get "/")
+    {:status 200} (mock/request :get "https://andrewslai.com/")
 
     "POST `/swagger.json` is publicly accessible"
-    {:status 200} (mock/request :get "/swagger.json")
+    {:status 200} (mock/request :get "https://andrewslai.com/swagger.json")
 
     "GET `/admin` is not publicly accessible"
-    {:status 401} (mock/request :get "/admin")
+    {:status 401} (mock/request :get "https://andrewslai.com/admin")
 
     "POST `/media/` is not publicly accessible"
     {:status 401} (mock/request :post "/media/")
 
     "GET `/projects-portfolio` is publicly accessible"
-    {:status 200} (mock/request :get "/projects-portfolio")
+    {:status 200} (mock/request :get "https://andrewslai.com/projects-portfolio")
 
     "GET `/compositions` is publicly accessible"
-    {:status 200} (mock/request :get "/compositions")
+    {:status 200} (mock/request :get "https://andrewslai.com/compositions")
 
     "GET `/articles/does-not-exist` is not publicly accessible"
-    {:status 401} (mock/request :get "/articles/does-not-exist")
+    {:status 401} (mock/request :get "https://andrewslai.com/articles/does-not-exist")
 
     "PUT `/articles/new-article` is not publicly accessible"
-    {:status 401} (mock/request :put "/articles/new-article")))
+    {:status 401} (mock/request :put "https://andrewslai.com/articles/new-article")))
 
 
 
@@ -414,11 +414,11 @@
     (testing "Folders are not cached"
       (is (match? {:status  200
                    :headers {"Cache-Control" cc/revalidate-0s}}
-                  (app (mock/request :get "/media/")))))
+                  (app (mock/request :get "https://andrewslai.com/media/")))))
 
     (testing "Image does not exist"
       (is (match? {:status 404}
-                  (app (mock/request :get "/media/foo.svg")))))
+                  (app (mock/request :get "https://andrewslai.com/media/foo.svg")))))
 
     (let [response (app (make-example-file-upload-request "https://andrewslai.com" "foo.svg"))]
       (testing "Upload works"
@@ -431,11 +431,11 @@
         (is (match? {:status  200
                      :headers {"Content-Type"  "image/svg+xml"
                                "Cache-Control" cc/cache-30d}}
-                    (app (mock/request :get "/media/foo.svg")))))
+                    (app (mock/request :get "https://andrewslai.com/media/foo.svg")))))
 
       (testing "Etags work"
         (is (match? {:status 304}
-                    (app (-> (mock/request :get "/media/foo.svg")
+                    (app (-> (mock/request :get "https://andrewslai.com/media/foo.svg")
                              (mock/header "If-None-Match" "4e01010375136452500f6f7f043839a2"))))))
       )))
 
@@ -547,28 +547,27 @@
 
 (deftest index.html-test
   (let [system (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
-                     "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
-                     "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                     "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
-                    (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
-                    env/prepare-wedding)
+                     "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                     "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                     "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                    (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                    env/prepare-kaleidoscope)
         app    (->> system
                     kaleidoscope/kaleidoscope-app
                     tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Cache-Control" cc/revalidate-0s}
                  :body    [{:name "afile"} {:name "adir" :type "directory"}]}
-                (app {:request-method :get
-                      :headers        {"Authorization" "Bearer x"}
-                      :uri            "/media/"})))))
+                (app (-> (mock/request :get "https://andrewslai.com/media/")
+                         (mock/header "Authorization" "Bearer x")))))))
 
 (deftest albums-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
-                  "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                  "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                  "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"}
-                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
-                 env/prepare-wedding
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "public-access"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)]
     (testing "No albums in DB to start"
@@ -604,11 +603,11 @@
 
 (deftest album-contents-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
-                  "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                  "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                  "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
-                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
-                 env/prepare-wedding
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "public-access"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)]
     (let [photo-upload-result (:body (app (make-example-file-upload-request "https://andrewslai.com" "lock.svg")))
@@ -649,11 +648,11 @@
 
 (deftest contents-retrieval-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
-                  "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "always-unauthenticated"
-                  "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                  "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
-                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
-                 env/prepare-wedding
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "public-access"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)]
 
@@ -686,11 +685,11 @@
 
 (deftest albums-auth-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
-                  "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
-                  "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "in-memory"}
-                 (env/start-system! env/WEDDING-BOOT-INSTRUCTIONS)
-                 env/prepare-wedding
+                  "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app)]
     (testing "Default access rules restrict access"
       (is (match? {:status 401}

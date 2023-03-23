@@ -3,7 +3,9 @@
    [camel-snake-kebab.core :as csk]
    [camel-snake-kebab.extras :as cske]
    [clojure.stacktrace :as stacktrace]
+   [clojure.string :as str]
    [compojure.api.sweet :refer [api context GET]]
+   [kaleidoscope.clj.api.authorization :as auth]
    [kaleidoscope.clj.http-api.admin :refer [admin-routes]]
    [kaleidoscope.clj.http-api.album :refer [album-routes]]
    [kaleidoscope.clj.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
@@ -16,8 +18,7 @@
    [kaleidoscope.clj.persistence.filesystem :as fs]
    [ring.util.http-response :refer [not-found not-modified]]
    [steffan-westcott.clj-otel.api.trace.span :as span]
-   [taoensso.timbre :as log]
-   [kaleidoscope.clj.api.authorization :as auth]))
+   [taoensso.timbre :as log]))
 
 (def KALEIDOSCOPE-ACCESS-CONTROL-LIST
   [{:pattern #"^/admin.*"        :handler auth/require-*-admin}
@@ -43,37 +44,52 @@
               (ex-message e)
               (stacktrace/print-stack-trace e)))
 
+(defn bucket-name
+  [{:keys [server-name] :as request}]
+  (first (str/split server-name #"\.")))
+
 (def index-routes
   (context "/" []
-    (GET "/" []
-      :components [static-content-adapter]
+    (GET "/" request
+      :components [static-content-adapters]
       (span/with-span! {:name (format "kaleidoscope.index.get")}
         {:status  200
          :headers {"Content-Type" "text/html"}
-         :body    (fs/object-content (fs/get static-content-adapter "index.html"))}))
-    (GET "/index.html" []
-      :components [static-content-adapter]
+         :body    (-> static-content-adapters
+                      (get (bucket-name request))
+                      (fs/get "index.html")
+                      (fs/object-content))}))
+    (GET "/index.html" request
+      :components [static-content-adapters]
       (span/with-span! {:name (format "kaleidoscope.index.get")}
         {:status  200
          :headers {"Content-Type" "text/html"}
-         :body    (fs/object-content (fs/get static-content-adapter "index.html"))}))
-    (GET "/silent-check-sso.html" []
-      :components [static-content-adapter]
+         :body    (-> static-content-adapters
+                      (get (bucket-name request))
+                      (fs/get "index.html")
+                      (fs/object-content))}))
+    (GET "/silent-check-sso.html" request
+      :components [static-content-adapters]
       (span/with-span! {:name (format "kaleidoscope.silent-check-sso.get")}
         {:status  200
          :headers {"Content-Type" "text/html"}
-         :body    (fs/object-content (fs/get static-content-adapter "silent-check-sso.html"))}))
+         :body    (-> static-content-adapters
+                      (get (bucket-name request))
+                      (fs/get "silent-check-sso.html")
+                      (fs/object-content))}))
     ))
 
 (def default-handler
   (GET "*" {:keys [uri headers] :as request}
-    :components [static-content-adapter]
+    :components [static-content-adapters]
     (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
       (let [request (cond-> request
                       headers (assoc :headers (cske/transform-keys csk/->kebab-case-keyword headers)))
-            result  (fs/get static-content-adapter uri (if-let [version (get-in request [:headers :if-none-match])]
-                                                         {:version version}
-                                                         {}))]
+            result  (-> static-content-adapters
+                        (get (bucket-name request))
+                        (fs/get uri (if-let [version (get-in request [:headers :if-none-match])]
+                                      {:version version}
+                                      {})))]
         (cond
           (fs/folder? uri)            (-> {:status 200
                                            :body   result}

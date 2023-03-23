@@ -1,10 +1,11 @@
 (ns kaleidoscope.clj.http-api.photo
   (:require [amazonica.aws.s3 :as s3]
             [amazonica.core :as amazon]
+            [clojure.string :as str]
+            [compojure.api.sweet :refer [context POST]]
             [kaleidoscope.clj.api.albums :as albums-api]
             [kaleidoscope.clj.persistence.filesystem :as fs]
             [kaleidoscope.cljc.specs.albums] ;; Install specs
-            [compojure.api.sweet :refer [context POST]]
             [ring.util.http-response :refer [created]]
             [taoensso.timbre :as log]))
 
@@ -18,10 +19,14 @@
 (defn now []
   (java.time.LocalDateTime/now))
 
+(defn bucket-name
+  [{:keys [server-name] :as request}]
+  (first (str/split server-name #"\.")))
+
 (def photo-routes
   (context (format "/%s" MEDIA-FOLDER) []
     :coercion   :spec
-    :components [static-content-adapter database]
+    :components [static-content-adapters database]
     :tags       ["photos"]
 
     (POST "/" {:keys [uri params] :as req}
@@ -43,10 +48,11 @@
         (log/infof "Creating file `%s` with metadata:\n %s" file-path (-> metadata
                                                                           clojure.pprint/pprint
                                                                           with-out-str))
-        (fs/put-file static-content-adapter
-                     file-path
-                     (->file-input-stream tempfile)
-                     metadata)
+        (-> static-content-adapters
+            (get (bucket-name req))
+            (fs/put-file file-path
+                         (->file-input-stream tempfile)
+                         metadata))
         (let [photo (albums-api/create-photo! database {:id          (java.util.UUID/randomUUID)
                                                         :photo-src   file-path
                                                         :created-at  now-time
