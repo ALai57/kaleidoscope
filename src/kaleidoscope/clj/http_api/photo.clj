@@ -20,8 +20,10 @@
   (java.time.LocalDateTime/now))
 
 (defn bucket-name
-  [{:keys [server-name] :as request}]
-  (first (str/split server-name #"\.")))
+  "Getting host name is from ring.util.request"
+  [request]
+  (let [server-name (get-in request [:headers "host"])]
+    (first (str/split server-name #"\."))))
 
 (def photo-routes
   (context (format "/%s" MEDIA-FOLDER) []

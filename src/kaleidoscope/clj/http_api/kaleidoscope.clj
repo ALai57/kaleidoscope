@@ -45,8 +45,10 @@
               (stacktrace/print-stack-trace e)))
 
 (defn bucket-name
-  [{:keys [server-name] :as request}]
-  (first (str/split server-name #"\.")))
+  "Getting host name is from ring.util.request"
+  [request]
+  (let [server-name (get-in request [:headers "host"])]
+    (first (str/split server-name #"\."))))
 
 (def index-routes
   (context "/" []
@@ -84,10 +86,10 @@
     :components [static-content-adapters]
     (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
       (let [request (cond-> request
-                      headers (assoc :headers (cske/transform-keys csk/->kebab-case-keyword headers)))
+                      headers (assoc :headers (cske/transform-keys csk/->kebab-case headers)))
             result  (-> static-content-adapters
                         (get (bucket-name request))
-                        (fs/get uri (if-let [version (get-in request [:headers :if-none-match])]
+                        (fs/get uri (if-let [version (get-in request [:headers "if-none-match"])]
                                       {:version version}
                                       {})))]
         (cond

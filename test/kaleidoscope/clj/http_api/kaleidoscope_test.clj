@@ -363,18 +363,7 @@
   ([]
    (make-example-file-upload-request "lock.svg"))
   ([fname]
-   (make-example-file-upload-request "localhost" "lock.svg")
-   #_(util/deep-merge {:headers        (tu/auth-header ["kaleidoscope"])
-                       :request-method :post
-                       :uri            "/media/"}
-                      (tu/assemble-multipart "my boundary here"
-                                             [{:part-name    "file-contents"
-                                               :file-name    fname
-                                               :content-type "image/svg+xml"
-                                               :content      (-> "public/images/lock.svg"
-                                                                 io/resource
-                                                                 slurp)}])))
-
+   (make-example-file-upload-request "localhost" "lock.svg"))
   ([host fname]
    (-> (mock/request :post (format "%s/media/" host))
        (mock/header "Authorization" "Bearer x")
@@ -384,8 +373,7 @@
                                                  :content-type "image/svg+xml"
                                                  :content      (-> "public/images/lock.svg"
                                                                    io/resource
-                                                                   slurp)}])))
-   ))
+                                                                   slurp)}])))))
 
 (deftest content-upload-authorization-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -546,7 +534,7 @@
             ))))))
 
 (deftest index.html-test
-  (let [system (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+  (let [system (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                      "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
                      "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
                      "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
@@ -684,7 +672,7 @@
                     (app (-> (mock/request :get "https://andrewslai.com/albums/-/contents"))))) ))))
 
 (deftest albums-auth-test
-  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
                   "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
