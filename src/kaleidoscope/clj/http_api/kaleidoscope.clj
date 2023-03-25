@@ -99,7 +99,7 @@
         {:status  200
          :headers {"Content-Type" "text/html"}
          :body    (-> static-content-adapters
-                      (get KALEIDOSCOPE)
+                      (get (bucket-name request))
                       (fs/get "index.html")
                       (fs/object-content))}))
     (GET "/index.html" request
@@ -108,7 +108,7 @@
         {:status  200
          :headers {"Content-Type" "text/html"}
          :body    (-> static-content-adapters
-                      (get KALEIDOSCOPE)
+                      (get (bucket-name request))
                       (fs/get "index.html")
                       (fs/object-content))}))
     (GET "/silent-check-sso.html" request

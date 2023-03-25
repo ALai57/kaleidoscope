@@ -1,7 +1,6 @@
 (ns kaleidoscope.clj.persistence.filesystem
   (:require [taoensso.timbre :as log]
-            [clojure.string :as string]
-            [kaleidoscope.clj.persistence.filesystem :as fs])
+            [clojure.string :as string])
   (:import java.security.MessageDigest
            java.math.BigInteger)
   (:refer-clojure :exclude [get]))
