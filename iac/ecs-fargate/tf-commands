@@ -1,0 +1,16 @@
+
+terraform state mv -dry-run \
+   aws_ecs_cluster.andrewslai_cluster \
+   aws_ecs_cluster.kaleidoscope_cluster
+
+terraform state mv -dry-run \
+   aws_ecs_cluster_capacity_providers.example \
+   aws_ecs_cluster_capacity_providers.kaleidoscope_provider
+
+terraform state mv -dry-run \
+   aws_ecs_task_definition.andrewslai_task \
+   aws_ecs_task_definition.kaleidoscope_task
+
+terraform state mv -dry-run \
+   aws_ecs_service.andrewslai_service \
+   aws_ecs_service.kaleidoscope_service
