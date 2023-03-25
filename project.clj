@@ -1,7 +1,7 @@
 (def COMPILE-TIME-LOG-LEVEL
   :debug)
 
-(defproject org.clojars.alai57/kaleidoscope "0.1.11"
+(defproject org.clojars.alai57/kaleidoscope "0.1.12-SNAPSHOT"
   :url "https://github.com/ALai57/kaleidoscope"
   :license {:name         "Eclipse Public License - v 1.0"
             :url          "http://www.eclipse.org/legal/epl-v10.html"
