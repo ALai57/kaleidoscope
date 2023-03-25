@@ -98,8 +98,8 @@
                                   "test"     ["run" "-m" kaleidoscope.clj.test-main]}}}
 
   :release-tasks [["vcs" "assert-committed"]
-                  #_["change" "version" "leiningen.release/bump-version" "release"]
-                  #_["vcs" "commit"]
+                  ["change" "version" "leiningen.release/bump-version" "release"]
+                  ["vcs" "commit"]
                   ["clean"]
                   #_["deploy" "clojars"]
                   ["uberjar"]
