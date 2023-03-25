@@ -48,7 +48,20 @@
   "Getting host name is from ring.util.request"
   [request]
   (let [server-name (get-in request [:headers "host"])]
-    (first (str/split server-name #"\."))))
+    (str/join "." (butlast (str/split server-name #"\.")))))
+
+(def KALEIDOSCOPE
+  "kaleidoscope")
+
+;; Emacs xwidgets
+(comment
+  (require '[portal.api :as p])
+  (def p-e
+    (p/open {:launcher     :emacs
+             :window-title "Kaleidoscope Portal"}))
+  (add-tap #'p/submit)
+  (tap> "Stuff")
+  )
 
 (def index-routes
   (context "/" []
@@ -58,7 +71,7 @@
         {:status  200
          :headers {"Content-Type" "text/html"}
          :body    (-> static-content-adapters
-                      (get (bucket-name request))
+                      (get KALEIDOSCOPE)
                       (fs/get "index.html")
                       (fs/object-content))}))
     (GET "/index.html" request
@@ -67,7 +80,7 @@
         {:status  200
          :headers {"Content-Type" "text/html"}
          :body    (-> static-content-adapters
-                      (get (bucket-name request))
+                      (get KALEIDOSCOPE)
                       (fs/get "index.html")
                       (fs/object-content))}))
     (GET "/silent-check-sso.html" request
@@ -76,7 +89,7 @@
         {:status  200
          :headers {"Content-Type" "text/html"}
          :body    (-> static-content-adapters
-                      (get (bucket-name request))
+                      (get KALEIDOSCOPE)
                       (fs/get "silent-check-sso.html")
                       (fs/object-content))}))
     ))

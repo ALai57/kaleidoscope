@@ -92,6 +92,7 @@
                                   [nubank/matcher-combinators "3.7.2"]
                                   [org.clojure/tools.cli "1.0.214"]
                                   [org.clojure/tools.namespace "1.3.0"]
+                                  [djblue/portal "0.37.1"]
                                   ]
                    :aliases      {"migratus" ["run" "-m" kaleidoscope.clj.persistence.rdbms.migrations]
                                   "test"     ["run" "-m" kaleidoscope.clj.test-main]}}}

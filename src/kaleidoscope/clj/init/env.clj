@@ -136,7 +136,9 @@
   {:name      :kaleidoscope-static-content-adapters
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn  [env] {"andrewslai"                   (s3-storage/map->S3 {:bucket "andrewslai"
+               "s3"               (fn  [env] {"kaleidoscope"                 (s3-storage/map->S3 {:bucket "kaleidoscope.pub"
+                                                                                                  :creds  s3-storage/CustomAWSCredentialsProviderChain})
+                                              "andrewslai"                   (s3-storage/map->S3 {:bucket "andrewslai"
                                                                                                   :creds  s3-storage/CustomAWSCredentialsProviderChain})
                                               "caheriaguilar"                (s3-storage/map->S3 {:bucket "caheriaguilar"
                                                                                                   :creds  s3-storage/CustomAWSCredentialsProviderChain})
@@ -144,11 +146,13 @@
                                                                                                   :creds  s3-storage/CustomAWSCredentialsProviderChain})
                                               "caheriaguilar.and.andrewslai" (s3-storage/map->S3 {:bucket "wedding"
                                                                                                   :creds  s3-storage/CustomAWSCredentialsProviderChain})})
-               "in-memory"        (fn [_env] {"andrewslai"                   (memory/map->MemFS {:store (atom memory/example-fs)})
+               "in-memory"        (fn [_env] {"kaleidoscope"                 (memory/map->MemFS {:store (atom memory/example-fs)})
+                                              "andrewslai"                   (memory/map->MemFS {:store (atom memory/example-fs)})
                                               "caheriaguilar"                (memory/map->MemFS {:store (atom memory/example-fs)})
                                               "sahiltalkingcents"            (memory/map->MemFS {:store (atom memory/example-fs)})
                                               "caheriaguilar.and.andrewslai" (memory/map->MemFS {:store (atom memory/example-fs)})})
-               "local-filesystem" (fn  [env] {"andrewslai"                   (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
+               "local-filesystem" (fn  [env] {"kaleidoscope"                 (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
+                                              "andrewslai"                   (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
                                               "caheriaguilar"                (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
                                               "sahiltalkingcents"            (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
                                               "caheriaguilar.and.andrewslai" (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))})}
