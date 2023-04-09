@@ -1,4 +1,4 @@
-INSERT INTO articles (id, author, article_url, article_tags, created_at, modified_at, title)
+INSERT INTO articles (id, author, article_url, article_tags, created_at, modified_at, article_title)
 VALUES
 (1, 'Andrew Lai', 'my-first-article' , 'thoughts', '2022-01-01T00:00:00Z', '2022-01-01T00:00:00Z', 'My first article'),
 (2, 'Andrew Lai', 'my-second-article', 'thoughts', '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'My Second Article'),

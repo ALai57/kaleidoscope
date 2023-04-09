@@ -17,7 +17,7 @@ CREATE TABLE articles(
        id                BIGINT DEFAULT nextval('articles_id_seq') PRIMARY KEY,
        author            VARCHAR (50),
        article_url       VARCHAR (100) UNIQUE,
-       title             VARCHAR,
+       article_title     VARCHAR,
        article_tags      VARCHAR (32),
        created_at        TIMESTAMP,
        modified_at       TIMESTAMP
@@ -92,9 +92,9 @@ SELECT
     ab.modified_at AS branch_modified_at,
     a.id AS article_id,
     a.author,
-    a.title,
-    a.article_url,
     a.article_tags,
+    a.article_title,
+    a.article_url,
     a.created_at AS article_created_at,
     a.modified_at AS article_modified_at
 FROM article_versions av
@@ -112,9 +112,9 @@ SELECT
     ab.modified_at,
     a.id AS article_id,
     a.author,
-    a.article_url,
-    a.title,
     a.article_tags,
+    a.article_title,
+    a.article_url,
     a.created_at AS article_created_at,
     a.modified_at AS article_modified_at
 FROM article_branches ab

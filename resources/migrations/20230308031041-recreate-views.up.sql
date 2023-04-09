@@ -24,9 +24,9 @@ SELECT
     ab.modified_at AS branch_modified_at,
     a.id AS article_id,
     a.author,
-    a.title,
-    a.article_url,
     a.article_tags,
+    a.article_title,
+    a.article_url,
     a.hostname,
     a.created_at AS article_created_at,
     a.modified_at AS article_modified_at
@@ -45,9 +45,9 @@ SELECT
     ab.modified_at,
     a.id AS article_id,
     a.author,
-    a.article_url,
     a.article_tags,
-    a.title,
+    a.article_title,
+    a.article_url,
     a.hostname,
     a.created_at AS article_created_at,
     a.modified_at AS article_modified_at

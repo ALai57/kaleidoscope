@@ -13,11 +13,11 @@
       (f))))
 
 (def example-article
-  {:article-tags "thoughts"
-   :article-url  "my-test-article"
-   :hostname     "andrewslai.com"
-   :title        "My Test Article"
-   :author       "Andrew Lai"})
+  {:article-tags  "thoughts"
+   :article-url   "my-test-article"
+   :article-title "My Test Article"
+   :hostname      "andrewslai.com"
+   :author        "Andrew Lai"})
 
 (deftest create-and-retrieve-articles-test
   (let [database (embedded-h2/fresh-db!)]
@@ -33,11 +33,11 @@
 
 (deftest create-and-retrieve-article-branches-test
   (let [database       (embedded-h2/fresh-db!)
-        article-branch {:article-tags "thoughts"
-                        :article-url  "my-test-article"
-                        :title        "My Test Article"
-                        :author       "Andrew Lai"
-                        :branch-name  "my-new-branch"}]
+        article-branch {:article-tags  "thoughts"
+                        :article-url   "my-test-article"
+                        :article-title "My Test Article"
+                        :author        "Andrew Lai"
+                        :branch-name   "my-new-branch"}]
 
     (testing "example-article-branch doesn't exist in the database"
       (is (empty? (articles/get-branches database {:branch-name (:branch-name article-branch)}))))
@@ -48,12 +48,12 @@
 
       (testing "Can retrieve example-article from the DB"
         (is (match? [(merge article-branch
-                            {:article-id  article-id
-                             :branch-id   branch-id})]
+                            {:article-id article-id
+                             :branch-id  branch-id})]
                     (articles/get-branches database {:branch-id branch-id})))
         (is (match? [(merge article-branch
-                            {:article-id  article-id
-                             :branch-id   branch-id})]
+                            {:article-id article-id
+                             :branch-id  branch-id})]
                     (articles/get-branches database {:article-id article-id})))))))
 
 ;; CAREFUL - this uses redefs

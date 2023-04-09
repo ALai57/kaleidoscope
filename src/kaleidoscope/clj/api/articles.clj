@@ -11,13 +11,13 @@
   (rdbms/make-finder :articles))
 
 (defn create-article!
-  [db {:keys [article-url title] :as article}]
+  [db {:keys [article-url article-title] :as article}]
   (let [now    (utils/now)
         result (rdbms/insert! db
                               :articles (cond-> (assoc article
                                                        :created-at  now
                                                        :modified-at now)
-                                          (nil? title) (assoc :title article-url))
+                                          (nil? article-title) (assoc :article-title article-url))
                               :ex-subtype :UnableToCreateArticle)]
     (log/infof "Created Article: %s" result)
     result))
@@ -34,7 +34,7 @@
     (let [now    (utils/now)
           [{article-id :id :as article}] (if article-id
                                            (get-articles tx {:id article-id})
-                                           (create-article! tx (select-keys article-branch [:author :article-url :article-tags :hostname :title])))
+                                           (create-article! tx (select-keys article-branch [:author :article-url :article-tags :hostname :article-title])))
           [{branch-id :id :as branch}]   (rdbms/insert! tx
                                                         :article-branches {:branch-name branch-name
                                                                            :article-id  article-id
