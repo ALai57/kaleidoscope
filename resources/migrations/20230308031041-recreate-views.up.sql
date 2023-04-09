@@ -14,7 +14,6 @@ DROP VIEW IF EXISTS full_branches;
 CREATE OR REPLACE VIEW full_versions AS
 SELECT
     av.id AS version_id,
-    av.title,
     av.content,
     av.created_at,
     av.modified_at,
@@ -25,6 +24,7 @@ SELECT
     ab.modified_at AS branch_modified_at,
     a.id AS article_id,
     a.author,
+    a.title,
     a.article_url,
     a.article_tags,
     a.hostname,
@@ -47,6 +47,7 @@ SELECT
     a.author,
     a.article_url,
     a.article_tags,
+    a.title,
     a.hostname,
     a.created_at AS article_created_at,
     a.modified_at AS article_modified_at

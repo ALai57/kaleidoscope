@@ -280,8 +280,7 @@
                              tu/wrap-clojure-response)
         article         {:article-url "my-test-article"}
         branch          {:branch-name "mybranch"}
-        version         {:content "<p>Hi</p>"
-                         :title   "My Article"}
+        version         {:content "<p>Hi</p>"}
         create-response (app (create-version "https://andrewslai.com"
                                              (:article-url article)
                                              (:branch-name branch)
@@ -324,8 +323,8 @@
                        tu/wrap-clojure-response)
         article   {:article-tags "thoughts"
                    :article-url  "my-test-article"}
-        version-1 {:title "My Title" :content "<p>Hello</p>"}
-        version-2 {:title "My Title 2" :content "<p>Hello</p>"}
+        version-1 {:content "<p>Hello</p>"}
+        version-2 {:content "<p>Hello</p>"}
 
         {[article-branch] :body :as create-result} (app (create-branch (assoc article :branch-name "branch-1")
                                                                        "https://andrewslai.com"))

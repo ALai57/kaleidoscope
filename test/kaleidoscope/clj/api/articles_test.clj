@@ -16,6 +16,7 @@
   {:article-tags "thoughts"
    :article-url  "my-test-article"
    :hostname     "andrewslai.com"
+   :title        "My Test Article"
    :author       "Andrew Lai"})
 
 (deftest create-and-retrieve-articles-test
@@ -34,6 +35,7 @@
   (let [database       (embedded-h2/fresh-db!)
         article-branch {:article-tags "thoughts"
                         :article-url  "my-test-article"
+                        :title        "My Test Article"
                         :author       "Andrew Lai"
                         :branch-name  "my-new-branch"}]
 
@@ -84,8 +86,7 @@
                                                   :article-url  "my-test-article"
                                                   :author       "Andrew Lai"
                                                   :branch-name  "my-new-branch"}
-        version                                  {:title   "My Title"
-                                                  :content "<p>Hello</p>"}
+        version                                  {:content "<p>Hello</p>"}
         [{:keys [branch-id] :as article-branch}] (articles/create-branch! database article-branch)]
 
     (testing "No versions exist for the given branch to start"
@@ -110,8 +111,7 @@
                                                     :article-url  "my-test-article"
                                                     :author       "Andrew Lai"
                                                     :branch-name  "my-new-branch"}
-          version                                  {:title   "My Title"
-                                                    :content "<p>Hello</p>"}]
+          version                                  {:content "<p>Hello</p>"}]
 
       (let [[{:keys [version-id] :as v}] (articles/new-version! database
                                                                 article-branch
@@ -128,8 +128,7 @@
                                                     :article-url  "my-test-article"
                                                     :author       "Andrew Lai"
                                                     :branch-name  "my-new-branch"}
-          version                                  {:title   "My Title"
-                                                    :content "<p>Hello</p>"}
+          version                                  {:content "<p>Hello</p>"}
           [{:keys [branch-id] :as article-branch}] (articles/create-branch! database article-branch)]
 
       (let [[{:keys [version-id] :as v}] (articles/new-version! database
@@ -175,8 +174,7 @@
         article-branch {:article-tags "thoughts"
                         :article-url  "my-test-article"
                         :author       "Andrew Lai"}
-        version        {:title   "My Title"
-                        :content "<p>Hello</p>"}
+        version        {:content "<p>Hello</p>"}
 
 
         [{old-branch-id :branch-id
