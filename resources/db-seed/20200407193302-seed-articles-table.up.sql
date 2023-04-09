@@ -1,9 +1,9 @@
-INSERT INTO articles (id, author, article_url, article_tags, created_at, modified_at, article_title)
+INSERT INTO articles (id, author, hostname, article_url, article_tags, created_at, modified_at, article_title)
 VALUES
-(1, 'Andrew Lai', 'my-first-article' , 'thoughts', '2022-01-01T00:00:00Z', '2022-01-01T00:00:00Z', 'My first article'),
-(2, 'Andrew Lai', 'my-second-article', 'thoughts', '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'My Second Article'),
-(3, 'Andrew Lai', 'my-third-article' , 'thoughts', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z', 'My Third Article'),
-(4, 'Andrew Lai', 'neural-network-explanation', 'thoughts', '2022-04-01T00:00:00Z', '2022-04-01T00:00:00Z', 'Neural Network Explanation');
+(1, 'Andrew Lai', 'andrewslai.localhost', 'my-first-article' , 'thoughts', '2022-01-01T00:00:00Z', '2022-01-01T00:00:00Z', 'My first article'),
+(2, 'Andrew Lai', 'andrewslai.localhost', 'my-second-article', 'thoughts', '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'My Second Article'),
+(3, 'Andrew Lai', 'andrewslai.localhost', 'my-third-article' , 'thoughts', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z', 'My Third Article'),
+(4, 'Andrew Lai', 'andrewslai.localhost', 'neural-network-explanation', 'thoughts', '2022-04-01T00:00:00Z', '2022-04-01T00:00:00Z', 'Neural Network Explanation');
 
 --;;
 

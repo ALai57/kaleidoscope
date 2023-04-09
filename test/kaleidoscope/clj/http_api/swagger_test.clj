@@ -4,17 +4,17 @@
             [clojure.test :refer [deftest is]]))
 
 (deftest extract-swagger-specs-test
-  (is (= {"article" {:spec :kaleidoscope.article/title}}
+  (is (= {"article" {:spec :kaleidoscope.article/article-title}}
          (swg/extract-specs {:paths [["/" {:get
                                            {:components
                                             {:schemas
                                              {"article"
-                                              {:spec :kaleidoscope.article/title}}}}}]]}))))
+                                              {:spec :kaleidoscope.article/article-title}}}}}]]}))))
 
 (deftest swagger-specs->components-test
   (is (= {"article" {:type "string"
-                     :title "kaleidoscope.article/title"}}
-         (swg/specs->components {"article" {:spec :kaleidoscope.article/title}}))))
+                     :title "kaleidoscope.article/article-title"}}
+         (swg/specs->components {"article" {:spec :kaleidoscope.article/article-title}}))))
 
 (deftest valid-examples-test
   (for [[k {:keys [value]}] swg/example-data-2]

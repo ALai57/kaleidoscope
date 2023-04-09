@@ -236,3 +236,9 @@
                   (articles/unpublish-branch! database new-branch-id)))
       (is (empty? (articles/get-published-articles database {:article-url (:article-url article-branch)}))))
     ))
+
+
+(deftest get-published-articles-seed-test
+  (let [database       (embedded-h2/fresh-db!)]
+    (testing "Seed works properly"
+      (is (= 4 (count (articles/get-published-articles database)))))))

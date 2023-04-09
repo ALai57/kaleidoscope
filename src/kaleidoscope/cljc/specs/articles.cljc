@@ -11,7 +11,7 @@
 
 (s/def :kaleidoscope.article/id spec/integer?)
 (s/def :kaleidoscope.article/article-name spec/string?)
-(s/def :kaleidoscope.article/title spec/string?)
+(s/def :kaleidoscope.article/article-title spec/string?)
 (s/def :kaleidoscope.article/article-tags spec/string?)
 (s/def :kaleidoscope.article/article-url spec/string?)
 (s/def :kaleidoscope.article/author spec/string?)
@@ -23,7 +23,7 @@
                    :kaleidoscope.article/article-url]
           :opt-un [:kaleidoscope.article/id
                    :kaleidoscope.article/content
-                   :kaleidoscope.article/title]))
+                   :kaleidoscope.article/article-title]))
 
 (s/def :kaleidoscope.branch/id spec/string?)
 (s/def :kaleidoscope.branch/branch-id spec/string?)

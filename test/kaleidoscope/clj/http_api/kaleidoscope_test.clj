@@ -208,6 +208,10 @@
        (mock/header "Authorization" "Bearer x")))
   )
 
+(defn has-count
+  [n]
+  (m/pred (fn [x] (= n (count x)))))
+
 (deftest published-article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
@@ -219,15 +223,12 @@
                      env/prepare-kaleidoscope
                      kaleidoscope/kaleidoscope-app)]
         (is (match? expected
-                    (tu/app-request app (mock/request :get endpoint))))))
+                    (tu/app-request app (mock/request :get (str "http://andrewslai.localhost" endpoint)))))))
 
-    "/compositions"                  {:status 200 :body articles?}
+    "/compositions"                  {:status 200 :body (has-count 4)}
     "/compositions/my-first-article" {:status 200 :body article?}
-    "/compositions/does-not-exist"   {:status 404}))
-
-(defn has-count
-  [n]
-  (m/pred (fn [x] (= n (count x)))))
+    "/compositions/does-not-exist"   {:status 404}
+    ))
 
 (deftest create-branch-happy-path-test
   (let [app     (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
