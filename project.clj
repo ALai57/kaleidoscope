@@ -101,7 +101,7 @@
                   ["change" "version" "leiningen.release/bump-version" "release"]
                   ["vcs" "commit"]
                   ["clean"]
-                  #_["deploy" "clojars"]
+                  ["deploy" "clojars"]
                   ["uberjar"]
 
                   ;; Necessary for dockerizing on M1:
