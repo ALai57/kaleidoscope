@@ -22,7 +22,7 @@
   (let [op  (get MIGRATUS-COMMANDS v m/migrate)
         pg  (live-pg/pg-conn (System/getenv))]
     (with-open [connection (next/get-connection pg)]
-      (apply op (concat [{:migration-dirs "migrations"
+      (apply op (concat [{:migration-dir "migrations"
                           :store          :database
                           :db             {:connection connection}}]
                         args)))))
@@ -31,8 +31,8 @@
   ;; MIGHT HAVE TO REQUIRE SOME MODULES... THIS WAS FAILING UNTIL I EVALUATED
   ;; THE BUFFER WITH THIS MODULE
 
-  (m/create {:migration-dirs "migrations"}
-            "add-image-metadata-table")
+  (m/create {:migration-dir "migrations"}
+            "add-title-to-articles")
   (-main "init")
   (-main "migrate")
   (-main "up")

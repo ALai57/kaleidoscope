@@ -12,7 +12,10 @@
         ;; before migrating. I think it's because Migratus closes the connection.
         conn       (next/get-connection datasource)]
     (log/with-min-level :warn
-      (migratus/migrate {:migration-dirs "migrations"
-                         :store          :database
-                         :db             {:datasource datasource}}))
+      (migratus/migrate {:migration-dir "migrations"
+                         :store         :database
+                         :db            {:connection (next/get-connection datasource)}})
+      (migratus/migrate {:migration-dir "db-seed"
+                         :store         :database
+                         :db            {:connection (next/get-connection datasource)}}))
     conn))
