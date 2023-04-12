@@ -322,8 +322,9 @@
                        env/prepare-kaleidoscope
                        kaleidoscope/kaleidoscope-app
                        tu/wrap-clojure-response)
-        article   {:article-tags "thoughts"
-                   :article-url  "my-test-article"}
+        article   {:article-tags  "thoughts"
+                   :article-title "My test article"
+                   :article-url   "my-test-article"}
         version-1 {:content "<p>Hello</p>"}
         version-2 {:content "<p>Hello</p>"}
 
@@ -332,7 +333,7 @@
         ]
 
     (testing "Create article branch"
-      (is (match? {:status 200 :body [{:article-id some? :branch-id some?}]}
+      (is (match? {:status 200 :body [{:article-id some? :branch-id some? :article-title "My test article"}]}
                   create-result)))
 
     (testing "Commit to branch twice"

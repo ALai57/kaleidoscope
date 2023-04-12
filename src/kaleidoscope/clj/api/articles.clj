@@ -12,6 +12,7 @@
 
 (defn create-article!
   [db {:keys [article-url article-title] :as article}]
+  (log/infof "Creating Article: %s" article)
   (let [now    (utils/now)
         result (rdbms/insert! db
                               :articles (cond-> (assoc article
@@ -30,6 +31,7 @@
 
 (defn create-branch!
   [db {:keys [article-id author branch-name] :as article-branch}]
+  (log/infof "Creating branch: %s" article-branch)
   (next/with-transaction [tx db]
     (let [now    (utils/now)
           [{article-id :id :as article}] (if article-id
@@ -97,13 +99,13 @@
 
 (defn new-version!
   [db article-branch article-version]
-  (let [existing-branch (first (get-branches db (dissoc article-branch :hostname)))]
+  (let [existing-branch (first (get-branches db (select-keys article-branch [:article-url :hostname])))]
     (if (published? existing-branch)
       (throw (ex-info "Cannot change a published branch" existing-branch))
       (next/with-transaction [tx db]
         (when-not existing-branch
           (create-branch! tx article-branch))
-        (let [[branch] (get-branches tx (dissoc article-branch :hostname))]
+        (let [[branch] (get-branches tx (select-keys article-branch [:article-url :hostname]))]
           (create-version! tx branch article-version))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

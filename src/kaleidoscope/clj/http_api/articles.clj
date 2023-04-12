@@ -37,7 +37,7 @@
              :author      (oidc/get-full-name (:identity request)))))
 
 (defn ->commit [{:keys [body-params] :as request}]
-  (select-keys body-params [:branch-id :title :content :created-at :modified-at]))
+  (select-keys body-params [:branch-id :content :created-at :modified-at]))
 
 (defmethod compojure-meta/restructure-param :swagger
   [_ {request-spec :request :as swagger} acc]
@@ -150,11 +150,12 @@
               (try
                 (let [commit (->commit request)
                       result (articles-api/new-version! database
-                                                        {:branch-name  branch-name
-                                                         :hostname     (get-host request)
-                                                         :article-url  article-url
-                                                         :article-tags (get-in request [:body :article-tags] "thoughts")
-                                                         :author       (oidc/get-full-name (:identity request))}
+                                                        {:branch-name   branch-name
+                                                         :hostname      (get-host request)
+                                                         :article-url   article-url
+                                                         :article-tags  (get-in request [:params :article-tags] "thoughts")
+                                                         :article-title (get-in request [:params :article-title])
+                                                         :author        (oidc/get-full-name (:identity request))}
                                                         commit)]
                   (log/info result)
                   (ok result))
