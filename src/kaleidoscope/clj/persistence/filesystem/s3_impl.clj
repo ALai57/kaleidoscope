@@ -21,13 +21,6 @@
 ;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: Is this custom provider necesssary?
-(def CustomAWSCredentialsProviderChain
-  (AWSCredentialsProviderChain.
-   [^AWSCredentialsProvider (new EnvironmentVariableCredentialsProvider)
-    ^AWSCredentialsProvider (new ProfileCredentialsProvider)
-    ^AWSCredentialsProvider (new ContainerCredentialsProvider)]))
-
 (defn exception-response
   [{:keys [status-code] :as exception-map}]
   (case status-code
@@ -95,13 +88,12 @@
           (map (partial s3.ls/prefix->file path) (:common-prefixes result))))
 
 ;; Add wrapper functions that are spec'ed out
-(defrecord S3 [bucket creds protocol]
+(defrecord S3 [bucket]
   fs/DistributedFileSystem
   (ls [_ path options]
     (log/infof "S3 List Objects `%s/%s` with options %s" bucket path options)
     (span/with-span! {:name "kaleidoscope.s3.ls"}
-      (let [result (s3/list-objects-v2 creds
-                                       {:bucket-name bucket
+      (let [result (s3/list-objects-v2 {:bucket-name bucket
                                         :prefix      path
                                         :delimiter   s3.ls/FOLDER-DELIMITER})]
         (ls-response->fs-metadata path result))))
@@ -109,9 +101,9 @@
     (log/infof "S3 Get Object `%s/%s` with options %s" bucket path options)
     (span/with-span! {:name "kaleidoscope.s3.get"}
       (try
-        (if-let [response (s3/get-object creds (cond-> {:bucket-name bucket
-                                                        :key         path}
-                                                 (:version options) (assoc :nonmatching-e-tag-constraints [(:version options)])))]
+        (if-let [response (s3/get-object (cond-> {:bucket-name bucket
+                                                  :key         path}
+                                           (:version options) (assoc :nonmatching-e-tag-constraints [(:version options)])))]
           (get-response->fs-object response)
           fs/not-modified-response)
         (catch Exception e
@@ -124,8 +116,7 @@
     (log/infof "S3 Put Object `%s/%s`" bucket path)
     (span/with-span! {:name "kaleidoscope.s3.put"}
       (try
-        (let [response (s3/put-object creds
-                                      {:bucket-name  bucket
+        (let [response (s3/put-object {:bucket-name  bucket
                                        :key          path
                                        :input-stream input-stream
                                        :metadata     (prepare-metadata metadata)})]
@@ -145,8 +136,7 @@
         slurp
         (.getBytes)))
 
-  (fs/put-file (map->S3 {:bucket "andrewslai"
-                         :creds  CustomAWSCredentialsProviderChain})
+  (fs/put-file (map->S3 {:bucket "andrewslai"})
                "lock.svg"
                (java.io.ByteArrayInputStream. b)
                {:content-type   "image/svg"
@@ -156,8 +146,7 @@
   (def c
     (clojure.java.io/file "resources/public/images/lock.svg"))
 
-  (fs/put-file (map->S3 {:bucket "andrewslai"
-                         :creds  CustomAWSCredentialsProviderChain})
+  (fs/put-file (map->S3 {:bucket "andrewslai"})
                "lock.svg"
                (clojure.java.io/input-stream c)
                {:content-type   "image/svg"
@@ -165,16 +154,14 @@
                 :something      "some"})
 
 
-  (s3/put-object CustomAWSCredentialsProviderChain
-                 {:bucket-name  "andrewslai"
+  (s3/put-object {:bucket-name  "andrewslai"
                   :key          "lock.svg"
                   :input-stream (java.io.ByteArrayInputStream. b)
                   :metadata     {:content-type   "image/svg"
                                  :content-length (count b)
                                  :user-metadata  {:something "some-value"}}})
 
-  (s3/get-object CustomAWSCredentialsProviderChain
-                 {:bucket-name "andrewslai"
+  (s3/get-object {:bucket-name "andrewslai"
                   :key         "lock.svg"})
 
 
@@ -190,8 +177,7 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;  LIST files
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  (fs/get (map->S3 {:bucket "andrewslai-wedding"
-                    :creds  CustomAWSCredentialsProviderChain})
+  (fs/get (map->S3 {:bucket "andrewslai-wedding"})
           "public/")
   ;; => ({:path "public/css/",
   ;;      :key "public/css/",
@@ -212,8 +198,7 @@
   ;;      :size 1121,
   ;;      :bucket-name "andrewslai-wedding"})
 
-  (s3/list-objects-v2 CustomAWSCredentialsProviderChain
-                      {:bucket-name "andrewslai-wedding"
+  (s3/list-objects-v2 {:bucket-name "andrewslai-wedding"
                        :prefix      "public/"
                        :delimiter   s3.ls/FOLDER-DELIMITER})
   ;; => {:object-summaries
@@ -235,8 +220,7 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;  GET file
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  (fs/get-file (map->S3 {:bucket "andrewslai-wedding"
-                         :creds  CustomAWSCredentialsProviderChain})
+  (fs/get-file (map->S3 {:bucket "andrewslai-wedding"})
                "index.html")
 
   ;; => #object[com.amazonaws.services.s3.model.S3ObjectInputStream 0x2fdbe8b5 "com.amazonaws.services.s3.model.S3ObjectInputStream@2fdbe8b5"]
@@ -252,8 +236,7 @@
                   })
 
 
-  (fs/get (map->S3 {:bucket "andrewslai-wedding"
-                    :creds  CustomAWSCredentialsProviderChain})
+  (fs/get (map->S3 {:bucket "andrewslai-wedding"})
           "index.html"
           {:sdk-client-execution-timeout 10000
            :version                      "8ac49aade040081e110a1137cc9f09da"})
@@ -264,8 +247,7 @@
 
   ;; Http MW loading static content
   (def loader
-    (-> (map->S3 {:bucket "andrewslai-wedding"
-                  :creds   CustomAWSCredentialsProviderChain})
+    (-> (map->S3 {:bucket "andrewslai-wedding"})
         (protocols/filesystem-loader)))
 
   (.getResource loader "media/")
