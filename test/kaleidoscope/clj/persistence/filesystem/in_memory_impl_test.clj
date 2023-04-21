@@ -1,6 +1,6 @@
-(ns kaleidoscope.clj.persistence.filesystem.in-memory-impl-test
-  (:require [kaleidoscope.clj.persistence.filesystem :as fs]
-            [kaleidoscope.clj.persistence.filesystem.in-memory-impl :refer :all]
+(ns kaleidoscope.persistence.filesystem.in-memory-impl-test
+  (:require [kaleidoscope.persistence.filesystem :as fs]
+            [kaleidoscope.persistence.filesystem.in-memory-impl :refer :all]
             [kaleidoscope.generators.files :as gen-file]
             [clojure.java.io :as io]
             [clojure.test :refer [is deftest]]

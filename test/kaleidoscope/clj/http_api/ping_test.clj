@@ -1,5 +1,5 @@
-(ns kaleidoscope.clj.http-api.ping-test
-  (:require [kaleidoscope.clj.http-api.ping :as ping]
+(ns kaleidoscope.http-api.ping-test
+  (:require [kaleidoscope.http-api.ping :as ping]
             [clojure.test :refer [deftest is]]
             [ring.mock.request :as mock]))
 

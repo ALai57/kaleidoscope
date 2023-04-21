@@ -78,7 +78,7 @@
   :uberjar-name "kaleidoscope.jar"
   :uberjar-exclusions [#"public/.*" #".txz"]
 
-  :main kaleidoscope.clj.main
+  :main kaleidoscope.main
 
   ;; Speeds up Docker builds, see https://docs.docker.com/develop/develop-images/build_enhancements/
   :shell {:env {"DOCKER_BUILDKIT" "1"}}
@@ -94,8 +94,8 @@
                                   [org.clojure/tools.namespace "1.3.0"]
                                   [djblue/portal "0.37.1"]
                                   ]
-                   :aliases      {"migratus" ["run" "-m" kaleidoscope.clj.persistence.rdbms.migrations]
-                                  "test"     ["run" "-m" kaleidoscope.clj.test-main]}}}
+                   :aliases      {"migratus" ["run" "-m" kaleidoscope.persistence.rdbms.migrations]
+                                  "test"     ["run" "-m" kaleidoscope.test-main]}}}
 
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]

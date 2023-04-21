@@ -1,5 +1,5 @@
-(ns kaleidoscope.clj.utils.core-test
-  (:require [kaleidoscope.clj.utils.core :refer :all]
+(ns kaleidoscope.utils.core-test
+  (:require [kaleidoscope.utils.core :refer :all]
             [clojure.string :as string]
             [clojure.test :refer [deftest is]]))
 

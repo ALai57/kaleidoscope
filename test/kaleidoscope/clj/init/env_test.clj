@@ -1,5 +1,5 @@
-(ns kaleidoscope.clj.init.env-test
-  (:require [kaleidoscope.clj.init.env :as sut]
+(ns kaleidoscope.init.env-test
+  (:require [kaleidoscope.init.env :as sut]
             [clojure.test :refer :all]
             [matcher-combinators.test :refer [match?]]
             [matcher-combinators.result :as result]))

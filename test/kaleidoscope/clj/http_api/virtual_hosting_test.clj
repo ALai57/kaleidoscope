@@ -1,8 +1,8 @@
-(ns kaleidoscope.clj.http-api.virtual-hosting-test
-  (:require [kaleidoscope.clj.test-utils :as tu]
-            [kaleidoscope.clj.http-api.virtual-hosting :as vh]
+(ns kaleidoscope.http-api.virtual-hosting-test
+  (:require [kaleidoscope.test-utils :as tu]
+            [kaleidoscope.http-api.virtual-hosting :as vh]
             [kaleidoscope.generators.networking :as gen-net]
-            [kaleidoscope.clj.test-main :as tm]
+            [kaleidoscope.test-main :as tm]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [clojure.test :refer [are deftest is use-fixtures]]

@@ -1,10 +1,10 @@
-(ns kaleidoscope.clj.http-api.middleware-test
+(ns kaleidoscope.http-api.middleware-test
   (:require [amazonica.aws.s3 :as s3]
-            [kaleidoscope.clj.http-api.auth.buddy-backends :as bb]
-            [kaleidoscope.clj.http-api.middleware :as sut]
-            [kaleidoscope.clj.persistence.filesystem.s3-impl :as s3-storage]
-            [kaleidoscope.clj.test-utils :as tu]
-            [kaleidoscope.clj.test-main :as tm]
+            [kaleidoscope.http-api.auth.buddy-backends :as bb]
+            [kaleidoscope.http-api.middleware :as sut]
+            [kaleidoscope.persistence.filesystem.s3-impl :as s3-storage]
+            [kaleidoscope.test-utils :as tu]
+            [kaleidoscope.test-main :as tm]
             [biiwide.sandboxica.alpha :as sandbox]
             [cheshire.core :as json]
             [clojure.test :refer :all]

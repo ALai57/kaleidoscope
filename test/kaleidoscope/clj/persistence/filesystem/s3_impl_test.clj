@@ -1,10 +1,10 @@
-(ns kaleidoscope.clj.persistence.filesystem.s3-impl-test
+(ns kaleidoscope.persistence.filesystem.s3-impl-test
   (:require [amazonica.aws.s3 :as s3]
-            [kaleidoscope.clj.persistence.filesystem :as fs]
-            [kaleidoscope.clj.persistence.filesystem.s3-impl :refer :all]
+            [kaleidoscope.persistence.filesystem :as fs]
+            [kaleidoscope.persistence.filesystem.s3-impl :refer :all]
             [kaleidoscope.generators.files :as gen-file]
             [kaleidoscope.generators.s3 :as gen-s3]
-            [kaleidoscope.clj.test-main :as tm]
+            [kaleidoscope.test-main :as tm]
             [biiwide.sandboxica.alpha :as sandbox]
             [clojure.test :refer [is use-fixtures]]
             [clojure.test.check.clojure-test :refer [defspec]]

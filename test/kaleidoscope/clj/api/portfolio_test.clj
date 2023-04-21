@@ -1,7 +1,7 @@
-(ns kaleidoscope.clj.api.portfolio-test
-  (:require [kaleidoscope.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [kaleidoscope.clj.api.portfolio :as portfolio]
-            [kaleidoscope.clj.test-main :as tm]
+(ns kaleidoscope.api.portfolio-test
+  (:require [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.api.portfolio :as portfolio]
+            [kaleidoscope.test-main :as tm]
             [clojure.test :refer :all]
             [taoensso.timbre :as log]))
 

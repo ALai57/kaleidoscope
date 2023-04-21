@@ -1,5 +1,5 @@
 (ns kaleidoscope.generators.s3
-  (:require [kaleidoscope.clj.persistence.filesystem.s3-impl]
+  (:require [kaleidoscope.persistence.filesystem.s3-impl]
             [kaleidoscope.generators.networking :as gen-net]
             [kaleidoscope.generators.files :as gen-file]
             [clojure.spec.alpha :as s]

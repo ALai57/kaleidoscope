@@ -1,5 +1,5 @@
 (ns kaleidoscope.generators.networking
-  (:require [kaleidoscope.clj.http-api.virtual-hosting]
+  (:require [kaleidoscope.http-api.virtual-hosting]
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [clojure.test.check.generators :as gen]))

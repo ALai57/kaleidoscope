@@ -1,5 +1,5 @@
-(ns kaleidoscope.clj.http-api.swagger-test
-  (:require [kaleidoscope.clj.http-api.swagger :as swg]
+(ns kaleidoscope.http-api.swagger-test
+  (:require [kaleidoscope.http-api.swagger :as swg]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [deftest is]]))
 

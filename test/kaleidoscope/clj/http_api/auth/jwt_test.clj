@@ -1,5 +1,5 @@
-(ns kaleidoscope.clj.http-api.auth.jwt-test
-  (:require [kaleidoscope.clj.http-api.auth.jwt :refer :all]
+(ns kaleidoscope.http-api.auth.jwt-test
+  (:require [kaleidoscope.http-api.auth.jwt :refer :all]
             [clojure.test :refer [deftest is]]))
 
 (def example-header "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")

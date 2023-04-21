@@ -1,6 +1,6 @@
-(ns kaleidoscope.clj.http-api.cache-control-test
-  (:require [kaleidoscope.clj.http-api.cache-control :as cc]
-            [kaleidoscope.clj.test-main :as tm]
+(ns kaleidoscope.http-api.cache-control-test
+  (:require [kaleidoscope.http-api.cache-control :as cc]
+            [kaleidoscope.test-main :as tm]
             [clojure.test :refer [are deftest is use-fixtures]]
             [taoensso.timbre :as log]))
 

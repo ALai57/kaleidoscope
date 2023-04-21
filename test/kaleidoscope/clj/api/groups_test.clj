@@ -1,8 +1,8 @@
-(ns kaleidoscope.clj.api.groups-test
-  (:require [kaleidoscope.clj.persistence.rdbms :as rdbms]
-            [kaleidoscope.clj.api.groups :as groups]
-            [kaleidoscope.clj.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [kaleidoscope.clj.test-main :as tm]
+(ns kaleidoscope.api.groups-test
+  (:require [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.api.groups :as groups]
+            [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.test-main :as tm]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))

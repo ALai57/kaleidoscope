@@ -1,6 +1,6 @@
-(ns kaleidoscope.clj.test-utils
-  (:require [kaleidoscope.clj.api.authorization :as auth]
-            [kaleidoscope.clj.http-api.auth.jwt :as jwt]
+(ns kaleidoscope.test-utils
+  (:require [kaleidoscope.api.authorization :as auth]
+            [kaleidoscope.http-api.auth.jwt :as jwt]
             [cheshire.core :as json]
             [clojure.java.io :as io]
             [clojure.string :as string]

@@ -1,5 +1,5 @@
-(ns kaleidoscope.clj.http-api.auth.buddy-backends-test
-  (:require [kaleidoscope.clj.http-api.auth.buddy-backends :as bb]
+(ns kaleidoscope.http-api.auth.buddy-backends-test
+  (:require [kaleidoscope.http-api.auth.buddy-backends :as bb]
             [buddy.auth.backends.token :as token]
             [buddy.auth.middleware :as bmw]
             [buddy.auth.protocols :as proto]

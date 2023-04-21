@@ -1,4 +1,4 @@
-(ns kaleidoscope.clj.test-main
+(ns kaleidoscope.test-main
   "This test main allows the user to control the logging level."
   (:require [clojure.java.io :as io]
             [clojure.test :as t]
