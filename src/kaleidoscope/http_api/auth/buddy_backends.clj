@@ -2,7 +2,6 @@
   (:require [buddy.auth.backends.token :as token]
             [clojure.string :as string]
             [kaleidoscope.http-api.auth.keycloak :as keycloak]
-            [ring.util.http-response :refer [unauthorized]]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 

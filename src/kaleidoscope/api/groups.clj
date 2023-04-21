@@ -1,9 +1,7 @@
 (ns kaleidoscope.api.groups
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
-            [clojure.spec.alpha :as s]
-            [taoensso.timbre :as log]
-            [clojure.set :as set]))
+            [taoensso.timbre :as log]))
 
 (defn get-id
   [group]

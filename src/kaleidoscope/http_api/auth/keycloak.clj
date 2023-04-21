@@ -3,11 +3,10 @@
             [kaleidoscope.http-api.auth.jwt :as jwt]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log])
-  (:import org.keycloak.adapters.KeycloakDeploymentBuilder
-           org.keycloak.adapters.rotation.AdapterTokenVerifier
+  (:import (org.keycloak.adapters KeycloakDeploymentBuilder)
+           (org.keycloak.adapters.rotation AdapterTokenVerifier)
            (org.keycloak.admin.client Keycloak)
-           org.keycloak.jose.jws.JWSInput
-           org.keycloak.representations.adapters.config.AdapterConfig))
+           (org.keycloak.representations.adapters.config AdapterConfig)))
 
 (defn- keycloak-adapter
   [{:keys [realm ssl-required auth-server-url

@@ -1,10 +1,8 @@
 (ns kaleidoscope.generators.s3
-  (:require [kaleidoscope.persistence.filesystem.s3-impl]
-            [kaleidoscope.generators.networking :as gen-net]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.test.check.generators :as gen]
             [kaleidoscope.generators.files :as gen-file]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as string]
-            [clojure.test.check.generators :as gen]))
+            [kaleidoscope.generators.networking :as gen-net]))
 
 (def gen-bucket-name
   gen-net/gen-host)

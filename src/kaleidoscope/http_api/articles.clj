@@ -112,7 +112,7 @@
             (try
               (let [article (->article article-url request)
                     branch  {:branch-name branch-name}]
-                (ok (doto (articles-api/create-branch! database article branch)
+                (ok (doto (articles-api/create-branch! database (merge article branch))
                       log/info)))
               (catch Exception e
                 (log/error "Caught exception " e))))

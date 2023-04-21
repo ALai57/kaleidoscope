@@ -1,8 +1,6 @@
 (ns kaleidoscope.init.env-test
-  (:require [kaleidoscope.init.env :as sut]
-            [clojure.test :refer :all]
-            [matcher-combinators.test :refer [match?]]
-            [matcher-combinators.result :as result]))
+  (:require [clojure.test :refer :all]
+            [kaleidoscope.init.env :as sut]))
 
 (deftest env->pg-conn-throws-when-missing-env-vars
   (is (thrown-with-msg? clojure.lang.ExceptionInfo

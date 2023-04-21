@@ -1,6 +1,6 @@
 (ns kaleidoscope.persistence.filesystem.in-memory-impl-test
   (:require [kaleidoscope.persistence.filesystem :as fs]
-            [kaleidoscope.persistence.filesystem.in-memory-impl :refer :all]
+            [kaleidoscope.persistence.filesystem.in-memory-impl :as sut]
             [kaleidoscope.generators.files :as gen-file]
             [clojure.java.io :as io]
             [clojure.test :refer [is deftest]]
@@ -14,11 +14,11 @@
   (= (class obj) java.io.BufferedInputStream))
 
 (deftest file-test
-  (is (file? (tag-as {} 'file))))
+  (is (sut/file? (sut/tag-as {} 'file))))
 
 (deftest memfs-test
   (let [db    (atom {})
-        memfs (map->MemFS {:store db})]
+        memfs (sut/map->MemFS {:store db})]
     (is (fs/does-not-exist? (fs/get memfs "var")))
     (is (match? {:name     "afile.txt"
                  :path     "var/afile.txt"
@@ -39,7 +39,7 @@
                  metadata (gen/map gen/simple-type-printable-equatable
                                    gen/simple-type-printable-equatable)]
     (let [db    (atom {})
-          memfs (map->MemFS {:store db})
+          memfs (sut/map->MemFS {:store db})
 
           fullpath (str path "/" fname)
           file     {:name     fname

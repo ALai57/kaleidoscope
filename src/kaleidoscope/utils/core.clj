@@ -1,6 +1,7 @@
 (ns kaleidoscope.utils.core
-  (:require [clojure.string :as string])
-  (:import java.util.UUID))
+  (:import
+   (java.time LocalDateTime)
+   (java.util UUID)))
 
 (defn deep-merge
   [m1 m2]
@@ -15,7 +16,7 @@
     :else m2))
 
 (defn now []
-  (java.time.LocalDateTime/now))
+  (LocalDateTime/now))
 
 (defn uuid []
-  (java.util.UUID/randomUUID))
+  (UUID/randomUUID))

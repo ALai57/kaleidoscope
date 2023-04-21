@@ -1,16 +1,12 @@
 (ns kaleidoscope.http-api.virtual-hosting-test
-  (:require [kaleidoscope.test-utils :as tu]
-            [kaleidoscope.http-api.virtual-hosting :as vh]
-            [kaleidoscope.generators.networking :as gen-net]
-            [kaleidoscope.test-main :as tm]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as string]
-            [clojure.test :refer [are deftest is use-fixtures]]
+  (:require [clojure.test :refer [are deftest is use-fixtures]]
             [clojure.test.check.clojure-test :refer [defspec]]
-            [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
-            [compojure.api.sweet :refer [api GET]]
-            [matcher-combinators.test]
+            [compojure.api.sweet :refer [GET]]
+            [kaleidoscope.generators.networking :as gen-net]
+            [kaleidoscope.http-api.virtual-hosting :as vh]
+            [kaleidoscope.test-main :as tm]
+            [matcher-combinators.test :refer [match?]]
             [ring.util.request :as req]
             [taoensso.timbre :as log]))
 

@@ -112,10 +112,10 @@
   [s dir]
   (when-not (string/includes? s ".")
     (throw (IllegalArgumentException. "Temporary file names must include an extension")))
-  (let [[fname ext] (string/split s #"\.")]
-    (let [f (File/createTempFile fname (str "." ext) dir)]
-      (.deleteOnExit f)
-      f)))
+  (let [[fname ext] (string/split s #"\.")
+        f           (File/createTempFile fname (str "." ext) dir)]
+    (.deleteOnExit f)
+    f))
 
 (defn- url-array
   [urls]

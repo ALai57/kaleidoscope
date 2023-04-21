@@ -1,9 +1,7 @@
 (ns kaleidoscope.http-api.auth.jwt
   (:require [buddy.core.codecs.base64 :as b64]
             [cheshire.core :as json]
-            [clojure.string :as string]
-            [taoensso.timbre :as log]
-            [slingshot.slingshot :refer [try+]]))
+            [clojure.string :as string]))
 
 (defn b64->clj [s]
   (json/parse-string (apply str (map char (b64/decode s)))

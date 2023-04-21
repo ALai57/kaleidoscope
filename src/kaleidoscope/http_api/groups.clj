@@ -1,15 +1,12 @@
 (ns kaleidoscope.http-api.groups
-  (:require [kaleidoscope.api.groups :as groups-api]
-            [kaleidoscope.api.authentication :as oidc]
-            [kaleidoscope.models.articles] ;; Install specs
-            [camel-snake-kebab.core :as csk]
-            [camel-snake-kebab.extras :as cske]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
             [compojure.api.meta :as compojure-meta]
-            [compojure.api.sweet :refer [context GET POST PUT DELETE]]
-            [ring.util.http-response :refer [not-found ok conflict no-content unauthorized]]
-            [taoensso.timbre :as log])
-  (:import java.util.UUID))
+            [compojure.api.sweet :refer [context DELETE GET POST PUT]]
+            [kaleidoscope.api.authentication :as oidc]
+            [kaleidoscope.api.groups :as groups-api]
+            [kaleidoscope.models.articles] ;; Install specs
+            [ring.util.http-response :refer [no-content ok unauthorized]]
+            [taoensso.timbre :as log]))
 
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))

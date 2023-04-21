@@ -7,7 +7,6 @@
    [kaleidoscope.models.s3.ls-response :as s3.ls]
    [kaleidoscope.models.s3.put-response :as s3.put]
    [kaleidoscope.persistence.filesystem :as fs]
-   [ring.util.http-response :refer [internal-server-error not-found]]
    [ring.util.mime-type :as mt]
    [ring.util.response :as ring-response]
    [steffan-westcott.clj-otel.api.trace.span :as span]
@@ -16,12 +15,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn exception-response
-  [{:keys [status-code] :as exception-map}]
-  (case status-code
-    404 (not-found)
-    (internal-server-error "Unknown exception")))
 
 (defn valid-key?
   [s]
@@ -168,8 +161,6 @@
 
   (amazon/get-credentials nil)
 
-  (keys (bean (.getCredentials CustomAWSCredentialsProviderChain)))
-
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;  LIST files
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -236,20 +227,5 @@
           "index.html"
           {:sdk-client-execution-timeout 10000
            :version                      "8ac49aade040081e110a1137cc9f09da"})
-
-  )
-
-(comment
-
-  ;; Http MW loading static content
-  (def loader
-    (-> (map->S3 {:bucket "andrewslai-wedding"})
-        (protocols/filesystem-loader)))
-
-  (.getResource loader "media/")
-
-  (ring-response/resource-response "media/" {:loader loader})
-
-  (ring-response/resource-response "media/rings.jpg" {:loader loader})
 
   )

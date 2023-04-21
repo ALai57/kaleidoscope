@@ -1,7 +1,6 @@
 (ns kaleidoscope.persistence.rdbms
   (:require [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
-            [cheshire.core :as json]
             [clojure.spec.alpha :as s]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
@@ -10,9 +9,7 @@
             [next.jdbc.sql :as next.sql]
             [slingshot.slingshot :refer [throw+ try+]]
             [steffan-westcott.clj-otel.api.trace.span :as span]
-            [taoensso.timbre :as log])
-  (:import
-   org.postgresql.util.PGobject))
+            [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; API for interacting with a relational database

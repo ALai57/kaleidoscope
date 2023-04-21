@@ -37,3 +37,5 @@ pom.xml*
 .repl.*
 
 .terraform.*
+
+.clj-kondo/.cache/*

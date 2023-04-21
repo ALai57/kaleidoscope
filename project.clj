@@ -57,7 +57,8 @@
    [slingshot "0.12.2"]
    ]
 
-  :plugins [[lein-shell "0.5.0"]]
+  :plugins [[lein-shell "0.5.0"]
+            [com.github.clj-kondo/lein-clj-kondo "0.2.4"]]
 
   :repositories [["releases" {:url   "https://repo.clojars.org"
                               :creds :gpg}]]
@@ -84,7 +85,6 @@
   :shell {:env {"DOCKER_BUILDKIT" "1"}}
 
   :profiles {:dev {:plugins      [[lein-ancient "0.6.15"]
-                                  [lein-kibit "0.1.8"]
                                   [lein-ring "0.12.5"]]
                    :dependencies [[biiwide/sandboxica "0.4.0"]
                                   [io.zonky.test/embedded-postgres "1.2.6"]

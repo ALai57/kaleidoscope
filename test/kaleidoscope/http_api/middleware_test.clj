@@ -1,20 +1,16 @@
 (ns kaleidoscope.http-api.middleware-test
-  (:require [amazonica.aws.s3 :as s3]
+  (:require [cheshire.core :as json]
+            [clojure.test :refer :all]
             [kaleidoscope.http-api.auth.buddy-backends :as bb]
             [kaleidoscope.http-api.middleware :as sut]
-            [kaleidoscope.persistence.filesystem.s3-impl :as s3-storage]
-            [kaleidoscope.test-utils :as tu]
             [kaleidoscope.test-main :as tm]
-            [biiwide.sandboxica.alpha :as sandbox]
-            [cheshire.core :as json]
-            [clojure.test :refer :all]
+            [kaleidoscope.test-utils :as tu]
             [lambdaisland.deep-diff2 :as ddiff]
-            [ring.mock.request :as mock]
-            [ring.util.response :as response]
-            [taoensso.timbre :as log]
+            [lambdaisland.deep-diff2.diff-impl
+             :refer [map->Deletion map->Insertion map->Mismatch]]
             [matcher-combinators.test :refer [match?]]
-            [lambdaisland.deep-diff2.diff-impl :refer [map->Insertion map->Deletion map->Mismatch]]
-            ))
+            [ring.mock.request :as mock]
+            [taoensso.timbre :as log]))
 
 (use-fixtures :once
   (fn [f]

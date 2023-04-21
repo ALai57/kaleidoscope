@@ -6,13 +6,12 @@
             [kaleidoscope.http-api.cache-control :as cc]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.init.env :as env]
-            [kaleidoscope.persistence.filesystem :as fs]
+            [kaleidoscope.models.albums :refer [example-album example-album-2]]
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
             [kaleidoscope.utils.core :as util]
-            [kaleidoscope.models.albums :refer [example-album example-album-2]]
             [matcher-combinators.matchers :as m]
-            [matcher-combinators.test]
+            [matcher-combinators.test :refer [match?]]
             [ring.mock.request :as mock]
             [taoensso.timbre :as log]))
 
@@ -241,34 +240,35 @@
                      tu/wrap-clojure-response)
         article {:article-tags "thoughts"
                  :article-url  "my-test-article"
-                 :author       "Andrew Lai"}]
+                 :author       "Andrew Lai"}
 
-    (let [create-result          (app (-> article
-                                          (assoc :branch-name "branch-1")
-                                          (create-branch "http://andrewslai.com")))
-          [{:keys [article-id]}] (:body create-result)]
-      (testing "Article creation succeeds for branch 1"
-        (is (match? {:status 200 :body [{:article-id some?
-                                         :branch-id  some?}]}
-                    create-result)))
+        create-result          (app (-> article
+                                        (assoc :branch-name "branch-1")
+                                        (create-branch "http://andrewslai.com")))
+        [{:keys [article-id]}] (:body create-result)]
 
-      (testing "Article creation succeeds for branch 2"
-        (is (match? {:status 200 :body [{:article-id some?
-                                         :branch-id  some?}]}
-                    (app (-> article
-                             (assoc :branch-name "branch-2"
-                                    :article-id  article-id)
-                             (create-branch "http://andrewslai.com"))))))
+    (testing "Article creation succeeds for branch 1"
+      (is (match? {:status 200 :body [{:article-id some?
+                                       :branch-id  some?}]}
+                  create-result)))
 
-      (testing "The 2 branches were created"
-        (is (match? {:status 200 :body (has-count 2)}
-                    (app (-> {:article-id article-id}
-                             (get-branches "http://andrewslai.com"))))))
+    (testing "Article creation succeeds for branch 2"
+      (is (match? {:status 200 :body [{:article-id some?
+                                       :branch-id  some?}]}
+                  (app (-> article
+                           (assoc :branch-name "branch-2"
+                                  :article-id  article-id)
+                           (create-branch "http://andrewslai.com"))))))
 
-      (testing "The branches can't be viewed when asking wrong host"
-        (is (match? {:status 401}
-                    (app (-> {:article-id article-id}
-                             (get-branches "http://other-host.com")))))))))
+    (testing "The 2 branches were created"
+      (is (match? {:status 200 :body (has-count 2)}
+                  (app (-> {:article-id article-id}
+                           (get-branches "http://andrewslai.com"))))))
+
+    (testing "The branches can't be viewed when asking wrong host"
+      (is (match? {:status 401}
+                  (app (-> {:article-id article-id}
+                           (get-branches "http://other-host.com"))))))))
 
 (deftest publish-branch-test
   (let [app             (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -499,50 +499,50 @@
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
-                 tu/wrap-clojure-response)]
+                 tu/wrap-clojure-response)
 
-    (let [result   (app (-> (mock/request :post "https://andrewslai.com/groups")
-                            (mock/header "Authorization" "Bearer user first-user")
-                            (mock/json-body {:display-name "my-display-name"})))
-          group-id (get-in result [:body 0 :id])]
+        result   (app (-> (mock/request :post "https://andrewslai.com/groups")
+                          (mock/header "Authorization" "Bearer user first-user")
+                          (mock/json-body {:display-name "my-display-name"})))
+        group-id (get-in result [:body 0 :id])]
 
-      (testing "Create group"
+    (testing "Create group"
+      (is (match? {:status 200
+                   :body   [{:id group-id}]}
+                  result)))
+
+    (let [add-member-result (app (-> (mock/request :post (format "https://andrewslai.com/groups/%s/members" group-id))
+                                     (mock/header "Authorization" "Bearer user first-user")
+                                     (mock/json-body {:email "my-email@email.com"
+                                                      :alias "Androo"})))
+          member-id         (get-in add-member-result [:body 0 :id])]
+      (testing "Add members"
         (is (match? {:status 200
-                     :body   [{:id group-id}]}
-                    result)))
+                     :body   [{:id string?}]}
+                    add-member-result)))
 
-      (let [add-member-result (app (-> (mock/request :post (format "https://andrewslai.com/groups/%s/members" group-id))
-                                       (mock/header "Authorization" "Bearer user first-user")
-                                       (mock/json-body {:email "my-email@email.com"
-                                                        :alias "Androo"})))
-            member-id         (get-in add-member-result [:body 0 :id])]
-        (testing "Add members"
+      (testing "Retrieve group with members"
+        (let [response (app (-> (mock/request :get "https://andrewslai.com/groups")
+                                (mock/header "Authorization" "Bearer user first-user")))]
           (is (match? {:status 200
-                       :body   [{:id string?}]}
-                      add-member-result)))
+                       :body   [{:group-id     group-id
+                                 :display-name "my-display-name"
+                                 :memberships  [{:membership-id         string?
+                                                 :membership-created-at string?
+                                                 :alias                 "Androo"
+                                                 :email                 "my-email@email.com"}]}]}
+                      response))))
 
-        (testing "Retrieve group with members"
-          (let [response (app (-> (mock/request :get "https://andrewslai.com/groups")
-                                  (mock/header "Authorization" "Bearer user first-user")))]
-            (is (match? {:status 200
-                         :body   [{:group-id     group-id
-                                   :display-name "my-display-name"
-                                   :memberships  [{:membership-id         string?
-                                                   :membership-created-at string?
-                                                   :alias                 "Androo"
-                                                   :email                 "my-email@email.com"}]}]}
-                        response))))
-
-        (testing "Remove member from group"
-          (let [response (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s/members/%s" group-id member-id))
-                                  (mock/header "Authorization" "Bearer user first-user")))]
-            (is (match? {:status 204}
-                        response))
-            (is (match? {:status 200
-                         :body   [{:memberships empty?}]}
-                        (app (-> (mock/request :get "https://andrewslai.com/groups")
-                                 (mock/header "Authorization" "Bearer user first-user")))))
-            ))))))
+      (testing "Remove member from group"
+        (let [response (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s/members/%s" group-id member-id))
+                                (mock/header "Authorization" "Bearer user first-user")))]
+          (is (match? {:status 204}
+                      response))
+          (is (match? {:status 200
+                       :body   [{:memberships empty?}]}
+                      (app (-> (mock/request :get "https://andrewslai.com/groups")
+                               (mock/header "Authorization" "Bearer user first-user")))))
+          )))))
 
 (deftest index.html-test
   (let [system (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"

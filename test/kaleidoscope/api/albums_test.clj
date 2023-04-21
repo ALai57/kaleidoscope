@@ -45,42 +45,42 @@
                     (albums-api/get-albums database {:id id})))))))
 
 (deftest album-contents-test
-  (let [database (embedded-h2/fresh-db!)]
-    ;; 3 example-albums seeded in DB
-    (let [album-id  (:id (first (albums-api/get-albums database)))
-          photo-ids (map :id (albums-api/get-photos database))]
+  ;; 3 example-albums seeded in DB
+  (let [database  (embedded-h2/fresh-db!)
+        album-id  (:id (first (albums-api/get-albums database)))
+        photo-ids (map :id (albums-api/get-photos database))]
 
-      (testing "No contents in the album to start"
-        (is (= [] (albums-api/get-album-contents database {:album-id album-id}))))
+    (testing "No contents in the album to start"
+      (is (= [] (albums-api/get-album-contents database {:album-id album-id}))))
 
-      (testing "Content gets added to the album"
-        (let [album-content (albums-api/add-photos-to-album! database album-id photo-ids)]
-          (is (= 3 (count album-content)))
-          (is (vector? album-content))
-          (is (= 3 (count (albums-api/get-album-contents database {:album-id album-id}))))
+    (testing "Content gets added to the album"
+      (let [album-content (albums-api/add-photos-to-album! database album-id photo-ids)]
+        (is (= 3 (count album-content)))
+        (is (vector? album-content))
+        (is (= 3 (count (albums-api/get-album-contents database {:album-id album-id}))))
 
-          (testing "Content is deleted"
-            (albums-api/remove-content-album-link! database (map :id album-content))
-            (is (= 0 (count (albums-api/get-album-contents database {:album-id album-id}))))))))))
+        (testing "Content is deleted"
+          (albums-api/remove-content-album-link! database (map :id album-content))
+          (is (= 0 (count (albums-api/get-album-contents database {:album-id album-id})))))))))
 
 (deftest get-album-contents-test
-  (let [database (embedded-h2/fresh-db!)]
-    ;; 3 example-albums seeded in DB
-    (let [album-ids (map :id (albums-api/get-albums database))
-          photo-ids (map :id (albums-api/get-photos database))]
+  ;; 3 example-albums seeded in DB
+  (let [database  (embedded-h2/fresh-db!)
+        album-ids (map :id (albums-api/get-albums database))
+        photo-ids (map :id (albums-api/get-photos database))]
 
-      (testing "No contents in the album to start"
-        (is (= [] (albums-api/get-album-contents database))))
+    (testing "No contents in the album to start"
+      (is (= [] (albums-api/get-album-contents database))))
 
-      (testing "Content gets added to different albums"
-        (let [album-content (mapv (partial albums-api/add-photos-to-album! database)
-                                  album-ids
-                                  photo-ids)]
-          (is (= 3 (count album-content)))))
+    (testing "Content gets added to different albums"
+      (let [album-content (mapv (partial albums-api/add-photos-to-album! database)
+                                album-ids
+                                photo-ids)]
+        (is (= 3 (count album-content)))))
 
-      (testing "Contents come from different albums"
-        (is (= 3 (count (set (map :album-name (albums-api/get-album-contents database)))))))
-      )))
+    (testing "Contents come from different albums"
+      (is (= 3 (count (set (map :album-name (albums-api/get-album-contents database)))))))
+    ))
 
 (deftest create-and-retrieve-photo-test
   (let [database (embedded-h2/fresh-db!)]
