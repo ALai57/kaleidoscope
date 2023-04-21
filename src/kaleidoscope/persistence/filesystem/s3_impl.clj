@@ -1,21 +1,17 @@
 (ns kaleidoscope.persistence.filesystem.s3-impl
-  (:require [amazonica.aws.s3 :as s3]
-            [amazonica.core :as amazon]
-            [clojure.set :as set]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as string]
-            [kaleidoscope.models.s3.get-response :as s3.get]
-            [kaleidoscope.models.s3.ls-response :as s3.ls]
-            [kaleidoscope.models.s3.put-response :as s3.put]
-            [kaleidoscope.persistence.filesystem :as fs]
-            [ring.util.http-response :refer [internal-server-error not-found]]
-            [ring.util.mime-type :as mt]
-            [ring.util.response :as ring-response]
-            [steffan-westcott.clj-otel.api.trace.span :as span]
-            [taoensso.timbre :as log])
-  (:import
-   [com.amazonaws.auth AWSCredentialsProviderChain ContainerCredentialsProvider EnvironmentVariableCredentialsProvider]
-   com.amazonaws.auth.profile.ProfileCredentialsProvider))
+  (:require
+   [amazonica.aws.s3 :as s3]
+   [amazonica.core :as amazon]
+   [clojure.spec.alpha :as s]
+   [kaleidoscope.models.s3.get-response :as s3.get]
+   [kaleidoscope.models.s3.ls-response :as s3.ls]
+   [kaleidoscope.models.s3.put-response :as s3.put]
+   [kaleidoscope.persistence.filesystem :as fs]
+   [ring.util.http-response :refer [internal-server-error not-found]]
+   [ring.util.mime-type :as mt]
+   [ring.util.response :as ring-response]
+   [steffan-westcott.clj-otel.api.trace.span :as span]
+   [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
