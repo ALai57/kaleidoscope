@@ -1,4 +1,4 @@
-(ns kaleidoscope.cljc.specs.articles
+(ns kaleidoscope.models.articles
   (:require
    #?@(:clj  [[clojure.spec.alpha :as s]
               [clojure.test.check.generators :as gen]

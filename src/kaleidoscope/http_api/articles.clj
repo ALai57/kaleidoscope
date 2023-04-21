@@ -1,7 +1,7 @@
 (ns kaleidoscope.http-api.articles
   (:require [kaleidoscope.api.articles :as articles-api]
             [kaleidoscope.api.authentication :as oidc]
-            [kaleidoscope.cljc.specs.articles] ;; Install specs
+            [kaleidoscope.models.articles] ;; Install specs
             [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
             [clojure.spec.alpha :as s]

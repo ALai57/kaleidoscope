@@ -10,7 +10,7 @@
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
             [kaleidoscope.utils.core :as util]
-            [kaleidoscope.cljc.specs.albums :refer [example-album example-album-2]]
+            [kaleidoscope.models.albums :refer [example-album example-album-2]]
             [matcher-combinators.matchers :as m]
             [matcher-combinators.test]
             [ring.mock.request :as mock]

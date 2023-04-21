@@ -5,7 +5,7 @@
             [compojure.api.sweet :refer [context POST]]
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.persistence.filesystem :as fs]
-            [kaleidoscope.cljc.specs.albums] ;; Install specs
+            [kaleidoscope.models.albums] ;; Install specs
             [ring.util.http-response :refer [created]]
             [taoensso.timbre :as log]))
 
