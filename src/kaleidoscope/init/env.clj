@@ -60,20 +60,27 @@
 (defn env->pg-conn
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:dbname   [:string {:error/message "Missing DB name. Set via KALEIDOSCOPE_DB_NAME environment variable."}]]
-                   [:db-port  [:string {:error/message "Missing DB port. Set via KALEIDOSCOPE_DB_PORT environment variable."}]]
-                   [:host     [:string {:error/message "Missing DB host. Set via KALEIDOSCOPE_DB_HOST environment variable."}]]
-                   [:username [:string {:error/message "Missing DB user. Set via KALEIDOSCOPE_DB_USER environment variable."}]]
-                   [:password [:string {:error/message "Missing DB pass. Set via KALEIDOSCOPE_DB_PASSWORD environment variable."}]]
-                   [:dbtype   [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]]]
+                   [:dbname       [:string {:error/message "Missing DB name. Set via KALEIDOSCOPE_DB_NAME environment variable."}]]
+                   [:db-port      [:string {:error/message "Missing DB port. Set via KALEIDOSCOPE_DB_PORT environment variable."}]]
+                   [:host         [:string {:error/message "Missing DB host. Set via KALEIDOSCOPE_DB_HOST environment variable."}]]
+                   [:username     [:string {:error/message "Missing DB user. Set via KALEIDOSCOPE_DB_USER environment variable."}]]
+                   [:password     [:string {:error/message "Missing DB pass. Set via KALEIDOSCOPE_DB_PASSWORD environment variable."}]]
+                   [:dbtype       [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]
+                   [:minimum-idle [:string {:error/message "Missing Minimum Idle. Set in code. Should never happen."}]]
+                   [:idle-timeout [:string {:error/message "Missing DB Idle timeout. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:dbname   (get env "KALEIDOSCOPE_DB_NAME")
-   :db-port  (get env "KALEIDOSCOPE_DB_PORT" "5432")
-   :host     (get env "KALEIDOSCOPE_DB_HOST")
-   :username (get env "KALEIDOSCOPE_DB_USER")
-   :password (get env "KALEIDOSCOPE_DB_PASSWORD")
-   :dbtype   "postgresql"})
+  {:dbname       (get env "KALEIDOSCOPE_DB_NAME")
+   :db-port      (get env "KALEIDOSCOPE_DB_PORT" "5432")
+   :host         (get env "KALEIDOSCOPE_DB_HOST")
+   :username     (get env "KALEIDOSCOPE_DB_USER")
+   :password     (get env "KALEIDOSCOPE_DB_PASSWORD")
+   :dbtype       "postgresql"
+   ;; Minimum number of connections when the pool is idle. Set intentionally
+   ;; low, because the app uses t2.micro and we don't want to eat up CPU.
+   :minimum-idle 1
+   :idle-timeout 120000 ;; Shut down connections after 2 mins
+   })
 
 (defn env->kaleidoscope-local-fs
   {:malli/schema [:=> [:cat :map]
