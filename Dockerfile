@@ -20,18 +20,18 @@ COPY opentelemetry-javaagent.jar .
 # Configuring max and min heap sizes to be identical is a
 # best practice for optimizing GC performance.
 
-# CMD with a vector starts a process and the process gets signals instead
-# of a /bin/sh process getting PID 1 and getting all signals.
+# CMD with a vector or exec starts a process and the process gets signals
+# instead of a /bin/sh process getting PID 1 and getting all signals.
 # https://vsupalov.com/docker-compose-stop-slow/
-CMD ["java", "-Xms512m", "-Xmx512m", \
+CMD exec java -Xms512m -Xmx512m \
     # Opentelemetry support. This configures where the OTel agent
     # sends the traces it collects.
-    "-javaagent:opentelemetry-javaagent.jar", \
-    "-Dotel.resource.attributes=service.name=kaleidoscope", \
-    "-Dotel.exporter.otlp.protocol=http/protobuf", \
-    "-Dotel.exporter.otlp.endpoint=${SUMOLOGIC_OTLP_URL}", \
-    "-Dotel.javaagent.debug=false", \
-    "-jar", "kaleidoscope.jar"]
+    -javaagent:opentelemetry-javaagent.jar \
+    -Dotel.resource.attributes=service.name=kaleidoscope \
+    -Dotel.exporter.otlp.protocol=http/protobuf \
+    -Dotel.exporter.otlp.endpoint=${SUMOLOGIC_OTLP_URL} \
+    -Dotel.javaagent.debug=false \
+    -jar kaleidoscope.jar
 
 
 EXPOSE 5000
