@@ -262,7 +262,7 @@ resource "aws_alb_target_group" "main" {
 
   health_check {
      interval            = 60
-     unhealthy_threshold = 6
+     unhealthy_threshold = 10
      path                = "/ping"
   }
 
@@ -271,7 +271,6 @@ resource "aws_alb_target_group" "main" {
   }
 
   deregistration_delay = 20
-
 }
 
 resource "aws_lb_listener" "http_listener" {

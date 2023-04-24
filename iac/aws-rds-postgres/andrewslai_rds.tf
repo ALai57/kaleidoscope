@@ -7,12 +7,15 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_subnet_ids" "all" {
-  vpc_id = "${data.aws_vpc.default.id}"
+data "aws_subnets" "all" {
+  filter {
+    name = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
 }
 
 data "aws_security_group" "default" {
-  vpc_id = "${data.aws_vpc.default.id}"
+  vpc_id = data.aws_vpc.default.id
   name   = "default"
 }
 
@@ -56,14 +59,14 @@ resource "aws_security_group" "allow_vpc_traffic" {
 resource "aws_security_group" "allow_home_traffic" {
   name        = "allow_home_traffic"
   description = "Allow inbound traffic from home"
-  vpc_id      = "${data.aws_vpc.default.id}"
+  vpc_id      = data.aws_vpc.default.id
 
   ingress {
     description = "Traffic from home"
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["${var.andrewslai_home_ip}"]
+    cidr_blocks = [var.andrewslai_home_ip]
   }
 
   egress {
@@ -84,28 +87,28 @@ resource "aws_security_group" "allow_home_traffic" {
 
 module "db" {
   source = "terraform-aws-modules/rds/aws"
-  version = "~> 1.0"
+  version = "~> 5.0"
 
   identifier = "andrewslai-postgres"
 
   engine            = "postgres"
-  engine_version    = "10.13"
+  engine_version    = "14.4"
   instance_class    = "db.t2.micro"
   allocated_storage = 5
   storage_encrypted = false
 
   # kms_key_id        = "arm:aws:kms:<region>:<account id>:key/<kms key id>"
-  name = "andrewslai"
+  db_name = "andrewslai"
 
   # NOTE: Do NOT use 'user' as the value for 'username' as it throws:
   # "Error creating DB Instance: InvalidParameterValue: MasterUsername
   # user cannot be used as it is a reserved word used by the engine"
-  username = "${var.andrewslai_db_username}"
+  username = var.andrewslai_db_username
 
-  password = "${var.andrewslai_db_password}"
-  port     = "${var.andrewslai_db_port}"
+  password = var.andrewslai_db_password
+  port     = var.andrewslai_db_port
 
-  vpc_security_group_ids = ["${aws_security_group.allow_home_traffic.id}", "${aws_security_group.allow_vpc_traffic.id}"]
+  vpc_security_group_ids = [aws_security_group.allow_home_traffic.id, aws_security_group.allow_vpc_traffic.id]
 
   maintenance_window = "Mon:00:00-Mon:03:00"
   backup_window      = "03:00-06:00"
@@ -113,24 +116,20 @@ module "db" {
   # disable backups to create DB faster
   backup_retention_period = 0
 
-  tags = {
-    Owner       = "user"
-    Environment = "dev"
-  }
-
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
   # DB subnet group
-  subnet_ids = "${data.aws_subnet_ids.all.ids}"
+  create_db_subnet_group = true
+  subnet_ids = data.aws_subnets.all.ids
 
   # DB parameter group
-  family = "postgres10"
+  family = "postgres14"
 
   # DB option group
-  major_engine_version = "10.13"
+  major_engine_version = "14.4"
 
   # Snapshot name upon DB deletion
-  final_snapshot_identifier = "andrewslai-postgres"
+  #final_snapshot_identifier = "andrewslai-postgres"
 
   # Database Deletion Protection
   deletion_protection = false

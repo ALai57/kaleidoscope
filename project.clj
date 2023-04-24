@@ -55,6 +55,7 @@
    [ring "1.9.6" :exclusions [ring/ring-codec org.clojure/java.classpath]]
    [ring/ring-json "0.5.1"]
    [slingshot "0.12.2"]
+   [spootnik/signal "0.2.4"]
    ]
 
   :plugins [[lein-shell "0.5.0"]

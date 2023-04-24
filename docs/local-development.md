@@ -87,7 +87,7 @@ KALEIDOSCOPE_AUTH_TYPE=none KALEIDOSCOPE_DB_TYPE=embedded-h2 KALEIDOSCOPE_STATIC
 Create an uberjar and build the docker container.
 ```bash
 lein do clean, uberjar
-docker build -t andrewslai .
+docker build -t kaleidoscope .
 ```
 
 **_Startup_**  
@@ -95,5 +95,6 @@ Edit the `.env.aws` file to provide the correct environment variables.
 ```bash
 docker run -d --rm --env-file=.env.aws -p 5000:5000 kaleidoscope
 
-lein uberjar && docker build -t kaleidoscope . && docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope
+lein uberjar && docker build -t kaleidoscope .
+docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope
 ```

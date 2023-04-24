@@ -5,6 +5,7 @@
             [kaleidoscope.http-api.middleware :as mw]
             [kaleidoscope.init.env :as env]
             [ring.adapter.jetty :as jetty]
+            [signal.handler :as sig]
             [steffan-westcott.clj-otel.exporter.otlp.http.trace :as otlp-http-trace]
             [steffan-westcott.clj-otel.resource.resources :as res]
             [steffan-westcott.clj-otel.sdk.otel-sdk :as sdk]
@@ -73,6 +74,18 @@
 (defn -main
   "Start a server and run the application"
   [& args]
+
+  ;; Cannot test this via `lein` or via REPL. Need to run this in a Java process,
+  ;; `lein uberjar`
+  ;; `java -jar target/kaleidoscope.jar`
+  ;; https://grishaev.me/en/clj-book-systems/
+  (sig/with-handler :term
+    (log/fatal "Caught SIGTERM, quitting.")
+    (System/exit 0))
+
+  (sig/with-handler :hup
+    (log/info "Caught SIGHUP, doing nothing."))
+
   (start-application! (into {} (System/getenv))) ;; b/c getenv returns java.util.Collections$UnmodifiableMap
   )
 
