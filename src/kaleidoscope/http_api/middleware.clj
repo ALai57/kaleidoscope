@@ -70,10 +70,11 @@
                               (-> request
                                   (select-keys [:request-method
                                                 :uri
-                                                :body
-                                                :params
-                                                :multipart-params
-                                                :request-id])
+                                                ;;:body
+                                                ;;:params
+                                                ;;:multipart-params
+                                                ;;:request-id
+                                                ])
                                   clojure.pprint/pprint
                                   with-out-str))
                    request)))))
