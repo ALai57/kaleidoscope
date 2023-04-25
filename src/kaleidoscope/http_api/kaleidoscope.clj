@@ -95,36 +95,27 @@
   [request host]
   (assoc-in request [:headers "host"] host))
 
+(defn text-html
+  [response]
+  (assoc-in response [:headers "Content-Type"] "text/html"))
+
 (def index-routes
   "All served from a common bucket: the Kaleidoscope app bucket."
   (context "/" []
     (GET "/" request
       :components [static-content-adapters]
       (span/with-span! {:name "kaleidoscope.index.get"}
-        {:status  200
-         :headers {"Content-Type" "text/html"}
-         :body    (-> static-content-adapters
-                      (get (bucket-name request))
-                      (fs/get "index.html")
-                      (fs/object-content))}))
+        (text-html (get-resource static-content-adapters (assoc request :uri "/index.html")))))
     (GET "/index.html" request
       :components [static-content-adapters]
       (span/with-span! {:name "kaleidoscope.index.get"}
-        {:status  200
-         :headers {"Content-Type" "text/html"}
-         :body    (-> static-content-adapters
-                      (get (bucket-name request))
-                      (fs/get "index.html")
-                      (fs/object-content))}))
+        (text-html (get-resource static-content-adapters request))))
     (GET "/silent-check-sso.html" request
       :components [static-content-adapters]
       (span/with-span! {:name "kaleidoscope.silent-check-sso.get"}
-        {:status  200
-         :headers {"Content-Type" "text/html"}
-         :body    (-> static-content-adapters
-                      (get KALEIDOSCOPE)
-                      (fs/get "silent-check-sso.html")
-                      (fs/object-content))}))
+        (text-html (get-resource static-content-adapters (-> request
+                                                             kebab-case-headers
+                                                             (set-host "kaleidoscope.pub"))))))
 
     ;; Get frontend app from the Kaleidoscope bucket, so all sites don't need to
     ;; have separate copies of the app (and all updates immediately apply to all
