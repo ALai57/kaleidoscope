@@ -48,6 +48,8 @@
   "Getting host name is from ring.util.request"
   [request]
   (let [server-name (get-in request [:headers "host"])]
+    (when (nil? server-name)
+      (log/warnf "Request without a host. Cannot lookup associated bucket."))
     (str/join "." (butlast (str/split server-name #"\.")))))
 
 (def KALEIDOSCOPE
@@ -65,12 +67,15 @@
 
 (defn get-resource
   [static-content-adapters {:keys [uri headers] :as request}]
-  (let [result (-> static-content-adapters
-                   (get (bucket-name request))
-                   (fs/get uri (if-let [version (get-in request [:headers "if-none-match"])]
-                                 {:version version}
-                                 {})))]
+  (let [bucket  (bucket-name request)
+        adapter (get static-content-adapters bucket)
+        result  (when adapter
+                  (fs/get adapter uri (if-let [version (get-in request [:headers "if-none-match"])]
+                                        {:version version}
+                                        {})))]
     (cond
+      (nil? adapter)              (do (log/warnf "Invalid request to bucket %s" bucket)
+                                      {:status 404})
       (fs/folder? uri)            (-> {:status 200
                                        :body   result}
                                       (cc/cache-control uri))
