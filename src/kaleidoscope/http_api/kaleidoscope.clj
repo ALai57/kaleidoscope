@@ -74,7 +74,7 @@
                                         {:version version}
                                         {})))]
     (cond
-      (nil? adapter)              (do (log/warnf "Invalid request to bucket %s" bucket)
+      (nil? adapter)              (do (log/warnf "Invalid request to bucket associated with host %s" (get-in request [:headers "host"]))
                                       {:status 404})
       (fs/folder? uri)            (-> {:status 200
                                        :body   result}
