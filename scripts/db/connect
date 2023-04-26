@@ -1,7 +1,0 @@
-#!/bin/bash
-
-PGPASSWORD=$KALEIDOSCOPE_DB_PASSWORD \
-psql --username=$KALEIDOSCOPE_DB_USER \
-     --dbname=$KALEIDOSCOPE_DB_NAME \
-     --host=$KALEIDOSCOPE_DB_HOST \
-     --port=$KALEIDOSCOPE_DB_PORT

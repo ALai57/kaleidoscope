@@ -5,5 +5,5 @@ aws ecr get-login-password \
 docker login \
   --username AWS \
   --password-stdin 758589815425.dkr.ecr.us-east-1.amazonaws.com
-docker tag andrewslai:latest 758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr
-docker push 758589815425.dkr.ecr.us-east-1.amazonaws.com/andrewslai_ecr
+docker tag kaleidoscope:latest 758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_ecr
+docker push 758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_ecr
