@@ -47,6 +47,4 @@
      :session_state      "3068e375-f2dd-4766-9920-74260baa5b56",
      :sub                "9bb0b134-5698-4fb2-a855-b327886d6bfa",
      :typ                "Bearer",})
-
-  (get-scopes {:scope "openid email profile",})
   )

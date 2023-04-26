@@ -3,10 +3,6 @@
             [kaleidoscope.utils.core :as utils]
             [taoensso.timbre :as log]))
 
-(defn get-id
-  [group]
-  (:id group))
-
 (defn get-owner
   [group]
   (:owner-id group))
@@ -16,11 +12,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def ^:private get-groups
   (rdbms/make-finder :groups))
-
-#_(defn get-users-groups
-    "Only return the groups owned by the requesting user"
-    [database requester-id]
-    (get-groups database {:owner-id requester-id}))
 
 (defn create-group!
   [database {:keys [id] :as group}]
@@ -34,7 +25,10 @@
 
 (defn owns?
   [database requester-id group-id]
-  (= requester-id (get-owner (first (get-groups database {:id group-id})))))
+  (= requester-id (-> database
+                      (get-groups {:id group-id})
+                      first
+                      get-owner)))
 
 (defn delete-group!
   "Only allow a user to delete a group if they are the owner.
@@ -120,8 +114,3 @@
                    :user-group-memberships user-group-membership-id
                    :ex-subtype :UnableToDeleteUserFromGroup)
     (log/warnf "User %s does not have permissions to delete users from group %s" requester-id group-id)))
-
-(comment
-
-
-  )

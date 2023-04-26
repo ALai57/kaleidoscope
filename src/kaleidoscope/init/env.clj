@@ -22,23 +22,17 @@
   )
 
 (def domains
+  "All the domains that the kaleidoscope application serves."
   #{"andrewslai.com"
     "sahiltalkingcents.com"
     "caheriaguilar.com"
     "caheriaguilar.and.andrewslai.com"})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Boot instructions for starting system components from the environment
-;;
-;; After parsing into a `launch-options` map, the config
-;; namespace will continue booting pieces/components of the system
-;; depending on which launch options were selected
-;;
-;; e.g. if `[:andrewslai :authentication-type]` of `:keycloak` was selected,
-;;      the `init-andrewslai-keycloak` helper will start a `bb/keycloak-backend`
-;;      by parsing relevant keycloak environment variables into a configuration
-;;      map (`env->keycloak`) that can be used to boot the keycloak component.
+;; Configuration maps
+;; Parse environment variables into a map of config values
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn env->keycloak
   {:malli/schema [:=> [:cat :map]
                   [:map
@@ -78,8 +72,8 @@
    :password    (get env "KALEIDOSCOPE_DB_PASSWORD")
    :dbtype      "postgresql"
    ;; Minimum number of connections when the pool is idle. Set intentionally
-   ;; low, because the app uses t2.micro and we don't want to eat up CPU.
-   :minimumIdle 1
+   ;; low, because the app uses db.t4g.micro and we don't want to eat up CPU.
+   :minimumIdle 3
    :idleTimeout 120000 ;; Shut down connections after 2 mins
    })
 
@@ -92,16 +86,22 @@
   {:root (get env "KALEIDOSCOPE_STATIC_CONTENT_FOLDER")})
 
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Configuration map
-;; Parse environment variables into a map of config values:
+;; Boot instructions for starting system components from the environment
+;;
+;; After parsing into a `launch-options` map, the config
+;; namespace will continue booting pieces/components of the system
+;; depending on which launch options were selected
+;;
+;; e.g. if `[:andrewslai :authentication-type]` of `:keycloak` was selected,
+;;      the `init-andrewslai-keycloak` helper will start a `bb/keycloak-backend`
+;;      by parsing relevant keycloak environment variables into a configuration
+;;      map (`env->keycloak`) that can be used to boot the keycloak component.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 (defn initialize-connection-pool!
-  "this code initializes the pool and performs a validation check:
-  It prevents us from having the first db request need to initialize the pool"
+  "Eagerly initialize the DB pool: Doing this eagerly prevents us from having
+  the first db request initialize the pool."
   [^HikariDataSource ds]
   (log/info "Initializing connection pool!")
   (.close (next/get-connection ds))
@@ -180,8 +180,6 @@
 (def BootInstructions
   [:sequential BootInstruction])
 
-;; TODO: TEST ME!
-;; TODO: 2023-01-22: Just refactored boot instructions. Need to update tests!
 (defn start-system!
   {:malli/schema [:function
                   [:=> [:cat :map] :map]
@@ -205,11 +203,6 @@
            {}
            boot-instructions)))
 
-(defn make-middleware
-  [authentication authorization]
-  (comp mw/standard-stack
-        (mw/auth-stack authentication authorization)))
-
 (defn prepare-kaleidoscope
   [{:keys [database-connection
            kaleidoscope-authentication
@@ -217,18 +210,21 @@
            kaleidoscope-static-content-adapters]
     :as   system}]
   {:database                database-connection
-   :http-mw                 (make-middleware kaleidoscope-authentication
-                                             kaleidoscope-authorization)
+   :http-mw                 (comp mw/standard-stack
+                                  (mw/auth-stack kaleidoscope-authentication
+                                                 kaleidoscope-authorization))
    :static-content-adapters kaleidoscope-static-content-adapters})
 
-(defn prepare-for-virtual-hosting
-  [system]
-  {:kaleidoscope (prepare-kaleidoscope system)})
-
 (defn make-http-handler
-  [{:keys [kaleidoscope] :as components}]
-  (vh/host-based-routing {#".*" {:priority 100
-                                 :app      (kaleidoscope/kaleidoscope-app kaleidoscope)}}))
+  [system]
+  (let [apps {:kaleidoscope (prepare-kaleidoscope system)}]
+    (vh/host-based-routing {#".*" {:priority 100
+                                   :app      (kaleidoscope/kaleidoscope-app (:kaleidoscope apps))}})))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Validate environment
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Updates the Malli schema validation output to only show the errors
 ;; This will:

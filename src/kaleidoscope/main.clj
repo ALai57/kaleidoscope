@@ -67,7 +67,6 @@
     (initialize-logging! env)
     (init-otel!)
     (-> system-components
-        (env/prepare-for-virtual-hosting)
         (env/make-http-handler)
         (jetty/run-jetty {:port port}))))
 
@@ -90,25 +89,28 @@
   )
 
 (comment
+  (def example-json-string
+    (->> {:a "Lots of things"
+          :c {:d :foo :e "bar"}
+          :f {:a "b" :c {:d :foo :e "bar"}}}
+         clojure.pprint/pprint
+         with-out-str))
+
+  ;; Log using JSON output formatting
   (log/with-merged-config
     {:output-fn json-log-output}
-    (log/info (->> {:a "bbig long bits of stuff and more and more"
-                    :c {:d :foo :e "bar"}
-                    :f {:a "b" :c ({:d :foo :e "bar"})}}
-                   clojure.pprint/pprint
-                   with-out-str)))
+    (log/info example-json-string))
+  )
 
-  (def x
+(comment
+  (def example-system
+    "Starts up the dependencies that would be injected into the HTTP handler"
     (env/start-system! {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
                         "KALEIDOSCOPE_AUTH_TYPE"                   "custom-authenticated-user"
                         "KALEIDOSCOPE_AUTHORIZATION_TYPE"          "public-access"
                         "KALEIDOSCOPE_STATIC_CONTENT_TYPE"         "none"
                         "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
                         "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                        "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"
-                        }
+                        "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"}
                        ))
-
-  (env/prepare-for-virtual-hosting x)
-
   )

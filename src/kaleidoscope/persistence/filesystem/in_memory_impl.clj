@@ -29,9 +29,6 @@
   [file]
   (:version file))
 
-;; Should persistence depend on teh protocols? i.e. should persistence need to know about URLs.. etc?
-;; Add protocol as the first argument to the FilesysteM?
-;; Configuration map as first argument and extract other args from there?
 (defrecord MemFS [store]
   fs/DistributedFileSystem
   (ls [_ path options]

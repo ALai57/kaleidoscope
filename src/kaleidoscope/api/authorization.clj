@@ -16,9 +16,9 @@
                       (oidc/get-realm-roles identity)))))
 
 (defn require-*-writer
-  "The route requires the user to have the *-writer role, where
-  * is the server-name. For example, when sending a request to
-  andrewslai.com, requires `andrewslai.com-writer`"
+  "Require the user to have the *-writer role, where * is the server-name. For
+  example, when sending a request to andrewslai.com, requires
+  `andrewslai.com-writer`"
   [{:keys [identity uri server-name] :as request}]
   (log/debugf "Checking if user %s has access to endpoint %s" identity uri)
   (let [role  (str server-name ":writer")
@@ -31,9 +31,9 @@
                         (oidc/get-realm-roles identity))))))
 
 (defn require-*-reader
-  "The route requires the user to have the *-reader role, where
-  * is the server-name. For example, when sending a request to
-  andrewslai.com, requires `andrewslai.com-reader`"
+  "Require the user to have the *-reader role, where * is the server-name. For
+  example, when sending a request to andrewslai.com, requires
+  `andrewslai.com-reader`"
   [{:keys [identity uri server-name] :as request}]
   (log/debugf "Checking if user %s has access to endpoint %s" identity uri)
   (let [role  (str server-name ":reader")
@@ -46,9 +46,9 @@
                         (oidc/get-realm-roles identity))))))
 
 (defn require-*-admin
-  "The route requires the user to have the *-reader role, where
-  * is the server-name. For example, when sending a request to
-  andrewslai.com, requires `andrewslai.com-reader`"
+  "Require the user to have the *-reader role, where * is the server-name. For
+  example, when sending a request to andrewslai.com, requires
+  `andrewslai.com-reader`"
   [{:keys [identity uri server-name] :as request}]
   (log/debugf "Checking if user %s has access to endpoint %s" identity uri)
   (let [role (str server-name ":admin")]

@@ -9,10 +9,3 @@
     :components [database]
     (GET "/" []
       (ok (portfolio-api/get-portfolio database)))))
-
-(comment
-  (def portfolio-routes-2
-    ["/projects-portfolio"
-     ["/" {:get {:responses {200 {:body any?}}
-                 :handler   (fn [request]
-                              (ok (portfolio-api/get-portfolio database)))}}]]))

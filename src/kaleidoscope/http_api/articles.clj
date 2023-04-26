@@ -18,11 +18,6 @@
   [hostname]
   (first (string/split hostname #":")))
 
-(comment
-  (string/split "localhost:5000" #":")
-  (string/split "localhost" #":")
-  )
-
 (defn get-host
   [request]
   (-> request

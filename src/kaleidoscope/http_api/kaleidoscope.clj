@@ -52,9 +52,6 @@
       (log/warnf "Request without a host. Cannot lookup associated bucket."))
     (str/join "." (butlast (str/split server-name #"\.")))))
 
-(def KALEIDOSCOPE
-  "kaleidoscope")
-
 ;; Emacs xwidgets
 (comment
   (require '[portal.api :as p])

@@ -6,6 +6,7 @@
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.models.albums] ;; Install specs
+            [kaleidoscope.utils.core :as utils]
             [ring.util.http-response :refer [created]]
             [taoensso.timbre :as log]))
 
@@ -15,9 +16,6 @@
 (defn ->file-input-stream
   [file]
   (java.io.FileInputStream. ^java.io.File file))
-
-(defn now []
-  (java.time.LocalDateTime/now))
 
 (defn bucket-name
   "Getting host name is from ring.util.request"
@@ -43,7 +41,7 @@
                                                                             (subs uri 1))
                                                                   filename)
             metadata                                      (dissoc file-contents :tempfile)
-            now-time                                      (now)]
+            now-time                                      (utils/now)]
         (log/infof "Processing upload request with params:\n %s" (-> params
                                                                      clojure.pprint/pprint
                                                                      with-out-str))
@@ -61,19 +59,3 @@
                                                         :modified-at now-time})]
           (created (format "/%s" file-path)
                    photo))))))
-
-(comment
-  (s3-path [MEDIA-FOLDER "something.ptg"])
-
-  (try
-    (-> (s3/get-object WEDDING-BUCKET (s3-path [MEDIA-FOLDER "id"]))
-        :input-stream)
-    (catch Exception e
-      (amazon/ex->map e)))
-
-  (s3/list-objects-v2 {:bucket-name WEDDING-BUCKET
-                       :prefix      (str MEDIA-FOLDER "/")})
-
-  (s3/get-object WEDDING-BUCKET (s3-path [MEDIA-FOLDER "SOMETHING"]))
-
-  )
