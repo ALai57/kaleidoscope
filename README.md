@@ -3,11 +3,6 @@
 
 [Kaleidoscope](https://kaleidoscope.pub) is a content management system for blogging.  
 
-This repository is the backend. It contains:
-
-- **Backend**: Clojure web server that serves a content management system (kaleidoscope)  
-- **Infrastructure**: Terraform for AWS cloud infrastructure  
-
 ## How the Kaleidoscope CMS works
 The Kaleidoscope backend is built to host multiple different user sites at the
 same time. To do this, the Kaleidoscope server inspects incoming HTTP requests
@@ -31,14 +26,13 @@ The Kaleidoscope app has 3 distinct layers:
 ## App startup 
 
 At start time, the `kaleidoscope.main` namespace uses the
-`kaleidoscope.init.env` namespace to parse environment variables and determine
-how to boot the components needed to start the app.
+`kaleidoscope.init.env` namespace to inspect the environment and determine how
+to boot the components needed to start the app.
 
-The `kaleidoscope.init.env` namespace has `boot-instructions` that change how
-the app starts up based on the environment. For example, the
-`database-boot-instructions` (shown below) define 3 different possible ways to
-start the Database component. Which one starts depends on the value in the
-`KALEIDOSCOPE_DB_TYPE` environment variable. 
+The `kaleidoscope.init.env` namespace has `boot-instructions` that change which
+components the app starts up based on the environment variables. For example,
+the `database-boot-instructions` (shown below) define 3 different options for
+the database component - `postgres`, `embedded-h2` and `embedded-postgres`. 
 
 ``` clojure
 (def database-boot-instructions
@@ -54,7 +48,7 @@ start the Database component. Which one starts depends on the value in the
    :default   "postgres"})
 ```
 
-For example, if `KALEIDOSCOPE_DB_TYPE=postgres` then the app will use the
+If the environment has `KALEIDOSCOPE_DB_TYPE=postgres` then the app will use the
 `postgres` launcher to start the database.
 
 ### App startup options
