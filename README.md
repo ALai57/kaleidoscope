@@ -5,64 +5,103 @@
 
 This repository is the backend. It contains:
 
-- **Backend**: Clojure web server that uses Virtual Hosting to serve two different apps: 
-               a blog (andrewslai), and a photo viewer app  
+- **Backend**: Clojure web server that serves a content management system (kaleidoscope)  
 - **Infrastructure**: Terraform for AWS cloud infrastructure  
+
+## How the Kaleidoscope CMS works
+The Kaleidoscope backend is built to host multiple different user sites at the
+same time. To do this, the Kaleidoscope server inspects incoming HTTP requests
+and determines which site is the target by looking at the HTTP request's Host
+header (e.g. is this request for `andrewslai.com` or for `caheriaguilar.com`?).
+Then, it determines if the user has permissions to access the resources for that
+site and serves the resources if the user has the correct permissions.
 
 ## Architecture of the Clojure namespaces
 
-![Architecture](2022-09-13-architecture.svg)
+![Architecture](2023-04-25-architecture.svg)
 Figure 1. A high level view of the architecture of the Clojure namespaces in the app.
 
-1. At start time, the `main` namespace uses the `init.config` namespace to parse
-   environment variables and creates components to inject into the app
-2. `init.config` starts components
+The Kaleidoscope app has 3 distinct layers: 
+1. Persistence layer: The layer responsible for storing/retrieving all of the
+   key data structures. 
+2. Api: The layer responsible for encoding the logic of how the key data
+   structures should behave. 
+3. HTTP Api. The layer that exposes the Api to the outside world.
 
-### System Components
-1. `:virtual-hosting`: Allows you to direct multiple URLs to a single JVM and
-   serve multiple websites/apps from a single instance of the app. Used to serve
-   separate apps on `andrewslai.com` and `caheriaguilar.and.andrewslai.com`
-   (Route53 points both domains to the same load balancer, and when requests hit
-   the ECS app, `:virtual-hosting` is used to serve different apps on different
-   domains).
-2. `:persistence.rdbms`: An RDBMS is used as a persistent data store. Depending
-   on environment variables, the app could connect to a live Postgres instance
-   that is accessible via the network, or could start an embedded DB (H2 or
-   Postgres) for testing.
-3. `:persistence.filesystem`: The app serves static files from a Filesystem.
-   For the wedding app, a Filesystem used to store pictures and media. Both apps
-   serve `index.html` and associated Javascript from a Filesystem (S3). Can be
-   set to an S3 implementation, or an in-memory filesystem for testing.
-4. `:http-api.middleware`: Multiple stacks of middleware are defined here and
-   can be composed together or used to configure how a given Ring handler
-   behaves.
-   a. (Static-Content middleware): If static content middleware is enabled, the
-       app will serve static content from the `:persistence.filesystem`
-       implementation - i.e. a request to `/media/foo.svg` would try to look up
-       the content located at path `/media/foo.svg` in the `:persistence.filesystem`.
-       In a live implementation, this is basically a thin wrapper that serves
-       static content in an S3 bucket via the Ring handler.
-5. `:http.auth`: Resources in the HTTP API should be protected against unwanted
-   access. This component is used to configure how users Authenticate over HTTP.
-   Can use different `buddy` backends - some that check HTTP request headers for
-   appropriate tokens, and others that accept everyone as authenticated (for
-   testing). The normal live implementation is a Keycloak backend, which takes
-   Authorization Bearer tokens in the HTTP header, parses them, and reaches out
-   to a live Keycloak server/IDP over the network to verify the user's identity.
+## App startup 
 
-### Additional configuration
-1. `init.config` HTTP Access rules: Can be set at run time to protect http
-   routes behind role-based access criteria. Used to determine which user scopes
-   are able to access specific resources on the server
+At start time, the `kaleidoscope.main` namespace uses the
+`kaleidoscope.init.env` namespace to parse environment variables and determine
+how to boot the components needed to start the app.
+
+The `kaleidoscope.init.env` namespace has `boot-instructions` that change how
+the app starts up based on the environment. For example, the
+`database-boot-instructions` (shown below) define 3 different possible ways to
+start the Database component. Which one starts depends on the value in the
+`KALEIDOSCOPE_DB_TYPE` environment variable. 
+
+``` clojure
+(def database-boot-instructions
+  {:name      :database-connection
+   :path      "KALEIDOSCOPE_DB_TYPE"
+   :launchers {"postgres"          (fn  [env]
+                                     (let [ds (connection/->pool HikariDataSource
+                                                                 (env->pg-conn env))]
+                                       (initialize-connection-pool! ds)
+                                       ds))
+               "embedded-h2"       (fn [_env] (embedded-h2/fresh-db!))
+               "embedded-postgres" (fn [_env] (embedded-pg/fresh-db!))}
+   :default   "postgres"})
+```
+
+For example, if `KALEIDOSCOPE_DB_TYPE=postgres` then the app will use the
+`postgres` launcher to start the database.
+
+### App startup options
+
+`KALEIDOSCOPE_DB_TYPE`: Determines what database type to use
+
+| Value             | Description                                                                 |
+|-------------------|-----------------------------------------------------------------------------|
+| postgres          | Connect to an external Postgres instance                                    |
+| embedded-h2       | Start an in-JVM, ephemeral H2 instance, seeded with some example data       |
+| embedded-postgres | Start an in-JVM, ephemeral Postgres instance, seeded with some example data |
+
+
+
+`KALEIDOSCOPE_AUTH_TYPE` Determines how to authenticate users
+
+| Value                  | Description                                                                                                            |
+|------------------------|------------------------------------------------------------------------------------------------------------------------|
+| keycloak               | Connect to a Keycloak instance for Authentication. Makes a network request for Auth.                                   |
+| always-unauthenticated | Always return an unauthenticated user. Does not make a network request.                                                |
+| always-authenticated   | Always return an authenticated user with admin permissions on the supported `domains`. Does not make a network request |
+
+
+`KALEIDOSCOPE_AUTHORIZATION_TYPE` Determines how to authorize users
+
+| Value                   | Description                                                     |
+|-------------------------|-----------------------------------------------------------------|
+| public-access           | Allow any authenticated user to access all resources            |
+| use-access-control-list | Use `KALEIDOSCOPE-ACCESS-CONTROL-LIST` to determine permissions |
+
+
+`KALEIDOSCOPE_STATIC_CONTENT_TYPE` Determine where to look for static resources
+
+| Value            | Description                                                      |
+|------------------|------------------------------------------------------------------|
+| none             | Don't set up any static resources                                |
+| s3               | Use S3 to serve static resources. Must be able to connect to AWS |
+| in-memory        | Use an in-memory filesystem. Useful for testing                  |
+| local-filesystem | Serve static content from the local filesystem                   |
+
+Some launch options require additional environment variables to start up (e.g.
+databases need connection variables). If you don't supply these variables, the
+app will send verbose error messages to help you configure the environment
+properly.
 
 ## Installation/setup
 Clone the repo and install [leiningen](https://leiningen.org/).  
-
-#### Tests
-```bash
-lein test
-
-```
 
 #### Build: Uberjar
 ```bash
@@ -96,6 +135,11 @@ docker run --env-file=.env.docker.local \
             kaleidoscope
 ```
 
+#### Tests
+```bash
+lein test
+
+```
 
 ## Development
 For local development, see [local-development.md](./docs/local-development.md)

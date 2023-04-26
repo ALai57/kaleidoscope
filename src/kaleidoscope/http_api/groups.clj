@@ -4,7 +4,6 @@
             [compojure.api.sweet :refer [context DELETE GET POST PUT]]
             [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.api.groups :as groups-api]
-            [kaleidoscope.models.articles] ;; Install specs
             [ring.util.http-response :refer [no-content ok unauthorized]]
             [taoensso.timbre :as log]))
 
