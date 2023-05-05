@@ -98,3 +98,7 @@ docker run -d --rm --env-file=.env.aws -p 5000:5000 kaleidoscope
 lein uberjar && docker build -t kaleidoscope .
 docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope
 ```
+
+```bash
+# docker run --env-file=.env.docker.aws -p 5000:5000 kaleidoscope
+```
