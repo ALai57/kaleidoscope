@@ -95,12 +95,16 @@
                                            (:version options) (assoc :nonmatching-e-tag-constraints [(:version options)])))]
           (get-response->fs-object response)
           fs/not-modified-response)
-        (catch Exception e
+        (catch com.amazonaws.AmazonServiceException e
           (let [ex (amazon/ex->map e)]
             (log/warn "Could not retrieve object" ex)
             (cond
               (no-such-key? ex) fs/does-not-exist-response
-              :else             (throw e)))))))
+              :else             (throw e))))
+        (catch com.amazonaws.SdkClientException e
+          (log/warn "Could not retrieve object" e))
+        (catch Exception e
+          (log/warn "Unknown exception" e)))))
   (put-file [this path input-stream metadata]
     (log/infof "S3 Put Object `%s/%s`" bucket path)
     (span/with-span! {:name "kaleidoscope.s3.put"}
