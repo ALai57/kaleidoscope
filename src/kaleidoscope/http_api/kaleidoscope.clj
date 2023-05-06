@@ -117,7 +117,7 @@
     ;; Get frontend app from the Kaleidoscope bucket, so all sites don't need to
     ;; have separate copies of the app (and all updates immediately apply to all
     ;; sites).
-    (GET "/js/compiled/andrewslai/*" request
+    (GET "/js/compiled/kaleidoscope/*" request
       :components [static-content-adapters]
       (let [uri (:uri request)]
         (span/with-span! {:name (format "kaleidoscope.%s.get" (str/replace uri #"/" "."))}
