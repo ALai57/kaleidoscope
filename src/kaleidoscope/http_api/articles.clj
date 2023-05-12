@@ -2,6 +2,7 @@
   (:require [kaleidoscope.api.articles :as articles-api]
             [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.models.articles] ;; Install specs
+            [kaleidoscope.http-api.http-utils :as hu]
             [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
             [clojure.spec.alpha :as s]
@@ -14,21 +15,11 @@
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))
 
-(defn remove-port
-  [hostname]
-  (first (string/split hostname #":")))
-
-(defn get-host
-  [request]
-  (-> request
-      (get-in [:headers "host"])
-      (remove-port)))
-
 (defn ->article [article-url {:keys [body-params] :as request}]
   (-> body-params
       (select-keys [:article-name])
       (assoc :article-url article-url
-             :hostname    (get-host request)
+             :hostname    (hu/get-host request)
              :author      (oidc/get-full-name (:identity request)))))
 
 (defn ->commit [{:keys [body-params] :as request}]
@@ -70,7 +61,7 @@
                 :security  [{:andrewslai-pkce ["roles" "profile"]}]
                 :responses {200 {:description "A collection of all articles"
                                  :schema      :kaleidoscope.article/articles}}}
-      (ok (articles-api/get-articles database {:hostname (get-host request)})))
+      (ok (articles-api/get-articles database {:hostname (hu/get-host request)})))
 
     (context "/:article-url" [article-url]
       (GET "/" request
@@ -146,7 +137,7 @@
                 (let [commit (->commit request)
                       result (articles-api/new-version! database
                                                         {:branch-name   branch-name
-                                                         :hostname      (get-host request)
+                                                         :hostname      (hu/get-host request)
                                                          :article-url   article-url
                                                          :article-tags  (get-in request [:params :article-tags] "thoughts")
                                                          :article-title (get-in request [:params :article-title])
@@ -176,7 +167,7 @@
                 :produces #{"application/json"}}
       (let [query-params (select-keys (cske/transform-keys csk/->kebab-case-keyword (:query-params request))
                                       [:article-id :article-url])
-            branches     (articles-api/get-branches database (assoc query-params :hostname (get-host request)))]
+            branches     (articles-api/get-branches database (assoc query-params :hostname (hu/get-host request)))]
         (if (empty? branches)
           (not-found {:reason "Missing"})
           (ok branches))))
@@ -193,7 +184,7 @@
                                  :schema      ::error-message}}}
       (try
         (ok (articles-api/create-branch! database (assoc (:body-params request)
-                                                         :hostname (get-host request)
+                                                         :hostname (hu/get-host request)
                                                          :author   (oidc/get-full-name (:identity request)))))
         (catch Exception e
           (log/error "Caught exception " e))))
@@ -231,8 +222,8 @@
                 :produces    #{"application/json"}
                 :responses   {200 {:description "A collection of all published articles"
                                    :schema      :kaleidoscope.article/articles}}}
-      (log/infof "Getting compositions for host `%s`" (get-host request))
-      (ok (articles-api/get-published-articles database {:hostname (get-host request)})))
+      (log/infof "Getting compositions for host `%s`" (hu/get-host request))
+      (ok (articles-api/get-published-articles database {:hostname (hu/get-host request)})))
 
     (GET "/:article-url" [article-url :as request]
       :swagger {:summary    "Retrieve a single published article"

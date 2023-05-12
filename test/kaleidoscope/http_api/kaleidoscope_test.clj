@@ -418,11 +418,8 @@
                    :headers {"Cache-Control" cc/revalidate-0s}}
                   (app (mock/request :get "https://andrewslai.com/media/")))))
 
-    (testing "Image does not exist"
-      (is (match? {:status 404}
-                  (app (mock/request :get "https://andrewslai.com/media/foo.svg")))))
-
-    (let [response (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png"))]
+    (let [response (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png"))
+          image-id (get-in response [:body :id])]
       (testing "Upload works"
         (is (match? {:status  201
                      :headers {"Location" (re-pattern (str "/v2/photos/" UUID-REGEX))}
@@ -431,9 +428,26 @@
 
       (testing "Retrieval works"
         (is (match? {:status  200
-                     :headers {"Content-Type"  "image/png"
-                               "Cache-Control" cc/cache-30d}}
-                    (app (mock/request :get "https://andrewslai.com/media/foo.svg")))))
+                     :headers {"Content-Type" #"application/json"}
+                     :body    [{:id                image-id
+                                :photo-version-src (str image-id "/raw.png")
+                                :image-category    "raw"
+                                :hostname          "andrewslai.com"}
+                               {:id                image-id
+                                :photo-version-src (str image-id "/thumbnail.jpeg")
+                                :image-category    "thumbnail"}
+                               {:id                image-id
+                                :photo-version-src (str image-id "/gallery.jpeg")
+                                :image-category    "gallery"}
+                               {:id                image-id
+                                :photo-version-src (str image-id "/monitor.jpeg")
+                                :image-category    "monitor"}
+                               {:id                image-id
+                                :photo-version-src (str image-id "/mobile.jpeg")
+                                :image-category    "mobile"}
+
+                               ]}
+                    (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id))))))
 
       #_(testing "Etags work"
           (is (match? {:status 304}

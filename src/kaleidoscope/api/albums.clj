@@ -32,20 +32,30 @@
 (def get-photos
   (rdbms/make-finder :photos))
 
+(def get-full-photos
+  (rdbms/make-finder :full_photos))
+
 (defn create-photo!
   [database photo]
-  (first (rdbms/insert! database
-                        :photos     photo
-                        :ex-subtype :UnableToCreatePhoto)))
+  (let [now-time (utils/now)]
+    (first (rdbms/insert! database
+                          :photos     (assoc photo
+                                             :created-at  now-time
+                                             :modified-at now-time)
+                          :ex-subtype :UnableToCreatePhoto))))
 
 (def get-photo-versions
-  (rdbms/make-finder :photo-versions))
+  (rdbms/make-finder :photo_versions))
 
 (defn create-photo-version!
   [database photo-version]
-  (first (rdbms/insert! database
-                        :photo-versions photo-version
-                        :ex-subtype     :UnableToCreatePhotoVersion)))
+  (let [now-time (utils/now)]
+    (first (rdbms/insert! database
+                          :photo-versions (assoc photo-version
+                                                 :id          (utils/uuid)
+                                                 :created-at  now-time
+                                                 :modified-at now-time)
+                          :ex-subtype     :UnableToCreatePhotoVersion))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums
