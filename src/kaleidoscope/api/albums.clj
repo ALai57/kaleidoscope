@@ -38,6 +38,15 @@
                         :photos     photo
                         :ex-subtype :UnableToCreatePhoto)))
 
+(def get-photo-versions
+  (rdbms/make-finder :photo-versions))
+
+(defn create-photo-version!
+  [database photo-version]
+  (first (rdbms/insert! database
+                        :photo-versions photo-version
+                        :ex-subtype     :UnableToCreatePhotoVersion)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
