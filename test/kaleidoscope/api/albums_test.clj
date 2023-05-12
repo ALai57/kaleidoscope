@@ -20,17 +20,12 @@
 
 (def example-photo
   {:id          #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"
-   :photo-src  "example/photo"
-   :created-at  #inst "2021-05-27T18:30:39.000Z"
-   :modified-at #inst "2021-05-27T18:30:39.000Z"})
+   :photo-src  "example/photo"})
 
 (def example-photo-version
-  {:id                #uuid "0e43429d-60c1-49ba-92d8-59cbdbbe8b1a"
-   :photo-id          #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4" ;; From db-seed
+  {:photo-id          #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4" ;; From db-seed
    :photo-version-src "example/photo/100x100.jpeg"
-   :image-category    "thumbnail"
-   :created-at        #inst "2021-05-27T18:30:39.000Z"
-   :modified-at       #inst "2021-05-27T18:30:39.000Z"})
+   :image-category    "thumbnail"})
 
 (deftest create-and-retrieve-album-test
   (let [database (embedded-h2/fresh-db!)]
@@ -115,3 +110,16 @@
 
     (testing "Can retrieve example-photo from the DB"
       (is (match? [example-photo-version] (albums-api/get-photo-versions database {:photo-id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))))
+
+(deftest retrieve-full-photos-test
+  (let [database (embedded-h2/fresh-db!)]
+    (testing "example-photos and versions were seeded into the DB"
+      ;; Migrations seed db now for convenience
+      (is (match?
+           [{:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :photo-version-src "https://caheriaguilar.and.andrewslai.com/media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
+            {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :photo-version-src "https://caheriaguilar.and.andrewslai.com/media/processed/20210422_134816 (2)-500.jpg"}
+            {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :photo-version-src "https://caheriaguilar.and.andrewslai.com/media/processed/20210422_134824 (2)-500.jpg"}]
+           (albums-api/-get-full-photos database {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"}))))))

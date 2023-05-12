@@ -15,3 +15,12 @@ CREATE TABLE photo_versions (
                   FOREIGN KEY (photo_id)
                   REFERENCES  photos(id)
 );
+
+--;;
+
+CREATE VIEW IF NOT EXISTS full_photos AS
+SELECT p.*,
+pv.id as photo_version_id,
+pv.photo_version_src,
+pv.image_category
+FROM photos p LEFT JOIN photo_versions pv ON pv.photo_id = p.id
