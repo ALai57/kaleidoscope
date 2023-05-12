@@ -24,6 +24,14 @@
    :created-at  #inst "2021-05-27T18:30:39.000Z"
    :modified-at #inst "2021-05-27T18:30:39.000Z"})
 
+(def example-photo-version
+  {:id                #uuid "0e43429d-60c1-49ba-92d8-59cbdbbe8b1a"
+   :photo-id          #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4" ;; From db-seed
+   :photo-version-src "example/photo/100x100.jpeg"
+   :image-category    "thumbnail"
+   :created-at        #inst "2021-05-27T18:30:39.000Z"
+   :modified-at       #inst "2021-05-27T18:30:39.000Z"})
+
 (deftest create-and-retrieve-album-test
   (let [database (embedded-h2/fresh-db!)]
     (testing "3 example-albums seeded in DB"
@@ -94,3 +102,16 @@
 
     (testing "Can retrieve example-photo from the DB"
       (is (match? [example-photo] (albums-api/get-photos database {:photo-src "example/photo"}))))))
+
+(deftest create-and-retrieve-photo-version-test
+  (let [database (embedded-h2/fresh-db!)]
+    (testing "example-photos were seeded into the DB"
+      ;; Migrations seed db now for convenience
+      (is (= 3 (count (albums-api/get-photo-versions database)))))
+
+    (testing "Insert the example-photo"
+      (is (match? {:id uuid?}
+                  (albums-api/create-photo-version! database example-photo-version))))
+
+    (testing "Can retrieve example-photo from the DB"
+      (is (match? [example-photo-version] (albums-api/get-photo-versions database {:photo-id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))))

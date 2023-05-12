@@ -15,6 +15,7 @@
    [camel-snake-kebab "0.4.3"]
    [cheshire "5.11.0"]
    [clj-http "3.12.3"]
+   [clj-img-resize "0.1.0"]
    [com.amazonaws/aws-java-sdk-s3 "1.12.385"]
    [com.fzakaria/slf4j-timbre "0.3.21"] ;; Intercept logging to Apache Commons Logging (introduced by AWS SDK)
    [com.github.seancorfield/next.jdbc "1.3.847"]
@@ -52,6 +53,7 @@
    [org.keycloak/keycloak-core "21.0.1"]
    [org.postgresql/postgresql "42.5.1"]
    [org.slf4j/log4j-over-slf4j "1.7.30"] ;; Bridges between different logging libs and SLF4J
+   [peridot "0.5.4"]
    [ring "1.9.6" :exclusions [ring/ring-codec org.clojure/java.classpath]]
    [ring/ring-json "0.5.1"]
    [slingshot "0.12.2"]
