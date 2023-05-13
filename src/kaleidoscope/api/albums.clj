@@ -69,27 +69,37 @@
   [path]
   (last (string/split path #"\.")))
 
+(defn ->file-input-stream
+  [file]
+  (java.io.FileInputStream. ^java.io.File file))
+
 (defn create-photo-version-2!
-  [database {:keys [storage-root] :as static-content-adapter} {:keys [file image-category] :as photo-version}]
+  [database
+   {:keys [storage-root storage-driver] :as static-content-adapter}
+   {:keys [file image-category photo-id] :as photo-version}]
   (let [id       (utils/uuid)
         now-time (utils/now)
         filename (format "%s.%s" image-category (get-file-extension (:filename file)))
-        metadata (dissoc file :tempfile)]
-    (rdbms/insert! database
-                   :photo-versions (-> photo-version
-                                       (select-keys [:photo-id :image-category])
-                                       (assoc
-                                        :id             id
-                                        :storage-driver (:storage-driver static-content-adapter)
-                                        :storage-root   storage-root
-                                        :path           (format "%s/%s/%s" storage-root id filename)
-                                        :filename       filename
-                                        :created-at     now-time
-                                        :modified-at    now-time))
-                   :ex-subtype     :UnableToCreatePhotoVersion)
-    #_(fs/put-file (str images-path raw-file-name)
-                   (->file-input-stream tempfile)
-                   metadata)
+        path     (format "%s/%s/%s" storage-root photo-id filename)
+        metadata (dissoc file :tempfile)
+
+        db-result (rdbms/insert! database
+                                 :photo-versions (-> photo-version
+                                                     (select-keys [:photo-id :image-category])
+                                                     (assoc
+                                                      :id             id
+                                                      :storage-driver storage-driver
+                                                      :storage-root   storage-root
+                                                      :path           path
+                                                      :filename       filename
+                                                      :created-at     now-time
+                                                      :modified-at    now-time))
+                                 :ex-subtype     :UnableToCreatePhotoVersion)]
+    (fs/put-file static-content-adapter
+                 path
+                 (->file-input-stream (:tempfile file))
+                 metadata)
+    db-result
     ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
