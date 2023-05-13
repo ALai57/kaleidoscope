@@ -6,7 +6,9 @@
             [kaleidoscope.test-main :as tm]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
-            [taoensso.timbre :as log])
+            [taoensso.timbre :as log]
+            [clojure.java.io :as io]
+            [kaleidoscope.test-utils :as tu])
   (:import [java.util UUID]))
 
 (use-fixtures :once
@@ -138,7 +140,9 @@
                   (albums-api/create-photo-version-2! database
                                                       (in-mem/make-mem-fs mock-fs)
                                                       (assoc example-photo-version
-                                                             :file {:filename "myfile.png"})))))
+                                                             :file {:filename      "myfile.png"
+                                                                    :more-metadata 12345
+                                                                    :tempfile      (io/file (io/resource "public/images/lock.svg"))})))))
 
     (testing "Can retrieve the version from the DB"
       (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
@@ -148,6 +152,16 @@
                     :storage-driver "in-memory"
                     :storage-root   "media"}]
                   (albums-api/-get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
-    )
 
-  )
+
+    (testing "File exists in Filesystem"
+      (is (match? {"media"
+                   {"f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
+                    {"thumbnail.png"
+                     {:path     (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+                      :name     "thumbnail.png"
+                      :content  tu/file-input-stream?
+                      :metadata {:filename "myfile.png"
+                                 :more-metadata 12345}
+                      }}}}
+                  @mock-fs)))))
