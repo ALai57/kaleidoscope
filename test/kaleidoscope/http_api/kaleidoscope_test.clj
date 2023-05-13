@@ -429,22 +429,22 @@
       (testing "Retrieval works"
         (is (match? {:status  200
                      :headers {"Content-Type" #"application/json"}
-                     :body    [{:id                image-id
-                                :photo-version-src (str image-id "/raw.png")
-                                :image-category    "raw"
-                                :hostname          "andrewslai.com"}
-                               {:id                image-id
-                                :photo-version-src (str image-id "/thumbnail.jpeg")
-                                :image-category    "thumbnail"}
-                               {:id                image-id
-                                :photo-version-src (str image-id "/gallery.jpeg")
-                                :image-category    "gallery"}
-                               {:id                image-id
-                                :photo-version-src (str image-id "/monitor.jpeg")
-                                :image-category    "monitor"}
-                               {:id                image-id
-                                :photo-version-src (str image-id "/mobile.jpeg")
-                                :image-category    "mobile"}
+                     :body    [{:id             image-id
+                                :path           (str "/v2/photos/" image-id "/raw.png")
+                                :image-category "raw"
+                                :hostname       "andrewslai.com"}
+                               {:id             image-id
+                                :path           (str "/v2/photos/" image-id "/thumbnail.jpeg")
+                                :image-category "thumbnail"}
+                               {:id             image-id
+                                :path           (str "/v2/photos/" image-id "/gallery.jpeg")
+                                :image-category "gallery"}
+                               {:id             image-id
+                                :path           (str "/v2/photos/" image-id "/monitor.jpeg")
+                                :image-category "monitor"}
+                               {:id             image-id
+                                :path           (str "/v2/photos/" image-id "/mobile.jpeg")
+                                :image-category "mobile"}
 
                                ]}
                     (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id))))))

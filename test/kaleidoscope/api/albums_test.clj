@@ -2,6 +2,7 @@
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
             [kaleidoscope.test-main :as tm]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
@@ -19,13 +20,15 @@
    :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"})
 
 (def example-photo
-  {:id          #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"
-   :photo-src  "example/photo"})
+  {:id #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"})
 
 (def example-photo-version
-  {:photo-id          #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4" ;; From db-seed
-   :photo-version-src "example/photo/100x100.jpeg"
-   :image-category    "thumbnail"})
+  {:photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4" ;; From db-seed
+   :path           "some/path"
+   :storage-driver "local"
+   :storage-root   "resources/"
+   :filename       "100x100.jpeg"
+   :image-category "thumbnail"})
 
 (deftest create-and-retrieve-album-test
   (let [database (embedded-h2/fresh-db!)]
@@ -96,7 +99,7 @@
                   (albums-api/create-photo! database example-photo))))
 
     (testing "Can retrieve example-photo from the DB"
-      (is (match? [example-photo] (albums-api/get-photos database {:photo-src "example/photo"}))))))
+      (is (match? [example-photo] (albums-api/get-photos database {:id #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"}))))))
 
 (deftest create-and-retrieve-photo-version-test
   (let [database (embedded-h2/fresh-db!)]
@@ -116,10 +119,35 @@
     (testing "example-photos and versions were seeded into the DB"
       ;; Migrations seed db now for convenience
       (is (match?
-           [{:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :photo-version-src "https://caheriaguilar.and.andrewslai.com/media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
-            {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :photo-version-src "https://caheriaguilar.and.andrewslai.com/media/processed/20210422_134816 (2)-500.jpg"}
-            {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :photo-version-src "https://caheriaguilar.and.andrewslai.com/media/processed/20210422_134824 (2)-500.jpg"}]
+           [{:id   #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :path "media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
+            {:id   #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :path "media/processed/20210422_134816 (2)-500.jpg"}
+            {:id   #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :path "media/processed/20210422_134824 (2)-500.jpg"}]
            (albums-api/-get-full-photos database {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"}))))))
+
+(def UUID-REGEX
+  "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+
+(deftest create-photo-version--test
+  (let [database (embedded-h2/fresh-db!)
+        mock-fs  (atom {})]
+    (testing "Create photo version"
+      (is (match? [{:id uuid?}]
+                  (albums-api/create-photo-version-2! database
+                                                      (in-mem/make-mem-fs mock-fs)
+                                                      (assoc example-photo-version
+                                                             :file {:filename "myfile.png"})))))
+
+    (testing "Can retrieve the version from the DB"
+      (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+                    :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
+                    :hostname       "andrewslai.localhost"
+                    :filename       "thumbnail.png"
+                    :storage-driver "in-memory"
+                    :storage-root   "media"}]
+                  (albums-api/-get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
+    )
+
+  )
