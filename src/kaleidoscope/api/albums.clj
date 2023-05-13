@@ -1,7 +1,9 @@
 (ns kaleidoscope.api.albums
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.utils.core :as utils]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [clojure.string :as string]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Albums
@@ -56,6 +58,39 @@
                                                  :created-at  now-time
                                                  :modified-at now-time)
                           :ex-subtype     :UnableToCreatePhotoVersion))))
+
+(comment
+  (log/infof "Creating file `%s` with metadata:\n %s" images-path (-> metadata
+                                                                      clojure.pprint/pprint
+                                                                      with-out-str))
+  )
+
+(defn get-file-extension
+  [path]
+  (last (string/split path #"\.")))
+
+(defn create-photo-version-2!
+  [database {:keys [storage-root] :as static-content-adapter} {:keys [file image-category] :as photo-version}]
+  (let [id       (utils/uuid)
+        now-time (utils/now)
+        filename (format "%s.%s" image-category (get-file-extension (:filename file)))
+        metadata (dissoc file :tempfile)]
+    (rdbms/insert! database
+                   :photo-versions (-> photo-version
+                                       (select-keys [:photo-id :image-category])
+                                       (assoc
+                                        :id             id
+                                        :storage-driver (:storage-driver static-content-adapter)
+                                        :storage-root   storage-root
+                                        :path           (format "%s/%s/%s" storage-root id filename)
+                                        :filename       filename
+                                        :created-at     now-time
+                                        :modified-at    now-time))
+                   :ex-subtype     :UnableToCreatePhotoVersion)
+    #_(fs/put-file (str images-path raw-file-name)
+                   (->file-input-stream tempfile)
+                   metadata)
+    ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums

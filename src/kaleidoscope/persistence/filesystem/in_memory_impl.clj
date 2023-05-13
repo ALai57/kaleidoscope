@@ -66,6 +66,12 @@
   [x]
   (= kaleidoscope.persistence.filesystem.in_memory_impl.MemFS (class x)))
 
+(defn make-mem-fs
+  [store]
+  (assoc (->MemFS store)
+         :storage-driver "in-memory"
+         :storage-root "media"))
+
 (def example-fs
   "An in-memory filesystem used for testing"
   {"media"      {"afile" (file {:name     "afile"

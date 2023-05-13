@@ -58,7 +58,6 @@
                          (->file-input-stream tempfile)
                          metadata))
         (let [photo (albums-api/create-photo! database {:id          (java.util.UUID/randomUUID)
-                                                        :photo-src   file-path
                                                         :created-at  now-time
                                                         :modified-at now-time})]
           (created (format "/%s" file-path)
@@ -84,6 +83,10 @@
    :monitor   [1920 1080 "jpeg"]
    :mobile    [1200 630  "jpeg"]})
 
+(defn get-extension
+  [path]
+  (last (string/split path #"\.")))
+
 (def photo-routes-v2
   (context "/v2/photos" []
     :coercion   :spec
@@ -98,7 +101,8 @@
       (let [photos (albums-api/get-full-photos database {:id id})]
         (if (empty? photos)
           (not-found {:reason "Missing"})
-          (ok photos))))
+          (ok (map (fn [{:keys [id filename] :as photo}]
+                     (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos)))))
 
     (POST "/" {:keys [uri params] :as req}
       :swagger {:summary     "Upload a new file"
@@ -110,42 +114,51 @@
       (log/infof "Processing upload request with params:\n %s" (-> params
                                                                    clojure.pprint/pprint
                                                                    with-out-str))
-      (let [now-time (utils/now)
-            id       (java.util.UUID/randomUUID)
+      (let [photo-id (java.util.UUID/randomUUID)
             hostname (hu/get-host req)
+            bucket   (bucket-name req)
 
-            {:keys [filename tempfile] :as file-contents} (get params "file")
+            static-content-adapter (get static-content-adapters bucket)]
 
-            file-path    (format "%s/%s/%s" hostname uri filename)
-            metadata     (dissoc file-contents :tempfile)
-            resource-url (format "/v2/photos/%s" id)]
+        (let [photo (albums-api/create-photo! database {:id photo-id :hostname hostname})]
+          (albums-api/create-photo-version-2! database
+                                              static-content-adapter
+                                              {:photo-id       photo-id
+                                               :image-category "raw"
+                                               :file           (get params "file")})
+          (created (format "/v2/photos/%s" id) photo))))))
 
-        (log/infof "Creating file `%s` with metadata:\n %s" file-path (-> metadata
-                                                                          clojure.pprint/pprint
-                                                                          with-out-str))
-        ;; Create the photo - a pointer to the S3 bucket folder
-        (let [photo            (albums-api/create-photo! database {:id        id
-                                                                   :photo-src resource-url
-                                                                   :hostname  hostname})
-              original-version (albums-api/create-photo-version! database {:photo-id          id
-                                                                           :photo-version-src (format "%s/%s.%s" id "raw" (last (string/split filename #"\.")))
-                                                                           :image-category    "raw"})]
-          ;; Create resized photo versions
-          (doseq [[image-category [w h t]] IMAGE-DIMENSIONS
-                  :let                     [version-src (format "%s/%s.%s" id (name image-category) t)]]
-            (log/infof "Resizing %s image [%s] to %spx by %spx" file-path id w h)
-            (-> static-content-adapters
-                (get (bucket-name req))
-                (fs/put-file version-src
-                             (img/scale-image-to-dimension-limit tempfile w h t)
-                             metadata))
-            (albums-api/create-photo-version! database {:photo-id          id
-                                                        :photo-version-src version-src
-                                                        :image-category    (name image-category)}))
-          (created resource-url photo))))))
+
 
 
 (comment
+
+  ;; Create the photo and the raw version - a pointer to the S3 bucket folder
+  #_(let [photo            (albums-api/create-photo! database {:id       id
+                                                               :hostname hostname})
+          original-version (albums-api/create-photo-version-2! database {:photo-id       id
+                                                                         :filename       raw-file-name
+                                                                         :image-category "raw"})]
+
+      _                (fs/put-file (str images-path raw-file-name)
+                                    (->file-input-stream tempfile)
+                                    metadata)
+      ;; Create resized photo versions
+      #_(doseq [[image-category [w h t]] IMAGE-DIMENSIONS
+                :let                     [version-src (format "%s/%s.%s" id (name image-category) t)]]
+          (log/infof "Resizing %s image [%s] to %spx by %spx" file-path id w h)
+          (-> static-content-adapters
+              (get (bucket-name req))
+              (fs/put-file version-src
+                           (img/scale-image-to-dimension-limit tempfile w h t)
+                           metadata))
+          (albums-api/create-photo-version! database {:photo-id          id
+                                                      :photo-version-src version-src
+                                                      :image-category    (name image-category)}))
+      (created (format "/v2/photos/%s" id) photo))
+
+
+
   (slurp xxx)
 
   (io/copy (io/input-stream (b64/decode (slurp xxx)))
