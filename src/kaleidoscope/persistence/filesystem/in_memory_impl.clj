@@ -67,8 +67,8 @@
   (= kaleidoscope.persistence.filesystem.in_memory_impl.MemFS (class x)))
 
 (defn make-mem-fs
-  [store]
-  (assoc (->MemFS store)
+  [m]
+  (assoc (map->MemFS m)
          :storage-driver "in-memory"
          :storage-root "media"))
 

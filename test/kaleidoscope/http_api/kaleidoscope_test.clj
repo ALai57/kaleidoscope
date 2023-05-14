@@ -7,6 +7,7 @@
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.init.env :as env]
             [kaleidoscope.models.albums :refer [example-album example-album-2]]
+            [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
             [kaleidoscope.utils.core :as util]
@@ -433,26 +434,24 @@
                                 :path           (str "/v2/photos/" image-id "/raw.png")
                                 :image-category "raw"
                                 :hostname       "andrewslai.com"}
-                               {:id             image-id
-                                :path           (str "/v2/photos/" image-id "/thumbnail.jpeg")
+                               {:path           (str "/v2/photos/" image-id "/thumbnail.jpeg")
                                 :image-category "thumbnail"}
-                               {:id             image-id
-                                :path           (str "/v2/photos/" image-id "/gallery.jpeg")
+                               {:path           (str "/v2/photos/" image-id "/gallery.jpeg")
                                 :image-category "gallery"}
-                               {:id             image-id
-                                :path           (str "/v2/photos/" image-id "/monitor.jpeg")
+                               {:path           (str "/v2/photos/" image-id "/monitor.jpeg")
                                 :image-category "monitor"}
-                               {:id             image-id
-                                :path           (str "/v2/photos/" image-id "/mobile.jpeg")
-                                :image-category "mobile"}
-
-                               ]}
+                               {:path           (str "/v2/photos/" image-id "/mobile.jpeg")
+                                :image-category "mobile"}]}
                     (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id))))))
 
-      #_(testing "Etags work"
+      (testing "Etags work"
+        (let [image-path (str "media/" image-id "/raw.png")]
           (is (match? {:status 304}
-                      (app (-> (mock/request :get "https://andrewslai.com/media/foo.svg")
-                               (mock/header "If-None-Match" "4e01010375136452500f6f7f043839a2"))))))
+                      (app (-> (mock/request :get (str "https://andrewslai.com/" image-path))
+                               ;; The in-memory filesystem uses the MD5 hash of
+                               ;; the path to calculate the version. So if we use that here,
+                               ;; we should hit the code path that triggers an ETag match
+                               (mock/header "If-None-Match" (fs/md5 image-path))))))))
       ))
   )
 

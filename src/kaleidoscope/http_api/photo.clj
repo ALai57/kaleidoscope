@@ -4,15 +4,16 @@
             [clj-img-resize.core :as img]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [clojure.string :as string]
             [compojure.api.sweet :refer [context POST GET]]
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.models.albums] ;; Install specs
             [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.utils.core :as utils]
+            [kaleidoscope.utils.core :as u]
             [ring.util.http-response :refer [created ok not-found]]
-            [taoensso.timbre :as log]
-            [clojure.string :as string]))
+            [taoensso.timbre :as log]))
 
 (def MEDIA-FOLDER
   "media")
@@ -83,7 +84,7 @@
    :monitor   [1920 1080 "jpeg"]
    :mobile    [1200 630  "jpeg"]})
 
-(defn get-extension
+(defn get-file-extension
   [path]
   (last (string/split path #"\.")))
 
@@ -118,15 +119,29 @@
             hostname (hu/get-host req)
             bucket   (bucket-name req)
 
-            static-content-adapter (get static-content-adapters bucket)]
+            static-content-adapter (get static-content-adapters bucket)
+
+            {:keys [filename tempfile] :as file} (get params "file")]
 
         (let [photo (albums-api/create-photo! database {:id photo-id :hostname hostname})]
           (albums-api/create-photo-version-2! database
                                               static-content-adapter
                                               {:photo-id       photo-id
                                                :image-category "raw"
-                                               :file           (get params "file")})
-          (created (format "/v2/photos/%s" id) photo))))))
+                                               :file           (assoc file
+                                                                      :file-input-stream (u/->file-input-stream tempfile)
+                                                                      :extension         (get-file-extension filename))})
+          (doseq [[image-category [w h t]] IMAGE-DIMENSIONS
+                  :let [resized-image (img/scale-image-to-dimension-limit tempfile w h t)]]
+            (albums-api/create-photo-version-2! database
+                                                static-content-adapter
+                                                {:photo-id       photo-id
+                                                 :image-category (name image-category)
+                                                 :file           (-> params
+                                                                     (get "file")
+                                                                     (assoc :file-input-stream resized-image
+                                                                            :extension         t))}))
+          (created (format "/v2/photos/%s" photo-id) photo))))))
 
 
 
