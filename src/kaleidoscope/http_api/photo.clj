@@ -85,6 +85,13 @@
   [path]
   (last (str/split path #"\.")))
 
+(defn file-upload?
+  "TODO replace with Malli spec"
+  [x]
+  (and (map? x)
+       (:filename x)
+       (:tempfile x)))
+
 (def photo-routes-v2
   (context "/v2/photos" []
     :coercion   :spec
@@ -134,33 +141,39 @@
       (log/infof "Processing upload request with params:\n %s" (-> params
                                                                    clojure.pprint/pprint
                                                                    with-out-str))
-      (let [photo-id (java.util.UUID/randomUUID)
-            hostname (http-utils/get-host req)
+      (let [hostname (http-utils/get-host req)
             bucket   (bucket-name req)
 
-            static-content-adapter (get static-content-adapters bucket)
+            static-content-adapter (get static-content-adapters bucket)]
 
-            {:keys [filename tempfile] :as file} (get params "file")]
-
-        (let [photo (albums-api/create-photo! database {:id photo-id :hostname hostname})]
-          (albums-api/create-photo-version-2! database
-                                              (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
-                                              {:photo-id       photo-id
-                                               :image-category "raw"
-                                               :file           (assoc file
-                                                                      :file-input-stream (u/->file-input-stream tempfile)
-                                                                      :extension         (get-file-extension filename))})
-          (doseq [[image-category [w h t]] IMAGE-DIMENSIONS
-                  :let [resized-image (img/scale-image-to-dimension-limit tempfile w h t)]]
+        (doseq [{:keys [filename tempfile] :as file} (->> params
+                                                          vals
+                                                          (filter file-upload?))
+                :let [photo-id (java.util.UUID/randomUUID)]]
+          (log/infof "Processing file %s" filename)
+          (let [photo (albums-api/create-photo! database {:id photo-id :hostname hostname})]
             (albums-api/create-photo-version-2! database
                                                 (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
                                                 {:photo-id       photo-id
-                                                 :image-category (name image-category)
-                                                 :file           (-> params
-                                                                     (get "file")
-                                                                     (assoc :file-input-stream resized-image
-                                                                            :extension         t))}))
-          (created (format "/v2/photos/%s" photo-id) photo))))))
+                                                 :image-category "raw"
+                                                 :file           (assoc file
+                                                                        :file-input-stream (u/->file-input-stream tempfile)
+                                                                        :extension         (get-file-extension filename))})
+            (doseq [[image-category [w h t]] IMAGE-DIMENSIONS
+                    :let [resized-image (img/scale-image-to-dimension-limit tempfile w h t)]]
+              (albums-api/create-photo-version-2! database
+                                                  (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
+                                                  {:photo-id       photo-id
+                                                   :image-category (name image-category)
+                                                   :file           (-> params
+                                                                       (get "file")
+                                                                       (assoc :file-input-stream resized-image
+                                                                              :extension         t))}))
+            )))
+
+      ;; Todo create a batch response
+      (created "/v2/photos/" {:created true})
+      )))
 
 
 
