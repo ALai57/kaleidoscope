@@ -64,7 +64,7 @@
             (fs/object {:content result
                         :version version})))))
   (put-file [this path input-stream _metadata]
-    (write-stream! input-stream path)
+    (write-stream! input-stream (format "%s/%s" root path))
     (fs/get this path)))
 
 (defn make-local-fs

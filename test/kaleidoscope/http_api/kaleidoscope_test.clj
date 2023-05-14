@@ -428,6 +428,9 @@
                     response)))
 
       (testing "Retrieval works"
+        (is (match? {:status 200
+                     :body   [{:filename "mobile.jpeg"}]}
+                    (app (mock/request :get "https://andrewslai.com/v2/photos/" {:filename "mobile.jpeg"}))))
         (is (match? {:status  200
                      :headers {"Content-Type" #"application/json"}
                      :body    [{:id             image-id

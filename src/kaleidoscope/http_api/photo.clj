@@ -2,7 +2,7 @@
   (:require
    [clj-img-resize.core :as img]
    [clojure.java.io :as io]
-   [clojure.string :as string]
+   [clojure.string :as str]
    [compojure.api.sweet :refer [context GET POST]]
    [kaleidoscope.api.albums :as albums-api]
    [kaleidoscope.http-api.http-utils :as http-utils]
@@ -38,12 +38,12 @@
                 :responses   {200 {:description "An album"
                                    :schema      :kaleidoscope.albums/album}}}
       (let [{:keys [filename tempfile] :as file-contents} (get params "file-contents")
-            file-path                                     (format "%s/%s" (if (clojure.string/ends-with? uri "/")
+            file-path                                     (format "%s/%s" (if (str/ends-with? uri "/")
                                                                             (subs uri 1 (dec (count uri)))
                                                                             (subs uri 1))
                                                                   filename)
             metadata                                      (dissoc file-contents :tempfile)
-            now-time                                      (utils/now)]
+            now-time                                      (u/now)]
         (log/infof "Processing upload request with params:\n %s" (-> params
                                                                      clojure.pprint/pprint
                                                                      with-out-str))
@@ -83,7 +83,7 @@
 
 (defn get-file-extension
   [path]
-  (last (string/split path #"\.")))
+  (last (str/split path #"\.")))
 
 (def photo-routes-v2
   (context "/v2/photos" []
@@ -91,12 +91,24 @@
     :components [static-content-adapters database]
     :tags       ["photos"]
 
-    (GET "/:photo-id" [photo-id]
+    (GET "/" req
+      :swagger {:summary  "Get photos"
+                :produces #{"application/json"}
+                :security [{:andrewslai-pkce ["roles" "profile"]}]}
+      (log/infof "Getting photos matchng %s" (:params req))
+      (let [hostname (http-utils/get-host req)
+            photos   (albums-api/get-full-photos database (assoc (:params req) :hostname hostname))]
+        (ok (map (fn [{:keys [id filename] :as photo}]
+                   (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos))))
+
+    (GET "/:photo-id" [photo-id :as request]
       :swagger {:summary  "Get photos"
                 :produces #{"application/json"}
                 :security [{:andrewslai-pkce ["roles" "profile"]}]}
       (log/infof "Getting photo %s" photo-id)
-      (let [photos (albums-api/get-full-photos database {:id photo-id})]
+      (let [hostname (http-utils/get-host request)
+            photos   (albums-api/get-full-photos database {:id       photo-id
+                                                           :hostname hostname})]
         (if (empty? photos)
           (not-found {:reason "Missing"})
           (ok (map (fn [{:keys [id filename] :as photo}]
@@ -123,7 +135,7 @@
                                                                    clojure.pprint/pprint
                                                                    with-out-str))
       (let [photo-id (java.util.UUID/randomUUID)
-            hostname (hu/get-host req)
+            hostname (http-utils/get-host req)
             bucket   (bucket-name req)
 
             static-content-adapter (get static-content-adapters bucket)
