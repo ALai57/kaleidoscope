@@ -1,19 +1,16 @@
 (ns kaleidoscope.http-api.photo
-  (:require [amazonica.aws.s3 :as s3]
-            [amazonica.core :as amazon]
-            [clj-img-resize.core :as img]
-            [clojure.java.io :as io]
-            [clojure.string :as str]
-            [clojure.string :as string]
-            [compojure.api.sweet :refer [context POST GET]]
-            [kaleidoscope.api.albums :as albums-api]
-            [kaleidoscope.http-api.http-utils :as hu]
-            [kaleidoscope.models.albums] ;; Install specs
-            [kaleidoscope.persistence.filesystem :as fs]
-            [kaleidoscope.utils.core :as utils]
-            [kaleidoscope.utils.core :as u]
-            [ring.util.http-response :refer [created ok not-found]]
-            [taoensso.timbre :as log]))
+  (:require
+   [clj-img-resize.core :as img]
+   [clojure.java.io :as io]
+   [clojure.string :as string]
+   [compojure.api.sweet :refer [context GET POST]]
+   [kaleidoscope.api.albums :as albums-api]
+   [kaleidoscope.http-api.http-utils :as http-utils]
+   [kaleidoscope.persistence.filesystem :as fs]
+   [kaleidoscope.utils.core :as u]
+   [ring.util.http-response :refer [created not-found ok]]
+   [steffan-westcott.clj-otel.api.trace.span :as span]
+   [taoensso.timbre :as log]))
 
 (def MEDIA-FOLDER
   "media")
@@ -94,16 +91,26 @@
     :components [static-content-adapters database]
     :tags       ["photos"]
 
-    (GET "/:id" [id]
+    (GET "/:photo-id" [photo-id]
       :swagger {:summary  "Get photos"
                 :produces #{"application/json"}
                 :security [{:andrewslai-pkce ["roles" "profile"]}]}
-      (log/infof "Getting photo %s" id)
-      (let [photos (albums-api/get-full-photos database {:id id})]
+      (log/infof "Getting photo %s" photo-id)
+      (let [photos (albums-api/get-full-photos database {:id photo-id})]
         (if (empty? photos)
           (not-found {:reason "Missing"})
           (ok (map (fn [{:keys [id filename] :as photo}]
                      (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos)))))
+
+    (GET "/:photo-id/:filename" request
+      :swagger {:summary  "Get photos"
+                :produces #{"application/json"}
+                :security [{:andrewslai-pkce ["roles" "profile"]}]}
+      (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
+        (let [[version] (albums-api/get-full-photos database (:params request))]
+          (http-utils/get-resource static-content-adapters (-> request
+                                                               (assoc :uri (:path version))
+                                                               http-utils/kebab-case-headers)))))
 
     (POST "/" {:keys [uri params] :as req}
       :swagger {:summary     "Upload a new file"
@@ -125,7 +132,7 @@
 
         (let [photo (albums-api/create-photo! database {:id photo-id :hostname hostname})]
           (albums-api/create-photo-version-2! database
-                                              static-content-adapter
+                                              (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
                                               {:photo-id       photo-id
                                                :image-category "raw"
                                                :file           (assoc file
@@ -134,7 +141,7 @@
           (doseq [[image-category [w h t]] IMAGE-DIMENSIONS
                   :let [resized-image (img/scale-image-to-dimension-limit tempfile w h t)]]
             (albums-api/create-photo-version-2! database
-                                                static-content-adapter
+                                                (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
                                                 {:photo-id       photo-id
                                                  :image-category (name image-category)
                                                  :file           (-> params

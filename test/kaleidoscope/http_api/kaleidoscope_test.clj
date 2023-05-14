@@ -447,7 +447,7 @@
       (testing "Etags work"
         (let [image-path (str "media/" image-id "/raw.png")]
           (is (match? {:status 304}
-                      (app (-> (mock/request :get (str "https://andrewslai.com/" image-path))
+                      (app (-> (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id "/raw.png"))
                                ;; The in-memory filesystem uses the MD5 hash of
                                ;; the path to calculate the version. So if we use that here,
                                ;; we should hit the code path that triggers an ETag match

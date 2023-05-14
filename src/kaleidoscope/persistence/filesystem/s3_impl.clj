@@ -118,6 +118,12 @@
           (log/error "Could not put object" e)
           fs/does-not-exist-response)))))
 
+(defn make-s3
+  [{:keys [bucket] :as m}]
+  (assoc (map->S3 m)
+         :storage-driver "s3"
+         :storage-root   bucket))
+
 (comment ;; Playing with S3
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

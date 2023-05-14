@@ -68,12 +68,13 @@
 
 (defn create-photo-version-2!
   [database
-   {:keys [storage-root storage-driver] :as static-content-adapter}
+   {:keys [storage-root storage-driver photos-folder] :as static-content-adapter
+    :or   {photos-folder "media"}}
    {:keys [file image-category photo-id] :as photo-version}]
   (let [id       (utils/uuid)
         now-time (utils/now)
         filename (format "%s.%s" image-category (:extension file))
-        path     (format "%s/%s/%s" storage-root photo-id filename)
+        path     (format "%s/%s/%s" photos-folder photo-id filename)
         metadata (dissoc file :tempfile :file-input-stream)
 
         _         (log/infof "Creating photo version for %s" path)
