@@ -10,7 +10,7 @@
 
 (defn remove-port
   [hostname]
-  (first (string/split hostname #":")))
+  (first (str/split hostname #":")))
 
 (defn get-host
   [request]
