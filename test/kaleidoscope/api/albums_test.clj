@@ -108,7 +108,7 @@
   (let [database (embedded-h2/fresh-db!)]
     (testing "example-photos were seeded into the DB"
       ;; Migrations seed db now for convenience
-      (is (= 3 (count (albums-api/get-photo-versions database)))))
+      (is (= 6 (count (albums-api/get-photo-versions database)))))
 
     (testing "Insert the example-photo"
       (is (match? {:id uuid?}
@@ -122,13 +122,25 @@
     (testing "example-photos and versions were seeded into the DB"
       ;; Migrations seed db now for convenience
       (is (match?
-           [{:id   #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :path "media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
-            {:id   #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :path "media/processed/20210422_134816 (2)-500.jpg"}
-            {:id   #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :path "media/processed/20210422_134824 (2)-500.jpg"}]
-           (albums-api/-get-full-photos database {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"}))))))
+           [{:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :image-category "thumbnail"
+             :path           "media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
+            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :image-category "raw"
+             :path           "media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
+            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :image-category "thumbnail"
+             :path           "media/processed/20210422_134816 (2)-500.jpg"}
+            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :image-category "raw"
+             :path           "media/processed/20210422_134816 (2)-500.jpg"}
+            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :image-category "thumbnail"
+             :path           "media/processed/20210422_134824 (2)-500.jpg"}
+            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+             :image-category "raw"
+             :path           "media/processed/20210422_134824 (2)-500.jpg"}]
+           (albums-api/get-full-photos database {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"}))))))
 
 (def UUID-REGEX
   "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
@@ -153,7 +165,7 @@
                     :filename       "thumbnail.png"
                     :storage-driver "in-memory"
                     :storage-root   "media"}]
-                  (albums-api/-get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
+                  (albums-api/get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
 
     (testing "File exists in Filesystem"
