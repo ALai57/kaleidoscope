@@ -144,11 +144,11 @@
   {:name      :kaleidoscope-static-content-adapters
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn  [env] {"kaleidoscope"                 (s3-storage/map->S3 {:bucket "kaleidoscope.pub"})
-                                              "andrewslai"                   (s3-storage/map->S3 {:bucket "andrewslai"})
-                                              "caheriaguilar"                (s3-storage/map->S3 {:bucket "caheriaguilar"})
-                                              "sahiltalkingcents"            (s3-storage/map->S3 {:bucket "sahiltalkingcents"})
-                                              "caheriaguilar.and.andrewslai" (s3-storage/map->S3 {:bucket "wedding"})})
+               "s3"               (fn  [env] {"kaleidoscope"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
+                                              "andrewslai"                   (s3-storage/make-s3 {:bucket "andrewslai"})
+                                              "caheriaguilar"                (s3-storage/make-s3 {:bucket "caheriaguilar"})
+                                              "sahiltalkingcents"            (s3-storage/make-s3 {:bucket "sahiltalkingcents"})
+                                              "caheriaguilar.and.andrewslai" (s3-storage/make-s3 {:bucket "wedding"})})
                "in-memory"        (fn [_env] {"kaleidoscope"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "andrewslai"                   (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "caheriaguilar"                (memory/make-mem-fs {:store (atom memory/example-fs)})

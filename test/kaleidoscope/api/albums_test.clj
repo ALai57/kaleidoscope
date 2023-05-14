@@ -143,6 +143,7 @@
                                                       (assoc example-photo-version
                                                              :file {:filename          "myfile.png"
                                                                     :more-metadata     12345
+                                                                    :extension         "png"
                                                                     :file-input-stream (u/->file-input-stream (io/file (io/resource "public/images/lock.svg")))})))))
 
     (testing "Can retrieve the version from the DB"
