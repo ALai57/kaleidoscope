@@ -63,7 +63,7 @@ SELECT
     p.photo_title,
     a.album_name,
     a.description   AS album_description,
-    a.cover_photo_id,
+    a.cover_photo_id
 FROM photos_in_albums pia
      JOIN photos p ON p.id = pia.photo_id
      JOIN albums a ON a.id = pia.album_id
