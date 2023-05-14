@@ -2,6 +2,7 @@
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
             [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
             [kaleidoscope.utils.core :as u]
             [kaleidoscope.test-main :as tm]
@@ -167,6 +168,15 @@
                     :storage-root   "media"}]
                   (albums-api/get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
+    (testing "Can retrieve the version from the DB with string"
+      (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+                    :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
+                    :hostname       "andrewslai.localhost"
+                    :filename       "thumbnail.png"
+                    :storage-driver "in-memory"
+                    :storage-root   "media"}]
+                  (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
+
 
     (testing "File exists in Filesystem"
       (is (match? {"media"
@@ -178,4 +188,35 @@
                       :metadata {:filename      "myfile.png"
                                  :more-metadata 12345}
                       }}}}
-                  @mock-fs)))))
+                  @mock-fs))))
+
+  (testing "Postgres specific conversion"
+    (let [database (embedded-postgres/fresh-db!)
+          mock-fs  (atom {})]
+      (albums-api/create-photo-version-2! database
+                                          (in-mem/make-mem-fs {:store mock-fs})
+                                          (assoc example-photo-version
+                                                 :file {:filename          "myfile.png"
+                                                        :more-metadata     12345
+                                                        :extension         "png"
+                                                        :file-input-stream (u/->file-input-stream (io/file (io/resource "public/images/lock.svg")))}))
+
+      (testing "Can retrieve the version from the DB"
+        (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+                      :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
+                      :hostname       "andrewslai.localhost"
+                      :filename       "thumbnail.png"
+                      :storage-driver "in-memory"
+                      :storage-root   "media"}]
+                    (albums-api/get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
+
+      (testing "Can retrieve the version from the DB with string"
+        (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+                      :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
+                      :hostname       "andrewslai.localhost"
+                      :filename       "thumbnail.png"
+                      :storage-driver "in-memory"
+                      :storage-root   "media"}]
+                    (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
+      ))
+  )

@@ -1,13 +1,13 @@
 (ns kaleidoscope.persistence.rdbms.embedded-postgres-impl
-  (:require [kaleidoscope.persistence.rdbms.embedded-db-utils :as edb-utils])
-  (:import io.zonky.test.db.postgres.embedded.EmbeddedPostgres))
+  (:require [kaleidoscope.persistence.rdbms.embedded-db-utils :as edb-utils]
+            [next.jdbc.connection :as connection]
+            [next.jdbc :as next])
+  (:import io.zonky.test.db.postgres.embedded.EmbeddedPostgres)
+  (:import (com.zaxxer.hikari HikariDataSource)))
 
 (defn ->db-spec
   [embedded-db]
-  {:classname   "org.postgresql.Driver"
-   :subprotocol "postgresql"
-   :subname     (format "//localhost:%s/postgres" (.getPort embedded-db))
-   :user        "postgres"})
+  {:jdbcUrl (format "jdbc:postgresql://localhost:%s/postgres?user=postgres" (.getPort embedded-db))})
 
 (defn start-db!
   []
@@ -18,19 +18,23 @@
 
 (comment
 
-  (def x
-    (start-db!))
+  (require '[next.jdbc :as next])
+
+  (def db
+    (.start (EmbeddedPostgres/builder)))
+
+  (.close db)
 
   (def ds
     (fresh-db!))
 
   ;; Just checking to make sure we can connect to the DB and perform the
   ;; migrations
-  (jdbc/execute! ds ["select * from information_schema.tables"])
-  (jdbc/execute! ds ["select * from schema_migrations"])
+  (next/execute! ds ["select * from information_schema.tables"])
+  (next/execute! ds ["select * from schema_migrations"])
 
-  (jdbc/execute! ds ["CREATE TABLE testing (id varchar)"])
-  (jdbc/execute! ds ["INSERT INTO testing VALUES ('hello')"])
-  (jdbc/execute! ds ["select * from testing"])
+  (next/execute! ds ["CREATE TABLE testing (id varchar)"])
+  (next/execute! ds ["INSERT INTO testing VALUES ('hello')"])
+  (next/execute! ds ["select * from testing"])
 
   )

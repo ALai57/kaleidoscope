@@ -38,7 +38,7 @@
    [com.zaxxer/HikariCP "3.3.1"]
    [com.fasterxml.jackson.datatype/jackson-datatype-joda "2.13.3"] ;; For compatibility
    [honeysql "1.0.461"]
-   [io.zonky.test/embedded-postgres "1.2.6"]
+   [io.zonky.test/embedded-postgres "2.0.3"]
    [javax.servlet/servlet-api "2.5"]
    [lambdaisland/deep-diff2 "2.7.169"]
    [metosin/compojure-api "2.0.0-alpha31"]
@@ -73,9 +73,9 @@
   :managed-dependencies [[metosin/ring-swagger-ui "4.5.0"]
                          [org.clojure/core.rrb-vector "0.1.1"]
                          [org.flatland/ordered "1.5.7"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "10.6.0" :scope "test"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "10.6.0" :scope "test"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "10.6.0" :scope "test"]]
+                         [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "15.2.0" :scope "test"]
+                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "15.2.0" :scope "test"]
+                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "15.2.0" :scope "test"]]
 
   :aot :all
 

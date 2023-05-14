@@ -35,8 +35,16 @@
 (def get-photos
   (rdbms/make-finder :photos))
 
-(def get-full-photos
+(def -get-full-photos
   (rdbms/make-finder :full_photos))
+
+(defn get-full-photos
+  ([database]
+   (-get-full-photos database))
+  ([database query-map]
+   (-get-full-photos database (cond-> query-map
+                                (:id query-map)       (update :id (comp parse-uuid str))
+                                (:photo-id query-map) (update :photo-id (comp parse-uuid str))))))
 
 (defn create-photo!
   [database photo]

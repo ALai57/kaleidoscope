@@ -431,7 +431,9 @@
                               :image-category "monitor"}
                              {:path           (str "/v2/photos/" image-id "/mobile.jpeg")
                               :image-category "mobile"}]}
-                  (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id))))))
+                  (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id)))))
+      (is (match? {:status 200}
+                  (app (mock/request :get (format "https://andrewslai.com/v2/photos/%s/raw.png" image-id ))))))
 
     (testing "Etags work"
       (let [image-path (str "media/" image-id "/raw.png")]
