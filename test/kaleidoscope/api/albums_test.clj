@@ -3,6 +3,7 @@
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
+            [kaleidoscope.utils.core :as u]
             [kaleidoscope.test-main :as tm]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
@@ -138,11 +139,11 @@
     (testing "Create photo version"
       (is (match? [{:id uuid?}]
                   (albums-api/create-photo-version-2! database
-                                                      (in-mem/make-mem-fs mock-fs)
+                                                      (in-mem/make-mem-fs {:store mock-fs})
                                                       (assoc example-photo-version
-                                                             :file {:filename      "myfile.png"
-                                                                    :more-metadata 12345
-                                                                    :tempfile      (io/file (io/resource "public/images/lock.svg"))})))))
+                                                             :file {:filename          "myfile.png"
+                                                                    :more-metadata     12345
+                                                                    :file-input-stream (u/->file-input-stream (io/file (io/resource "public/images/lock.svg")))})))))
 
     (testing "Can retrieve the version from the DB"
       (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
@@ -161,7 +162,7 @@
                      {:path     (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
                       :name     "thumbnail.png"
                       :content  tu/file-input-stream?
-                      :metadata {:filename "myfile.png"
+                      :metadata {:filename      "myfile.png"
                                  :more-metadata 12345}
                       }}}}
                   @mock-fs)))))

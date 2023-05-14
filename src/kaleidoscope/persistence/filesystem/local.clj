@@ -67,6 +67,12 @@
     (write-stream! input-stream path)
     (fs/get this path)))
 
+(defn make-local-fs
+  [{:keys [root] :as m}]
+  (assoc (map->LocalFS m)
+         :storage-driver "local-filesystem"
+         :storage-root   root))
+
 (comment
   (def fs
     (map->LocalFS {:root ROOT}))

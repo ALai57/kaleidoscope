@@ -1,9 +1,10 @@
 (ns kaleidoscope.api.albums
-  (:require [kaleidoscope.persistence.rdbms :as rdbms]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as string]
             [kaleidoscope.persistence.filesystem :as fs]
+            [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as string]))
+            [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Albums
@@ -65,23 +66,17 @@
                                                                       with-out-str))
   )
 
-(defn get-file-extension
-  [path]
-  (last (string/split path #"\.")))
-
-(defn ->file-input-stream
-  [file]
-  (java.io.FileInputStream. ^java.io.File file))
-
 (defn create-photo-version-2!
   [database
    {:keys [storage-root storage-driver] :as static-content-adapter}
    {:keys [file image-category photo-id] :as photo-version}]
   (let [id       (utils/uuid)
         now-time (utils/now)
-        filename (format "%s.%s" image-category (get-file-extension (:filename file)))
+        filename (format "%s.%s" image-category (:extension file))
         path     (format "%s/%s/%s" storage-root photo-id filename)
-        metadata (dissoc file :tempfile)
+        metadata (dissoc file :tempfile :file-input-stream)
+
+        _         (log/infof "Creating photo version for %s" path)
 
         db-result (rdbms/insert! database
                                  :photo-versions (-> photo-version
@@ -97,7 +92,7 @@
                                  :ex-subtype     :UnableToCreatePhotoVersion)]
     (fs/put-file static-content-adapter
                  path
-                 (->file-input-stream (:tempfile file))
+                 (:file-input-stream file)
                  metadata)
     db-result
     ))

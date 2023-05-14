@@ -149,16 +149,16 @@
                                               "caheriaguilar"                (s3-storage/map->S3 {:bucket "caheriaguilar"})
                                               "sahiltalkingcents"            (s3-storage/map->S3 {:bucket "sahiltalkingcents"})
                                               "caheriaguilar.and.andrewslai" (s3-storage/map->S3 {:bucket "wedding"})})
-               "in-memory"        (fn [_env] {"kaleidoscope"                 (memory/map->MemFS {:store (atom memory/example-fs)})
-                                              "andrewslai"                   (memory/map->MemFS {:store (atom memory/example-fs)})
-                                              "caheriaguilar"                (memory/map->MemFS {:store (atom memory/example-fs)})
-                                              "sahiltalkingcents"            (memory/map->MemFS {:store (atom memory/example-fs)})
-                                              "caheriaguilar.and.andrewslai" (memory/map->MemFS {:store (atom memory/example-fs)})})
-               "local-filesystem" (fn  [env] {"kaleidoscope"                 (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
-                                              "andrewslai"                   (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
-                                              "caheriaguilar"                (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
-                                              "sahiltalkingcents"            (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))
-                                              "caheriaguilar.and.andrewslai" (local-fs/map->LocalFS (env->kaleidoscope-local-fs env))})}
+               "in-memory"        (fn [_env] {"kaleidoscope"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
+                                              "andrewslai"                   (memory/make-mem-fs {:store (atom memory/example-fs)})
+                                              "caheriaguilar"                (memory/make-mem-fs {:store (atom memory/example-fs)})
+                                              "sahiltalkingcents"            (memory/make-mem-fs {:store (atom memory/example-fs)})
+                                              "caheriaguilar.and.andrewslai" (memory/make-mem-fs {:store (atom memory/example-fs)})})
+               "local-filesystem" (fn  [env] {"kaleidoscope"                 (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
+                                              "andrewslai"                   (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
+                                              "caheriaguilar"                (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
+                                              "sahiltalkingcents"            (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
+                                              "caheriaguilar.and.andrewslai" (local-fs/make-local-fs (env->kaleidoscope-local-fs env))})}
    :default   "s3"})
 
 (def DEFAULT-BOOT-INSTRUCTIONS

@@ -20,3 +20,7 @@
 
 (defn uuid []
   (UUID/randomUUID))
+
+(defn ->file-input-stream
+  [file]
+  (java.io.FileInputStream. ^java.io.File file))
