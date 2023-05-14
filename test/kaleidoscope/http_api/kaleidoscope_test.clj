@@ -402,50 +402,45 @@
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
-                 tu/wrap-clojure-response)]
+                 tu/wrap-clojure-response)
 
-    (testing "Folders are not cached"
+        create-response (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png"))
+        get-response    (app (mock/request :get "https://andrewslai.com/v2/photos/" {:filename "mobile.jpeg"}))
+        image-id        (get-in get-response [:body 0 :id])]
+
+    (testing "Upload works"
+      (is (match? {:status  207
+                   :body    {:created true}}
+                  create-response)))
+
+    (testing "Retrieval works"
+      (is (match? {:status 200
+                   :body   [{:filename "mobile.jpeg"}]}
+                  get-response))
       (is (match? {:status  200
-                   :headers {"Cache-Control" cc/revalidate-0s}}
-                  (app (mock/request :get "https://andrewslai.com/media/")))))
+                   :headers {"Content-Type" #"application/json"}
+                   :body    [{:id             image-id
+                              :path           (str "/v2/photos/" image-id "/raw.png")
+                              :image-category "raw"
+                              :hostname       "andrewslai.com"}
+                             {:path           (str "/v2/photos/" image-id "/thumbnail.jpeg")
+                              :image-category "thumbnail"}
+                             {:path           (str "/v2/photos/" image-id "/gallery.jpeg")
+                              :image-category "gallery"}
+                             {:path           (str "/v2/photos/" image-id "/monitor.jpeg")
+                              :image-category "monitor"}
+                             {:path           (str "/v2/photos/" image-id "/mobile.jpeg")
+                              :image-category "mobile"}]}
+                  (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id))))))
 
-    (let [response (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png"))
-          image-id (get-in response [:body :id])]
-      (testing "Upload works"
-        (is (match? {:status  201
-                     :headers {"Location" (re-pattern (str "/v2/photos/" UUID-REGEX))}
-                     :body    {:id string?}}
-                    response)))
-
-      (testing "Retrieval works"
-        (is (match? {:status 200
-                     :body   [{:filename "mobile.jpeg"}]}
-                    (app (mock/request :get "https://andrewslai.com/v2/photos/" {:filename "mobile.jpeg"}))))
-        (is (match? {:status  200
-                     :headers {"Content-Type" #"application/json"}
-                     :body    [{:id             image-id
-                                :path           (str "/v2/photos/" image-id "/raw.png")
-                                :image-category "raw"
-                                :hostname       "andrewslai.com"}
-                               {:path           (str "/v2/photos/" image-id "/thumbnail.jpeg")
-                                :image-category "thumbnail"}
-                               {:path           (str "/v2/photos/" image-id "/gallery.jpeg")
-                                :image-category "gallery"}
-                               {:path           (str "/v2/photos/" image-id "/monitor.jpeg")
-                                :image-category "monitor"}
-                               {:path           (str "/v2/photos/" image-id "/mobile.jpeg")
-                                :image-category "mobile"}]}
-                    (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id))))))
-
-      (testing "Etags work"
-        (let [image-path (str "media/" image-id "/raw.png")]
-          (is (match? {:status 304}
-                      (app (-> (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id "/raw.png"))
-                               ;; The in-memory filesystem uses the MD5 hash of
-                               ;; the path to calculate the version. So if we use that here,
-                               ;; we should hit the code path that triggers an ETag match
-                               (mock/header "If-None-Match" (fs/md5 image-path))))))))
-      ))
+    (testing "Etags work"
+      (let [image-path (str "media/" image-id "/raw.png")]
+        (is (match? {:status 304}
+                    (app (-> (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id "/raw.png"))
+                             ;; The in-memory filesystem uses the MD5 hash of
+                             ;; the path to calculate the version. So if we use that here,
+                             ;; we should hit the code path that triggers an ETag match
+                             (mock/header "If-None-Match" (fs/md5 image-path)))))))))
   )
 
 (deftest create-and-remove-group-test

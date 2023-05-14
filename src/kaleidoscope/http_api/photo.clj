@@ -8,7 +8,7 @@
    [kaleidoscope.http-api.http-utils :as http-utils]
    [kaleidoscope.persistence.filesystem :as fs]
    [kaleidoscope.utils.core :as u]
-   [ring.util.http-response :refer [created not-found ok]]
+   [ring.util.http-response :refer [created multi-status not-found ok]]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
@@ -172,7 +172,7 @@
             )))
 
       ;; Todo create a batch response
-      (created "/v2/photos/" {:created true})
+      (multi-status {:created true})
       )))
 
 
