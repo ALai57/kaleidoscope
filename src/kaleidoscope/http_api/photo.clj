@@ -1,9 +1,10 @@
 (ns kaleidoscope.http-api.photo
   (:require
-   [clj-img-resize.core :as img]
    [clojure.java.io :as io]
    [clojure.string :as str]
    [compojure.api.sweet :refer [context GET POST]]
+   [image-resizer.core :as rc]
+   [image-resizer.format :as rf]
    [kaleidoscope.api.albums :as albums-api]
    [kaleidoscope.http-api.http-utils :as http-utils]
    [kaleidoscope.persistence.filesystem :as fs]
@@ -75,11 +76,11 @@
   )
 
 (def IMAGE-DIMENSIONS
-  ;; category  wd   ht   type
-  {:thumbnail [100  100  "jpeg"]
-   :gallery   [165  165  "jpeg"]
-   :monitor   [1920 1080 "jpeg"]
-   :mobile    [1200 630  "jpeg"]})
+  ;; category  wd   ht
+  {:thumbnail [100  100 ]
+   :gallery   [165  165 ]
+   :monitor   [1920 1080]
+   :mobile    [1200 630 ]})
 
 (defn get-file-extension
   [path]
@@ -149,7 +150,8 @@
         (doseq [{:keys [filename tempfile] :as file} (->> params
                                                           vals
                                                           (filter file-upload?))
-                :let [photo-id (java.util.UUID/randomUUID)]]
+                :let [photo-id (java.util.UUID/randomUUID)
+                      extension (get-file-extension filename)]]
           (log/infof "Processing file %s" filename)
           (let [photo (albums-api/create-photo! database {:id photo-id :hostname hostname})]
             (albums-api/create-photo-version-2! database
@@ -158,9 +160,9 @@
                                                  :image-category "raw"
                                                  :file           (assoc file
                                                                         :file-input-stream (u/->file-input-stream tempfile)
-                                                                        :extension         (get-file-extension filename))})
+                                                                        :extension         extension)})
             (doseq [[image-category [w h t]] IMAGE-DIMENSIONS
-                    :let [resized-image (img/scale-image-to-dimension-limit tempfile w h t)]]
+                    :let [resized-image (rf/as-stream (rc/resize tempfile w h) extension)]]
               (albums-api/create-photo-version-2! database
                                                   (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
                                                   {:photo-id       photo-id
@@ -168,11 +170,13 @@
                                                    :file           (-> params
                                                                        (get "file")
                                                                        (assoc :file-input-stream resized-image
-                                                                              :extension         t))}))
+                                                                              :extension         extension))}))
             )))
 
       ;; Todo create a batch response
-      (multi-status {:created true})
+      (assoc-in (multi-status {:created true})
+                [:headers "Content-Type"]
+                "application/json")
       )))
 
 

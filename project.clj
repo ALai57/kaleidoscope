@@ -15,7 +15,6 @@
    [camel-snake-kebab "0.4.3"]
    [cheshire "5.11.0"]
    [clj-http "3.12.3"]
-   [clj-img-resize "0.1.0"]
    [com.amazonaws/aws-java-sdk-s3 "1.12.385"]
    [com.bugsnag/bugsnag "3.6.4"]
    [com.fzakaria/slf4j-timbre "0.3.21"] ;; Intercept logging to Apache Commons Logging (introduced by AWS SDK)
@@ -24,6 +23,7 @@
    [com.github.steffan-westcott/clj-otel-sdk "0.1.5"]
    [com.github.steffan-westcott/clj-otel-exporter-otlp "0.1.5"]
    [com.github.steffan-westcott/clj-otel-sdk-extension-resources "0.1.5"]
+   [image-resizer "0.1.10"]
 
    [io.opentelemetry/opentelemetry-sdk-extension-autoconfigure "1.17.0-alpha"]
    [io.opentelemetry/opentelemetry-sdk-extension-resources     "1.17.0"]

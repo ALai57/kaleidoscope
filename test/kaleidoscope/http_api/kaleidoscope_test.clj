@@ -405,7 +405,7 @@
                  tu/wrap-clojure-response)
 
         create-response (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png"))
-        get-response    (app (mock/request :get "https://andrewslai.com/v2/photos/" {:filename "mobile.jpeg"}))
+        get-response    (app (mock/request :get "https://andrewslai.com/v2/photos/" {:filename "mobile.png"}))
         image-id        (get-in get-response [:body 0 :id])]
 
     (testing "Upload works"
@@ -415,7 +415,7 @@
 
     (testing "Retrieval works"
       (is (match? {:status 200
-                   :body   [{:filename "mobile.jpeg"}]}
+                   :body   [{:filename "mobile.png"}]}
                   get-response))
       (is (match? {:status  200
                    :headers {"Content-Type" #"application/json"}
@@ -423,13 +423,13 @@
                               :path           (str "/v2/photos/" image-id "/raw.png")
                               :image-category "raw"
                               :hostname       "andrewslai.com"}
-                             {:path           (str "/v2/photos/" image-id "/thumbnail.jpeg")
+                             {:path           (str "/v2/photos/" image-id "/thumbnail.png")
                               :image-category "thumbnail"}
-                             {:path           (str "/v2/photos/" image-id "/gallery.jpeg")
+                             {:path           (str "/v2/photos/" image-id "/gallery.png")
                               :image-category "gallery"}
-                             {:path           (str "/v2/photos/" image-id "/monitor.jpeg")
+                             {:path           (str "/v2/photos/" image-id "/monitor.png")
                               :image-category "monitor"}
-                             {:path           (str "/v2/photos/" image-id "/mobile.jpeg")
+                             {:path           (str "/v2/photos/" image-id "/mobile.png")
                               :image-category "mobile"}]}
                   (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id)))))
       (is (match? {:status 200}
