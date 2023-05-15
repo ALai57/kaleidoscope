@@ -409,7 +409,8 @@
         image-id        (get-in get-response [:body 0 :id])]
 
     (testing "Upload works"
-      (is (match? {:status  207
+      (is (match? {:status  201
+                   :headers {"Content-Type" "application/json"}
                    :body    {:created true}}
                   create-response)))
 

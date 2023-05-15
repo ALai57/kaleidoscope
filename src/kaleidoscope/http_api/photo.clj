@@ -175,7 +175,7 @@
             )))
 
       ;; Todo create a batch response
-      (assoc-in (multi-status (json/generate-string {:created true}))
+      (assoc-in (created "/v2/photos" {:created true})
                 [:headers "Content-Type"]
                 "application/json")
       )))
