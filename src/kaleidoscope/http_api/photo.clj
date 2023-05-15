@@ -179,33 +179,6 @@
 
 
 (comment
-
-  ;; Create the photo and the raw version - a pointer to the S3 bucket folder
-  #_(let [photo            (albums-api/create-photo! database {:id       id
-                                                               :hostname hostname})
-          original-version (albums-api/create-photo-version-2! database {:photo-id       id
-                                                                         :filename       raw-file-name
-                                                                         :image-category "raw"})]
-
-      _                (fs/put-file (str images-path raw-file-name)
-                                    (->file-input-stream tempfile)
-                                    metadata)
-      ;; Create resized photo versions
-      #_(doseq [[image-category [w h t]] IMAGE-DIMENSIONS
-                :let                     [version-src (format "%s/%s.%s" id (name image-category) t)]]
-          (log/infof "Resizing %s image [%s] to %spx by %spx" file-path id w h)
-          (-> static-content-adapters
-              (get (bucket-name req))
-              (fs/put-file version-src
-                           (img/scale-image-to-dimension-limit tempfile w h t)
-                           metadata))
-          (albums-api/create-photo-version! database {:photo-id          id
-                                                      :photo-version-src version-src
-                                                      :image-category    (name image-category)}))
-      (created (format "/v2/photos/%s" id) photo))
-
-
-
   (slurp xxx)
 
   (io/copy (io/input-stream (b64/decode (slurp xxx)))

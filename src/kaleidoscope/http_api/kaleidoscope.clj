@@ -40,13 +40,13 @@
    #_{:pattern #"^/.*" :handler (constantly false)}])
 
 (defn exception-handler
-  [exception-notifier]
+  [exception-reporter]
   (fn [e data request]
     (log/errorf "Error: %s, %s"
                 (ex-message e)
                 (stacktrace/print-stack-trace e))
-    (when exception-notifier
-      (exception-notifier e))))
+    (when exception-reporter
+      (exception-reporter e))))
 
 ;; Emacs xwidgets
 (comment
@@ -103,9 +103,9 @@
                                                            http-utils/kebab-case-headers)))))
 
 (defn kaleidoscope-app
-  [{:keys [http-mw exception-notifier] :as components}]
+  [{:keys [http-mw exception-reporter] :as components}]
   (api {:components components
-        :exceptions {:handlers {:compojure.api.exception/default (exception-handler exception-notifier)}}
+        :exceptions {:handlers {:compojure.api.exception/default (exception-handler exception-reporter)}}
         :middleware [http-mw]}
        ping-routes
        index-routes
