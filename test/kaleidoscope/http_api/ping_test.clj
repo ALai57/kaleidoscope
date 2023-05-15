@@ -4,10 +4,6 @@
             [matcher-combinators.test :refer [match?]]
             [ring.mock.request :as mock]))
 
-(deftest determine-sha-test
-  (is (match? {:revision string?}
-              (ping/get-version-details))))
-
 (deftest ping-routes-test
   (is (match? {:status 200
                :body   {:revision string?}}

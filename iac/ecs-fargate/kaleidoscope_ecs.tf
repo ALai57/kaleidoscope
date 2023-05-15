@@ -23,6 +23,7 @@ variable "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           {description = "Type of Auth
 variable "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  {description = "What type of Authorization scheme to use"}
 variable "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" {description = "How to serve static content"}
 variable "KALEIDOSCOPE_WEDDING_BUCKET"              {description = "Where to serve wedding app from"}
+variable "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"     {description = "Exception Reporter type"}
 
 # Necessary because it seems like the DefaultRegionProviderChain walks down a chain of
 # providers to find its region. If it cannot find the AWS region in environment, etc
@@ -452,32 +453,13 @@ resource "aws_ecs_task_definition" "kaleidoscope_task" {
       {
         "name": "SUMOLOGIC_OTLP_URL",
         "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:sumologic_otlp_url::"
+      },
+      {
+        "name": "KALEIDOSCOPE_BUGSNAG_KEY",
+        "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:bugsnag_key::"
       }
      ],
     "environment": [
-      {"name": "ANDREWSLAI_DB_TYPE", "value": "${var.KALEIDOSCOPE_DB_TYPE}"},
-      {"name": "ANDREWSLAI_DB_USER", "value": "${var.KALEIDOSCOPE_DB_USER}"},
-      {"name": "ANDREWSLAI_DB_NAME", "value": "${var.KALEIDOSCOPE_DB_NAME}"},
-      {"name": "ANDREWSLAI_DB_HOST", "value": "${var.KALEIDOSCOPE_DB_HOST}"},
-      {"name": "ANDREWSLAI_DB_PORT", "value": "${var.KALEIDOSCOPE_DB_PORT}"},
-
-      {"name": "ANDREWSLAI_AUTH_REALM" , "value": "${var.KALEIDOSCOPE_AUTH_REALM}"},
-      {"name": "ANDREWSLAI_AUTH_URL"   , "value": "${var.KALEIDOSCOPE_AUTH_URL}"},
-      {"name": "ANDREWSLAI_AUTH_CLIENT", "value": "${var.KALEIDOSCOPE_AUTH_CLIENT}"},
-
-      {"name": "ANDREWSLAI_AUTH_TYPE"  , "value": "${var.KALEIDOSCOPE_AUTH_TYPE}"},
-      {"name": "ANDREWSLAI_AUTHORIZATION_TYPE", "value": "${var.KALEIDOSCOPE_AUTHORIZATION_TYPE}"},
-      {"name": "ANDREWSLAI_STATIC_CONTENT_TYPE", "value": "${var.KALEIDOSCOPE_STATIC_CONTENT_TYPE}"},
-      {"name": "ANDREWSLAI_BUCKET", "value": "${var.KALEIDOSCOPE_BUCKET}"},
-
-      {"name": "ANDREWSLAI_WEDDING_AUTH_TYPE"  , "value": "${var.KALEIDOSCOPE_WEDDING_AUTH_TYPE}"},
-      {"name": "ANDREWSLAI_WEDDING_AUTHORIZATION_TYPE", "value": "${var.KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE}"},
-      {"name": "ANDREWSLAI_WEDDING_STATIC_CONTENT_TYPE", "value": "${var.KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE}"},
-      {"name": "ANDREWSLAI_WEDDING_BUCKET", "value": "${var.KALEIDOSCOPE_WEDDING_BUCKET}"},
-
-
-
-
       {"name": "KALEIDOSCOPE_DB_TYPE", "value": "${var.KALEIDOSCOPE_DB_TYPE}"},
       {"name": "KALEIDOSCOPE_DB_USER", "value": "${var.KALEIDOSCOPE_DB_USER}"},
       {"name": "KALEIDOSCOPE_DB_NAME", "value": "${var.KALEIDOSCOPE_DB_NAME}"},
@@ -497,6 +479,7 @@ resource "aws_ecs_task_definition" "kaleidoscope_task" {
       {"name": "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE", "value": "${var.KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE}"},
       {"name": "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE", "value": "${var.KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE}"},
       {"name": "KALEIDOSCOPE_WEDDING_BUCKET", "value": "${var.KALEIDOSCOPE_WEDDING_BUCKET}"},
+      {"name": "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE", "value": "${var.KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE}"},
       {
         "name": "AWS_DEFAULT_REGION",
         "value": "${var.AWS_DEFAULT_REGION}"

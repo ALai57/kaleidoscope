@@ -1,7 +1,8 @@
 (ns kaleidoscope.init.env
   "Parses environment variables into Clojure maps that are used to boot system
   components."
-  (:require [kaleidoscope.http-api.auth.buddy-backends :as bb]
+  (:require [kaleidoscope.clients.bugsnag :as bugsnag]
+            [kaleidoscope.http-api.auth.buddy-backends :as bb]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.http-api.middleware :as mw]
             [kaleidoscope.http-api.virtual-hosting :as vh]
@@ -11,6 +12,7 @@
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [kaleidoscope.test-utils :as tu]
+            [kaleidoscope.utils.versioning :as vu]
             [malli.core :as m]
             [malli.dev.pretty :as pretty]
             [malli.dev.virhe :as v]
@@ -85,6 +87,15 @@
   [env]
   {:root (get env "KALEIDOSCOPE_STATIC_CONTENT_FOLDER")})
 
+(defn env->bugsnag
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:api-key     [:string {:error/message "Missing Bugsnag key. Set via KALEIDOSCOPE_BUGSNAG_KEY environment variable."}]]
+                   [:app-version [:string {:error/message "Missing App version. Set in code. Should never happen."}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:api-key     (get env "KALEIDOSCOPE_BUGSNAG_KEY")
+   :app-version (:version (vu/get-version-details))})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot instructions for starting system components from the environment
@@ -161,9 +172,17 @@
                                               "caheriaguilar.and.andrewslai" (local-fs/make-local-fs (env->kaleidoscope-local-fs env))})}
    :default   "s3"})
 
+(def exception-reporter-boot-instructions
+  {:name      :exception-reporter
+   :path      "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"
+   :launchers {"bugsnag" (fn  [env] (partial bugsnag/notify! (bugsnag/make-bugsnag-notifier (env->bugsnag env))))
+               "none"    (fn [_env] (partial println "Caught exception"))}
+   :default   "bugsnag"})
+
 (def DEFAULT-BOOT-INSTRUCTIONS
   "Instructions for how to boot the entire system"
   [database-boot-instructions
+   exception-reporter-boot-instructions
 
    kaleidoscope-authentication-boot-instructions
    kaleidoscope-authorization-boot-instructions
@@ -205,11 +224,13 @@
 
 (defn prepare-kaleidoscope
   [{:keys [database-connection
+           exception-reporter
            kaleidoscope-authentication
            kaleidoscope-authorization
            kaleidoscope-static-content-adapters]
     :as   system}]
   {:database                database-connection
+   :exception-reporter      exception-reporter
    :http-mw                 (comp mw/standard-stack
                                   (mw/auth-stack kaleidoscope-authentication
                                                  kaleidoscope-authorization))
