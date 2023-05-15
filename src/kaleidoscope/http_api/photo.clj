@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.photo
   (:require
+   [cheshire.core :as json]
    [clojure.java.io :as io]
    [clojure.string :as str]
    [compojure.api.sweet :refer [context GET POST]]
@@ -174,7 +175,7 @@
             )))
 
       ;; Todo create a batch response
-      (assoc-in (multi-status {:created true})
+      (assoc-in (multi-status (json/generate-string {:created true}))
                 [:headers "Content-Type"]
                 "application/json")
       )))
