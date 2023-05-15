@@ -177,7 +177,7 @@
    :path      "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"
    :launchers {"bugsnag" (fn  [env] (partial bugsnag/notify! (bugsnag/make-bugsnag-notifier (env->bugsnag env))))
                "none"    (fn [_env] (partial println "Caught exception"))}
-   :default   "bugsnag"})
+   :default   "none"})
 
 (def DEFAULT-BOOT-INSTRUCTIONS
   "Instructions for how to boot the entire system"
