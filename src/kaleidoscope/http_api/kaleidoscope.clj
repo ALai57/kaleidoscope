@@ -105,7 +105,7 @@
 (defn kaleidoscope-app
   [{:keys [http-mw exception-notifier] :as components}]
   (api {:components components
-        :exceptions {:handlers {:compojure.api.exception/default (partial exception-handler exception-notifier)}}
+        :exceptions {:handlers {:compojure.api.exception/default (exception-handler exception-notifier)}}
         :middleware [http-mw]}
        ping-routes
        index-routes
