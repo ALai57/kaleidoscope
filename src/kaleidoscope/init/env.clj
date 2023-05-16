@@ -2,6 +2,8 @@
   "Parses environment variables into Clojure maps that are used to boot system
   components."
   (:require [kaleidoscope.clients.bugsnag :as bugsnag]
+            [kaleidoscope.clients.error-reporter :as er]
+            [kaleidoscope.clients.session-tracker :as st]
             [kaleidoscope.http-api.auth.buddy-backends :as bb]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.http-api.middleware :as mw]
@@ -175,8 +177,15 @@
 (def exception-reporter-boot-instructions
   {:name      :exception-reporter
    :path      "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"
-   :launchers {"bugsnag" (fn  [env] (partial bugsnag/notify! (bugsnag/make-bugsnag-notifier (env->bugsnag env))))
-               "none"    (fn [_env] (partial println "Caught exception"))}
+   :launchers {"bugsnag" (fn  [env] (bugsnag/make-bugsnag-client (env->bugsnag env)))
+               "none"    (fn [_env] (reify
+                                      er/ErrorReporter
+                                      (report! [this e]
+                                        (log/error "Notifying! Caught exception" e))
+
+                                      st/SessionTracker
+                                      (start! [this]
+                                        (log/info "Starting session with mock session tracker..."))))}
    :default   "none"})
 
 (def DEFAULT-BOOT-INSTRUCTIONS
@@ -230,10 +239,12 @@
            kaleidoscope-static-content-adapters]
     :as   system}]
   {:database                database-connection
-   :exception-reporter      exception-reporter
-   :http-mw                 (comp mw/standard-stack
+   :exception-reporter      (partial er/report! exception-reporter)
+   :http-mw                 (comp (mw/session-tracking-stack exception-reporter)
+                                  mw/standard-stack
                                   (mw/auth-stack kaleidoscope-authentication
-                                                 kaleidoscope-authorization))
+                                                 kaleidoscope-authorization)
+                                  )
    :static-content-adapters kaleidoscope-static-content-adapters})
 
 (defn make-http-handler

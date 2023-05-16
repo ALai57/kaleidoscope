@@ -184,6 +184,13 @@
 
 
 (comment
+  ;; TODO: Clean up Bugsnag implementation. Add Bugsnag sessions to frontend and backend.
+  ;; TODO: Add mechanism to delete photos from index and from bucket.
+  ;; TODO: Websocket for upload progress? =D
+  ;; TODO: Edit photo name and API for retrieving photos by name
+  ;; TODO: Photos with authentication!
+
+
   (slurp xxx)
 
   (io/copy (io/input-stream (b64/decode (slurp xxx)))
@@ -191,29 +198,3 @@
 
   (img/scale-image-to-dimension-limit (io/input-stream xxx) 100 100 "jpeg")
   )
-;; Java resizing and synchronous API with random UUID.
-
-;; Job
-;; -- Async, easy to change independent of server, less compute
-;; -- Can do in another non java language
-;;
-;; Java
-;; -- Sync, more compute for now
-;; -- Must do in CLJ
-
-
-;; S3 bucket with random UUID /bucket/UUID/400.png, /bucket/UUID/raw.png, etc...
-;; -- easy to rename things
-;; -- bucket doesn't have meaning - not human navigable
-;; -- get all versions of a photo is easy in bucket:
-;; -- getting all thumbnails could be harder.
-;;
-;; S3 bucket with name /bucket/name/400.png, /bucket/name/raw.png, etc...
-;; -- medium to rename
-;; -- bucket has meaning - can be human navigable
-;; -- get all versions of a photo is easy in the bucket
-;; -- getting all thumbnails could be harder.
-;;
-;;
-;; S3 bucket with name /bucket/name-400.png, /bucket/name-raw.png, etc...
-;; -- Difficult to rename anything and keep consistent

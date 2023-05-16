@@ -4,6 +4,7 @@
             [clojure.string :as string]
             [kaleidoscope.http-api.cache-control :as cc]
             [lambdaisland.deep-diff2 :as ddiff]
+            [kaleidoscope.clients.session-tracker :as st]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.file :refer [wrap-file]]
             [ring.middleware.gzip :refer [wrap-gzip]]
@@ -147,6 +148,14 @@
                                     (string/replace uri "/" ".")
                                     request-method)}
       (handler request))))
+
+(defn session-tracking-stack
+  [session-tracker]
+  (fn wrap-session-tracking [handler]
+    (fn [request]
+      (handler (do (when session-tracker
+                     (st/start! session-tracker))
+                   request)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
