@@ -1,4 +1,8 @@
 (ns kaleidoscope.http-api.kaleidoscope-test
+  "The highest level tests in the project.
+
+  This namespace tests through the HTTP API - testing that all the components
+  work together and that the HTTP API behaves according to spec."
   (:require [clojure.java.io :as io]
             [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
@@ -359,25 +363,6 @@
                 response)
         (s/explain-str :kaleidoscope/portfolio (:body response)))))
 
-
-#_(defn make-example-file-upload-request
-    "A function because the body is an input stream, which is consumable and must
-  be regenerated each request"
-    ([]
-     (make-example-file-upload-request "lock.svg"))
-    ([fname]
-     (make-example-file-upload-request "localhost" "lock.svg"))
-    ([host fname]
-     (-> (mock/request :post (format "%s/v2/photos" host))
-         (mock/header "Authorization" "Bearer x")
-         (util/deep-merge (tu/assemble-multipart "my boundary here"
-                                                 [{:part-name    "file-contents"
-                                                   :file-name    fname
-                                                   :content-type "image/svg+xml"
-                                                   :content      (-> "public/images/lock.svg"
-                                                                     io/resource
-                                                                     slurp)}])))))
-
 (defn make-example-file-upload-request-png
   "A function because the body is an input stream, which is consumable and must
   be regenerated each request"
@@ -390,9 +375,6 @@
                                              io/resource
                                              io/file)
                                    :more     "stuff"})))))
-
-(def UUID-REGEX
-  "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 
 (deftest photos-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -448,8 +430,7 @@
                              ;; The in-memory filesystem uses the MD5 hash of
                              ;; the path to calculate the version. So if we use that here,
                              ;; we should hit the code path that triggers an ETag match
-                             (mock/header "If-None-Match" (fs/md5 image-path)))))))))
-  )
+                             (mock/header "If-None-Match" (fs/md5 image-path))))))))))
 
 (deftest create-and-remove-group-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
