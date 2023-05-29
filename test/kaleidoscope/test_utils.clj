@@ -1,16 +1,12 @@
 (ns kaleidoscope.test-utils
-  (:require [kaleidoscope.api.authorization :as auth]
-            [kaleidoscope.http-api.auth.jwt :as jwt]
-            [cheshire.core :as json]
-            [clojure.java.io :as io]
+  (:require [cheshire.core :as json]
             [clojure.string :as string]
             [compojure.api.sweet :refer [GET routes]]
-            [compojure.route :as route])
+            [compojure.route :as route]
+            [kaleidoscope.api.authorization :as auth]
+            [kaleidoscope.http-api.auth.jwt :as jwt])
   (:import
-   java.io.File
-   [java.net URL URLClassLoader]
-   java.nio.file.attribute.FileAttribute
-   java.nio.file.Files))
+   (java.io File)))
 
 (def TEMP-DIRECTORY
   (System/getProperty "java.io.tmpdir"))
@@ -33,16 +29,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; App related things
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn captured-logging [logging-atom]
-  {:min-level :debug
-   :appenders {:println {:enabled?  true,
-                         :min-level :debug
-                         :output-fn (fn [data]
-                                      (force (:msg_ data)))
-                         :fn        (fn [data]
-                                      (let [{:keys [output_]} data]
-                                        (swap! logging-atom conj (force output_))))}}})
-
 (defn wrap-clojure-response
   [handler]
   (fn [request]
@@ -51,12 +37,6 @@
                                         (json/parse-string-strict x keyword)
                                         (catch Exception e
                                           x))))))
-
-(defn app-request
-  [app request & [{:keys [parser]
-                   :or   {parser #(json/parse-string % keyword)}}]]
-  (when-let [result (app request)]
-    (update result :body parser)))
 
 (defn dummy-app
   [response]
@@ -94,78 +74,3 @@
   [role]
   [{:pattern #".*"
     :handler (partial auth/require-role role)}])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Temporary directory
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn mktmpdir
-  ([]
-   (mktmpdir "" (into-array FileAttribute [])))
-  ([root]
-   (mktmpdir root (into-array FileAttribute [])))
-  ([root attrs]
-   (let [fname (.toFile (Files/createTempDirectory root attrs))]
-     (.deleteOnExit fname)
-     fname)))
-
-(defn mktmp
-  [s dir]
-  (when-not (string/includes? s ".")
-    (throw (IllegalArgumentException. "Temporary file names must include an extension")))
-  (let [[fname ext] (string/split s #"\.")
-        f           (File/createTempFile fname (str "." ext) dir)]
-    (.deleteOnExit f)
-    f))
-
-(defn- url-array
-  [urls]
-  (let [urls (if (coll? urls) urls [urls])
-        arr (make-array URL (count urls))]
-    (loop [[url & remain] urls
-           n              0]
-      (if-not url
-        arr
-        (do (aset arr n url)
-            (recur remain (inc n)))))))
-
-(defn ->url
-  [url]
-  (URL. url))
-
-(defn url-classloader
-  [urls]
-  (URLClassLoader. (url-array urls)))
-
-(def tmp-loader
-  "A Classloader that loads from the system's temporary directory (usually `/tmp`)"
-  (url-classloader (->url (format "file:%s/" (System/getProperty "java.io.tmpdir")))))
-
-
-(defn make-loader
-  "A Classloader that loads from a particular directory"
-  [dir]
-  (url-classloader (->url (format "file:%s/" dir))))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Multipart uploads
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn ->multipart
-  [{:keys [separator part-name file-name content-type content]}]
-  (format "%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\nContent-Type:%s\r\nContent-Transfer-Encoding: binary\r\n\r\n%s\r\n"
-          separator
-          part-name
-          file-name
-          content-type
-          content))
-
-(defn assemble-multipart
-  [separator parts]
-  (let [mp-parts (map (comp ->multipart #(assoc % :separator (str "--" separator)))
-                      parts)]
-
-    {:headers {"content-type" (format "multipart/form-data; boundary=%s;" separator)}
-     :body    (-> (format "%s--%s--" (apply str mp-parts) separator)
-                  (.getBytes)
-                  (io/input-stream))}))

@@ -216,9 +216,10 @@
                       "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                      (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                      env/prepare-kaleidoscope
-                     kaleidoscope/kaleidoscope-app)]
+                     kaleidoscope/kaleidoscope-app
+                     tu/wrap-clojure-response)]
         (is (match? expected
-                    (tu/app-request app (mock/request :get (str "http://andrewslai.localhost" endpoint)))))))
+                    (app (mock/request :get (str "http://andrewslai.localhost" endpoint)))))))
 
     "/compositions"                  {:status 200 :body (has-count 4)}
     "/compositions/my-first-article" {:status 200 :body article?}
@@ -402,28 +403,31 @@
                   create-response)))
 
     (testing "Retrieval works"
-      (is (match? {:status 200
-                   :body   [{:filename "mobile.png"}]}
-                  get-response))
-      (is (match? {:status  200
-                   :headers {"Content-Type" #"application/json"}
-                   :body    [{:id             image-id
-                              :path           (str "/v2/photos/" image-id "/raw.png")
-                              :image-category "raw"
-                              :hostname       "andrewslai.com"}
-                             {:path           (str "/v2/photos/" image-id "/thumbnail.png")
-                              :image-category "thumbnail"}
-                             {:path           (str "/v2/photos/" image-id "/gallery.png")
-                              :image-category "gallery"}
-                             {:path           (str "/v2/photos/" image-id "/monitor.png")
-                              :image-category "monitor"}
-                             {:path           (str "/v2/photos/" image-id "/mobile.png")
-                              :image-category "mobile"}]}
-                  (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id)))))
-      (is (match? {:status 200}
-                  (app (mock/request :get (format "https://andrewslai.com/v2/photos/%s/raw.png" image-id ))))))
+      (testing "Using query params to find `mobile` images"
+        (is (match? {:status 200
+                     :body   [{:filename "mobile.png"}]}
+                    get-response)))
+      (testing "Using the image ID"
+        (is (match? {:status  200
+                     :headers {"Content-Type" #"application/json"}
+                     :body    [{:id             image-id
+                                :path           (str "/v2/photos/" image-id "/raw.png")
+                                :image-category "raw"
+                                :hostname       "andrewslai.com"}
+                               {:path           (str "/v2/photos/" image-id "/thumbnail.png")
+                                :image-category "thumbnail"}
+                               {:path           (str "/v2/photos/" image-id "/gallery.png")
+                                :image-category "gallery"}
+                               {:path           (str "/v2/photos/" image-id "/monitor.png")
+                                :image-category "monitor"}
+                               {:path           (str "/v2/photos/" image-id "/mobile.png")
+                                :image-category "mobile"}]}
+                    (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id))))))
+      (testing "Direct access via HTTP API"
+        (is (match? {:status 200}
+                    (app (mock/request :get (format "https://andrewslai.com/v2/photos/%s/raw.png" image-id )))))))
 
-    (testing "Etags work"
+    (testing "Matching Etags return a 304 - not modified response"
       (let [image-path (str "media/" image-id "/raw.png")]
         (is (match? {:status 304}
                     (app (-> (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id "/raw.png"))
@@ -481,8 +485,10 @@
         (is (match? {:status 204}
                     (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s" id))
                              (mock/header "Authorization" "Bearer user first-user")))))
-        (is (= 0 (count (:body (app (-> (mock/request :get "https://andrewslai.com/groups")
-                                        (mock/header "Authorization" "Bearer user first-user")))))))))))
+        (is (match? {:status 200
+                     :body   empty?}
+                    (app (-> (mock/request :get "https://andrewslai.com/groups")
+                             (mock/header "Authorization" "Bearer user first-user")))))))))
 
 (deftest retrieve-group-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -554,7 +560,7 @@
                          (mock/header "Authorization" "Bearer x")))))))
 
 (deftest albums-test
-  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "public-access"
                   "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}

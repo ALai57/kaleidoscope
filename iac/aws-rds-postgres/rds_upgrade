@@ -1,0 +1,11 @@
+# Because the old parameter group was for Postgres 10, I couldn't upgrade via the
+# AWS console easily.
+# So first, I manually created a parameter group for Postgres 14 using AWS Console.
+# Next, I ran this script to force upgrade the database to postgres 14
+
+aws rds modify-db-instance \
+  --db-instance-identifier andrewslai-postgres \
+  --engine-version 14.4 \
+  --db-parameter-group-name andrewslai-postgres-14 \
+  --allow-major-version-upgrade \
+  --apply-immediately
