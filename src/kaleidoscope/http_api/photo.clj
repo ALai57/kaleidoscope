@@ -4,6 +4,7 @@
    [clojure.java.io :as io]
    [clojure.string :as str]
    [compojure.api.sweet :refer [context GET POST]]
+   [compojure.api.middleware :as cmw]
    [image-resizer.core :as rc]
    [image-resizer.format :as rf]
    [kaleidoscope.api.albums :as albums-api]
@@ -27,58 +28,10 @@
   (let [server-name (get-in request [:headers "host"])]
     (str/join "." (butlast (str/split server-name #"\.")))))
 
-(def photo-routes
-  (context (format "/%s" MEDIA-FOLDER) []
-    :coercion   :spec
-    :components [static-content-adapters database]
-    :tags       ["photos"]
-
-    (POST "/" {:keys [uri params] :as req}
-      :swagger {:summary     "Upload a new file"
-                :description "Add a new image"
-                :produces    #{"application/json"}
-                :responses   {200 {:description "An album"
-                                   :schema      :kaleidoscope.albums/album}}}
-      (let [{:keys [filename tempfile] :as file-contents} (get params "file-contents")
-            file-path                                     (format "%s/%s" (if (str/ends-with? uri "/")
-                                                                            (subs uri 1 (dec (count uri)))
-                                                                            (subs uri 1))
-                                                                  filename)
-            metadata                                      (dissoc file-contents :tempfile)
-            now-time                                      (u/now)]
-        (log/infof "Processing upload request with params:\n %s" (-> params
-                                                                     clojure.pprint/pprint
-                                                                     with-out-str))
-        (log/infof "Creating file `%s` with metadata:\n %s" file-path (-> metadata
-                                                                          clojure.pprint/pprint
-                                                                          with-out-str))
-        (-> static-content-adapters
-            (get (bucket-name req))
-            (fs/put-file file-path
-                         (->file-input-stream tempfile)
-                         metadata))
-        (let [photo (albums-api/create-photo! database {:id          (java.util.UUID/randomUUID)
-                                                        :created-at  now-time
-                                                        :modified-at now-time})]
-          (created (format "/%s" file-path)
-                   photo))))))
-
-(comment
-  (def image
-    (clojure.java.io/resource "public//images/example-image.png"))
-
-  (slurp image)
-
-  (slurp (img/scale-image-to-dimension-limit image 10 10 "jpeg"))
-
-  (io/copy (img/scale-image-to-dimension-limit image 100 100 "jpeg")
-           (io/file "/home/andrew/dev/example-image-out.jpeg"))
-
-  )
-
 (def IMAGE-DIMENSIONS
   ;; category  wd   ht
-  {:thumbnail [100  100 ]
+  {:raw       nil
+   :thumbnail [100  100 ]
    :gallery   [165  165 ]
    :monitor   [1920 1080]
    :mobile    [1200 630 ]})
@@ -94,7 +47,38 @@
        (:filename x)
        (:tempfile x)))
 
-(def photo-routes-v2
+(defn process-photo-upload!
+  [{:keys [params] :as req}
+   {:keys [filename tempfile] :as file}]
+  (let [{:keys [static-content-adapters database]} (cmw/get-components req)
+
+        hostname (http-utils/get-host req)
+        bucket   (bucket-name req)
+
+        static-content-adapter (get static-content-adapters bucket)
+
+        photo-id  (java.util.UUID/randomUUID)
+        extension (get-file-extension filename)]
+    (log/infof "Processing file %s" filename)
+    (let [photo   (albums-api/create-photo! database {:id photo-id :hostname hostname})
+          resized (for [[image-category [w h :as resize]] IMAGE-DIMENSIONS
+
+                        :let [image-stream (if resize
+                                             (rf/as-stream (rc/resize tempfile w h) extension)
+                                             (u/->file-input-stream tempfile))]]
+                    {:filename   (format "%s.%s" (name image-category) extension)
+                     :version-id (albums-api/create-photo-version-2! database
+                                                                     (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
+                                                                     {:photo-id       photo-id
+                                                                      :image-category (name image-category)
+                                                                      :file           (-> params
+                                                                                          (get "file")
+                                                                                          (assoc :file-input-stream image-stream
+                                                                                                 :extension         extension))})})]
+      {:photo-id    photo-id
+       :version-ids (flatten resized)})))
+
+(def photo-routes
   (context "/v2/photos" []
     :coercion   :spec
     :components [static-content-adapters database]
@@ -143,53 +127,29 @@
       (log/infof "Processing upload request with params:\n %s" (-> params
                                                                    clojure.pprint/pprint
                                                                    with-out-str))
-      (let [hostname (http-utils/get-host req)
-            bucket   (bucket-name req)
+      (let [result (->> params
+                        vals
+                        (filter file-upload?)
+                        (mapv (partial process-photo-upload! req)))]
 
-            static-content-adapter (get static-content-adapters bucket)]
-
-        (doseq [{:keys [filename tempfile] :as file} (->> params
-                                                          vals
-                                                          (filter file-upload?))
-                :let [photo-id (java.util.UUID/randomUUID)
-                      extension (get-file-extension filename)]]
-          (log/infof "Processing file %s" filename)
-          (let [photo (albums-api/create-photo! database {:id photo-id :hostname hostname})]
-            (albums-api/create-photo-version-2! database
-                                                (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
-                                                {:photo-id       photo-id
-                                                 :image-category "raw"
-                                                 :file           (assoc file
-                                                                        :file-input-stream (u/->file-input-stream tempfile)
-                                                                        :extension         extension)})
-            (doseq [[image-category [w h t]] IMAGE-DIMENSIONS
-                    :let [resized-image (rf/as-stream (rc/resize tempfile w h) extension)]]
-              (albums-api/create-photo-version-2! database
-                                                  (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
-                                                  {:photo-id       photo-id
-                                                   :image-category (name image-category)
-                                                   :file           (-> params
-                                                                       (get "file")
-                                                                       (assoc :file-input-stream resized-image
-                                                                              :extension         extension))}))
-            )))
-
-      ;; Todo create a batch response
-      (assoc-in (created "/v2/photos" {:created true})
-                [:headers "Content-Type"]
-                "application/json")
+        ;; Todo create a batch response
+        (assoc-in (created "/v2/photos" result)
+                  [:headers "Content-Type"]
+                  "application/json"))
       )))
 
 
-
-
 (comment
-  ;; TODO: Clean up Bugsnag implementation. Add Bugsnag sessions to frontend and backend.
+  ;; TODO: Delete `photos` version 1
   ;; TODO: Add mechanism to delete photos from index and from bucket.
-  ;; TODO: Websocket for upload progress? =D
   ;; TODO: Edit photo name and API for retrieving photos by name
   ;; TODO: Photos with authentication!
 
+  ;; TODO: Websocket for upload progress? =D
+  ;;
+
+  ;; TODO: Dsitributed tracing FE->BE
+  ;; TODO: K6 performance testing
 
   (slurp xxx)
 

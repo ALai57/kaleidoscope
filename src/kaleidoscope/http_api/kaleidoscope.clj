@@ -11,7 +11,7 @@
    [kaleidoscope.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
    [kaleidoscope.http-api.cache-control :as cc]
    [kaleidoscope.http-api.groups :refer [groups-routes]]
-   [kaleidoscope.http-api.photo :refer [photo-routes photo-routes-v2]]
+   [kaleidoscope.http-api.photo :refer [photo-routes]]
    [kaleidoscope.http-api.ping :refer [ping-routes]]
    [kaleidoscope.http-api.portfolio :refer [portfolio-routes]]
    [kaleidoscope.http-api.swagger :refer [swagger-ui-routes]]
@@ -117,7 +117,6 @@
        swagger-ui-routes
        album-routes
        photo-routes
-       photo-routes-v2
        groups-routes
        default-handler))
 

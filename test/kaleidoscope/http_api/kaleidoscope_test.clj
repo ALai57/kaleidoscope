@@ -360,23 +360,23 @@
         (s/explain-str :kaleidoscope/portfolio (:body response)))))
 
 
-(defn make-example-file-upload-request
-  "A function because the body is an input stream, which is consumable and must
+#_(defn make-example-file-upload-request
+    "A function because the body is an input stream, which is consumable and must
   be regenerated each request"
-  ([]
-   (make-example-file-upload-request "lock.svg"))
-  ([fname]
-   (make-example-file-upload-request "localhost" "lock.svg"))
-  ([host fname]
-   (-> (mock/request :post (format "%s/media/" host))
-       (mock/header "Authorization" "Bearer x")
-       (util/deep-merge (tu/assemble-multipart "my boundary here"
-                                               [{:part-name    "file-contents"
-                                                 :file-name    fname
-                                                 :content-type "image/svg+xml"
-                                                 :content      (-> "public/images/lock.svg"
-                                                                   io/resource
-                                                                   slurp)}])))))
+    ([]
+     (make-example-file-upload-request "lock.svg"))
+    ([fname]
+     (make-example-file-upload-request "localhost" "lock.svg"))
+    ([host fname]
+     (-> (mock/request :post (format "%s/v2/photos" host))
+         (mock/header "Authorization" "Bearer x")
+         (util/deep-merge (tu/assemble-multipart "my boundary here"
+                                                 [{:part-name    "file-contents"
+                                                   :file-name    fname
+                                                   :content-type "image/svg+xml"
+                                                   :content      (-> "public/images/lock.svg"
+                                                                     io/resource
+                                                                     slurp)}])))))
 
 (defn make-example-file-upload-request-png
   "A function because the body is an input stream, which is consumable and must
@@ -394,7 +394,7 @@
 (def UUID-REGEX
   "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 
-(deftest photos-v2-test
+(deftest photos-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
@@ -411,7 +411,12 @@
     (testing "Upload works"
       (is (match? {:status  201
                    :headers {"Content-Type" "application/json"}
-                   :body    {:created true}}
+                   :body    [{:photo-id string?
+                              :version-ids [{:filename "raw.png"}
+                                            {:filename "thumbnail.png"}
+                                            {:filename "gallery.png"}
+                                            {:filename "monitor.png"}
+                                            {:filename "mobile.png"}]}]}
                   create-response)))
 
     (testing "Retrieval works"
@@ -608,7 +613,7 @@
        (uuid? (java.util.UUID/fromString s))))
 
 (deftest album-contents-test
-  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "public-access"
                   "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
@@ -616,11 +621,11 @@
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)]
-    (let [photo-upload-result (:body (app (make-example-file-upload-request "https://andrewslai.com" "lock.svg")))
-          album-create-result (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
-                                              (mock/json-body example-album))))
-          photo-id            (:id photo-upload-result)
-          album-id            (:id album-create-result)]
+    (let [[photo-upload-result] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
+          album-create-result   (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
+                                                (mock/json-body example-album))))
+          photo-id              (:photo-id photo-upload-result)
+          album-id              (:id album-create-result)]
 
       (testing "Album is empty to start"
         (is (match? {:status 200 :body []}
@@ -653,7 +658,7 @@
         ))))
 
 (deftest contents-retrieval-test
-  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"                     "embedded-h2"
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "public-access"
                   "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
@@ -663,12 +668,12 @@
                  tu/wrap-clojure-response)]
 
     ;; Add a photo to two separate albums
-    (let [{photo-1-id :id} (:body (app (make-example-file-upload-request "https://andrewslai.com" "foo.svg")))
-          {photo-2-id :id} (:body (app (make-example-file-upload-request "https://andrewslai.com" "bar.svg")))
-          {album-1-id :id} (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
-                                           (mock/json-body example-album))))
-          {album-2-id :id} (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
-                                           (mock/json-body example-album-2))))]
+    (let [[{photo-1-id :photo-id}] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
+          [{photo-2-id :photo-id}] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
+          {album-1-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
+                                                   (mock/json-body example-album))))
+          {album-2-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
+                                                   (mock/json-body example-album-2))))]
 
       (testing "Contents are empty to start"
         (is (match? {:status 200 :body []}
