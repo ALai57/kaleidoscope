@@ -7,7 +7,7 @@
             [taoensso.timbre :as log]))
 
 (def ^:dynamic *test-log-level*
-  :warn)
+  :error)
 
 (def PROJECT-DIR
   (System/getProperty "user.dir"))

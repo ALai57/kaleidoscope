@@ -1,6 +1,3 @@
-(def COMPILE-TIME-LOG-LEVEL
-  :debug)
-
 (defproject org.clojars.alai57/kaleidoscope "0.1.37-SNAPSHOT"
   :url "https://github.com/ALai57/kaleidoscope"
   :license {:name         "Eclipse Public License - v 1.0"
@@ -25,9 +22,6 @@
    [com.github.steffan-westcott/clj-otel-sdk-extension-resources "0.1.5"]
    [image-resizer "0.1.10"]
 
-   [io.opentelemetry/opentelemetry-sdk-extension-autoconfigure "1.17.0-alpha"]
-   [io.opentelemetry/opentelemetry-sdk-extension-resources     "1.17.0"]
-   [io.opentelemetry/opentelemetry-exporter-otlp               "1.17.0"]
    [io.grpc/grpc-netty-shaded                                  "1.49.0"]
    [io.grpc/grpc-protobuf                                      "1.49.0"]
    [io.grpc/grpc-stub                                          "1.49.0"]
@@ -62,21 +56,15 @@
    ]
 
   :plugins [[lein-shell "0.5.0"]
+            [lein-bom "0.2.0-SNAPSHOT"]
             [com.github.clj-kondo/lein-clj-kondo "0.2.4"]]
+
+  ;; Zonky needs special handling because it uses the Bill-Of-Materials pattern
+  ;; in Maven.
+  :bom {:import [[io.zonky.test.postgres/embedded-postgres-binaries-bom "15.2.0"]]}
 
   :repositories [["releases" {:url   "https://repo.clojars.org"
                               :creds :gpg}]]
-
-  :jvm-opts [;;~(format "-Dtaoensso.timbre.min-level.edn=%s" COMPILE-TIME-LOG-LEVEL)
-             ~(format "-DTIMBRE_LEVEL=%s" COMPILE-TIME-LOG-LEVEL)]
-
-  ;; Used to make this compatible with Java 11
-  :managed-dependencies [[metosin/ring-swagger-ui "4.5.0"]
-                         [org.clojure/core.rrb-vector "0.1.1"]
-                         [org.flatland/ordered "1.5.7"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 "15.2.0" :scope "test"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64-alpine "15.2.0" :scope "test"]
-                         [io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 "15.2.0" :scope "test"]]
 
   :aot :all
 
@@ -88,18 +76,20 @@
   ;; Speeds up Docker builds, see https://docs.docker.com/develop/develop-images/build_enhancements/
   :shell {:env {"DOCKER_BUILDKIT" "1"}}
 
-  :profiles {:dev {:plugins      [[lein-ancient "0.6.15"]
-                                  [lein-ring "0.12.5"]]
-                   :dependencies [[biiwide/sandboxica "0.4.0"]
-                                  [io.zonky.test/embedded-postgres "1.2.6"]
-                                  [ring/ring-mock "0.4.0"]
-                                  [nubank/matcher-combinators "3.7.2"]
-                                  [org.clojure/tools.cli "1.0.214"]
-                                  [org.clojure/tools.namespace "1.3.0"]
-                                  [djblue/portal "0.37.1"]
-                                  ]
-                   :aliases      {"migratus" ["run" "-m" kaleidoscope.persistence.rdbms.migrations]
-                                  "test"     ["run" "-m" kaleidoscope.test-main]}}}
+  :profiles {:dev     {:plugins      [[lein-ancient "0.6.15"]
+                                      [lein-ring "0.12.5"]]
+                       :dependencies [[biiwide/sandboxica "0.4.0"]
+                                      [ring/ring-mock "0.4.0"]
+                                      [nubank/matcher-combinators "3.7.2"]
+                                      [org.clojure/tools.cli "1.0.214"]
+                                      [org.clojure/tools.namespace "1.3.0"]
+                                      [djblue/portal "0.37.1"]
+                                      ]
+                       :aliases      {"migratus" ["run" "-m" kaleidoscope.persistence.rdbms.migrations]
+                                      "test"     ["run" "-m" kaleidoscope.test-main]}}
+             :release {:dependencies [[io.opentelemetry/opentelemetry-sdk-extension-autoconfigure "1.17.0-alpha"]
+                                      [io.opentelemetry/opentelemetry-sdk-extension-resources     "1.17.0"]
+                                      [io.opentelemetry/opentelemetry-exporter-otlp               "1.17.0"]]}}
 
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]
