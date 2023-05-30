@@ -38,7 +38,8 @@
 (defn initialize-logging!
   [env]
   (log/merge-config!
-   (cond-> {:min-level :info
+   (cond-> {:min-level [["io.zonky*" :error]
+                        ["*" :info]]
             :output-fn json-log-output
             :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}
      (disable-json-logging? env) (dissoc :output-fn))))

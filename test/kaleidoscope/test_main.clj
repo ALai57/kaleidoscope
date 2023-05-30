@@ -29,11 +29,15 @@
                                                     :warn
                                                     :error
                                                     :fatal}
-                                                  x))]]
-                         ])]
+                                                  x))]]])
+        test-namespaces (if (empty? arguments)
+                          ["kaleidoscope.*"]
+                          arguments)]
+    (log/infof "Testing namespaces %s" test-namespaces)
     (log/infof "Running tests with %s" options)
     (log/infof "Loading test namespaces...")
     (apply require TEST-NSES)
     (binding [*test-log-level* (:level options)]
       (log/with-min-level (:level options)
-        (t/run-all-tests #"kaleidoscope.*")))))
+        (doseq [test-namespace test-namespaces]
+          (t/run-all-tests (re-pattern test-namespace)))))))

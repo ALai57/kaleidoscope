@@ -13,7 +13,7 @@
             [kaleidoscope.test-utils :as tu])
   (:import [java.util UUID]))
 
-(use-fixtures :once
+(use-fixtures :each
   (fn [f]
     (log/with-min-level tm/*test-log-level*
       (f))))
@@ -188,8 +188,10 @@
                       :metadata {:filename      "myfile.png"
                                  :more-metadata 12345}
                       }}}}
-                  @mock-fs))))
+                  @mock-fs)))))
 
+
+(deftest create-photo-version-postgres--test
   (testing "Postgres specific conversion"
     (let [database (embedded-postgres/fresh-db!)
           mock-fs  (atom {})]
@@ -217,6 +219,4 @@
                       :filename       "thumbnail.png"
                       :storage-driver "in-memory"
                       :storage-root   "media"}]
-                    (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
-      ))
-  )
+                    (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"})))))))
