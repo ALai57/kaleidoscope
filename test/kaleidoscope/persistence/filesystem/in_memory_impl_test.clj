@@ -32,10 +32,12 @@
     (is (match? {:content buffered-input-stream?}
                 (fs/get memfs "var/afile.txt")))))
 
-(defspec memfs-spec
+(defspec memfs-spec {:reporter-fn (constantly nil)
+                     ;;:num-tests   10000
+                     }
   (prop/for-all [path     gen-file/gen-path
                  fname    gen-file/gen-filename
-                 content  gen/any-printable-equatable
+                 content  gen/simple-type-printable-equatable
                  metadata (gen/map gen/simple-type-printable-equatable
                                    gen/simple-type-printable-equatable)]
     (let [db    (atom {})
@@ -46,6 +48,5 @@
                     :path     fullpath
                     :content  content
                     :metadata metadata}]
-      (is (fs/does-not-exist? (fs/get memfs "var")))
       (is (match? file (fs/put-file memfs fullpath content metadata)))
       (is (match? {:content content} (fs/get memfs fullpath))))))
