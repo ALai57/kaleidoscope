@@ -1,5 +1,5 @@
 (ns kaleidoscope.http-api.virtual-hosting-test
-  (:require [clojure.test :refer [are deftest is use-fixtures]]
+  (:require [clojure.test :refer [are deftest is use-fixtures] :as ct]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.properties :as prop]
             [compojure.api.sweet :refer [GET]]
@@ -19,11 +19,13 @@
   [request]
   (get-in request [:headers "host"]))
 
-(defspec virtual-host-matching
+(defspec virtual-host-matching {:reporter-fn (constantly nil)}
   (prop/for-all [request gen-net/gen-request]
-    (is (vh/matching-url? request (-> request
-                                      get-host
-                                      re-pattern)))))
+    (vh/matching-url? request (-> request
+                                  get-host
+                                  (str "xx")
+                                  re-pattern))))
+
 
 (defn request-map
   [{:keys [scheme host uri]

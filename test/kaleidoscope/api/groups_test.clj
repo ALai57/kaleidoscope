@@ -9,7 +9,9 @@
 
 (use-fixtures :once
   (fn [f]
-    (log/with-min-level tm/*test-log-level*
+    ;; Manually override the minimum error level because some of the tests will
+    ;; emit warnings
+    (log/with-min-level :error
       (f))))
 
 (def example-group

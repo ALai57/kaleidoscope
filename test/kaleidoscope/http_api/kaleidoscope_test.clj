@@ -468,7 +468,7 @@
                              (mock/header "Authorization" "Bearer user second-user")
                              (mock/json-body {:display-name "my-display-name"}))))))
 
-      (testing "I can only retrieve groups I own"
+      (testing "I can retrieve groups I own"
         (let [response (app (-> (mock/request :get "https://andrewslai.com/groups")
                                 (mock/header "Authorization" "Bearer user first-user")))]
           (is (match? {:status 200
@@ -476,10 +476,11 @@
                       response))
           (is (= 1 (count (:body response))))))
 
-      (testing "I can only delete groups I own"
-        (is (match? {:status 401}
-                    (app (-> (mock/request :delete "https://andrewslai.com/groups/other-users-group")
-                             (mock/header "Authorization" "Bearer user first-user"))))))
+      (testing "I cannot delete groups I do not own"
+        (log/with-min-level :error
+          (is (match? {:status 401}
+                      (app (-> (mock/request :delete "https://andrewslai.com/groups/other-users-group")
+                               (mock/header "Authorization" "Bearer user first-user")))))))
 
       (testing "Deleted group doesn't exist"
         (is (match? {:status 204}

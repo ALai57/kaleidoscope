@@ -4,6 +4,7 @@
             [clojure.test :as t]
             [clojure.tools.cli :as cli]
             [clojure.tools.namespace.find :as ns.find]
+            [kaleidoscope.assertions] ;; Load custom test reporting for specs
             [taoensso.timbre :as log]))
 
 (def ^:dynamic *test-log-level*
