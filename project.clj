@@ -12,6 +12,7 @@
    [camel-snake-kebab "0.4.3"]
    [cheshire "5.11.0"]
    [clj-http "3.12.3"]
+   [clojure.java-time "1.2.0"]
    [com.amazonaws/aws-java-sdk-s3 "1.12.385"]
    [com.bugsnag/bugsnag "3.6.4"]
    [com.fzakaria/slf4j-timbre "0.3.21"] ;; Intercept logging to Apache Commons Logging (introduced by AWS SDK)
