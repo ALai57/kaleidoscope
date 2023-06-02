@@ -67,10 +67,13 @@
         test-namespaces (if (empty? arguments)
                           ["kaleidoscope.*"]
                           arguments)]
-    (log/infof "Testing namespaces %s" test-namespaces)
-    (log/infof "Running tests with %s" options)
-    (log/infof "Loading test namespaces...")
+    (println "****************************************************\n")
+    (println (format "Testing namespaces %s" test-namespaces))
+    (println (format "Running tests with %s" options))
+    (println "\n****************************************************\n")
+    (println "Loading test namespaces...")
     (apply require TEST-NSES)
+    (println "\n****************************************************\n")
     (binding [*test-log-level* (:level options)]
       (log/with-min-level (:level options)
         (doseq [test-namespace test-namespaces]

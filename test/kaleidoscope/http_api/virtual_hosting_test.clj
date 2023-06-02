@@ -23,7 +23,6 @@
   (prop/for-all [request gen-net/gen-request]
     (vh/matching-url? request (-> request
                                   get-host
-                                  (str "xx")
                                   re-pattern))))
 
 
