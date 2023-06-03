@@ -4,6 +4,7 @@
             [clojure.string :as string]
             [kaleidoscope.http-api.middleware :as mw]
             [kaleidoscope.init.env :as env]
+            [kaleidoscope.utils.logging :as ul]
             [ring.adapter.jetty :as jetty]
             [signal.handler :as sig]
             [steffan-westcott.clj-otel.exporter.otlp.http.trace :as otlp-http-trace]
@@ -39,11 +40,11 @@
   [env]
   (log/merge-config!
    (cond-> {:min-level [["io.zonky*" :error]
+                        ["org.eclipse.jetty.*" :warn]
                         ["*" :info]]
             :output-fn json-log-output
             :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}
-     (disable-json-logging? env) (dissoc :output-fn))))
-
+     (disable-json-logging? env) (assoc :output-fn ul/clean-output-fn))))
 
 (defn init-otel! []
   (sdk/init-otel-sdk! "kaleidoscope"
