@@ -27,3 +27,23 @@ CREATE TABLE article_tags(
          FOREIGN KEY(tag_id)
            REFERENCES tags(id)
 );
+
+--;;
+
+-- Attach a group to an article for permissioning
+CREATE TABLE article_audiences(
+       id         UUID NOT NULL PRIMARY KEY,
+       group_id   VARCHAR NOT NULL,
+       article_id INT NOT NULL,
+       created_at TIMESTAMP,
+
+       UNIQUE(group_id, article_id),
+
+       CONSTRAINT fk_article_audiences__articles
+         FOREIGN KEY(article_id)
+           REFERENCES articles(id),
+
+       CONSTRAINT fk_article_audiences__groups
+         FOREIGN KEY(group_id)
+           REFERENCES groups(id)
+);

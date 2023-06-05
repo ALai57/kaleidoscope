@@ -1,18 +1,10 @@
 (ns kaleidoscope.api.tags-test
-  (:require [kaleidoscope.persistence.rdbms :as rdbms]
+  (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.api.tags :as tags-api]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
-            [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
-            [kaleidoscope.utils.core :as u]
             [kaleidoscope.test-main :as tm]
-            [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
-            [taoensso.timbre :as log]
-            [clojure.java.io :as io]
-            [kaleidoscope.test-utils :as tu])
-  (:import [java.util UUID]))
-
+            [taoensso.timbre :as log]))
 
 (use-fixtures :each
   (fn [f]
@@ -42,4 +34,9 @@
         (tags-api/update-tag! database {:id   id
                                         :name "Something new"})
         (is (match? [{:name "Something new"}]
-                    (tags-api/get-tags database {:id id})))))))
+                    (tags-api/get-tags database {:id id}))))
+
+      (testing "Can delete a tag"
+        (tags-api/delete-tag! database id)
+
+        (is (empty? (tags-api/get-tags database {:id id})))))))

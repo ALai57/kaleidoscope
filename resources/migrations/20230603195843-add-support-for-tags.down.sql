@@ -1,3 +1,7 @@
+DROP TABLE article_audiences;
+
+--;;
+
 DROP TABLE article_tags;
 
 --;;
