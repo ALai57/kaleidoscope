@@ -141,6 +141,7 @@
                "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
                                                                                  :sub          "my-user-id"
                                                                                  :realm_access {:roles ["andrewslai.com:admin"
+                                                                                                        "andrewslai.localhost:admin"
                                                                                                         "sahiltalkingcents.com:admin"
                                                                                                         "caheriaguilar.com:admin"
                                                                                                         "caheriaguilar.and.andrewslai.com:admin"]}}))}

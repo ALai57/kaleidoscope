@@ -9,9 +9,9 @@
 ;; - Attach a group to an article
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def get-article-audiences
-  (rdbms/make-finder :article-audiences))
+  (rdbms/make-finder :full-article-audiences))
 
-(defn -add-audiences-to-article!
+(defn- -add-audiences-to-article!
   [db article-id group-ids]
   (log/infof "Adding an audience to article %s" article-id)
   (let [now (utils/now)]
@@ -26,10 +26,10 @@
 
 (defn add-audience-to-article!
   [db article group]
-  (if (or (nil? (:hostname article))
-          (empty? (articles-api/get-articles db article)))
-    (log/warnf "Cannot add audience to article")
-    (-add-audiences-to-article! db (:id article) [(:id group)])))
+  (cond
+    (nil? (:hostname article))                      (log/warnf "Article is missing hostname %s" article)
+    (empty? (articles-api/get-articles db article)) (log/warnf "No articles matching %s" article)
+    :else                                           (-add-audiences-to-article! db (:id article) [(:id group)])))
 
 (defn delete-article-audience!
   [database audience-id]

@@ -694,6 +694,50 @@
       (is (match? {:status 401}
                   (app (mock/request :get "https://andrewslai.com/albums")))))))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Test Audiences API
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(deftest audiences-test
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)
+
+        result   (app (-> (mock/request :post "https://andrewslai.localhost/groups")
+                          (mock/header "Authorization" "Bearer user first-user")
+                          (mock/json-body {:display-name "my-display-name"})))
+        group-id (get-in result [:body 0 :id])]
+
+    (testing "No audience to start"
+      (is (match? {:status 200
+                   :body   empty?}
+                  (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
+                           (mock/header "Authorization" "Bearer x"))))))
+
+    (testing "Add an audience to an article"
+      (is (match? {:status 200
+                   :body   [{:id string-uuid?}]}
+                  (app (-> (mock/request :put "https://andrewslai.localhost/article-audiences")
+                           (mock/header "Authorization" "Bearer x")
+                           (mock/json-body {:article-id 1
+                                            :group-id   group-id}))))))
+
+    (testing "Audience exists"
+      (is (match? {:status 200
+                   :body   [{:article-id 1
+                             :hostname   "andrewslai.localhost"
+                             :group-id   group-id}]}
+                  (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
+                           (mock/header "Authorization" "Bearer x"))))))
+    )
+  )
+
+
 (comment
   (require '[clj-http.client :as http])
 

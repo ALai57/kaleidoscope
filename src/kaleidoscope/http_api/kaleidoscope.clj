@@ -9,6 +9,7 @@
    [kaleidoscope.http-api.admin :refer [admin-routes]]
    [kaleidoscope.http-api.album :refer [album-routes]]
    [kaleidoscope.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
+   [kaleidoscope.http-api.audiences :refer [audiences-routes]]
    [kaleidoscope.http-api.cache-control :as cc]
    [kaleidoscope.http-api.groups :refer [groups-routes]]
    [kaleidoscope.http-api.photo :refer [photo-routes]]
@@ -111,6 +112,7 @@
        ping-routes
        index-routes
        articles-routes
+       audiences-routes
        branches-routes
        compositions-routes
        portfolio-routes

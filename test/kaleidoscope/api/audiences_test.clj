@@ -37,9 +37,10 @@
         (is (uuid? id)))
 
       (testing "Can retrieve example-audience from the DB"
-        (is (match? [{:id id}] (audiences-api/get-article-audiences database (select-keys example-audience [:audience-name]))))
+        (is (match? [{:id       id
+                      :hostname "andrewslai.localhost"}] (audiences-api/get-article-audiences database (select-keys example-audience [:audience-name]))))
         (is (match? [{:id id}] (audiences-api/get-article-audiences database {:id id}))))
-      (audiences-api/get-article-audiences database (select-keys example-audience [:audience-name]))
+      (audiences-api/get-article-audiences database {:id id})
 
       (testing "Can delete a audience"
         (audiences-api/delete-article-audience! database id)
