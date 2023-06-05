@@ -20,8 +20,19 @@
     (testing "0 example-audiences seeded in DB"
       (is (= 0 (count (audiences-api/get-article-audiences database)))))
 
-    ;; Use article ID 1 below because it is seeded in the DB
-    (let [[{:keys [id]}] (audiences-api/add-audiences-to-article! database 1 [group-id])]
+    (testing "Fail to add audience if hostname does not match article hostname"
+      (is (nil? (audiences-api/add-audience-to-article! database
+                                                        {:id       1
+                                                         :hostname "does-not-match"}
+                                                        {:id group-id})))
+      (is (empty? (audiences-api/get-article-audiences database {}))))
+
+    ;; Use article ID 1 below because it is seeded in the DB with hostname
+    ;; `andrewslai.localhost`
+    (let [[{:keys [id]}] (audiences-api/add-audience-to-article! database
+                                                                 {:id       1
+                                                                  :hostname "andrewslai.localhost"}
+                                                                 {:id group-id})]
       (testing "Add the example-audience"
         (is (uuid? id)))
 

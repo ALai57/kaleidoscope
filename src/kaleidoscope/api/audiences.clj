@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.audiences
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
+            [kaleidoscope.api.articles :as articles-api]
             [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -10,7 +11,7 @@
 (def get-article-audiences
   (rdbms/make-finder :article-audiences))
 
-(defn add-audiences-to-article!
+(defn -add-audiences-to-article!
   [db article-id group-ids]
   (log/infof "Adding an audience to article %s" article-id)
   (let [now (utils/now)]
@@ -22,6 +23,13 @@
                                          :article-id article-id
                                          :created-at now})
                    :ex-subtype :UnableToAddArticleAudience)))
+
+(defn add-audience-to-article!
+  [db article group]
+  (if (or (nil? (:hostname article))
+          (empty? (articles-api/get-articles db article)))
+    (log/warnf "Cannot add audience to article")
+    (-add-audiences-to-article! db (:id article) [(:id group)])))
 
 (defn delete-article-audience!
   [database audience-id]
