@@ -65,7 +65,7 @@
   [env]
   (let [system-components (env/start-system! env)
         port              5000]
-    (log/infof "Hello! Starting andrewslai on port %s" port)
+    (log/infof "Hello! Starting kaleidoscope on port %s" port)
     (initialize-logging! env)
     (init-otel!)
     (-> system-components
