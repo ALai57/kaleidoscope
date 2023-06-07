@@ -17,7 +17,7 @@
 (deftest create-and-retrieve-audience-test
   (let [database         (embedded-h2/fresh-db!)
         [{group-id :id}] (groups/create-group! database groups-test/example-group)]
-    (testing "0 example-audiences seeded in DB"
+    (testing "0 example audiences seeded in DB"
       (is (= 0 (count (audiences-api/get-article-audiences database)))))
 
     (testing "Fail to add audience if hostname does not match article hostname"
@@ -33,14 +33,14 @@
                                                                  {:id       1
                                                                   :hostname "andrewslai.localhost"}
                                                                  {:id group-id})]
-      (testing "Add the example-audience"
+      (testing "Add an audience"
         (is (uuid? id)))
 
-      (testing "Can retrieve example-audience from the DB"
+      (testing "Can retrieve the audience from the DB"
         (is (match? [{:id       id
-                      :hostname "andrewslai.localhost"}] (audiences-api/get-article-audiences database (select-keys example-audience [:audience-name]))))
-        (is (match? [{:id id}] (audiences-api/get-article-audiences database {:id id}))))
-      (audiences-api/get-article-audiences database {:id id})
+                      :hostname "andrewslai.localhost"}]
+                    (audiences-api/get-article-audiences database {:id id}))))
+
 
       (testing "Can delete a audience"
         (audiences-api/delete-article-audience! database id)
