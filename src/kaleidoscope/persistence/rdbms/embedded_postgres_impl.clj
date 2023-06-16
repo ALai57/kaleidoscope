@@ -26,7 +26,6 @@
   (partial edb-utils/fresh-db! start-db!))
 
 (comment
-  (require '[next.jdbc :as next])
 
   (def db
     (log/with-min-level :warn

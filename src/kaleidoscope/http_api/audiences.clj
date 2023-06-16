@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.audiences
-  (:require [clojure.spec.alpha :as s]
-            [compojure.api.sweet :refer [context GET PUT DELETE]]
+  (:require [compojure.api.sweet :refer [context GET PUT DELETE]]
             [kaleidoscope.api.audiences :as audiences-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [ring.util.http-response :refer [ok not-found]]))

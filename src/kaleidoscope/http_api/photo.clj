@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.photo
   (:require
-   [clojure.java.io :as io]
    [clojure.string :as str]
    [compojure.api.sweet :refer [context GET POST]]
    [compojure.api.middleware :as cmw]
@@ -148,11 +147,5 @@
 
   ;; TODO: Dsitributed tracing FE->BE
   ;; TODO: K6 performance testing
-
-  (def thebytes
-    (slurp ""))
-
-  (io/copy (io/input-stream (b64/decode thebytes))
-           (io/file "/home/andrew/dev/example-image-out.png"))
 
   )

@@ -187,7 +187,7 @@
 (defn compose-xforms
   [xforms]
   (reduce (fn [fs {:keys [name log-diffs? handler] :as xform}]
-            (let [f (if log-diffs?
+            (let [f (when log-diffs?
                       (log-transformation-diffs xform))]
               (comp f fs)))
           identity
@@ -246,14 +246,4 @@
 
 
 (comment
-  {:name    :enforce-access-rules
-   :handler (fn [request]
-              (ar/wrap-access-rules
-               request
-               {:rules          access-rules
-                :reject-handler (fn [& args]
-                                  (-> "Not authorized"
-                                      (unauthorized)
-                                      (resp/content-type "application/text")))}))}
-
   (ring-request-pipeline (mock/request :get "/endpoint")))

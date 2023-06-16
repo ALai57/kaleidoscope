@@ -30,5 +30,6 @@
   (def notifier
     (make-bugsnag-client {:api-key "API-KEY-HERE"}))
 
+  #_:clj-kondo/ignore
   (report! notifier (Exception. "Exception!"))
   )
