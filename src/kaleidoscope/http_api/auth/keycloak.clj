@@ -58,8 +58,7 @@
   ;; information. This will be used to authenticate. Use the
   ;; `Keycloak/getInstance` builder to create a new Keycloak client.
 
-
-  ;; Setting up roles in Keycloak
+;; Setting up roles in Keycloak
   ;;
   ;; Then, on the `Role Mapping` screen, assign roles to that user.  That user
   ;; will need roles from the `relam-management` client to be able to view and
@@ -84,6 +83,7 @@
                           :headers {"Authorization" (format "Bearer %s" (get-token kc-instance))}
                           :as      :json})))
 
+  #_:clj-kondo/ignore
   (defn create-user!
     [kc-instance user]
     (:body (http/request {:method  :post
@@ -125,20 +125,7 @@
     [user]
     (:id user))
 
-  (defn username
-    [user]
-    (:username user))
-
-  (defn first-name
-    [user]
-    (:firstName user))
-
-  (defn last-name
-    [user]
-    (:lastName user))
-
-  (map (juxt id email verified-user?) x)
-  )
+  (map (juxt id email verified-user?) x))
 
 (comment
   (def token

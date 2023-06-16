@@ -609,42 +609,42 @@
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
-                 tu/wrap-clojure-response)]
-    (let [[photo-upload-result] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
-          album-create-result   (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
-                                                (mock/json-body example-album))))
-          photo-id              (:photo-id photo-upload-result)
-          album-id              (:id album-create-result)]
+                 tu/wrap-clojure-response)
 
-      (testing "Album is empty to start"
-        (is (match? {:status 200 :body []}
-                    (app (-> (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id)))))))
+        ;; Test logic
+        [photo-upload-result] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
+        album-create-result   (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
+                                              (mock/json-body example-album))))
+        photo-id              (:photo-id photo-upload-result)
+        album-id              (:id album-create-result)]
 
-      (let [result           (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-id))
-                                      (mock/json-body [{:id photo-id}])))
-            album-content-id (get-in result [:body 0 :id])]
-        (testing "Successfully added photo to album"
-          (is (match? {:status 200 :body [{:id string-uuid?}]}
-                      result))
-          (is (match? {:status 200 :body [{:album-id         album-id
-                                           :photo-id         photo-id
-                                           :album-content-id album-content-id}]}
-                      (app (-> (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id))))))
-          (is (match? {:status 200 :body {:album-id         album-id
-                                          :photo-id         photo-id
-                                          :album-content-id album-content-id}}
-                      (app (-> (mock/request :get (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id)))))))
+    (testing "Album is empty to start"
+      (is (match? {:status 200 :body []}
+                  (app (-> (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id)))))))
 
-        (let [delete-result (app (mock/request :delete (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id)))]
-          (testing "Successfully removed photo from album"
-            (is (match? {:status 204}
-                        delete-result))
-            (is (match? {:status 200 :body empty?}
-                        (app (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id)))))
-            (is (match? {:status 404}
-                        (app (mock/request :get (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id))))))
-          )
-        ))))
+    (let [result           (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-id))
+                                    (mock/json-body [{:id photo-id}])))
+          album-content-id (get-in result [:body 0 :id])]
+      (testing "Successfully added photo to album"
+        (is (match? {:status 200 :body [{:id string-uuid?}]}
+                    result))
+        (is (match? {:status 200 :body [{:album-id         album-id
+                                         :photo-id         photo-id
+                                         :album-content-id album-content-id}]}
+                    (app (-> (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id))))))
+        (is (match? {:status 200 :body {:album-id         album-id
+                                        :photo-id         photo-id
+                                        :album-content-id album-content-id}}
+                    (app (-> (mock/request :get (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id)))))))
+
+      (let [delete-result (app (mock/request :delete (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id)))]
+        (testing "Successfully removed photo from album"
+          (is (match? {:status 204}
+                      delete-result))
+          (is (match? {:status 200 :body empty?}
+                      (app (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id)))))
+          (is (match? {:status 404}
+                      (app (mock/request :get (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id))))))))))
 
 (deftest contents-retrieval-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -654,34 +654,35 @@
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
-                 tu/wrap-clojure-response)]
+                 tu/wrap-clojure-response)
+
+        ;; Test logic
+        [{photo-1-id :photo-id}] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
+        [{photo-2-id :photo-id}] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
+        {album-1-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
+                                                 (mock/json-body example-album))))
+        {album-2-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
+                                                 (mock/json-body example-album-2))))]
 
     ;; Add a photo to two separate albums
-    (let [[{photo-1-id :photo-id}] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
-          [{photo-2-id :photo-id}] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
-          {album-1-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
-                                                   (mock/json-body example-album))))
-          {album-2-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
-                                                   (mock/json-body example-album-2))))]
+    (testing "Contents are empty to start"
+      (is (match? {:status 200 :body []}
+                  (app (-> (mock/request :get "https://andrewslai.com/albums/-/contents"))))))
 
-      (testing "Contents are empty to start"
-        (is (match? {:status 200 :body []}
-                    (app (-> (mock/request :get "https://andrewslai.com/albums/-/contents"))))))
+    (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-1-id))
+             (mock/json-body [{:id photo-1-id}
+                              {:id photo-2-id}])))
+    (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-2-id))
+             (mock/json-body [{:id photo-1-id}])))
 
-      (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-1-id))
-               (mock/json-body [{:id photo-1-id}
-                                {:id photo-2-id}])))
-      (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-2-id))
-               (mock/json-body [{:id photo-1-id}])))
-
-      (testing "Contents retrieved from multiple albums"
-        (is (match? {:status 200 :body [{:album-name (:album-name example-album)
-                                         :photo-id   photo-1-id}
-                                        {:album-name (:album-name example-album)
-                                         :photo-id   photo-2-id}
-                                        {:album-name (:album-name example-album-2)
-                                         :photo-id   photo-1-id}]}
-                    (app (-> (mock/request :get "https://andrewslai.com/albums/-/contents"))))) ))))
+    (testing "Contents retrieved from multiple albums"
+      (is (match? {:status 200 :body [{:album-name (:album-name example-album)
+                                       :photo-id   photo-1-id}
+                                      {:album-name (:album-name example-album)
+                                       :photo-id   photo-2-id}
+                                      {:album-name (:album-name example-album-2)
+                                       :photo-id   photo-1-id}]}
+                  (app (-> (mock/request :get "https://andrewslai.com/albums/-/contents"))))))))
 
 (deftest albums-auth-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
