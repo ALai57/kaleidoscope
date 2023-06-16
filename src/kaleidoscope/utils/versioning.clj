@@ -1,25 +1,27 @@
 (ns kaleidoscope.utils.versioning
-  (:require [clojure.java.shell :refer [sh]]
-            [clojure.string :refer [trim]]))
+  (:require [clojure.java.shell :as shell]
+            [clojure.java.io :as io]
+            [clojure.string :as string]
+            [clojure.walk :as walk]))
 
 (def pom-path
   "META-INF/maven/org.clojars.alai57/kaleidoscope/pom.properties")
 
 (defn parse-pom
   [pom-path]
-  (some->> (clojure.java.io/resource pom-path)
+  (some->> (io/resource pom-path)
            slurp
-           (#(clojure.string/split % #"\n|="))
+           (#(string/split % #"\n|="))
            (partition 2)
            (map vec)
            (into {})
-           clojure.walk/keywordize-keys))
+           walk/keywordize-keys))
 
 (defn short-sha
   []
-  (-> (sh "git" "rev-parse" "--short" "HEAD")
+  (-> (shell/sh "git" "rev-parse" "--short" "HEAD")
       :out
-      trim))
+      string/trim))
 
 (defn get-version-details []
   (or (parse-pom pom-path)

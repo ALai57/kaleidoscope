@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.auth.keycloak
   (:require [clj-http.client :as http]
+            [clojure.pprint :as pprint]
             [kaleidoscope.http-api.auth.jwt :as jwt]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log])
@@ -40,7 +41,7 @@
           (log/infof "Validating jwt token:\n %s" (-> {:header     (jwt/header token)
                                                        :body       (jwt/body token)
                                                        :request-id request-id}
-                                                      clojure.pprint/pprint
+                                                      pprint/pprint
                                                       with-out-str))
           (when (validate-token keycloak token)
             (jwt/body token))
@@ -153,19 +154,5 @@
                                  :confidential-port 0})
    {}
    token)
-
-  (.getRoles (get (.getResourceAccess verified-token) "account"))
-  (.getRealmAccess verified-token)
-  (.isActive verified-token)
-  (.isExpired verified-token)
-
-  (.isPublicClient adapter-config) ;; => false
-  (.getCredentials adapter-config) ;; => {:secret "18c28e7a-3eb6-4726-b8c7-9c5d02f6bc88"}
-  (.getRealm adapter-config) ;; => "test"
-  (.getSslRequired adapter-config) ;; => "external"
-  (.getAuthServerUrl adapter-config) ;; => "http://172.17.0.1:8080/auth/"
-  (.getResource adapter-config) ;; => "test-login-java"
-  (.getConfidentialPort adapter-config) ;; => 0
-  (type adapter-config)
 
   )

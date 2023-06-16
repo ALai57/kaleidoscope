@@ -1,7 +1,6 @@
 (ns kaleidoscope.api.tags
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
-            [next.jdbc :as next]
             [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

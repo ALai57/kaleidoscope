@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.photo
   (:require
-   [cheshire.core :as json]
    [clojure.java.io :as io]
    [clojure.string :as str]
    [compojure.api.sweet :refer [context GET POST]]
@@ -9,9 +8,8 @@
    [image-resizer.format :as rf]
    [kaleidoscope.api.albums :as albums-api]
    [kaleidoscope.http-api.http-utils :as http-utils]
-   [kaleidoscope.persistence.filesystem :as fs]
    [kaleidoscope.utils.core :as u]
-   [ring.util.http-response :refer [created multi-status not-found ok]]
+   [ring.util.http-response :refer [created not-found ok]]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
@@ -151,10 +149,10 @@
   ;; TODO: Dsitributed tracing FE->BE
   ;; TODO: K6 performance testing
 
-  (slurp xxx)
+  (def thebytes
+    (slurp ""))
 
-  (io/copy (io/input-stream (b64/decode (slurp xxx)))
+  (io/copy (io/input-stream (b64/decode thebytes))
            (io/file "/home/andrew/dev/example-image-out.png"))
 
-  (img/scale-image-to-dimension-limit (io/input-stream xxx) 100 100 "jpeg")
   )

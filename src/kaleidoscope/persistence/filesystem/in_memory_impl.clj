@@ -1,7 +1,6 @@
 (ns kaleidoscope.persistence.filesystem.in-memory-impl
   (:require [kaleidoscope.persistence.filesystem :as fs]
             [clojure.string :as string]
-            [ring.util.response :as ring-response]
             [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

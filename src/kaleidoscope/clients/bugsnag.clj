@@ -28,7 +28,7 @@
 
 (comment
   (def notifier
-    (make-bugsnag-notifier {:api-key "API-KEY-HERE"}))
+    (make-bugsnag-client {:api-key "API-KEY-HERE"}))
 
-  (notify! notifier (Exception. "Exception!"))
+  (report! notifier (Exception. "Exception!"))
   )

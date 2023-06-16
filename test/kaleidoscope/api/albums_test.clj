@@ -1,6 +1,5 @@
 (ns kaleidoscope.api.albums-test
-  (:require [kaleidoscope.persistence.rdbms :as rdbms]
-            [kaleidoscope.api.albums :as albums-api]
+  (:require [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
             [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
@@ -10,8 +9,7 @@
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]
             [clojure.java.io :as io]
-            [kaleidoscope.test-utils :as tu])
-  (:import [java.util UUID]))
+            [kaleidoscope.test-utils :as tu]))
 
 (use-fixtures :each
   (fn [f]

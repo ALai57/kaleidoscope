@@ -8,7 +8,6 @@
    [kaleidoscope.models.s3.put-response :as s3.put]
    [kaleidoscope.persistence.filesystem :as fs]
    [ring.util.mime-type :as mt]
-   [ring.util.response :as ring-response]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
@@ -125,13 +124,13 @@
          :storage-root   bucket))
 
 (comment ;; Playing with S3
-
+  (require '[clojure.java.io :as io])
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;  PUT file
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (def b
-    (-> (clojure.java.io/resource "public/images/lock.svg")
-        clojure.java.io/input-stream
+    (-> (io/resource "public/images/lock.svg")
+        io/input-stream
         slurp
         (.getBytes)))
 
@@ -143,11 +142,11 @@
                 :something      "some"})
 
   (def c
-    (clojure.java.io/file "resources/public/images/lock.svg"))
+    (io/file "resources/public/images/lock.svg"))
 
   (fs/put-file (map->S3 {:bucket "andrewslai"})
                "lock.svg"
-               (clojure.java.io/input-stream c)
+               (io/input-stream c)
                {:content-type   "image/svg"
                 :content-length (.length c)
                 :something      "some"})
@@ -218,20 +217,8 @@
   ;;  GET file
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (fs/get-file (map->S3 {:bucket "andrewslai-wedding"})
-               "index.html")
-
-  ;; => #object[com.amazonaws.services.s3.model.S3ObjectInputStream 0x2fdbe8b5 "com.amazonaws.services.s3.model.S3ObjectInputStream@2fdbe8b5"]
-  (s3/get-object CustomAWSCredentialsProviderChain
-                 {:bucket-name "andrewslai-wedding"
-                  :key         "index.html"})
-
-  (s3/get-object CustomAWSCredentialsProviderChain
-                 {:bucket-name                   "andrewslai-wedding"
-                  :key                           "index.html"
-                  :sdk-client-execution-timeout  10000
-                  :nonmatching-e-tag-constraints ["8ac49aade040081e110a1137cc9f09da"]
-                  })
-
+               "index.html"
+               {})
 
   (fs/get (map->S3 {:bucket "andrewslai-wedding"})
           "index.html"

@@ -1,10 +1,8 @@
 (ns kaleidoscope.persistence.rdbms.embedded-postgres-impl
   (:require [kaleidoscope.persistence.rdbms.embedded-db-utils :as edb-utils]
-            [next.jdbc.connection :as connection]
             [next.jdbc :as next]
             [taoensso.timbre :as log])
-  (:import io.zonky.test.db.postgres.embedded.EmbeddedPostgres)
-  (:import (com.zaxxer.hikari HikariDataSource)))
+  (:import io.zonky.test.db.postgres.embedded.EmbeddedPostgres))
 
 ;; Disable Zonky logs because they're so verbose
 (log/merge-config! {:min-level [["io.zonky*" :error]

@@ -1,9 +1,7 @@
 (ns kaleidoscope.http-api.auth.buddy-backends-test
   (:require [kaleidoscope.http-api.auth.buddy-backends :as bb]
-            [buddy.auth.backends.token :as token]
             [buddy.auth.middleware :as bmw]
             [buddy.auth.protocols :as proto]
-            [clj-http.client :as http]
             [clojure.test :refer :all]
             [matcher-combinators.test :refer [match?]]
             [ring.mock.request :as mock]))

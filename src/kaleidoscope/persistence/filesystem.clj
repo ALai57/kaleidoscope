@@ -100,6 +100,6 @@
 
 (comment
   (does-not-exist? does-not-exist-response)
-  (file-metadata (object {:FOO "Bar"}))
+  (object-metadata (object {:FOO "Bar"}))
 
   )

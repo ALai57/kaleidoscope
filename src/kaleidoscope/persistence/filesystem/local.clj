@@ -77,9 +77,6 @@
   (def fs
     (map->LocalFS {:root ROOT}))
 
-  (def x
-    (fs/ls fs "/resources/public" {}))
-
   (.listFiles (io/file (format "%s/%s" ROOT "resources/public/")))
 
   (fs/get fs "src/")

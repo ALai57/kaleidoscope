@@ -1,3 +1,13 @@
-{:linters {:unused-binding {:level :off}}
+{:linters {:unused-binding    {:level :off}
+           :refer-all         {:exclude [clojure.test]}
+           :invalid-arity     {:exclude [(biiwide.sandboxica.alpha/just)]}
+
+           :unresolved-var    {:exclude [amazonica.aws.s3
+                                         honeysql.core/format]}
+           :unresolved-symbol {:exclude [(compojure.api.sweet/context)
+                                         (compojure.api.sweet/GET)
+                                         (biiwide.sandboxica.alpha/just)
+                                         (catch)
+                                         ]}}
  :lint-as {clojure.test.check.clojure-test/defspec clojure.test/deftest
            compojure.api.sweet/defroutes           clojure.core/def}}

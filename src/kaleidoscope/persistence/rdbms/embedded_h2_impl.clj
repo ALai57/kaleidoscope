@@ -18,13 +18,15 @@
   (def ds
     (fresh-db!))
 
+  (require '[next.jdbc :as next])
+
   ;; Just checking to make sure we can connect to the DB and perform the
   ;; migrations
-  (jdbc/execute! ds ["select * from information_schema.tables"])
-  (jdbc/execute! ds ["select * from schema_migrations"])
+  (next/execute! ds ["select * from information_schema.tables"])
+  (next/execute! ds ["select * from schema_migrations"])
 
-  (jdbc/execute! ds ["CREATE TABLE testing (id varchar)"])
-  (jdbc/execute! ds ["INSERT INTO testing VALUES ('hello')"])
-  (jdbc/execute! ds ["select * from testing"])
+  (next/execute! ds ["CREATE TABLE testing (id varchar)"])
+  (next/execute! ds ["INSERT INTO testing VALUES ('hello')"])
+  (next/execute! ds ["select * from testing"])
 
   )

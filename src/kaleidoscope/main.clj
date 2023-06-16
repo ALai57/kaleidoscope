@@ -2,6 +2,7 @@
   (:gen-class)
   (:require [cheshire.core :as json]
             [clojure.string :as string]
+            [clojure.pprint :as pprint]
             [kaleidoscope.http-api.middleware :as mw]
             [kaleidoscope.init.env :as env]
             [kaleidoscope.utils.logging :as ul]
@@ -95,14 +96,13 @@
     (->> {:a "Lots of things"
           :c {:d :foo :e "bar"}
           :f {:a "b" :c {:d :foo :e "bar"}}}
-         clojure.pprint/pprint
+         pprint/pprint
          with-out-str))
 
   ;; Log using JSON output formatting
   (log/with-merged-config
     {:output-fn json-log-output}
-    (log/info example-json-string))
-  )
+    (log/info example-json-string)))
 
 (comment
   (def example-system

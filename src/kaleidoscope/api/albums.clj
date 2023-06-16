@@ -1,6 +1,5 @@
 (ns kaleidoscope.api.albums
   (:require [clojure.spec.alpha :as s]
-            [clojure.string :as string]
             [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
@@ -68,12 +67,6 @@
                                                  :modified-at now-time)
                           :ex-subtype     :UnableToCreatePhotoVersion))))
 
-(comment
-  (log/infof "Creating file `%s` with metadata:\n %s" images-path (-> metadata
-                                                                      clojure.pprint/pprint
-                                                                      with-out-str))
-  )
-
 (defn create-photo-version-2!
   [database
    {:keys [storage-root storage-driver photos-folder] :as static-content-adapter
@@ -103,8 +96,7 @@
                  path
                  (:file-input-stream file)
                  metadata)
-    db-result
-    ))
+    db-result))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums

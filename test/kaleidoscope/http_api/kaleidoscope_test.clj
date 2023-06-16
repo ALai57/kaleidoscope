@@ -76,10 +76,11 @@
                      env/prepare-kaleidoscope
                      kaleidoscope/kaleidoscope-app
                      tu/wrap-clojure-response)]
+
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    map?}
-                (handler (mock/request :get "/swagger.json"))))))
+                (handler  (mock/request :get "/swagger.json"))))))
 
 (deftest admin-routes-test
   (testing "Authenticated and Authorized happy path"
@@ -109,15 +110,15 @@
 
 (deftest access-rule-configuration-test
   (are [description expected request]
-    (testing description
-      (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
-                          "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
-                          "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
-                          "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
-                         (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
-                         env/prepare-kaleidoscope
-                         kaleidoscope/kaleidoscope-app)]
-        (is (match? expected (handler request)))))
+       (testing description
+         (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                             "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                             "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                             "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                            (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                            env/prepare-kaleidoscope
+                            kaleidoscope/kaleidoscope-app)]
+           (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"
     {:status 200} (mock/request :get "https://andrewslai.com/ping")
@@ -709,51 +710,47 @@
                  tu/wrap-clojure-response)
 
         result   (app (-> (mock/request :post "https://andrewslai.localhost/groups")
-                          (mock/header "Authorization" "Bearer user first-user")
+                          (mock/header "Authorization" "Bearer x")
                           (mock/json-body {:display-name "my-display-name"})))
         group-id (get-in result [:body 0 :id])]
 
     (testing "No audience to start"
-      (is (match? {:status 200
-                   :body   empty?}
+      (is (match? {:status 404}
                   (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
                            (mock/header "Authorization" "Bearer x"))))))
 
-    (testing "Add an audience to an article"
-      (is (match? {:status 200
-                   :body   [{:id string-uuid?}]}
-                  (app (-> (mock/request :put "https://andrewslai.localhost/article-audiences")
-                           (mock/header "Authorization" "Bearer x")
-                           (mock/json-body {:article-id 1
-                                            :group-id   group-id}))))))
+    (let [add-response (app (-> (mock/request :put "https://andrewslai.localhost/article-audiences")
+                                (mock/header "Authorization" "Bearer x")
+                                (mock/json-body {:article-id 1
+                                                 :group-id   group-id})))]
+      (testing "Add an audience to an article"
+        (is (match? {:status 200
+                     :body   [{:id string-uuid?}]}
+                    add-response)))
 
-    (testing "Audience exists"
-      (is (match? {:status 200
-                   :body   [{:article-id 1
-                             :hostname   "andrewslai.localhost"
-                             :group-id   group-id}]}
-                  (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
-                           (mock/header "Authorization" "Bearer x"))))))
-    )
-  )
+      (testing "Audience exists"
+        (is (match? {:status 200
+                     :body   [{:article-id 1
+                               :hostname   "andrewslai.localhost"
+                               :group-id   group-id}]}
+                    (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
+                             (mock/header "Authorization" "Bearer x"))))))
+
+      (testing "Delete the audience"
+        (is (match? {:status 200
+                     :body   []}
+                    (app (-> (mock/request :delete (format "https://andrewslai.localhost/article-audiences/%s"
+                                                           (get-in add-response [:body 0 :id])))
+                             (mock/header "Authorization" "Bearer x")))))
+
+        (is (match? {:status 404}
+                    (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
+                             (mock/header "Authorization" "Bearer x")))))
+        ))))
 
 
 (comment
   (require '[clj-http.client :as http])
-
-  (println (:body (tu/assemble-multipart "OZqYohSB93zIWImnnfy2ekkaK8I_BDbVmtiTi"
-                                         [{:part-name    "file-contents"
-                                           :file-name    "lock.svg"
-                                           :content-type "image/svg+xml"
-                                           :content      (-> "public/images/lock.svg"
-                                                             clojure.java.io/resource
-                                                             slurp)}
-                                          {:part-name    "file-contents"
-                                           :file-name    "lock.svg"
-                                           :content-type "image/svg+xml"
-                                           :content      (-> "public/images/lock.svg"
-                                                             clojure.java.io/resource
-                                                             slurp)}])))
 
   ;; 2021-09-04: This is working - need to make sure the actual index.html can
   ;; make the same request

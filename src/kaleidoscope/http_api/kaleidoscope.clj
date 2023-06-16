@@ -1,7 +1,5 @@
 (ns kaleidoscope.http-api.kaleidoscope
   (:require
-   [camel-snake-kebab.core :as csk]
-   [camel-snake-kebab.extras :as cske]
    [clojure.stacktrace :as stacktrace]
    [clojure.string :as str]
    [compojure.api.sweet :refer [api context GET]]
@@ -10,15 +8,12 @@
    [kaleidoscope.http-api.album :refer [album-routes]]
    [kaleidoscope.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
    [kaleidoscope.http-api.audiences :refer [audiences-routes]]
-   [kaleidoscope.http-api.cache-control :as cc]
    [kaleidoscope.http-api.groups :refer [groups-routes]]
    [kaleidoscope.http-api.photo :refer [photo-routes]]
    [kaleidoscope.http-api.ping :refer [ping-routes]]
    [kaleidoscope.http-api.portfolio :refer [portfolio-routes]]
    [kaleidoscope.http-api.swagger :refer [swagger-ui-routes]]
    [kaleidoscope.http-api.http-utils :as http-utils]
-   [kaleidoscope.persistence.filesystem :as fs]
-   [ring.util.http-response :refer [not-found not-modified]]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 

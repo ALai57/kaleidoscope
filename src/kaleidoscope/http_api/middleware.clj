@@ -2,16 +2,15 @@
   (:require [buddy.auth.accessrules :as ar]
             [buddy.auth.middleware :as ba]
             [clojure.string :as string]
+            [clojure.pprint :as pprint]
             [kaleidoscope.http-api.cache-control :as cc]
             [lambdaisland.deep-diff2 :as ddiff]
             [kaleidoscope.clients.session-tracker :as st]
             [ring.middleware.content-type :refer [wrap-content-type]]
-            [ring.middleware.file :refer [wrap-file]]
             [ring.middleware.gzip :refer [wrap-gzip]]
             [ring.middleware.json :as json-mw :refer [wrap-json-response]]
             [ring.middleware.multipart-params :as mp :refer [wrap-multipart-params]]
             [ring.middleware.params :as params :refer [wrap-params]]
-            [ring.middleware.resource :refer [wrap-resource]]
             [ring.util.http-response :refer [unauthorized]]
             [ring.util.response :as resp]
             [steffan-westcott.clj-otel.api.trace.span :as span]
@@ -76,7 +75,7 @@
                                                 ;;:multipart-params
                                                 ;;:request-id
                                                 ])
-                                  clojure.pprint/pprint
+                                  pprint/pprint
                                   with-out-str))
                    request)))))
 
