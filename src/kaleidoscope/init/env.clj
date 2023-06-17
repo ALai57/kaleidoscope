@@ -13,7 +13,7 @@
             [kaleidoscope.persistence.filesystem.s3-impl :as s3-storage]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
-            [kaleidoscope.test-utils :as tu]
+            [kaleidoscope.http-api.auth.access-control :as ac]
             [kaleidoscope.utils.versioning :as vu]
             [malli.core :as m]
             [malli.dev.pretty :as pretty]
@@ -22,8 +22,7 @@
             [next.jdbc :as next]
             [next.jdbc.connection :as connection]
             [taoensso.timbre :as log])
-  (:import (com.zaxxer.hikari HikariDataSource))
-  )
+  (:import (com.zaxxer.hikari HikariDataSource)))
 
 (def domains
   "All the domains that the kaleidoscope application serves."
@@ -150,7 +149,7 @@
 (def kaleidoscope-authorization-boot-instructions
   {:name      :kaleidoscope-authorization
    :path      "KALEIDOSCOPE_AUTHORIZATION_TYPE"
-   :launchers {"public-access"           (fn [_env] tu/public-access)
+   :launchers {"public-access"           (fn [_env] ac/public-access)
                "use-access-control-list" (fn [_env] kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST)}
    :default   "use-access-control-list"})
 

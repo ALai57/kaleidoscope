@@ -77,7 +77,7 @@ docker run -d --rm --network host --env-file=.env.local -p 5000:5000 kaleidoscop
 There is a template for what the `.env.local` in `env.local.example`
 
 ```bash
-KALEIDOSCOPE_AUTH_TYPE=none KALEIDOSCOPE_DB_TYPE=embedded-h2 KALEIDOSCOPE_STATIC_CONTENT_TYPE=local KALEIDOSCOPE_STATIC_CONTENT_FOLDER='../andrewslai-frontend/resources/public' lein run
+KALEIDOSCOPE_AUTH_TYPE=none KALEIDOSCOPE_DB_TYPE=embedded-h2 KALEIDOSCOPE_STATIC_CONTENT_TYPE=local KALEIDOSCOPE_STATIC_CONTENT_FOLDER='../kaleidoscope-ui/resources/public' lein run
 
 ```
 

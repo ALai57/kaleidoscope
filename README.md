@@ -122,10 +122,20 @@ docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope
 
 To serve a local copy of the Andrewslai frontend, mount a volume to the Docker
 container.
+
+Linux version
 ``` bash
 docker run --env-file=.env.docker.local \
             -p 5000:5000 \
-            -v /Users/alai/spl/andrewslai-frontend/resources/public:/andrewslai-frontend/resources/public \
+            -v /home/andrew/dev/kaleidoscope-ui/resources/public:/kaleidoscope-ui/resources/public \
+            kaleidoscope
+```
+
+Mac version
+``` bash
+docker run --env-file=.env.docker.local \
+            -p 5000:5000 \
+            -v /Users/alai/spl/kaleidoscope-ui/resources/public:/kaleidoscope-ui/resources/public \
             kaleidoscope
 ```
 
