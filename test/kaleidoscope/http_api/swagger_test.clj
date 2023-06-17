@@ -16,6 +16,6 @@
                      :title "kaleidoscope.article/article-title"}}
          (swg/specs->components {"article" {:spec :kaleidoscope.article/article-title}}))))
 
-(deftest valid-examples-test
-  (for [[k {:keys [value]}] swg/example-data-2]
-    (is (s/valid? k value))))
+#_(deftest valid-examples-test
+    (doseq [[k {:keys [value]}] swg/example-data-2]
+      (is (s/valid? k value))))

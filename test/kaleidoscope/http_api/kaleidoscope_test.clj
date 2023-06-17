@@ -696,7 +696,6 @@
       (is (match? {:status 401}
                   (app (mock/request :get "https://andrewslai.com/albums")))))))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Audiences API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -746,9 +745,7 @@
 
         (is (match? {:status 404}
                     (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
-                             (mock/header "Authorization" "Bearer x")))))
-        ))))
-
+                             (mock/header "Authorization" "Bearer x")))))))))
 
 (comment
   (require '[clj-http.client :as http])
