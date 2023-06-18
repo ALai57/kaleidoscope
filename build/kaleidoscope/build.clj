@@ -53,11 +53,14 @@
 
 (def PWD (System/getProperty "user.dir"))
 
+(defn success? [{:keys [exit] :as result}]
+  (zero? exit))
+
 (defn release [_]
   (uberjar nil)
-  (shell/sh (format "%s/bin/docker-login" PWD))
-  (shell/sh (format "%s/bin/docker-build" PWD))
-  (shell/sh (format "%s/bin/docker-push" PWD)))
+  (and (success? (shell/sh (format "%s/bin/docker-login" PWD)))
+       (success? (shell/sh (format "%s/bin/docker-build" PWD)))
+       (success? (shell/sh (format "%s/bin/docker-push" PWD)))))
 
 (comment
   (uberjar nil)
