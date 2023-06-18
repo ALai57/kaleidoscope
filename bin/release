@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+echo "Checking that all code is committed" && \
+clojure -X:build kaleidoscope.build/assert-committed && \
+    echo "Building Uberjar"      && ./uberjar && \
+    echo "Building Docker Image" && ./docker-build && \
+    echo "Pushing to ECR"        && ./docker-push

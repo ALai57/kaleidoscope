@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+docker tag kaleidoscope:latest 758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_ecr
+docker push 758589815425.dkr.ecr.us-east-1.amazonaws.com/kaleidoscope_ecr

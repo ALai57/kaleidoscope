@@ -57,6 +57,8 @@
            ;; https://github.com/lambdaisland/kaocha
            :test-runner {:main-opts ["-m" "kaocha.runner"]}
 
+           :run   {:main-opts ["-m" "kaleidoscope.main"]}
+
            :build {:extra-paths ["build"]
                    :deps        {io.github.clojure/tools.build {:mvn/version "0.9.4"}}
                    :ns-default  kaleidoscope.build}}}
