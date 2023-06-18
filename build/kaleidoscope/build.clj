@@ -44,11 +44,20 @@
                   :class-dir    CLASS-DIR}))
 
 (defn uberjar [_]
+  (assert-committed nil)
   (compile nil)
   (b/uber {:class-dir CLASS-DIR
            :uber-file UBER-FILE
            :basis     BASIS
            :main      MAIN}))
+
+(def PWD (System/getProperty "user.dir"))
+
+(defn release [_]
+  (uberjar nil)
+  (shell/sh (format "%s/bin/docker-login" PWD))
+  (shell/sh (format "%s/bin/docker-build" PWD))
+  (shell/sh (format "%s/bin/docker-push" PWD)))
 
 (comment
   (uberjar nil)
