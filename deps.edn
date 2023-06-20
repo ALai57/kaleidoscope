@@ -31,7 +31,7 @@
            metosin/malli                                                {:mvn/version "0.10.0"}
            metosin/spec-tools                                           {:mvn/version "0.10.3"}
            migratus/migratus                                            {:mvn/version "1.4.9"}
-           org.clojure/clojure                                          {:mvn/version "1.11.1"}
+           org.clojure/clojure                                          {:mvn/version "1.12.0-alpha3"} ;; For Java Process API
            org.keycloak/keycloak-adapter-core                           {:mvn/version "21.0.1"}
            org.keycloak/keycloak-adapter-spi                            {:mvn/version "21.0.1"}
            org.keycloak/keycloak-admin-client                           {:mvn/version "21.0.1"}
@@ -44,7 +44,11 @@
            ring/ring-json                                               {:mvn/version "0.5.1"}
            slingshot/slingshot                                          {:mvn/version "0.12.2"}
            spootnik/signal                                              {:mvn/version "0.2.4"}}
- :aliases {:dev  {:extra-deps {djblue/portal {:mvn/version "0.37.1"}}}
+ :aliases {:dev  {:extra-deps {djblue/portal     {:mvn/version "0.37.1"}
+                               cider/cider-nrepl {:mvn/version "0.30.0"}}
+                  :main-opts  ["-m"           "nrepl.cmdline"
+                               "--middleware" "[cider.nrepl/cider-middleware,portal.nrepl/wrap-portal]"
+                               "--interactive"]}
            :test {:extra-paths ["test"]
                   :extra-deps  {biiwide/sandboxica          {:mvn/version "0.4.0"}
                                 lambdaisland/kaocha         {:mvn/version "1.85.1342"}
@@ -57,7 +61,7 @@
            ;; https://github.com/lambdaisland/kaocha
            :test-runner {:main-opts ["-m" "kaocha.runner"]}
 
-           :run   {:main-opts ["-m" "kaleidoscope.main"]}
+           :run {:main-opts ["-m" "kaleidoscope.main"]}
 
            :build {:extra-paths ["build"]
                    :deps        {io.github.clojure/tools.build {:mvn/version "0.9.4"}}

@@ -1,7 +1,8 @@
 (ns kaleidoscope.build
   (:refer-clojure :exclude [compile])
   (:require [clojure.tools.build.api :as b]
-            [clojure.java.shell :as shell]))
+            [clojure.java.shell :as shell]
+            [clojure.java.process :as process]))
 
 (def LIB 'org.clojars.alai57/kaleidoscope)
 (def MAIN (symbol (format "%s.main" (name LIB))))
