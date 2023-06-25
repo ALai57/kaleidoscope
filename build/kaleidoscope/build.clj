@@ -2,7 +2,8 @@
   (:refer-clojure :exclude [compile])
   (:require [clojure.tools.build.api :as b]
             [clojure.java.shell :as shell]
-            [clojure.java.process :as process]))
+            [clojure.java.process :as process]
+            [clojure.java.io :as io]))
 
 (def LIB 'org.clojars.alai57/kaleidoscope)
 (def MAIN (symbol (format "%s.main" (name LIB))))
@@ -45,7 +46,6 @@
                   :class-dir    CLASS-DIR}))
 
 (defn uberjar [_]
-  (assert-committed nil)
   (compile nil)
   (b/uber {:class-dir CLASS-DIR
            :uber-file UBER-FILE
@@ -57,13 +57,38 @@
 (defn success? [{:keys [exit] :as result}]
   (zero? exit))
 
+(defn with-real-time-output
+  [process]
+  (println "******** Process output **********")
+  (loop [rdr (io/reader (get process :err))]
+    (if-let [line (.readLine rdr)]
+      (do (println line)
+          (recur rdr))
+      (do (println "******** End process output **********\n\n")
+          @process))))
+
+(defn log-command
+  [s]
+  (println (format "Executing process `%s`" s))
+  s)
+
+(def sh
+  (comp with-real-time-output process/start log-command))
+
 (defn release [_]
+  ;; Add logging/verbose output
+  (assert-committed nil)
   (uberjar nil)
-  (and (success? (shell/sh (format "%s/bin/docker-login" PWD)))
-       (success? (shell/sh (format "%s/bin/docker-build" PWD)))
-       (success? (shell/sh (format "%s/bin/docker-push" PWD)))))
+  (and (success? (sh (format "%s/bin/docker-login" PWD)))
+       (success? (sh (format "%s/bin/docker-build" PWD)))
+       (success? (sh (format "%s/bin/docker-push" PWD)))))
 
 (comment
   (uberjar nil)
-  (assert-committed)
+  )
+
+
+(comment
+  (sh (format "%s/bin/docker-login" PWD))
+  (sh (format "%s/bin/docker-build" PWD))
   )
