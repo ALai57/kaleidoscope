@@ -54,8 +54,8 @@
 
 (def PWD (System/getProperty "user.dir"))
 
-(defn success? [{:keys [exit] :as result}]
-  (zero? exit))
+(def success?
+  zero?)
 
 (defn with-real-time-output
   [process]
