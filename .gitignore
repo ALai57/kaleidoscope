@@ -39,3 +39,6 @@ pom.xml*
 .terraform.*
 
 .clj-kondo/.cache/*
+.lsp/.cache/*
+.cpcache/*
+.clj-kondo/*

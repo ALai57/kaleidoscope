@@ -6,7 +6,7 @@
 
 ```bash
 lein do clean, uberjar
-docker build -t andrewslai .
+docker build -t kaleidoscope .
 ```
 
 
@@ -16,14 +16,14 @@ Against the cloud
 ```bash
 docker run -v$HOME/.aws:/root/.aws:ro \
            --env-file=.env.docker.aws \
-           -p 5000:5000 andrewslai 
+           -p 5000:5000 kaleidoscope
 ```
 
-(To start the container and )docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai
+(To start the container and )docker run -d --rm --env-file=.env.aws -p 5000:5000 kaleidoscope
 
 Against local DB
 ```bash 
-docker run -d --rm --network host --env-file=.env.docker.local -p 5000:5000 andrewslai
+docker run -d --rm --network host --env-file=.env.docker.local -p 5000:5000 kaleidoscope
 ```
 
 ### Step 3: Upload artifact

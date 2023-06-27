@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+aws ecs update-service \
+  --cluster kaleidoscope \
+  --service kaleidoscope-service \
+  --force-new-deployment &&
+watch -n 5 "curl https://andrewslai.com/ping | jq ."

@@ -36,19 +36,19 @@ permissions to be able to log on as a superuser to create a db or new user
 First, clean the project and build an uberjar `lein do clean, uberjar`
 
 ## Building and testing with Docker
-After creating an uberjar build the docker container `docker build -t andrewslai .`
+After creating an uberjar build the docker container `docker build -t kaleidoscope .`
 
 If you'd like to run the server in a Docker container connected to an instance
 of Postgres running on localhost, you'll need to specify that you want it to run
 on the localhost network, and provide the correct environment variables for the
 database.
-`docker run -d --rm --network host --env-file=.env.local -p 5000:5000 andrewslai`
+`docker run -d --rm --network host --env-file=.env.local -p 5000:5000 kaleidoscope`
 There is a template for what the `.env.local` should look like in `env.local.example`
 
 If you'd like to run the server in a Docker container connected to an instance
 of Postgres running on an AWS database, you'll need to provide the correct
 environment variables for the database.
-`docker run -d --rm --env-file=.env.aws -p 5000:5000 andrewslai`
+`docker run -d --rm --env-file=.env.aws -p 5000:5000 kaleidoscope`
 
 
 
