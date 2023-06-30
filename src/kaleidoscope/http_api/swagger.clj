@@ -2,6 +2,7 @@
   (:require [compojure.api.middleware :as mw]
             [compojure.api.swagger :as swag]
             [compojure.api.sweet :refer [GET routes undocumented]]
+            [kaleidoscope.utils.versioning :as v]
             [ring.swagger.common :as rsc]
             [ring.swagger.middleware :as rsm]
             [ring.swagger.swagger-ui :as swagger-ui]
@@ -14,13 +15,13 @@
 
 (def example-data-2
   {:kaleidoscope.article/article {:summary "An example article"
-                                :value   {:id           10
-                                          :article_tags "thoughts"
-                                          :article_url  "my-test-article"
-                                          :author       "Andrew Lai"
-                                          :content      "<h1>Hello world!</h1>"
-                                          :timestamp    "2020-10-28T00:00:00"
-                                          :title        "My test article"}}})
+                                  :value   {:id           10
+                                            :article_tags "thoughts"
+                                            :article_url  "my-test-article"
+                                            :author       "Andrew Lai"
+                                            :content      "<h1>Hello world!</h1>"
+                                            :timestamp    "2020-10-28T00:00:00"
+                                            :title        "My test article"}}})
 
 (defn extract-specs [swagger]
   (reduce (fn [acc [_ {{schemas :schemas} :components :as x}]]
@@ -91,12 +92,22 @@
             ok)))))
 
 
-(def swagger-ui-routes-2
+(def reitit-swagger-ui-routes
   ["" {:no-doc true}
    ["/swagger.json" {:get {:no-doc  true
-                           :openapi {:info {:title       "Kaleidoscope"
-                                            :description "Kaleidoscope API"
-                                            :version     "0.0.1"}}
+                           :swagger {:info       {:title       "Kaleidoscope"
+                                                  :description "Kaleidoscope is a blogging app/content management system."
+                                                  :version     (:version (v/get-version-details))}
+                                     :components {:securitySchemes security-schemes}
+                                     :tags       [{:name        "articles"
+                                                   :description "Access and manage articles"}
+                                                  {:name        "photos"
+                                                   :description "Access user photos"}
+                                                  {:name        "groups"
+                                                   :description "Manage a user's groups"}
+                                                  {:name        "info"
+                                                   :description "Information about the server"}
+                                                  ]}
                            :handler (reitit-swagger/create-swagger-handler)}}]
 
    ["/api-docs/*"   {:get {:handler (reitit-swagger-ui/create-swagger-ui-handler

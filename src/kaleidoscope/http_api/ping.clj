@@ -11,10 +11,25 @@
   [:map
    [:version :string]])
 
-(def ping-routes-2
-  ["/ping" {:get {:responses  {200 {:body PingResponse}}
-                  :handler    (fn [_request]
-                                (ok (v/get-version-details)))}}])
+(def reitit-ping-routes
+  ["/ping" {:get {:responses {200 {:body     PingResponse}}
+                  :swagger   {:tags      ["info"]
+                              :produces  #{"application/json"}
+                              :responses {200 {:content
+                                               {"application/json"
+                                                {:examples {"two"   {:summary "2"
+                                                                     :value   {:total 2}}
+                                                            "three" {:summary "3"
+                                                                     :value   {:total 3}}}}}}}}
+                  :openapi   {:responses
+                              {200 {:content
+                                    {"application/json"
+                                     {:examples {"two"   {:summary "2"
+                                                          :value   {:total 2}}
+                                                 "three" {:summary "3"
+                                                          :value   {:total 3}}}}}}}}
+                  :handler   (fn [_request]
+                               (ok (v/get-version-details)))}}])
 
 (comment
   (require '[reitit.coercion.malli :as rcm])
@@ -25,7 +40,7 @@
 
   (def mock-app
     (ring/ring-handler
-     (ring/router [ping-routes-2
+     (ring/router [reitit-ping-routes
                    ["" {:no-doc true}
                     ["/swagger.json" {:get (swagger/create-swagger-handler)}]
                     ["/api-docs/*" {:get (swagger-ui/create-swagger-ui-handler)}]]]
