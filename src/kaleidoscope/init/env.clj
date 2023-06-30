@@ -250,8 +250,10 @@
 (defn make-http-handler
   [system]
   (let [apps {:kaleidoscope (prepare-kaleidoscope system)}]
-    (vh/host-based-routing {#".*" {:priority 100
-                                   :app      (kaleidoscope/kaleidoscope-app (:kaleidoscope apps))}})))
+    (vh/host-based-routing {#".*"   {:priority 100
+                                     :app      (kaleidoscope/kaleidoscope-app (:kaleidoscope apps))}
+                            #"test" {:priority 0
+                                     :app      kaleidoscope/kaleidoscope-app-2}})))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

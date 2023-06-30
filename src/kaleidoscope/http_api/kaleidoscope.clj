@@ -10,10 +10,17 @@
    [kaleidoscope.http-api.audiences :refer [audiences-routes]]
    [kaleidoscope.http-api.groups :refer [groups-routes]]
    [kaleidoscope.http-api.photo :refer [photo-routes]]
-   [kaleidoscope.http-api.ping :refer [ping-routes]]
+   [kaleidoscope.http-api.ping :refer [ping-routes ping-routes-2]]
    [kaleidoscope.http-api.portfolio :refer [portfolio-routes]]
-   [kaleidoscope.http-api.swagger :refer [swagger-ui-routes]]
+   [kaleidoscope.http-api.swagger :refer [swagger-ui-routes swagger-ui-routes-2]]
    [kaleidoscope.http-api.http-utils :as http-utils]
+   [muuntaja.core :as m]
+   [reitit.coercion.malli :as rcm]
+   [reitit.openapi :as openapi]
+   [reitit.ring :as ring]
+   [reitit.ring.coercion :as rrc]
+   [reitit.ring.middleware.parameters :as parameters]
+   [reitit.ring.middleware.muuntaja :as muuntaja]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
@@ -118,8 +125,27 @@
        groups-routes
        default-handler))
 
+(def kaleidoscope-app-2
+  (ring/ring-handler
+   (ring/router
+    ["/v2"
+     ping-routes-2
+     swagger-ui-routes-2]
+
+    ;; router data affecting all routes
+    {:data {:coercion   rcm/coercion
+            :muuntaja   m/instance
+            :middleware [parameters/parameters-middleware
+                         openapi/openapi-feature
+                         ;;rrc/coerce-exceptions-middleware
+                         rrc/coerce-request-middleware
+                         muuntaja/format-response-middleware
+                         rrc/coerce-response-middleware]}})))
 
 (comment
+  (kaleidoscope-app-2 {:request-method :get
+                       :uri            "/v2/ping"})
+
   ((kaleidoscope-app {:auth           identity
                       :static-content nil})
    {:request-method :get

@@ -15,10 +15,6 @@
 (def MEDIA-FOLDER
   "media")
 
-(defn ->file-input-stream
-  [file]
-  (java.io.FileInputStream. ^java.io.File file))
-
 (defn bucket-name
   "Getting host name is from ring.util.request"
   [request]

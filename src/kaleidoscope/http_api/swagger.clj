@@ -6,6 +6,8 @@
             [ring.swagger.middleware :as rsm]
             [ring.swagger.swagger-ui :as swagger-ui]
             [ring.swagger.swagger2 :as swagger2]
+            [reitit.swagger :as reitit-swagger]
+            [reitit.swagger-ui :as reitit-swagger-ui]
             [ring.util.http-response :refer [ok]]
             [spec-tools.core :as st-core]
             [spec-tools.swagger.core :as st]))
@@ -88,43 +90,14 @@
             (dissoc :swagger)
             ok)))))
 
-(def example-wedding-data
-  {:kaleidoscope.albums/album {:summary "An example album"
-                             :value   {:id             1
-                                       :album-name     "my album"
-                                       :created-at     "2022-10-01T02:55:27Z"
-                                       :modified-at    "2022-10-01T02:55:27Z"}}})
 
-(def swagger-wedding-routes
-  (routes
-    (undocumented
-     (swagger-ui/swagger-ui {:path         "/swagger"
-                             :swagger-docs "/swagger.json"}))
-    (GET "/swagger.json" req
-      {:summary  "Return a swagger 3.0.2 spec"
-       :produces #{"application/json"}}
-      (let [runtime-info1 (mw/get-swagger-data req)
-            runtime-info2 (rsm/get-swagger-data req)
-            base-path     {:basePath (swag/base-path req)}
-            options       (:compojure.api.request/ring-swagger req)
-            paths         (:compojure.api.request/paths req)
-            swagger       (apply rsc/deep-merge
-                                 (keep identity [base-path
-                                                 paths
-                                                 runtime-info1
-                                                 runtime-info2]))
-            spec          (st/swagger-spec
-                           (swagger2/swagger-json swagger options))]
-        (-> spec
-            (assoc :openapi    "3.0.2"
-                   :info       {:title       "caheriaguilar.and.andrewslai"
-                                :description "The backend HTTP API for a photo sharing web-app"}
-                   :components {:schemas  (-> swagger
-                                              extract-specs
-                                              specs->components)
-                                :examples (reduce-kv (fn [acc k v]
-                                                       (assoc acc (name k) v))
-                                                     {}
-                                                     example-wedding-data)})
-            (dissoc :swagger)
-            ok)))))
+(def swagger-ui-routes-2
+  ["" {:no-doc true}
+   ["/swagger.json" {:get {:no-doc  true
+                           :openapi {:info {:title       "Kaleidoscope"
+                                            :description "Kaleidoscope API"
+                                            :version     "0.0.1"}}
+                           :handler (reitit-swagger/create-swagger-handler)}}]
+
+   ["/api-docs/*"   {:get {:handler (reitit-swagger-ui/create-swagger-ui-handler
+                                     {:config {:urls [{:name "swagger" :url "/v2/swagger.json"}]}})}}]])
