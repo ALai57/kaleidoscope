@@ -1,11 +1,17 @@
 (ns kaleidoscope.http-api.middleware
   (:require [buddy.auth.accessrules :as ar]
             [buddy.auth.middleware :as ba]
-            [clojure.string :as string]
             [clojure.pprint :as pprint]
-            [kaleidoscope.http-api.cache-control :as cc]
-            [lambdaisland.deep-diff2 :as ddiff]
+            [clojure.string :as string]
             [kaleidoscope.clients.session-tracker :as st]
+            [lambdaisland.deep-diff2 :as ddiff]
+            [muuntaja.core :as m]
+            [reitit.coercion.malli :as rcm]
+            [reitit.openapi :as openapi]
+            [reitit.ring.coercion :as rrc]
+            [reitit.ring.middleware.muuntaja :as muuntaja]
+            [reitit.ring.middleware.parameters :as parameters]
+            [reitit.swagger :as swagger]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.gzip :refer [wrap-gzip]]
             [ring.middleware.json :as json-mw :refer [wrap-json-response]]
@@ -15,7 +21,8 @@
             [ring.util.response :as resp]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log])
-  (:import [lambdaisland.deep_diff2.diff_impl Mismatch Deletion Insertion]))
+  (:import
+   (lambdaisland.deep_diff2.diff_impl Deletion Insertion Mismatch)))
 
 ;; https://gist.github.com/hsartoris-bard/856d79d3a13f6cafaaa6e5079c76cd97
 (def mismatch? (partial instance? Mismatch))
@@ -35,17 +42,12 @@
                        (diff? k)                 x
                        (diff? v)                 x
                        (non-empty-collection? v) (when-let [result (remove-unchanged v)]
-                                                   [k result])
-                       ))
+                                                   [k result])))
     (coll? x) (when-let [result (->> x
                                      (map remove-unchanged)
                                      (filter not-empty)
                                      (seq))]
                 (into (empty x) result))))
-
-(defn print-diff
-  [x y]
-  (ddiff/pretty-print (remove-unchanged (ddiff/diff x y))))
 
 (defn string-diff
   [x y]
@@ -127,19 +129,6 @@
                    (log/debugf "Adding request-id %s to ring request" request-id)
                    modified-request))))))
 
-(defn- cache-control-log!
-  [response]
-  (log/infof "Generating Cache control headers")
-  response)
-
-(defn wrap-cache-control
-  "Wraps responses with a cache-control header"
-  [handler]
-  (fn [{:keys [request-id uri] :as request}]
-    (->> (handler request)
-         (cache-control-log!)
-         (cc/cache-control uri))))
-
 (defn wrap-trace
   [handler]
   (fn [{:keys [uri request-method] :as request}]
@@ -181,69 +170,16 @@
                                                                (resp/content-type "application/text")))})]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; NEW -- Trying to convert middleware to processing chains
+;; Reitit configuration
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn compose-xforms
-  [xforms]
-  (reduce (fn [fs {:keys [name log-diffs? handler] :as xform}]
-            (let [f (when log-diffs?
-                      (log-transformation-diffs xform))]
-              (comp f fs)))
-          identity
-          xforms))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Transform the incoming Ring request
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def ring-request-pipeline-config
-  [{:name       :add-request-identifier
-    :handler    add-request-identifier
-    ;;:log-diffs? true
-    }
-   {:name       :add-params-to-request
-    :handler    params/params-request
-    ;;:log-diffs? true
-    }
-   {:name       :add-multipart-params-to-request
-    :handler    mp/multipart-params-request
-    ;;:log-diffs? true
-    }])
-
-(defn ring-auth-pipeline-config
-  [authentication-backend access-rules]
-  [{:name       :authenticate-user
-    :handler    (fn [request]
-                  (apply ba/authentication-request request authentication-backend))
-    ;;:log-diffs? true
-    }])
-
-(def ring-request-pipeline
-  (compose-xforms ring-request-pipeline-config))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Transform the outgoing Ring response
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def ring-response-pipeline-config
-  [{:name       :convert-response-to-json
-    :handler    (fn [response]
-                  (json-mw/json-response response {}))
-    ;;:log-diffs? true
-    }
-   {:name       :add-content-type-headers
-    :handler    identity
-    ;;:log-diffs? true
-    }
-   {:name       :add-cache-control-headers
-    :handler    identity
-    ;;:log-diffs? true
-    }])
-
-(def ring-response-pipeline
-  (compose-xforms ring-response-pipeline-config))
-
-
-(comment
-  (ring-request-pipeline (mock/request :get "/endpoint")))
+(def reitit-configuration
+  "Router data affecting all routes"
+  {:data {:coercion   rcm/coercion
+          :muuntaja   m/instance
+          :middleware [parameters/parameters-middleware
+                       openapi/openapi-feature
+                       swagger/swagger-feature
+                       ;;rrc/coerce-exceptions-middleware
+                       rrc/coerce-request-middleware
+                       muuntaja/format-response-middleware
+                       rrc/coerce-response-middleware]}})

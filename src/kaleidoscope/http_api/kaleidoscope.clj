@@ -4,6 +4,7 @@
    [clojure.string :as str]
    [compojure.api.sweet :refer [api context GET]]
    [kaleidoscope.api.authorization :as auth]
+   [kaleidoscope.http-api.middleware :as mw]
    [kaleidoscope.http-api.admin :refer [admin-routes]]
    [kaleidoscope.http-api.album :refer [album-routes]]
    [kaleidoscope.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
@@ -14,14 +15,7 @@
    [kaleidoscope.http-api.portfolio :refer [portfolio-routes]]
    [kaleidoscope.http-api.swagger :refer [swagger-ui-routes reitit-swagger-ui-routes]]
    [kaleidoscope.http-api.http-utils :as http-utils]
-   [muuntaja.core :as m]
-   [reitit.coercion.malli :as rcm]
-   [reitit.openapi :as openapi]
    [reitit.ring :as ring]
-   [reitit.ring.coercion :as rrc]
-   [reitit.ring.middleware.parameters :as parameters]
-   [reitit.ring.middleware.muuntaja :as muuntaja]
-   [reitit.swagger :as swagger]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
@@ -132,17 +126,7 @@
     ["/v2"
      reitit-ping-routes
      reitit-swagger-ui-routes]
-
-    ;; router data affecting all routes
-    {:data {:coercion   rcm/coercion
-            :muuntaja   m/instance
-            :middleware [parameters/parameters-middleware
-                         openapi/openapi-feature
-                         swagger/swagger-feature
-                         ;;rrc/coerce-exceptions-middleware
-                         rrc/coerce-request-middleware
-                         muuntaja/format-response-middleware
-                         rrc/coerce-response-middleware]}})))
+    mw/reitit-configuration)))
 
 (comment
   (kaleidoscope-app-2 {:request-method :get
