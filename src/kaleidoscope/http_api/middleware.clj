@@ -176,10 +176,13 @@
   "Router data affecting all routes"
   {:data {:coercion   rcm/coercion
           :muuntaja   m/instance
-          :middleware [parameters/parameters-middleware
+          :middleware [parameters/parameters-middleware ;; Add :query-params and :form-params (if url-encoded body), and params (merged)
+                       muuntaja/format-middleware       ;; Add :body-params
+
                        openapi/openapi-feature
                        swagger/swagger-feature
+
                        ;;rrc/coerce-exceptions-middleware
-                       rrc/coerce-request-middleware
-                       muuntaja/format-response-middleware
-                       rrc/coerce-response-middleware]}})
+                       rrc/coerce-request-middleware    ;; Add :parameters
+                       rrc/coerce-response-middleware   ;;
+                       ]}})

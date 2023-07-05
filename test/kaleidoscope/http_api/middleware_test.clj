@@ -6,11 +6,12 @@
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
             [lambdaisland.deep-diff2 :as ddiff]
-            [lambdaisland.deep-diff2.diff-impl
-             :refer [map->Deletion map->Insertion map->Mismatch]]
+            [lambdaisland.deep-diff2.diff-impl :refer [map->Deletion map->Insertion map->Mismatch]]
+            [reitit.ring :as ring]
             [matcher-combinators.test :refer [match?]]
             [ring.mock.request :as mock]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [kaleidoscope.http-api.middleware :as mw]))
 
 (use-fixtures :once
   (fn [f]
@@ -116,3 +117,28 @@
                 (app (-> (mock/request :get "/")
                          (mock/header "Authorization" "Bearer x")))))
     (is (nil? (:identity @captured-request)))))
+
+(def identity-route
+  ["/identity" {:get {:parameters {:query [:map
+                                           [:baz [:= "quxx"]]]
+                                   :body [:map
+                                          [:foo [:= "bar"]]]}
+                      :handler    (fn [request]
+                                    (tap> {:req request})
+                                    {:status 200
+                                     :body   (:parameters request)})}}])
+
+(defn clojurize
+  [x]
+  (json/parse-string x keyword))
+
+;; TODO: Failing request coercion test
+(deftest reitit-configuration-test
+  (let [app     (ring/ring-handler (ring/router identity-route mw/reitit-configuration))
+        request (-> (mock/request :get "/identity")
+                    (mock/query-string {:baz "quxx"})
+                    (mock/json-body {:foo :bar}))]
+    (is (match? {:status 200
+                 :body   {:query {:baz "quxx"}
+                          :body  {:foo "bar"}}}
+                (update (app request) :body (comp clojurize slurp))))))
