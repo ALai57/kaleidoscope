@@ -118,27 +118,41 @@
                          (mock/header "Authorization" "Bearer x")))))
     (is (nil? (:identity @captured-request)))))
 
+;;
+;; Reitit tests
+;;
 (def identity-route
   ["/identity" {:get {:parameters {:query [:map
                                            [:baz [:= "quxx"]]]
                                    :body [:map
                                           [:foo [:= "bar"]]]}
                       :handler    (fn [request]
-                                    (tap> {:req request})
                                     {:status 200
-                                     :body   (:parameters request)})}}])
+                                     :body   (select-keys request [:parameters :params :body-params :form-params :query-params])})}}])
 
 (defn clojurize
-  [x]
-  (json/parse-string x keyword))
+  [{:keys [body] :as ring-request}]
+  (update ring-request :body (fn [x]
+                               (-> x
+                                   slurp
+                                   (json/parse-string keyword)))))
 
-;; TODO: Failing request coercion test
 (deftest reitit-configuration-test
-  (let [app     (ring/ring-handler (ring/router identity-route mw/reitit-configuration))
-        request (-> (mock/request :get "/identity")
-                    (mock/query-string {:baz "quxx"})
-                    (mock/json-body {:foo :bar}))]
-    (is (match? {:status 200
-                 :body   {:query {:baz "quxx"}
-                          :body  {:foo "bar"}}}
-                (update (app request) :body (comp clojurize slurp))))))
+  (let [app (ring/ring-handler (ring/router identity-route mw/reitit-configuration))]
+    (testing "Coerced requests are put in the `:parameters` key"
+      (is (match? {:status 200
+                   :body   {:parameters {:query {:baz "quxx"}
+                                         :body  {:foo "bar"}}}}
+                  (-> (mock/request :get "/identity")
+                      (mock/query-string {:baz "quxx"})
+                      (mock/json-body {:foo :bar})
+                      app
+                      clojurize))))
+
+    (testing "Invalid input causes a coercion failure and 400"
+      (is (match? {:status 400
+                   :body   {:humanized {:baz ["missing required key"]}}}
+                  (-> (-> (mock/request :get "/identity")
+                          (mock/json-body {:invalid :param})
+                          app
+                          clojurize)))))))

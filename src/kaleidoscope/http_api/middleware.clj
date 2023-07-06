@@ -180,9 +180,8 @@
                        muuntaja/format-middleware       ;; Add :body-params
 
                        openapi/openapi-feature
-                       swagger/swagger-feature
 
-                       ;;rrc/coerce-exceptions-middleware
+                       rrc/coerce-exceptions-middleware ;; Coerce malli/Coercion objects
                        rrc/coerce-request-middleware    ;; Add :parameters
-                       rrc/coerce-response-middleware   ;;
+                       rrc/coerce-response-middleware   ;; ?
                        ]}})

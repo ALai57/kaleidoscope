@@ -3,13 +3,14 @@
             [compojure.api.swagger :as swag]
             [compojure.api.sweet :refer [GET routes undocumented]]
             [kaleidoscope.utils.versioning :as v]
+            [reitit.openapi :as openapi]
             [ring.swagger.common :as rsc]
             [ring.swagger.middleware :as rsm]
             [ring.swagger.swagger-ui :as swagger-ui]
             [ring.swagger.swagger2 :as swagger2]
             [reitit.swagger :as reitit-swagger]
             [reitit.swagger-ui :as reitit-swagger-ui]
-            [ring.util.http-response :refer [ok]]
+            [ring.util.http-response :refer [ok found]]
             [spec-tools.core :as st-core]
             [spec-tools.swagger.core :as st]))
 
@@ -55,60 +56,61 @@
 
 (def swagger-ui-routes
   (routes
-    (undocumented
-     (swagger-ui/swagger-ui {:path         "/swagger"
-                             :swagger-docs "/swagger.json"}))
-    (GET "/swagger.json" req
-      {:summary  "Return a swagger 3.0.2 spec"
-       :produces #{"application/json"}}
-      (let [runtime-info1 (mw/get-swagger-data req)
-            runtime-info2 (rsm/get-swagger-data req)
-            base-path     {:basePath (swag/base-path req)}
-            options       (:compojure.api.request/ring-swagger req)
-            paths         (:compojure.api.request/paths req)
-            swagger       (apply rsc/deep-merge
-                                 (keep identity [base-path
-                                                 paths
-                                                 runtime-info1
-                                                 runtime-info2]))
-            spec          (st/swagger-spec
-                           (swagger2/swagger-json swagger options))]
-        (-> spec
-            (merge {:openapi    "3.0.2"
-                    :info       {:title       "andrewslai"
-                                 :description "The backend HTTP API for a blog"}
-                    :tags       [{:name        "articles"
-                                  :description "Articles (published and non-published)"}]
-                    :components {:schemas         (-> swagger
-                                                      extract-specs
-                                                      specs->components)
-                                 :securitySchemes security-schemes
+   (undocumented
+    (swagger-ui/swagger-ui {:path         "/swagger"
+                            :swagger-docs "/swagger.json"}))
+   (GET "/swagger.json" req
+     {:summary  "Return a swagger 3.0.2 spec"
+      :produces #{"application/json"}}
+     (let [runtime-info1 (mw/get-swagger-data req)
+           runtime-info2 (rsm/get-swagger-data req)
+           base-path     {:basePath (swag/base-path req)}
+           options       (:compojure.api.request/ring-swagger req)
+           paths         (:compojure.api.request/paths req)
+           swagger       (apply rsc/deep-merge
+                                (keep identity [base-path
+                                                paths
+                                                runtime-info1
+                                                runtime-info2]))
+           spec          (st/swagger-spec
+                          (swagger2/swagger-json swagger options))]
+       (-> spec
+           (merge {:openapi    "3.0.2"
+                   :info       {:title       "andrewslai"
+                                :description "The backend HTTP API for a blog"}
+                   :tags       [{:name        "articles"
+                                 :description "Articles (published and non-published)"}]
+                   :components {:schemas         (-> swagger
+                                                     extract-specs
+                                                     specs->components)
+                                :securitySchemes security-schemes
 
-                                 :examples (reduce-kv (fn [acc k v]
-                                                        (assoc acc (name k) v))
-                                                      {}
-                                                      example-data-2)}})
-            (dissoc :swagger)
-            ok)))))
+                                :examples (reduce-kv (fn [acc k v]
+                                                       (assoc acc (name k) v))
+                                                     {}
+                                                     example-data-2)}})
+           (dissoc :swagger)
+           ok)))))
 
-
-(def reitit-swagger-ui-routes
+(def reitit-openapi-routes
   ["" {:no-doc true}
-   ["/swagger.json" {:get {:no-doc  true
-                           :swagger {:info       {:title       "Kaleidoscope"
-                                                  :description "Kaleidoscope is a blogging app/content management system."
-                                                  :version     (:version (v/get-version-details))}
-                                     :components {:securitySchemes security-schemes}
-                                     :tags       [{:name        "articles"
-                                                   :description "Access and manage articles"}
-                                                  {:name        "photos"
-                                                   :description "Access user photos"}
-                                                  {:name        "groups"
-                                                   :description "Manage a user's groups"}
-                                                  {:name        "info"
-                                                   :description "Information about the server"}
-                                                  ]}
-                           :handler (reitit-swagger/create-swagger-handler)}}]
+   ["/openapi.json"
+    {:get {:openapi {:info       {:title       "Kaleidoscope"
+                                  :description "Kaleidoscope is a blogging app/content management system."
+                                  :version     (:version (v/get-version-details))}
+                     :components {:securitySchemes security-schemes}
+                     :tags       [{:name        "articles"
+                                   :description "Access and manage articles"}
+                                  {:name        "photos"
+                                   :description "Access user photos"}
+                                  {:name        "groups"
+                                   :description "Manage a user's groups"}
+                                  {:name        "info"
+                                   :description "Information about the server"}]}
 
+           :handler (openapi/create-openapi-handler)}}]
+
+   ["/api-docs"     {:get {:handler (fn [_request]
+                                      (found "/v2/api-docs/index.html"))}}]
    ["/api-docs/*"   {:get {:handler (reitit-swagger-ui/create-swagger-ui-handler
-                                     {:config {:urls [{:name "swagger" :url "/v2/swagger.json"}]}})}}]])
+                                     {:url "/v2/openapi.json"})}}]])

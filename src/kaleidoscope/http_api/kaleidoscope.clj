@@ -13,7 +13,7 @@
    [kaleidoscope.http-api.photo :refer [photo-routes]]
    [kaleidoscope.http-api.ping :refer [ping-routes reitit-ping-routes]]
    [kaleidoscope.http-api.portfolio :refer [portfolio-routes]]
-   [kaleidoscope.http-api.swagger :refer [swagger-ui-routes reitit-swagger-ui-routes]]
+   [kaleidoscope.http-api.swagger :refer [swagger-ui-routes reitit-openapi-routes]]
    [kaleidoscope.http-api.http-utils :as http-utils]
    [reitit.ring :as ring]
    [steffan-westcott.clj-otel.api.trace.span :as span]
@@ -125,12 +125,10 @@
    (ring/router
     ["/v2"
      reitit-ping-routes
-     reitit-swagger-ui-routes]
+     reitit-openapi-routes]
     mw/reitit-configuration)))
 
 (comment
-  (kaleidoscope-app-2 {:request-method :get
-                       :uri            "/v2/ping"})
 
   ((kaleidoscope-app {:auth           identity
                       :static-content nil})
