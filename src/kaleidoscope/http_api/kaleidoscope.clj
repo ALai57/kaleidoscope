@@ -15,7 +15,9 @@
    [kaleidoscope.http-api.portfolio :refer [portfolio-routes]]
    [kaleidoscope.http-api.swagger :refer [swagger-ui-routes reitit-openapi-routes]]
    [kaleidoscope.http-api.http-utils :as http-utils]
+   [kaleidoscope.trace :as-alias trace]
    [reitit.ring :as ring]
+   [ring.util.http-response :refer [found]]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
@@ -120,12 +122,39 @@
        groups-routes
        default-handler))
 
+;;
+;; Reitit versions of routes
+;;
+
+;; Add a tracing middleware data
+
+(defn get-resource
+  [{:keys [components] :as request}]
+  (http-utils/get-resource (:static-content-adapters components) request))
+
+(def reitit-index-routes
+  "All served from a common bucket: the Kaleidoscope app bucket."
+  ["" {:no-doc true}
+   ["/index.html" {:get {:handler (partial found "/v2/")}}]
+   ["/"           {:get {:span-name "kaleidoscope.index.get"
+                         :uri       "index.html"
+                         :handler   get-resource}}]
+
+   ["/silent-check-sso.html"      {:get {:span-name "kaleidoscope.silent-check-sso.get"
+                                         :host      "kaleidoscope.pub"
+                                         :handler   get-resource}}]
+
+   ["/js/compiled/kaleidoscope/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+                                         :handler   get-resource}}]])
+
 (def kaleidoscope-app-2
   (ring/ring-handler
    (ring/router
     ["/v2"
      reitit-ping-routes
-     reitit-openapi-routes]
+     reitit-openapi-routes
+     reitit-index-routes
+     ]
     mw/reitit-configuration)))
 
 (comment

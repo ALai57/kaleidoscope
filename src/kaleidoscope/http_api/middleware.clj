@@ -4,11 +4,13 @@
             [clojure.pprint :as pprint]
             [clojure.string :as string]
             [kaleidoscope.clients.session-tracker :as st]
+            [kaleidoscope.http-api.http-utils :as http-utils]
             [lambdaisland.deep-diff2 :as ddiff]
             [muuntaja.core :as m]
             [reitit.coercion.malli :as rcm]
             [reitit.openapi :as openapi]
             [reitit.ring.coercion :as rrc]
+            [reitit.ring.middleware.dev :as dev]
             [reitit.ring.middleware.muuntaja :as muuntaja]
             [reitit.ring.middleware.parameters :as parameters]
             [reitit.swagger :as swagger]
@@ -172,11 +174,61 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Reitit configuration
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def wrap-add-http-spans
+  "Add OTLP spans at the point where the HTTP request is received"
+  {:name    ::wrap-add-http-spans
+   :compile (fn [{:keys [span-name] :as _route-data} opts]
+              ;;(tap> {:route-data _route-data})
+              (fn wrapper [handler]
+                (fn new-handler [request]
+                  (if span-name
+                    (span/with-span! {:name (if (fn? span-name)
+                                              (span-name request)
+                                              span-name)}
+                      (handler request))
+                    (handler request)))))})
+
+(defn set-host
+  [request host]
+  (-> request
+      http-utils/kebab-case-headers
+      (assoc-in [:headers "host"] host)))
+
+(def wrap-force-host
+  "The HTTP request's Host header is used to determine which set of resources
+  are used (e.g. Host = `andrewslai` forces the application to use the
+  `andrewslai` S3 bucket and associated resources).
+
+  If the reitit route has a `:host` key, force the resources to come from that
+  particular host. Useful for forcing common resources across all domains (e.g.
+  `andrewslai` and `foobar` want to serve the same `index.html` file from the
+  `kaleidoscope.pub` S3 bucket)."
+  {:name    ::wrap-force-host
+   :compile (fn [{:keys [host] :as _route-data} opts]
+              (fn wrapper [handler]
+                (fn new-handler [request]
+                  (handler (if host (set-host request host) request)))))})
+
+(def wrap-force-uri
+  "If the reitit route has a `:uri` key, force the request to search for that
+  specific uri. Useful for serving `index.html` from a `/` route."
+  {:name    ::wrap-force-uri
+   :compile (fn [{:keys [uri] :as _route-data} opts]
+              (fn wrapper [handler]
+                (fn new-handler [request]
+                  (handler (if uri (assoc request :uri uri) request)))))})
+
 (def reitit-configuration
   "Router data affecting all routes"
-  {:data {:coercion   rcm/coercion
+  {;;:reitit.middleware/transform dev/print-request-diffs
+
+   :data {:coercion   rcm/coercion
           :muuntaja   m/instance
-          :middleware [parameters/parameters-middleware ;; Add :query-params and :form-params (if url-encoded body), and params (merged)
+          :middleware [wrap-add-http-spans
+                       wrap-force-host
+                       wrap-force-uri
+                       wrap-content-type
+                       parameters/parameters-middleware ;; Add :query-params and :form-params (if url-encoded body), and params (merged)
                        muuntaja/format-middleware       ;; Add :body-params
 
                        openapi/openapi-feature
