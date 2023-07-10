@@ -234,3 +234,56 @@
         (if (empty? result)
           (not-found {:reason "Missing"})
           (ok (first result)))))))
+
+;;
+;; Reitit
+;;
+
+(def GetArticleResponse
+  [:map
+   [:id            :int]
+   [:author        :string]
+   [:article-url   :string]
+   [:article-title :string]
+   [:hostname      :string]
+   [:modified-at   inst?]
+   [:created-at    inst?]])
+
+(def GetArticlesResponse
+  [:sequential GetArticleResponse])
+
+(def example-article
+  {:id            1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :hostname      "andrewslai.localhost"})
+
+(def ErrorResponse
+  [:map])
+
+(defn json-examples
+  [responses]
+  {:content
+   {"application/json"
+    {:examples responses}}})
+
+(def reitit-articles-routes
+  ["/articles"
+   ["/" {:get {:responses {200 {:description "A collection of all articles"
+                                :body        GetArticlesResponse}
+                           500 {:body ErrorResponse}}
+               :host      "andrewslai.localhost"
+               :openapi   {:summary   "Retrieve all articles"
+                           :tags      ["articles"]
+                           :produces  #{"application/json"}
+                           :security  [{:andrewslai-pkce ["roles" "profile"]}]
+                           :responses {200 (json-examples {"example-articles" {:summary "A response with one example articles"
+                                                                               :value   [example-article]}})}}
+               :handler   (fn [{:keys [components] :as request}]
+                            (->> {:hostname (hu/get-host request)}
+                                 (articles-api/get-articles (:database components))
+                                 ok))}}]])

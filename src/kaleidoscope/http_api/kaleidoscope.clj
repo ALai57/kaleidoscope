@@ -7,7 +7,8 @@
    [kaleidoscope.http-api.middleware :as mw]
    [kaleidoscope.http-api.admin :refer [admin-routes]]
    [kaleidoscope.http-api.album :refer [album-routes]]
-   [kaleidoscope.http-api.articles :refer [articles-routes branches-routes compositions-routes]]
+   [kaleidoscope.http-api.articles :refer [articles-routes branches-routes compositions-routes
+                                           reitit-articles-routes]]
    [kaleidoscope.http-api.audiences :refer [audiences-routes]]
    [kaleidoscope.http-api.groups :refer [groups-routes]]
    [kaleidoscope.http-api.photo :refer [photo-routes]]
@@ -147,15 +148,27 @@
    ["/js/compiled/kaleidoscope/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
                                          :handler   get-resource}}]])
 
-(def kaleidoscope-app-2
-  (ring/ring-handler
-   (ring/router
-    ["/v2"
-     reitit-ping-routes
-     reitit-openapi-routes
-     reitit-index-routes
-     ]
-    mw/reitit-configuration)))
+(defn inject-components
+  [components]
+  (fn wrap [handler]
+    (fn new-handler [request]
+      (handler (assoc request :components components)))))
+
+(defn kaleidoscope-app-2
+  ([]
+   (kaleidoscope-app-2 {}))
+  ([components]
+   (ring/ring-handler
+    (ring/router
+     ["/v2"
+      reitit-ping-routes
+      reitit-openapi-routes
+      reitit-index-routes
+      reitit-articles-routes
+      ]
+     (update-in mw/reitit-configuration
+                [:data :middleware]
+                (partial concat [(inject-components components)]))))))
 
 (comment
 
