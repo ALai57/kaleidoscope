@@ -265,6 +265,10 @@
 (def ErrorResponse
   [:map])
 
+(def NotFoundResponse
+  [:map
+   [:reason :string]])
+
 (defn json-examples
   [responses]
   {:content
@@ -272,18 +276,35 @@
     {:examples responses}}})
 
 (def reitit-articles-routes
-  ["/articles"
-   ["/" {:get {:responses {200 {:description "A collection of all articles"
-                                :body        GetArticlesResponse}
-                           500 {:body ErrorResponse}}
-               :host      "andrewslai.localhost"
-               :openapi   {:summary   "Retrieve all articles"
-                           :tags      ["articles"]
+  ["/articles" {:tags     ["articles"]
+                ;;For testing only!!!
+                :host      "andrewslai.localhost"
+                :openapi {:security [{:andrewslai-pkce ["roles" "profile"]}]}}
+   ["/" {:get {:openapi   {:summary   "Retrieve all articles"
                            :produces  #{"application/json"}
                            :security  [{:andrewslai-pkce ["roles" "profile"]}]
                            :responses {200 (json-examples {"example-articles" {:summary "A response with one example articles"
                                                                                :value   [example-article]}})}}
+
+               :responses {200 {:description "A collection of all articles"
+                                :body        GetArticlesResponse}
+                           500 {:body ErrorResponse}}
                :handler   (fn [{:keys [components] :as request}]
                             (->> {:hostname (hu/get-host request)}
                                  (articles-api/get-articles (:database components))
-                                 ok))}}]])
+                                 ok))}}]
+   ["/:article-url"
+    {:get {:openapi {:summary    "Retrieve a single article"
+                     :produces   #{"application/json"}
+                     :responses  {200 (json-examples {"example-article" {:summary "A single article"
+                                                                         :value   example-article}})}}
+
+           :responses {200 {:body GetArticleResponse}
+                       404 {:body NotFoundResponse}
+                       500 {:body ErrorResponse}}
+
+           :parameters {:path {:article-url string?}}
+           :handler (fn [{:keys [components parameters] :as request}]
+                      (if-let [article (first (articles-api/get-articles (:database components) {:article-url (get-in parameters [:path :article-url])}))]
+                        (ok article)
+                        (not-found {:reason "Missing"})))}}]])
