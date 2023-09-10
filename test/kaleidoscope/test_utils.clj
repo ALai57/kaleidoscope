@@ -32,11 +32,15 @@
 (defn wrap-clojure-response
   [handler]
   (fn [request]
-    (update (handler request) :body (fn [x]
-                                      (try
-                                        (json/parse-string-strict x keyword)
-                                        (catch Exception e
-                                          x))))))
+    (let [response (handler request)]
+      (update response :body (fn [x]
+                               (try
+                                 (if (string? x)
+                                   (json/parse-string-strict x keyword)         ;; String
+                                   (json/parse-string-strict (slurp x) keyword) ;; Byte array
+                                   )
+                                 (catch Exception e
+                                   x)))))))
 
 (defn dummy-app
   [response]

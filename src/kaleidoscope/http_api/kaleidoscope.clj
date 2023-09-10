@@ -12,7 +12,7 @@
    [kaleidoscope.http-api.audiences :refer [audiences-routes]]
    [kaleidoscope.http-api.groups :refer [groups-routes]]
    [kaleidoscope.http-api.photo :refer [photo-routes]]
-   [kaleidoscope.http-api.ping :refer [ping-routes reitit-ping-routes]]
+   [kaleidoscope.http-api.ping :refer [reitit-ping-routes]]
    [kaleidoscope.http-api.portfolio :refer [portfolio-routes]]
    [kaleidoscope.http-api.swagger :refer [swagger-ui-routes reitit-openapi-routes]]
    [kaleidoscope.http-api.http-utils :as http-utils]
@@ -109,7 +109,6 @@
   (api {:components components
         :exceptions {:handlers {:compojure.api.exception/default (exception-handler exception-reporter)}}
         :middleware [http-mw]}
-       ping-routes
        index-routes
        articles-routes
        audiences-routes
@@ -154,25 +153,30 @@
     (fn new-handler [request]
       (handler (assoc request :components components)))))
 
-(defn kaleidoscope-app-2
+(defn kaleidoscope-reitit-app
   ([]
-   (kaleidoscope-app-2 {}))
+   (kaleidoscope-reitit-app {}))
   ([components]
    (ring/ring-handler
     (ring/router
-     ["/v2"
-      reitit-ping-routes
+     [reitit-ping-routes
       reitit-openapi-routes
       reitit-index-routes
-      reitit-articles-routes
-      ]
+      reitit-articles-routes]
      (update-in mw/reitit-configuration
                 [:data :middleware]
-                (partial concat [(inject-components components)]))))))
+                (partial concat [(inject-components components)
+                                 (:http-mw components)]))))))
 
+;;
+;; Temporary dispatch to reitit or Compojure as I port app to use reitit
+;;
 (defn kaleidoscope-app
   [components]
-  (kaleidoscope-compojure-app components))
+  (fn [request]
+    (if-let [response ((kaleidoscope-reitit-app components) request)]
+      response
+      ((kaleidoscope-compojure-app components) request))))
 
 (comment
 

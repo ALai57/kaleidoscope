@@ -2,12 +2,16 @@
   (:require [clojure.test :refer :all]
             [kaleidoscope.http-api.ping :as ping]
             [matcher-combinators.test :refer [match?]]
+            [reitit.ring :as ring]
             [ring.mock.request :as mock]))
 
 (deftest ping-routes-test
-  (is (match? {:status 200
-               :body   {:revision string?}}
-              (ping/ping-routes (mock/request :get "/ping")))))
+  (let [reitit-app (ring/ring-handler
+                    (ring/router
+                     ping/reitit-ping-routes))]
+    (is (match? {:status 200
+                 :body   {:revision string?}}
+                (reitit-app (mock/request :get "/ping"))))))
 
 
 (comment

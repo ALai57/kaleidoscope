@@ -227,7 +227,9 @@
           :middleware [wrap-add-http-spans
                        wrap-force-host
                        wrap-force-uri
+                       wrap-gzip
                        wrap-content-type
+
                        parameters/parameters-middleware ;; Add :query-params and :form-params (if url-encoded body), and params (merged)
                        muuntaja/format-middleware       ;; Add :body-params
 
