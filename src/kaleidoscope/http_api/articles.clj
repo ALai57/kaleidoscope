@@ -277,9 +277,12 @@
 
 (def reitit-articles-routes
   ["/articles" {:tags     ["articles"]
-                ;;For testing only!!!
-                :host      "andrewslai.localhost"
-                :openapi {:security [{:andrewslai-pkce ["roles" "profile"]}]}}
+                :openapi {:security [{:andrewslai-pkce ["roles" "profile"]}]}
+                ;; For testing only - this is a mechanism to always get results from a particular
+                ;; host URL.
+                ;;
+                ;;:host      "andrewslai.localhost"
+                }
    ["/" {:get {:openapi   {:summary   "Retrieve all articles"
                            :produces  #{"application/json"}
                            :security  [{:andrewslai-pkce ["roles" "profile"]}]

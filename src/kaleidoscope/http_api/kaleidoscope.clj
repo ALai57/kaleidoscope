@@ -50,53 +50,6 @@
     (when exception-reporter
       (exception-reporter e))))
 
-;; Emacs xwidgets
-(comment
-  (require '[portal.api :as p])
-  (def p-e
-    (p/open {:launcher     :emacs
-             :window-title "Kaleidoscope Portal"}))
-  (add-tap #'p/submit)
-  (tap> "Stuff")
-  )
-
-(defn set-host
-  [request host]
-  (assoc-in request [:headers "host"] host))
-
-(defn text-html
-  [response]
-  (assoc-in response [:headers "Content-Type"] "text/html"))
-
-(def index-routes
-  "All served from a common bucket: the Kaleidoscope app bucket."
-  (context "/" []
-    (GET "/" request
-      :components [static-content-adapters]
-      (span/with-span! {:name "kaleidoscope.index.get"}
-        (text-html (http-utils/get-resource static-content-adapters (assoc request :uri "/index.html")))))
-    (GET "/index.html" request
-      :components [static-content-adapters]
-      (span/with-span! {:name "kaleidoscope.index.get"}
-        (text-html (http-utils/get-resource static-content-adapters request))))
-    (GET "/silent-check-sso.html" request
-      :components [static-content-adapters]
-      (span/with-span! {:name "kaleidoscope.silent-check-sso.get"}
-        (text-html (http-utils/get-resource static-content-adapters (-> request
-                                                                        http-utils/kebab-case-headers
-                                                                        (set-host "kaleidoscope.pub"))))))
-
-    ;; Get frontend app from the Kaleidoscope bucket, so all sites don't need to
-    ;; have separate copies of the app (and all updates immediately apply to all
-    ;; sites).
-    (GET "/js/compiled/kaleidoscope/*" request
-      :components [static-content-adapters]
-      (let [uri (:uri request)]
-        (span/with-span! {:name (format "kaleidoscope.%s.get" (str/replace uri #"/" "."))}
-          (http-utils/get-resource static-content-adapters (-> request
-                                                               http-utils/kebab-case-headers
-                                                               (set-host "kaleidoscope.pub"))))))))
-
 (def default-handler
   (GET "*" {:keys [uri headers] :as request}
     :components [static-content-adapters]
@@ -109,7 +62,6 @@
   (api {:components components
         :exceptions {:handlers {:compojure.api.exception/default (exception-handler exception-reporter)}}
         :middleware [http-mw]}
-       index-routes
        articles-routes
        audiences-routes
        branches-routes
@@ -128,24 +80,24 @@
 
 ;; Add a tracing middleware data
 
-(defn get-resource
+(defn get-static-resource
   [{:keys [components] :as request}]
   (http-utils/get-resource (:static-content-adapters components) request))
 
 (def reitit-index-routes
   "All served from a common bucket: the Kaleidoscope app bucket."
   ["" {:no-doc true}
-   ["/index.html" {:get {:handler (partial found "/v2/")}}]
+   ["/index.html" {:get {:handler (partial found "/")}}]
    ["/"           {:get {:span-name "kaleidoscope.index.get"
                          :uri       "index.html"
-                         :handler   get-resource}}]
+                         :handler   get-static-resource}}]
 
    ["/silent-check-sso.html"      {:get {:span-name "kaleidoscope.silent-check-sso.get"
                                          :host      "kaleidoscope.pub"
-                                         :handler   get-resource}}]
+                                         :handler   get-static-resource}}]
 
    ["/js/compiled/kaleidoscope/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
-                                         :handler   get-resource}}]])
+                                         :handler   get-static-resource}}]])
 
 (defn inject-components
   [components]
@@ -184,3 +136,13 @@
                       :static-content nil})
    {:request-method :get
     :uri    "hi"}))
+
+;; Emacs xwidgets
+(comment
+  (require '[portal.api :as p])
+  (def p-e
+    (p/open {:launcher     :emacs
+             :window-title "Kaleidoscope Portal"}))
+  (add-tap #'p/submit)
+  (tap> "Stuff")
+  )
