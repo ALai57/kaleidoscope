@@ -104,7 +104,7 @@
       (http-utils/get-resource static-content-adapters (-> request
                                                            http-utils/kebab-case-headers)))))
 
-(defn kaleidoscope-app
+(defn kaleidoscope-compojure-app
   [{:keys [http-mw exception-reporter] :as components}]
   (api {:components components
         :exceptions {:handlers {:compojure.api.exception/default (exception-handler exception-reporter)}}
@@ -169,6 +169,10 @@
      (update-in mw/reitit-configuration
                 [:data :middleware]
                 (partial concat [(inject-components components)]))))))
+
+(defn kaleidoscope-app
+  [components]
+  (kaleidoscope-compojure-app components))
 
 (comment
 
