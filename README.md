@@ -99,18 +99,17 @@ Clone the repo and install [leiningen](https://leiningen.org/).
 
 #### Build: Uberjar
 ```bash
-lein do clean, uberjar
+./bin/uberjar
 ```
 
 #### Build: Docker
 ```bash
-lein do clean, uberjar
-docker build -t kaleidoscope .
+./bin/uberjar && ./bin/docker-build
 ```
 
 #### Run without Docker
 ``` bash
-lein run
+./bin/run
 ```
 
 #### Run with Docker
@@ -120,29 +119,22 @@ After docker build and setting up `.env.docker.local` with correct environment
 docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope
 ```
 
-To serve a local copy of the Andrewslai frontend, mount a volume to the Docker
+To serve a local copy of the Kaleidoscope frontend, mount a volume to the Docker
 container.
 
-Linux version
-``` bash
-docker run --env-file=.env.docker.local \
-            -p 5000:5000 \
-            -v /home/andrew/dev/kaleidoscope-ui/resources/public:/kaleidoscope-ui/resources/public \
-            kaleidoscope
-```
+Set the `$KALEIDOSCOPE_UI_HOME` environment variable as the fully-qualified path
+to the kaleidoscope-ui repo and run the following command:
 
-Mac version
 ``` bash
 docker run --env-file=.env.docker.local \
             -p 5000:5000 \
-            -v /Users/alai/spl/kaleidoscope-ui/resources/public:/kaleidoscope-ui/resources/public \
+            -v $KALEIDOSCOPE_UI_HOME/resources/public:/kaleidoscope-ui/resources/public \
             kaleidoscope
 ```
 
 #### Tests
 ```bash
-lein test
-
+./bin/test
 ```
 
 ## Development
