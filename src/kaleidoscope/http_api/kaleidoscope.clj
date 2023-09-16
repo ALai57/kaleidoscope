@@ -97,6 +97,7 @@
                                          :handler   get-static-resource}}]
 
    ["/js/compiled/kaleidoscope/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+                                         :host      "kaleidoscope.pub"
                                          :handler   get-static-resource}}]])
 
 (defn inject-components

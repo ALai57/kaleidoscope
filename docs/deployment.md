@@ -13,8 +13,11 @@
 
 Against the cloud
 ```bash
+./bin/aws-sso-creds  # Only if you need AWS Credentials
+
 docker run -v $HOME/.aws:/root/.aws:ro \
            --env-file=.env.aws \
+           --env-file=.env.aws.temp \
            -p 5000:5000 kaleidoscope
 ```
 

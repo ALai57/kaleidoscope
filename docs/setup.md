@@ -48,7 +48,14 @@ There is a template for what the `.env.local` should look like in `env.local.exa
 If you'd like to run the server in a Docker container connected to an instance
 of Postgres running on an AWS database, you'll need to provide the correct
 environment variables for the database.
-`docker run -d --rm --env-file=.env.aws -p 5000:5000 kaleidoscope`
+```
+./bin/aws-sso-creds  # Only if you need AWS Credentials
+
+docker run -d --rm \
+    --env-file=.env.aws \
+    -p 5000:5000 \
+    kaleidoscope
+```
 
 
 
