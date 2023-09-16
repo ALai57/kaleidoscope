@@ -16,13 +16,13 @@
 (def dev-handler
   "Evaluate this buffer to reload the `dev-handler` and have it show up
   immediately in the running webserver"
-  (let [env (into {} (System/getenv))]
-    (main/initialize-logging! env)
-    (env/make-http-handler (env/start-system! env))))
+  (delay (let [env (into {} (System/getenv))]
+           (main/initialize-logging! env)
+           (env/make-http-handler (env/start-system! env)))))
 
 (comment
   (def dev-app
-    (start-dev-application! (reload/wrap-reload #'dev-handler)))
+    (start-dev-application! (reload/wrap-reload @#'dev-handler)))
 
   (.stop dev-app)
   )

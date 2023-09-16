@@ -5,8 +5,7 @@
 ### Step 1: Build Docker Image
 
 ```bash
-./bin/uberjar
-docker build -t kaleidoscope .
+./bin/uberjar && ./bin/docker-build
 ```
 
 
@@ -14,8 +13,8 @@ docker build -t kaleidoscope .
 
 Against the cloud
 ```bash
-docker run -v$HOME/.aws:/root/.aws:ro \
-           --env-file=.env.docker.aws \
+docker run -v $HOME/.aws:/root/.aws:ro \
+           --env-file=.env.aws \
            -p 5000:5000 kaleidoscope
 ```
 
@@ -23,7 +22,10 @@ docker run -v$HOME/.aws:/root/.aws:ro \
 
 Against local DB
 ```bash 
-docker run -d --rm --network host --env-file=.env.docker.local -p 5000:5000 kaleidoscope
+docker run -d --rm --network host \
+    --env-file=.env.local \
+    -p 5000:5000 \
+    kaleidoscope
 ```
 
 ### Step 3: Upload artifact

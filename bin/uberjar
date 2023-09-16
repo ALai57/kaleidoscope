@@ -1,2 +1,3 @@
 #!/usr/bin/env sh
-clojure -X:build kaleidoscope.build/uberjar "$@"
+DISABLE_JSON_LOGGING=true \
+    clojure -X:build kaleidoscope.build/uberjar "$@"

@@ -109,7 +109,7 @@ Clone the repo
 
 #### Run without Docker
 ``` bash
-./bin/run
+./bin/run --environment=.env.local
 ```
 
 #### Run with Docker

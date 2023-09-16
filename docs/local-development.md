@@ -53,52 +53,25 @@ KALEIDOSCOPE_DB_NAME=andrewslai
 KALEIDOSCOPE_DB_PORT=5432
 ```
 
-## Locally running app connected to locally running services
+## Run app in Docker container
 
 **_Setup steps_**  
 Create an uberjar and build the docker container. Start keycloak
 ```bash
-./bin/uberjar
-docker build -t kaleidoscope .
-docker run --network host \
-            -e DB_USER=keycloak  \
-            -e DB_PASSWORD=keycloak \
-            -e DB_DATABASE=keycloak \
-            -e DB_VENDOR=POSTGRES \
-            -e DB_ADDR=""  \
-            jboss/keycloak -Djgroups.bind_addr=127.0.0.1
+./bin/uberjar && ./bin/docker-build
 ```
 
-**_Startup_**  
-Edit the `.env.local` file to provide env vars.
+**_Startup in Docker Container_**  
+In the command below, replace `.env.aws` with the environment file you'd like to use.
 ```bash
-docker run -d --rm --network host --env-file=.env.local -p 5000:5000 kaleidoscope
-```
-There is a template for what the `.env.local` in `env.local.example`
-
-```bash
-KALEIDOSCOPE_AUTH_TYPE=none KALEIDOSCOPE_DB_TYPE=embedded-h2 KALEIDOSCOPE_STATIC_CONTENT_TYPE=local KALEIDOSCOPE_STATIC_CONTENT_FOLDER='../kaleidoscope-ui/resources/public' ./bin/run
-
+docker run -d --rm \
+  --env-file=.env.aws \
+  -p 5000:5000 \
+  kaleidoscope
 ```
 
-## Locally running app connected to cloud services
-
-**_Setup steps_**  
-Create an uberjar and build the docker container.
+## Run app via `clojure`
+**_Startup Without Container_**  
 ```bash
-./bin/uberjar
-docker build -t kaleidoscope .
-```
-
-**_Startup_**  
-Edit the `.env.aws` file to provide the correct environment variables.
-```bash
-docker run -d --rm --env-file=.env.aws -p 5000:5000 kaleidoscope
-
-./bin/uberjar && docker build -t kaleidoscope .
-docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope
-```
-
-```bash
-# docker run --env-file=.env.docker.aws -p 5000:5000 kaleidoscope
+./bin/run --environment=.env.local
 ```

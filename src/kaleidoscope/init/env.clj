@@ -18,7 +18,6 @@
             [malli.core :as m]
             [malli.dev.pretty :as pretty]
             [malli.dev.virhe :as v]
-            [malli.instrument :as mi]
             [next.jdbc :as next]
             [next.jdbc.connection :as connection]
             [taoensso.timbre :as log])
@@ -267,6 +266,3 @@
    [:group
     (pretty/-block "Invalid function return value. Function Var:" (v/-visit fn-name printer) printer) :break :break
     (pretty/-block "Errors:" (pretty/-explain output value printer) printer) :break :break]})
-
-(mi/collect! {:ns 'kaleidoscope.init.env})
-(mi/instrument! {:report (pretty/thrower)})

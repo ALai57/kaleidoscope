@@ -6,6 +6,8 @@
             [kaleidoscope.http-api.middleware :as mw]
             [kaleidoscope.init.env :as env]
             [kaleidoscope.utils.logging :as ul]
+            [malli.dev.pretty :as pretty]
+            [malli.instrument :as mi]
             [ring.adapter.jetty :as jetty]
             [signal.handler :as sig]
             [steffan-westcott.clj-otel.exporter.otlp.http.trace :as otlp-http-trace]
@@ -59,6 +61,14 @@
 (defn close-otel! []
   (sdk/close-otel-sdk!))
 
+(defn initialize-schema-enforcement!
+  "Enforce Malli function schemas in specific namespaces.
+  Used to ensure that the given environment variables result in a valid system
+  configuration."
+  []
+  (mi/collect! {:ns 'kaleidoscope.init.env})
+  (mi/instrument! {:report (pretty/thrower)}))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -69,6 +79,7 @@
     (log/infof "Hello! Starting kaleidoscope on port %s" port)
     (initialize-logging! env)
     (init-otel!)
+    (initialize-schema-enforcement!)
     (-> system-components
         (env/make-http-handler)
         (jetty/run-jetty {:port port}))))
