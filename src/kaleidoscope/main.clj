@@ -77,8 +77,8 @@
   "Start a server and run the application"
   [& args]
 
-  ;; Cannot test this via `lein` or via REPL. Need to run this in a Java process,
-  ;; `lein uberjar`
+  ;; Cannot test this via REPL. Need to run this in a Java process,
+  ;; `./bin/uberjar`
   ;; `java -jar target/kaleidoscope.jar`
   ;; https://grishaev.me/en/clj-book-systems/
   (sig/with-handler :term

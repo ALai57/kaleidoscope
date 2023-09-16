@@ -5,7 +5,7 @@
 ### Step 1: Build Docker Image
 
 ```bash
-lein do clean, uberjar
+./bin/uberjar
 docker build -t kaleidoscope .
 ```
 
@@ -35,6 +35,6 @@ docker run -d --rm --network host --env-file=.env.docker.local -p 5000:5000 kale
 
 ## Deployment
 ```
-lein release
+./bin/release
 ./scripts/deployment/deploy-image
 ```

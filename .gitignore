@@ -5,8 +5,6 @@ out
 figwheel_server.log
 *db_init_log.txt
 *.env*
-*.lein-repl-history
-.lein-failures
 use_db
 log.txt
 node_modules

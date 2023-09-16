@@ -58,7 +58,7 @@ KALEIDOSCOPE_DB_PORT=5432
 **_Setup steps_**  
 Create an uberjar and build the docker container. Start keycloak
 ```bash
-lein do clean, uberjar
+./bin/uberjar
 docker build -t kaleidoscope .
 docker run --network host \
             -e DB_USER=keycloak  \
@@ -77,7 +77,7 @@ docker run -d --rm --network host --env-file=.env.local -p 5000:5000 kaleidoscop
 There is a template for what the `.env.local` in `env.local.example`
 
 ```bash
-KALEIDOSCOPE_AUTH_TYPE=none KALEIDOSCOPE_DB_TYPE=embedded-h2 KALEIDOSCOPE_STATIC_CONTENT_TYPE=local KALEIDOSCOPE_STATIC_CONTENT_FOLDER='../kaleidoscope-ui/resources/public' lein run
+KALEIDOSCOPE_AUTH_TYPE=none KALEIDOSCOPE_DB_TYPE=embedded-h2 KALEIDOSCOPE_STATIC_CONTENT_TYPE=local KALEIDOSCOPE_STATIC_CONTENT_FOLDER='../kaleidoscope-ui/resources/public' ./bin/run
 
 ```
 
@@ -86,7 +86,7 @@ KALEIDOSCOPE_AUTH_TYPE=none KALEIDOSCOPE_DB_TYPE=embedded-h2 KALEIDOSCOPE_STATIC
 **_Setup steps_**  
 Create an uberjar and build the docker container.
 ```bash
-lein do clean, uberjar
+./bin/uberjar
 docker build -t kaleidoscope .
 ```
 
@@ -95,7 +95,7 @@ Edit the `.env.aws` file to provide the correct environment variables.
 ```bash
 docker run -d --rm --env-file=.env.aws -p 5000:5000 kaleidoscope
 
-lein uberjar && docker build -t kaleidoscope .
+./bin/uberjar && docker build -t kaleidoscope .
 docker run --env-file=.env.docker.local -p 5000:5000 kaleidoscope
 ```
 

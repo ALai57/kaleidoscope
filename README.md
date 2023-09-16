@@ -95,7 +95,7 @@ app will send verbose error messages to help you configure the environment
 properly.
 
 ## Installation/setup
-Clone the repo and install [leiningen](https://leiningen.org/).  
+Clone the repo
 
 #### Build: Uberjar
 ```bash
