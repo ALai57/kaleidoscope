@@ -50,7 +50,11 @@
   (b/uber {:class-dir CLASS-DIR
            :uber-file UBER-FILE
            :basis     BASIS
-           :main      MAIN}))
+           :main      MAIN
+           :exclude   #{#"META-INF/license/LICENSE.aix-netbsd.txt"
+                        #"META-INF/license/LICENSE.boringssl.txt"
+                        #"META-INF/license/LICENSE.mvn-wrapper.txt"
+                        #"META-INF/license/LICENSE.tomcat-native.txt"}}))
 
 (def PWD (System/getProperty "user.dir"))
 
