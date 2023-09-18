@@ -1,4 +1,9 @@
 #!/bin/bash
+#
+# Was useful before adding SSO support to the Java SDK - prior to adding SSO
+# support, the only way to get the SDK to authenticate to AWS was using the
+# CredentialsProviderChain which did not have an SSO option. This script
+# allowed the user to export SSO credentials to env variables to auth to AWS.
 
 PWD=$(pwd)
 echo "PWD: $PWD"

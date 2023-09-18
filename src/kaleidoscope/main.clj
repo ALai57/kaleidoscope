@@ -10,11 +10,19 @@
             [malli.instrument :as mi]
             [ring.adapter.jetty :as jetty]
             [signal.handler :as sig]
+            [signal.amazonica-aws-sso :as amazonica-aws-sso]
             [steffan-westcott.clj-otel.exporter.otlp.http.trace :as otlp-http-trace]
             [steffan-westcott.clj-otel.resource.resources :as res]
             [steffan-westcott.clj-otel.sdk.otel-sdk :as sdk]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]))
+
+(try
+  (when-let [aws-profile (System/getenv "AWS_PROFILE")]
+    (log/infof "Attempting to use AWS_PROFILE: %s" aws-profile)
+    (amazonica-aws-sso/init!))
+  (catch Exception e
+    (log/warn "Unable to set up SSO provider!")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Logging
@@ -54,8 +62,7 @@
                       {:resources [(res/host-resource)
                                    (res/os-resource)
                                    (res/process-resource)
-                                   (res/process-runtime-resource)
-                                   ]
+                                   (res/process-runtime-resource)]
                        :tracer-provider {:span-processors [{:exporters [(otlp-http-trace/span-exporter)]}]}}))
 
 (defn close-otel! []
@@ -124,6 +131,20 @@
                         "KALEIDOSCOPE_STATIC_CONTENT_TYPE"         "none"
                         "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
                         "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                        "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"}
-                       ))
+                        "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"})))
+
+(comment
+  ;; Play with AWS SSO
+  (require '[amazonica.aws.securitytoken :as sts])
+
+  ;; Use SSO credentials for a single call
+  (amazonica-aws-sso/with-sso-credential
+    (sts/get-caller-identity))
+
+  ;; Use SSO credentials for all subsequent calls
+  (amazonica-aws-sso/init!)
+  (sts/get-caller-identity)
+
+  ;; Reset amazonica to use it's default AWS credentials provider
+  (amazonica-aws-sso/reset!)
   )

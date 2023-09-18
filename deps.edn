@@ -1,5 +1,7 @@
 {:paths   ["src" "resources"]
  :deps    {amazonica/amazonica                                          {:mvn/version "0.3.162"}
+           com.signal-ai/amazonica-aws-sso                              {:mvn/version "1.0.2"}   ;; Allow SSO credentials via CredentialsProviderChain
+           software.amazon.awssdk/ssooidc                               {:mvn/version "2.20.50"} ;; Required to use SSO OIDC related properties for login
            bk/ring-gzip                                                 {:mvn/version "0.3.0"}
            buddy/buddy-auth                                             {:mvn/version "3.0.323"}
            camel-snake-kebab/camel-snake-kebab                          {:mvn/version "0.4.3"}
