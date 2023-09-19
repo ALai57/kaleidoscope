@@ -9,13 +9,18 @@
             [kaleidoscope.api.portfolio :as portfolio]
             [kaleidoscope.http-api.cache-control :as cc]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
+            [kaleidoscope.http-api.articles :as http.articles]
             [kaleidoscope.init.env :as env]
             [kaleidoscope.models.albums :refer [example-album example-album-2]]
             [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
             [kaleidoscope.utils.core :as util]
+            [malli.core :as malli]
+            [malli.transform :as mt]
+            [matcher-combinators.core :as mcc]
             [matcher-combinators.matchers :as m]
+            [matcher-combinators.result :as result]
             [matcher-combinators.test :refer [match?]]
             [peridot.multipart :as mp]
             [ring.mock.request :as mock]
@@ -36,6 +41,31 @@
 (defn articles?
   [x]
   (s/valid? :kaleidoscope.article/articles x))
+
+(defn- malli-match
+  "Expects `actual` to be JSON - so it must be interpreted/decoded
+  and then compared to the expected schema."
+  [schema actual]
+  (let [clojurized (malli/decode schema actual (mt/json-transformer))
+        mismatch   (malli/explain schema clojurized)]
+    (cond
+      mismatch {::result/type   :mismatch
+                ::result/value  mismatch
+                ::result/weight 1}
+      :else    {::result/type   :match
+                ::result/value  actual
+                ::result/weight 0})))
+
+(defn malli-matcher
+  "Create a matcher that matches against a Malli schema.
+
+  On failure, uses the Malli explanation to show why failure happened"
+  [schema]
+  (reify mcc/Matcher
+    (-matcher-for [this] schema)
+    (-matcher-for [this _] schema)
+    (-match [this actual]
+      (malli-match schema actual))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing HTTP routes
@@ -110,15 +140,15 @@
 
 (deftest access-rule-configuration-test
   (are [description expected request]
-       (testing description
-         (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
-                             "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
-                             "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
-                             "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
-                            (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
-                            env/prepare-kaleidoscope
-                            kaleidoscope/kaleidoscope-app)]
-           (is (match? expected (handler request)))))
+    (testing description
+      (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                          "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                          "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                          "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                         (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                         env/prepare-kaleidoscope
+                         kaleidoscope/kaleidoscope-app)]
+        (is (match? expected (handler request)))))
 
     "GET `/ping` is publicly accessible"
     {:status 200} (mock/request :get "https://andrewslai.com/ping")
@@ -147,8 +177,6 @@
     "PUT `/articles/new-article` is not publicly accessible"
     {:status 401} (mock/request :put "https://andrewslai.com/articles/new-article")))
 
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test of Blogging API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -168,8 +196,7 @@
   ([query host]
    (cond-> (mock/request :get (str host "/branches"))
      true  (mock/header "Authorization" "Bearer x")
-     query (mock/query-string query)))
-  )
+     query (mock/query-string query))))
 
 (defn create-version
   ([article-url branch version]
@@ -201,8 +228,7 @@
                                   host
                                   article-url
                                   branch-name))
-       (mock/header "Authorization" "Bearer x")))
-  )
+       (mock/header "Authorization" "Bearer x"))))
 
 (defn has-count
   [n]
@@ -223,9 +249,8 @@
                     (app (mock/request :get (str "http://andrewslai.localhost" endpoint)))))))
 
     "/compositions"                  {:status 200 :body (has-count 4)}
-    "/compositions/my-first-article" {:status 200 :body article?}
-    "/compositions/does-not-exist"   {:status 404}
-    ))
+    "/compositions/my-first-article" {:status 200 :body (malli-matcher http.articles/GetCompositionResponse)}
+    "/compositions/does-not-exist"   {:status 404}))
 
 (deftest create-branch-happy-path-test
   (let [app     (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -327,8 +352,7 @@
         version-2 {:content "<p>Hello</p>"}
 
         {[article-branch] :body :as create-result} (app (create-branch (assoc article :branch-name "branch-1")
-                                                                       "https://andrewslai.com"))
-        ]
+                                                                       "https://andrewslai.com"))]
 
     (testing "Create article branch"
       (is (match? {:status 200 :body [{:article-id some? :branch-id some? :article-title "My test article"}]}
@@ -344,8 +368,7 @@
       (is (match? {:status 200 :body (has-count 2)}
                   (app (get-version "https://andrewslai.com" (:branch-id article-branch)))))
       (is (match? {:status 401}
-                  (app (get-version "https://other-domain.com" (:branch-id article-branch)))))
-      )))
+                  (app (get-version "https://other-domain.com" (:branch-id article-branch))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Resume API
@@ -426,7 +449,7 @@
                     (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id))))))
       (testing "Direct access via HTTP API"
         (is (match? {:status 200}
-                    (app (mock/request :get (format "https://andrewslai.com/v2/photos/%s/raw.png" image-id )))))))
+                    (app (mock/request :get (format "https://andrewslai.com/v2/photos/%s/raw.png" image-id)))))))
 
     (testing "Matching Etags return a 304 - not modified response"
       (let [image-path (str "media/" image-id "/raw.png")]
@@ -542,8 +565,7 @@
           (is (match? {:status 200
                        :body   [{:memberships empty?}]}
                       (app (-> (mock/request :get "https://andrewslai.com/groups")
-                               (mock/header "Authorization" "Bearer user first-user")))))
-          )))))
+                               (mock/header "Authorization" "Bearer user first-user"))))))))))
 
 (deftest index.html-test
   (let [system (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -763,8 +785,4 @@
                                {:name    "lock.svg"
                                 :content (-> "public/images/lock.svg"
                                              clojure.java.io/resource
-                                             clojure.java.io/input-stream)}]})
-
-
-
-  )
+                                             clojure.java.io/input-stream)}]}))

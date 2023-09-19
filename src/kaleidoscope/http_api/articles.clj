@@ -53,27 +53,7 @@
     :coercion    :spec
     :components  [database]
     :tags        ["articles"]
-
-    (GET "/" request
-      :swagger {:summary   "Retrieve all articles"
-                :produces  #{"application/json"}
-                :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                :responses {200 {:description "A collection of all articles"
-                                 :schema      :kaleidoscope.article/articles}}}
-      (ok (articles-api/get-articles database {:hostname (hu/get-host request)})))
-
     (context "/:article-url" [article-url]
-      (GET "/" request
-        :swagger {:summary    "Retrieve a single article"
-                  :produces   #{"application/json"}
-                  :security   [{:andrewslai-pkce ["roles" "profile"]}]
-                  :parameters {:path {:article-url :kaleidoscope.article/article-url}}
-                  :responses  {200 {:description "A single article"
-                                    :schema      :kaleidoscope.article/article}}}
-        (if-let [article (articles-api/get-articles database {:article-url article-url})]
-          (ok article)
-          (not-found {:reason "Missing"})))
-
       (context "/branches" _
         :tags ["branches"]
 
@@ -146,8 +126,7 @@
                   (ok result))
                 (catch Exception e
                   (log/error "Caught exception " e)
-                  (conflict (ex-message e))))))
-          )))))
+                  (conflict (ex-message e)))))))))))
 
 (def branches-routes
   ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
@@ -203,38 +182,6 @@
             (not-found {:reason "Missing"})
             (ok (reverse (sort-by :created-at branches)))))))))
 
-(def compositions-routes
-  ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
-  ;; with let-bindings out of order: +compojure-api-request+ is referred to
-  ;; before it is bound. This means that, to fix the bug, you'd need to either
-  ;; reverse the order of the emitted bindings, or do what I did, and just
-  ;; change the symbol =)
-  (context "/compositions" +compojure-api-request+
-    :coercion :spec
-    :components [database]
-    :tags ["compositions"]
-
-    (GET "/" request
-      :swagger {:summary     "Retrieve all published articles"
-                :description (str "This endpoint retrieves all published articles. "
-                                  "The endpoint is currently not paginated")
-                :produces    #{"application/json"}
-                :responses   {200 {:description "A collection of all published articles"
-                                   :schema      :kaleidoscope.article/articles}}}
-      (log/infof "Getting compositions for host `%s`" (hu/get-host request))
-      (ok (articles-api/get-published-articles database {:hostname (hu/get-host request)})))
-
-    (GET "/:article-url" [article-url :as request]
-      :swagger {:summary    "Retrieve a single published article"
-                :produces   #{"application/json"}
-                :parameters {:path {:article-url :kaleidoscope.article/article-url}}
-                :responses  {200 {:description "A single published article"
-                                  :schema      :kaleidoscope.article/article}}}
-      (let [result (articles-api/get-published-articles database {:article-url article-url})]
-        (if (empty? result)
-          (not-found {:reason "Missing"})
-          (ok (first result)))))))
-
 ;;
 ;; Reitit
 ;;
@@ -251,6 +198,20 @@
 
 (def GetArticlesResponse
   [:sequential GetArticleResponse])
+
+(def GetCompositionResponse
+  [:map
+   [:article-id    :int]
+   [:article-title :string]
+   [:article-url   :string]
+   [:author        :string]
+   [:branch-id     :int]
+   [:branch-name   :string]
+   [:created-at    inst?]
+   [:content       :string]
+   [:hostname      :string]
+   [:modified-at   inst?]
+   [:version-id    :int]])
 
 (def example-article
   {:id            1
@@ -311,3 +272,44 @@
                       (if-let [article (first (articles-api/get-articles (:database components) {:article-url (get-in parameters [:path :article-url])}))]
                         (ok article)
                         (not-found {:reason "Missing"})))}}]])
+
+(def reitit-compositions-routes
+  ["/compositions" {:tags ["compositions"]
+                    ;; For testing only - this is a mechanism to always get results from a particular
+                    ;; host URL.
+                    ;;
+                    ;;:host      "andrewslai.localhost"
+
+
+                    }
+   ["" {:get {:openapi {:summary     "Retrieve all published articles"
+                        :description (str "This endpoint retrieves all published articles. "
+                                          "The endpoint is currently not paginated")
+                        :produces    #{"application/json"}
+                        :responses   {500 {:body ErrorResponse}
+                                      200 (json-examples {"example-articles" {:summary "A collection of all articles"
+                                                                              :body    GetArticlesResponse
+                                                                              :value   [example-article]}})}}
+
+              :handler (fn [{:keys [components] :as request}]
+                         (log/infof "Getting compositions for host `%s`" (hu/get-host request))
+                         (ok (articles-api/get-published-articles (:database components)
+                                                                  {:hostname (hu/get-host request)})))}}]
+   ["/:article-url"
+    {:get {:openapi {:summary    "Retrieve a single published article"
+                     :produces   #{"application/json"}
+                     :parameters {:path {:article-url string?}}
+                     :responses  {200 (json-examples {"example-article" {:summary "A single article"
+                                                                         :value   example-article}})}}
+
+           :responses {200 {:body GetCompositionResponse}
+                       404 {:body NotFoundResponse}
+                       500 {:body ErrorResponse}}
+
+           :parameters {:path {:article-url string?}}
+           :handler    (fn [{:keys [components parameters] :as request}]
+                         (log/infof "Retrieving composition %s" (get-in parameters [:path :article-url]))
+                         (let [result (articles-api/get-published-articles (:database components) {:article-url (get-in parameters [:path :article-url])})]
+                           (if (empty? result)
+                             (not-found {:reason "Missing"})
+                             (ok (first result)))))}}]])
