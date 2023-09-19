@@ -111,6 +111,6 @@
            :handler (openapi/create-openapi-handler)}}]
 
    ["/api-docs"     {:get {:handler (fn [_request]
-                                      (found "/v2/api-docs/index.html"))}}]
+                                      (found "/api-docs/index.html"))}}]
    ["/api-docs/*"   {:get {:handler (reitit-swagger-ui/create-swagger-ui-handler
-                                     {:url "/v2/openapi.json"})}}]])
+                                     {:url "/openapi.json"})}}]])

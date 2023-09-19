@@ -30,9 +30,9 @@
            javax.servlet/servlet-api                                    {:mvn/version "2.5"}
            lambdaisland/deep-diff2                                      {:mvn/version "2.7.169"}
            metosin/compojure-api                                        {:mvn/version "2.0.0-alpha31"}
-           metosin/malli                                                {:mvn/version "0.10.0"}
+           metosin/malli                                                {:mvn/version "0.12.0"}
            metosin/spec-tools                                           {:mvn/version "0.10.3"}
-           metosin/reitit                                               {:mvn/version "0.7.0-alpha5"}
+           fi.metosin/reitit                                            {:mvn/version "0.7.0-alpha6"}
            metosin/ring-swagger-ui                                      {:mvn/version "5.0.0-alpha.0"}  ;; To support OpenAPI 3.1.0
            migratus/migratus                                            {:mvn/version "1.4.9"}
            org.clojure/clojure                                          {:mvn/version "1.12.0-alpha3"} ;; For Java Process API

@@ -74,6 +74,43 @@
    :modified-at   "2022-01-01T00:00:00Z"
    :hostname      "andrewslai.localhost"})
 
+(def example-article-2
+  {:id            2
+   :author        "Andrew Lai"
+   :article-url   "my-second-article"
+   :article-title "My second article"
+   :article-tags  "thoughts"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :hostname      "andrewslai.localhost"})
+
+(def example-branch-1
+  {:article-id    1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :branch-id     1
+   :branch-name   "branch-1"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :hostname      "andrewslai.localhost"})
+
+(def example-branch-2
+  {:article-id    1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :branch-id     1
+   :branch-name   "branch-2"
+   :created-at    "2022-01-02T00:00:00Z"
+   :modified-at   "2022-01-02T00:00:00Z"
+   :hostname      "andrewslai.localhost"})
+
+(def example-not-found
+  {:reason "missing"})
+
 (def ErrorResponse
   [:map])
 
@@ -87,6 +124,18 @@
    {"application/json"
     {:examples responses}}})
 
+(def openapi-404
+  {404 {:content {"application/json"
+                  {:description "Not found"
+                   :schema      NotFoundResponse
+                   :examples    {"not-found" {:summary "Not found"
+                                              :value   example-not-found}}}}}})
+
+(def openapi-500
+  {500 {:content {"application/json"
+                  {:description "Error response"
+                   :schema      ErrorResponse}}}})
+
 (def reitit-articles-routes
   ["/articles" {:tags    ["articles"]
                 :openapi {:security [{:andrewslai-pkce ["roles" "profile"]}]}
@@ -95,27 +144,26 @@
                 ;;
                 ;;:host      "andrewslai.localhost"
                 }
-   ["" {:get {:openapi {:summary   "Retrieve all articles"
-                        :produces  #{"application/json"}
-                        :responses {200 (json-examples {"example-articles" {:summary "A response with one example articles"
-                                                                            :value   [example-article]}})}}
-
-              :responses {200 {:description "A collection of all articles"
-                               :body        [:sequential GetArticleResponse]}
-                          500 {:body ErrorResponse}}
+   ["" {:get {:summary   "Retrieve all articles"
+              :responses (merge openapi-500
+                                {200 {:content {"application/json"
+                                                {:description "A collection of all articles"
+                                                 :schema      [:sequential GetArticleResponse]
+                                                 :examples    {"example-articles" {:summary "Example articles response"
+                                                                                   :value   [example-article
+                                                                                             example-article-2]}}}}}})
               :handler   (fn [{:keys [components] :as request}]
                            (->> {:hostname (hu/get-host request)}
                                 (articles-api/get-articles (:database components))
                                 ok))}}]
    ["/:article-url"
-    {:get {:openapi {:summary   "Retrieve a single article"
-                     :produces  #{"application/json"}
-                     :responses {200 (json-examples {"example-article" {:summary "A single article"
-                                                                        :value   example-article}})}}
-
-           :responses {200 {:body GetArticleResponse}
-                       404 {:body NotFoundResponse}
-                       500 {:body ErrorResponse}}
+    {:get {:summary   "Retrieve a single article"
+           :responses (merge openapi-404 openapi-500
+                             {200 {:content {"application/json"
+                                             {:description "A single article"
+                                              :schema      GetArticleResponse
+                                              :examples    {"example-article" {:summary "Example article"
+                                                                               :value   example-article}}}}}})
 
            :parameters {:path {:article-url string?}}
            :handler    (fn [{:keys [components path-params] :as request}]
@@ -123,29 +171,20 @@
                            (if-let [article (first (articles-api/get-articles (:database components) {:article-url article-url}))]
                              (ok article)
                              (not-found {:reason "Missing"}))))}}]
-   ["/:article-url/branches" {:tags ["branches"]
-                              :get  {:openapi {:summary   "Retrieve all branches for a specific article"
-                                               :produces  #{"application/json"}
-                                               :responses {200 (json-examples {"example-article" {:summary "A single article"
-                                                                                                  :value   example-article}})}}
-                                     :handler (fn [{:keys [components path-params] :as request}]
-                                                (let [article-url (:article-url path-params)]
-                                                  (ok (articles-api/get-branches (:database components) {:article-url article-url}))))}}]
-   ["/:article-url/branches/:branch-name" {:put {:openapi {:summary   "Create an article branch"
-                                                           :produces  #{"application/json"}
-                                                           :consumes  #{"application/json"}
-                                                           :responses {200 (json-examples {"example-article" {:summary "A single article"
-                                                                                                              :value   example-article}})}}
-                                                 :handler (fn [{:keys [components path-params] :as request}]
-                                                            (try
-                                                              (let [branch-name (:branch-name path-params)
-                                                                    article-url (:article-url path-params)
-                                                                    article     (->article article-url request)
-                                                                    branch      {:branch-name branch-name}]
-                                                                (ok (doto (articles-api/create-branch! (:database components) (merge article branch))
-                                                                      log/info)))
-                                                              (catch Exception e
-                                                                (log/error "Caught exception " e))))}}]
+   ["/:article-url/branches"
+    {:tags ["branches"]
+     :get  {:summary    "Retrieve all branches for a specific article"
+            :responses  {200 {:content {"application/json"
+                                        {:description "Branches"
+                                         :schema      [:sequential GetBranchResponse]
+                                         :examples    {"example-branches" {:summary "Example branches"
+                                                                           :value   [example-branch-1
+                                                                                     example-branch-2]}}}}}}
+            :parameters {:path {:article-url string?}}
+            :handler    (fn [{:keys [components path-params] :as request}]
+                          (let [article-url (:article-url path-params)]
+                            (ok (articles-api/get-branches (:database components) {:article-url article-url}))))}}]
+   ;; The two routes below should be relocated to `branches`
    ["/:article-url/branches/:branch-name/publish"
     {:put {:openapi {:summary   "Publish an article branch"
                      :produces  #{"application/json"}
