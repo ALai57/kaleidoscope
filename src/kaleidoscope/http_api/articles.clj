@@ -24,164 +24,6 @@
 (defn ->commit [{:keys [body-params] :as request}]
   (select-keys body-params [:branch-id :content :created-at :modified-at]))
 
-(defmethod compojure-meta/restructure-param :swagger
-  [_ {request-spec :request :as swagger} acc]
-  (let [path (fn [spec] (str "#/components/schemas/" (name spec)))
-        ex-path (fn [spec] (str "#/components/examples/" (name spec)))
-        x (if request-spec
-            (-> swagger
-                (assoc :requestBody
-                       {:content
-                        {"application/json"
-                         {:schema
-                          {"$ref" (path request-spec)}
-                          :examples
-                          {(name request-spec) {"$ref" (ex-path request-spec)}}}}})
-                (assoc-in [:components :schemas (name request-spec)]
-                          {:spec        request-spec
-                           :description "Automagically added"}))
-            swagger)]
-    (assoc-in acc [:info :public :swagger] x)))
-
-(def articles-routes
-  ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
-  ;; with let-bindings out of order: +compojure-api-request+ is referred to
-  ;; before it is bound. This means that, to fix the bug, you'd need to either
-  ;; reverse the order of the emitted bindings, or do what I did, and just
-  ;; change the symbol =)
-  (context "/articles" +compojure-api-request+
-    :coercion    :spec
-    :components  [database]
-    :tags        ["articles"]
-    (context "/:article-url" [article-url]
-      (context "/branches" _
-        :tags ["branches"]
-
-        (GET "/" []
-          :swagger {:summary  "Retrieve all branches for a specific article"
-                    :security [{:andrewslai-pkce ["roles" "profile"]}]
-                    :produces #{"application/json"}}
-          (ok (articles-api/get-branches database {:article-url article-url})))
-
-        (context "/:branch-name" [branch-name]
-          (PUT "/" request
-            :swagger {:summary   "Create an article branch"
-                      :consumes  #{"application/json"}
-                      :produces  #{"application/json"}
-                      :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                      :request   :kaleidoscope.article/article
-                      :responses {200 {:description "The article branch that was created"
-                                       :schema      :kaleidoscope.article/article}
-                                  401 {:description "Unauthorized"
-                                       :schema      ::error-message}}}
-            (try
-              (let [article (->article article-url request)
-                    branch  {:branch-name branch-name}]
-                (ok (doto (articles-api/create-branch! database (merge article branch))
-                      log/info)))
-              (catch Exception e
-                (log/error "Caught exception " e))))
-
-          ;; Should probably be POST `publish-date`
-          (PUT "/publish" request
-            :swagger {:summary   "Publish an article branch"
-                      :produces  #{"application/json"}
-                      :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                      :responses {200 {:description "The article branch that was created"
-                                       :schema      :kaleidoscope.article/article}
-                                  401 {:description "Unauthorized"
-                                       :schema      ::error-message}}}
-            (try
-              (log/infof "Publishing article %s and branch %s" article-url branch-name)
-              (let [[{:keys [branch-id]}] (articles-api/get-branches database {:branch-name branch-name
-                                                                               :article-url article-url})
-                    result                (articles-api/publish-branch! database branch-id)]
-                (ok result))
-              (catch Exception e
-                (log/error "Caught exception " e))))
-
-          (context "/versions" []
-            :tags ["versions"]
-            (POST "/" request
-              :swagger {:summary   "Create a new version (commit) on a branch"
-                        :consumes  #{"application/json"}
-                        :produces  #{"application/json"}
-                        :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                        :request   :kaleidoscope.article/article
-                        :responses {200 {:description "The version that was created"
-                                         :schema      :kaleidoscope.article/article}
-                                    401 {:description "Unauthorized"
-                                         :schema      ::error-message}}}
-              (try
-                (let [commit (->commit request)
-                      result (articles-api/new-version! database
-                                                        {:branch-name   branch-name
-                                                         :hostname      (hu/get-host request)
-                                                         :article-url   article-url
-                                                         :article-tags  (get-in request [:params :article-tags] "thoughts")
-                                                         :article-title (get-in request [:params :article-title])
-                                                         :author        (oidc/get-full-name (:identity request))}
-                                                        commit)]
-                  (log/info result)
-                  (ok result))
-                (catch Exception e
-                  (log/error "Caught exception " e)
-                  (conflict (ex-message e)))))))))))
-
-(def branches-routes
-  ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
-  ;; with let-bindings out of order: +compojure-api-request+ is referred to
-  ;; before it is bound. This means that, to fix the bug, you'd need to either
-  ;; reverse the order of the emitted bindings, or do what I did, and just
-  ;; change the symbol =)
-  (context "/branches" +compojure-api-request+
-    :coercion   :spec
-    :components [database]
-    :tags       ["branches"]
-
-    (GET "/" request
-      :swagger {:summary  "Retrieve all branches"
-                :security [{:andrewslai-pkce ["roles" "profile"]}]
-                :produces #{"application/json"}}
-      (let [query-params (select-keys (cske/transform-keys csk/->kebab-case-keyword (:query-params request))
-                                      [:article-id :article-url])
-            branches     (articles-api/get-branches database (assoc query-params :hostname (hu/get-host request)))]
-        (if (empty? branches)
-          (not-found {:reason "Missing"})
-          (ok branches))))
-
-    (POST "/" request
-      :swagger {:summary   "Create a branch"
-                :consumes  #{"application/json"}
-                :produces  #{"application/json"}
-                :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                :request   :kaleidoscope.article/article-branch
-                :responses {200 {:description "The branch that was created"
-                                 :schema      :kaleidoscope.article/article-branch}
-                            401 {:description "Unauthorized"
-                                 :schema      ::error-message}}}
-      (try
-        (ok (articles-api/create-branch! database (assoc (:body-params request)
-                                                         :hostname (hu/get-host request)
-                                                         :author   (oidc/get-full-name (:identity request)))))
-        (catch Exception e
-          (log/error "Caught exception " e))))
-
-    (context "/:branch-id" [branch-id]
-      (GET "/versions" request
-        :tags ["versions"]
-        :swagger {:summary   "Get versions"
-                  :produces  #{"application/json"}
-                  :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                  :responses {200 {:description "The version that was created"
-                                   :schema      :kaleidoscope.article/article-branch}
-                              401 {:description "Unauthorized"
-                                   :schema      ::error-message}}}
-        (let [branches (articles-api/get-versions database {:branch-id (Integer/parseInt branch-id)})]
-          (if (empty? branches)
-            (not-found {:reason "Missing"})
-            (ok (reverse (sort-by :created-at branches)))))))))
-
 ;;
 ;; Reitit
 ;;
@@ -196,8 +38,17 @@
    [:modified-at   inst?]
    [:created-at    inst?]])
 
-(def GetArticlesResponse
-  [:sequential GetArticleResponse])
+(def GetBranchResponse
+  [:map
+   [:article-id    :int]
+   [:article-title :string]
+   [:article-url   :string]
+   [:author        :string]
+   [:branch-id     :int]
+   [:branch-name   :string]
+   [:created-at    inst?]
+   [:hostname      :string]
+   [:modified-at   inst?]])
 
 (def GetCompositionResponse
   [:map
@@ -237,41 +88,104 @@
     {:examples responses}}})
 
 (def reitit-articles-routes
-  ["/articles" {:tags     ["articles"]
+  ["/articles" {:tags    ["articles"]
                 :openapi {:security [{:andrewslai-pkce ["roles" "profile"]}]}
                 ;; For testing only - this is a mechanism to always get results from a particular
                 ;; host URL.
                 ;;
                 ;;:host      "andrewslai.localhost"
                 }
-   ["/" {:get {:openapi   {:summary   "Retrieve all articles"
-                           :produces  #{"application/json"}
-                           :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                           :responses {200 (json-examples {"example-articles" {:summary "A response with one example articles"
-                                                                               :value   [example-article]}})}}
+   ["" {:get {:openapi {:summary   "Retrieve all articles"
+                        :produces  #{"application/json"}
+                        :responses {200 (json-examples {"example-articles" {:summary "A response with one example articles"
+                                                                            :value   [example-article]}})}}
 
-               :responses {200 {:description "A collection of all articles"
-                                :body        GetArticlesResponse}
-                           500 {:body ErrorResponse}}
-               :handler   (fn [{:keys [components] :as request}]
-                            (->> {:hostname (hu/get-host request)}
-                                 (articles-api/get-articles (:database components))
-                                 ok))}}]
+              :responses {200 {:description "A collection of all articles"
+                               :body        [:sequential GetArticleResponse]}
+                          500 {:body ErrorResponse}}
+              :handler   (fn [{:keys [components] :as request}]
+                           (->> {:hostname (hu/get-host request)}
+                                (articles-api/get-articles (:database components))
+                                ok))}}]
    ["/:article-url"
-    {:get {:openapi {:summary    "Retrieve a single article"
-                     :produces   #{"application/json"}
-                     :responses  {200 (json-examples {"example-article" {:summary "A single article"
-                                                                         :value   example-article}})}}
+    {:get {:openapi {:summary   "Retrieve a single article"
+                     :produces  #{"application/json"}
+                     :responses {200 (json-examples {"example-article" {:summary "A single article"
+                                                                        :value   example-article}})}}
 
            :responses {200 {:body GetArticleResponse}
                        404 {:body NotFoundResponse}
                        500 {:body ErrorResponse}}
 
            :parameters {:path {:article-url string?}}
-           :handler (fn [{:keys [components parameters] :as request}]
-                      (if-let [article (first (articles-api/get-articles (:database components) {:article-url (get-in parameters [:path :article-url])}))]
-                        (ok article)
-                        (not-found {:reason "Missing"})))}}]])
+           :handler    (fn [{:keys [components path-params] :as request}]
+                         (let [article-url (:article-url path-params)]
+                           (if-let [article (first (articles-api/get-articles (:database components) {:article-url article-url}))]
+                             (ok article)
+                             (not-found {:reason "Missing"}))))}}]
+   ["/:article-url/branches" {:tags ["branches"]
+                              :get  {:openapi {:summary   "Retrieve all branches for a specific article"
+                                               :produces  #{"application/json"}
+                                               :responses {200 (json-examples {"example-article" {:summary "A single article"
+                                                                                                  :value   example-article}})}}
+                                     :handler (fn [{:keys [components path-params] :as request}]
+                                                (let [article-url (:article-url path-params)]
+                                                  (ok (articles-api/get-branches (:database components) {:article-url article-url}))))}}]
+   ["/:article-url/branches/:branch-name" {:put {:openapi {:summary   "Create an article branch"
+                                                           :produces  #{"application/json"}
+                                                           :consumes  #{"application/json"}
+                                                           :responses {200 (json-examples {"example-article" {:summary "A single article"
+                                                                                                              :value   example-article}})}}
+                                                 :handler (fn [{:keys [components path-params] :as request}]
+                                                            (try
+                                                              (let [branch-name (:branch-name path-params)
+                                                                    article-url (:article-url path-params)
+                                                                    article     (->article article-url request)
+                                                                    branch      {:branch-name branch-name}]
+                                                                (ok (doto (articles-api/create-branch! (:database components) (merge article branch))
+                                                                      log/info)))
+                                                              (catch Exception e
+                                                                (log/error "Caught exception " e))))}}]
+   ["/:article-url/branches/:branch-name/publish"
+    {:put {:openapi {:summary   "Publish an article branch"
+                     :produces  #{"application/json"}
+                     :responses {200 (json-examples {"example-article" {:summary "A single article"
+                                                                        :value   example-article}})}}
+           :handler (fn [{:keys [components path-params] :as request}]
+                      (let [branch-name (:branch-name path-params)
+                            article-url (:article-url path-params)]
+                        (try
+                          (log/infof "Publishing article %s and branch %s" article-url branch-name)
+                          (let [[{:keys [branch-id]}] (articles-api/get-branches (:database components) {:branch-name branch-name
+                                                                                                         :article-url article-url})
+                                result                (articles-api/publish-branch! (:database components) branch-id)]
+                            (ok result))
+                          (catch Exception e
+                            (log/error "Caught exception " e)))))}}]
+   ["/:article-url/branches/:branch-name/versions"
+    {:post {:openapi {:summary   "Create a new version (commit) on a branch"
+                      :consumes  #{"application/json"}
+                      :produces  #{"application/json"}
+                      :responses {200 (json-examples {"example-article" {:summary "A single article"
+                                                                         :value   example-article}})}}
+            :handler (fn [{:keys [components path-params] :as request}]
+                       (try
+                         (let [commit      (->commit request)
+                               branch-name (:branch-name path-params)
+                               article-url (:article-url path-params)
+                               result      (articles-api/new-version! (:database components)
+                                                                      {:branch-name   branch-name
+                                                                       :hostname      (hu/get-host request)
+                                                                       :article-url   article-url
+                                                                       :article-tags  (get-in request [:params :article-tags] "thoughts")
+                                                                       :article-title (get-in request [:params :article-title])
+                                                                       :author        (oidc/get-full-name (:identity request))}
+                                                                      commit)]
+                           (log/info result)
+                           (ok result))
+                         (catch Exception e
+                           (log/error "Caught exception " e)
+                           (conflict (ex-message e)))))}}]])
 
 (def reitit-compositions-routes
   ["/compositions" {:tags ["compositions"]
@@ -279,17 +193,19 @@
                     ;; host URL.
                     ;;
                     ;;:host      "andrewslai.localhost"
-
-
                     }
    ["" {:get {:openapi {:summary     "Retrieve all published articles"
                         :description (str "This endpoint retrieves all published articles. "
                                           "The endpoint is currently not paginated")
                         :produces    #{"application/json"}
                         :responses   {500 {:body ErrorResponse}
-                                      200 (json-examples {"example-articles" {:summary "A collection of all articles"
-                                                                              :body    GetArticlesResponse
+                                      200 (json-examples {"example-articles" {:summary "A collection of all published articles"
+                                                                              :body    [:sequential GetCompositionResponse]
                                                                               :value   [example-article]}})}}
+
+              :responses {200 {:description "A collection of all published articles"
+                               :body        [:sequential GetCompositionResponse]}
+                          500 {:body ErrorResponse}}
 
               :handler (fn [{:keys [components] :as request}]
                          (log/infof "Getting compositions for host `%s`" (hu/get-host request))
@@ -313,3 +229,68 @@
                            (if (empty? result)
                              (not-found {:reason "Missing"})
                              (ok (first result)))))}}]])
+
+(def reitit-branches-routes
+  ["/branches" {:tags     ["branches"]
+                :security [{:andrewslai-pkce ["roles" "profile"]}]
+                ;; For testing only - this is a mechanism to always get results from a particular
+                ;; host URL.
+                ;;
+                ;;:host      "andrewslai.localhost"
+                }
+   ["" {:get {:openapi {:summary     "Retrieve all branches"
+                        :description (str "This endpoint retrieves all branches. "
+                                          "The endpoint is currently not paginated")
+                        :produces    #{"application/json"}
+                        :responses   {500 {:body ErrorResponse}
+                                      200 (json-examples {"example-branches" {:summary "A collection of all published articles"
+                                                                              :body    [:sequential GetBranchResponse]
+                                                                              :value   [example-article]}})}}
+
+              :responses {200 {:description "A collection of all branches"
+                               :body        [:sequential GetBranchResponse]}
+                          500 {:body ErrorResponse}}
+
+              :handler (fn [{:keys [components parameters] :as request}]
+                         (let [query-params (-> csk/->kebab-case-keyword
+                                                (cske/transform-keys (:query parameters))
+                                                (select-keys [:article-id :article-url])
+                                                (assoc :hostname (hu/get-host request)))
+                               branches     (articles-api/get-branches (:database components)
+                                                                       query-params)]
+                           (if (empty? branches)
+                             (not-found {:reason "Missing"})
+                             (ok branches))))}
+        :post {:openapi {:summary  "Create a new branch"
+                         :produces #{"application/json"}
+                         :consumes #{"application/json"}}
+
+               :responses {200 {:body [:any]}
+                           401 {:body [:any]}}
+               :handler   (fn [{:keys [components body-params] :as request}]
+                            (try
+                              (ok (articles-api/create-branch! (:database components)
+                                                               (assoc body-params
+                                                                      :hostname (hu/get-host request)
+                                                                      :author   (oidc/get-full-name (:identity request)))))
+                              (catch Exception e
+                                (log/error "Caught exception " e))))}}]
+
+   ["/:branch-id/versions"
+    {:tags ["versions"]
+     :get  {:openapi {:summary    "Get versions"
+                      :produces   #{"application/json"}
+                      :parameters {:path {:branch-id string?}}
+                      :responses  {200 (json-examples {"example-versions" {:summary "A single version"
+                                                                           :value   example-article}})}}
+
+            :responses {200 {:body [:any]}
+                        401 {:body [:any]}}
+
+            :parameters {:path {:branch-id string?}}
+            :handler    (fn [{:keys [components parameters] :as request}]
+                          (let [branch-id (get-in parameters [:path :branch-id])
+                                branches  (articles-api/get-versions (:database components) {:branch-id (Integer/parseInt branch-id)})]
+                            (if (empty? branches)
+                              (not-found {:reason "Missing"})
+                              (ok (reverse (sort-by :created-at branches))))))}}]])

@@ -234,6 +234,27 @@
   [n]
   (m/pred (fn [x] (= n (count x)))))
 
+(deftest articles-routes-test
+  (are [endpoint expected]
+    (testing (format "%s returns %s" endpoint expected)
+      (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                      "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                      "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                      "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                     (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                     env/prepare-kaleidoscope
+                     kaleidoscope/kaleidoscope-app
+                     tu/wrap-clojure-response)]
+        (is (match? expected
+                    (-> (mock/request :get (str "http://andrewslai.localhost" endpoint))
+                        (mock/header "Authorization" "Bearer x")
+                        app)))))
+
+    "/articles"                  {:status 200 :body (has-count 4)}
+    "/articles/my-first-article" {:status 200 :body (malli-matcher http.articles/GetArticleResponse)}
+    "/articles/does-not-exist"   {:status 404}
+    ))
+
 (deftest published-article-retrieval-test
   (are [endpoint expected]
     (testing (format "%s returns %s" endpoint expected)
