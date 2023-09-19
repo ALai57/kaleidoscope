@@ -116,8 +116,9 @@
       reitit-compositions-routes]
      (update-in mw/reitit-configuration
                 [:data :middleware]
-                (partial concat [(inject-components components)
-                                 (:http-mw components)]))))))
+                (fn [mw]
+                  (concat mw [(inject-components components)
+                              (:reitit-mw components)])))))))
 
 ;;
 ;; Temporary dispatch to reitit or Compojure as I port app to use reitit

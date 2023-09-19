@@ -152,24 +152,31 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def standard-stack
   "Stack is applied from top down"
-  (apply comp [wrap-request-identifier
-               wrap-trace
-               wrap-gzip
-               wrap-content-type
-               wrap-json-response
-               wrap-multipart-params
-               wrap-params
-               log-request!]))
+  [wrap-request-identifier
+   wrap-trace
+   wrap-gzip
+   wrap-content-type
+   wrap-json-response
+   wrap-multipart-params
+   wrap-params
+   log-request!])
+
+(def reitit-stack
+  "Stack is applied from top down"
+  [wrap-request-identifier
+   wrap-trace
+   wrap-multipart-params
+   log-request!])
 
 (defn auth-stack
   "Stack is applied from top down"
   [authentication-backend access-rules]
-  (apply comp [#(ba/wrap-authentication % authentication-backend)
-               #(ar/wrap-access-rules % {:rules          access-rules
-                                         :reject-handler (fn [& args]
-                                                           (-> "Not authorized"
-                                                               (unauthorized)
-                                                               (resp/content-type "application/text")))})]))
+  [#(ba/wrap-authentication % authentication-backend)
+   #(ar/wrap-access-rules % {:rules          access-rules
+                             :reject-handler (fn [& args]
+                                               (-> "Not authorized"
+                                                   (unauthorized)
+                                                   (resp/content-type "application/text")))})])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Reitit configuration

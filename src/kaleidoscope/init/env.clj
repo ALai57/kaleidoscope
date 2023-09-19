@@ -240,10 +240,13 @@
   {:database                database-connection
    :exception-reporter      (partial er/report! exception-reporter)
    :http-mw                 (comp (mw/session-tracking-stack exception-reporter)
-                                  mw/standard-stack
-                                  (mw/auth-stack kaleidoscope-authentication
-                                                 kaleidoscope-authorization)
-                                  )
+                                  (apply comp mw/standard-stack)
+                                  (apply comp (mw/auth-stack kaleidoscope-authentication
+                                                             kaleidoscope-authorization)))
+   :reitit-mw               (comp (mw/session-tracking-stack exception-reporter)
+                                  (apply comp mw/reitit-stack)
+                                  (apply comp (mw/auth-stack kaleidoscope-authentication
+                                                             kaleidoscope-authorization)))
    :static-content-adapters kaleidoscope-static-content-adapters})
 
 (defn make-http-handler

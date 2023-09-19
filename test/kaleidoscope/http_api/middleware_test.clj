@@ -78,10 +78,10 @@
 
 (deftest standard-stack-test
   (let [captured-request (atom nil)
-        app              (sut/standard-stack (fn [req]
-                                               (reset! captured-request req)
-                                               {:status 200
-                                                :body   {:foo "bar"}}))]
+        app              ((apply comp sut/standard-stack) (fn [req]
+                                                            (reset! captured-request req)
+                                                            {:status 200
+                                                             :body   {:foo "bar"}}))]
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    (json/generate-string {:foo "bar"})}
@@ -92,8 +92,8 @@
 
 (deftest auth-stack-happy-path-test
   (let [captured-request (atom nil)
-        mw-stack         (sut/auth-stack (bb/authenticated-backend {:realm_access {:roles ["myrole"]}})
-                                         (tu/restricted-access "myrole"))
+        mw-stack         (apply comp (sut/auth-stack (bb/authenticated-backend {:realm_access {:roles ["myrole"]}})
+                                                     (tu/restricted-access "myrole")))
         app              (mw-stack (fn [req]
                                      (reset! captured-request req)
                                      {:status 200
@@ -107,8 +107,8 @@
 
 (deftest auth-stack-wrong-role-test
   (let [captured-request (atom nil)
-        mw-stack         (sut/auth-stack (bb/authenticated-backend {:realm_access {:roles ["myrole"]}})
-                                         (tu/restricted-access "wrongrole"))
+        mw-stack         (apply comp (sut/auth-stack (bb/authenticated-backend {:realm_access {:roles ["myrole"]}})
+                                                     (tu/restricted-access "wrongrole")))
         app              (mw-stack (fn [req]
                                      (reset! captured-request req)
                                      {:status 200

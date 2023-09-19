@@ -52,7 +52,7 @@
   (log/merge-config!
    (cond-> {:min-level [["io.zonky*" :error]
                         ["org.eclipse.jetty.*" :warn]
-                        ["*" :info]]
+                        ["*" (keyword (get env "KALEIDOSCOPE_LOG_LEVEL" "info"))]]
             :output-fn json-log-output
             :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}
      (disable-json-logging? env) (assoc :output-fn ul/clean-output-fn))))

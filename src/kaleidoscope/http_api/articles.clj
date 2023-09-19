@@ -48,7 +48,23 @@
    [:branch-name   :string]
    [:created-at    inst?]
    [:hostname      :string]
-   [:modified-at   inst?]])
+   [:modified-at   inst?]
+   [:published-at  [:maybe inst?]]])
+
+(def GetVersionResponse
+  [:map
+   [:article-id    :int]
+   [:article-tags  :string]
+   [:article-title :string]
+   [:article-url   :string]
+   [:author        :string]
+   [:branch-id     :int]
+   [:branch-name   :string]
+   [:content       :string]
+   [:created-at    inst?]
+   [:hostname      :string]
+   [:modified-at   inst?]
+   [:published-at  [:maybe inst?]]])
 
 (def GetCompositionResponse
   [:map
@@ -63,6 +79,12 @@
    [:hostname      :string]
    [:modified-at   inst?]
    [:version-id    :int]])
+
+(def CreateVersionRequest
+  [:map
+   [:article-title {:optional true} :string]
+   [:article-tags  {:optional true} :string]
+   [:content       :string]])
 
 (def example-article
   {:id            1
@@ -94,6 +116,7 @@
    :branch-name   "branch-1"
    :created-at    "2022-01-01T00:00:00Z"
    :modified-at   "2022-01-01T00:00:00Z"
+   :published-at  "2022-01-03T00:00:00Z"
    :hostname      "andrewslai.localhost"})
 
 (def example-branch-2
@@ -106,6 +129,29 @@
    :branch-name   "branch-2"
    :created-at    "2022-01-02T00:00:00Z"
    :modified-at   "2022-01-02T00:00:00Z"
+   :published-at  nil
+   :hostname      "andrewslai.localhost"})
+
+(def example-version-request
+  {:article-title "My first article"
+   :article-tags  "thoughts"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :published-at  "2022-01-03T00:00:00Z"
+   :content       "<p>Hello there!</p>"})
+
+(def example-version-1
+  {:article-id    1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :branch-id     1
+   :branch-name   "branch-1"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :published-at  "2022-01-03T00:00:00Z"
+   :content       "<p>Hello there!</p>"
    :hostname      "andrewslai.localhost"})
 
 (def example-not-found
@@ -186,45 +232,56 @@
                             (ok (articles-api/get-branches (:database components) {:article-url article-url}))))}}]
    ;; The two routes below should be relocated to `branches`
    ["/:article-url/branches/:branch-name/publish"
-    {:put {:openapi {:summary   "Publish an article branch"
-                     :produces  #{"application/json"}
-                     :responses {200 (json-examples {"example-article" {:summary "A single article"
-                                                                        :value   example-article}})}}
-           :handler (fn [{:keys [components path-params] :as request}]
-                      (let [branch-name (:branch-name path-params)
-                            article-url (:article-url path-params)]
-                        (try
-                          (log/infof "Publishing article %s and branch %s" article-url branch-name)
-                          (let [[{:keys [branch-id]}] (articles-api/get-branches (:database components) {:branch-name branch-name
-                                                                                                         :article-url article-url})
-                                result                (articles-api/publish-branch! (:database components) branch-id)]
-                            (ok result))
-                          (catch Exception e
-                            (log/error "Caught exception " e)))))}}]
+    {:put {:summary   "Publish an article branch"
+           :responses {200 {:content {"application/json"
+                                      {:description "Branches"
+                                       :schema      [:sequential GetBranchResponse]
+                                       :examples    {"example-branch" {:summary "Example branch"
+                                                                       :value   example-branch-1}}}}}}
+           :handler   (fn [{:keys [components path-params] :as request}]
+                        (let [branch-name (:branch-name path-params)
+                              article-url (:article-url path-params)]
+                          (try
+                            (log/infof "Publishing article %s and branch %s" article-url branch-name)
+                            (let [[{:keys [branch-id]}] (articles-api/get-branches (:database components) {:branch-name branch-name
+                                                                                                           :article-url article-url})
+                                  result                (articles-api/publish-branch! (:database components) branch-id)]
+                              (ok result))
+                            (catch Exception e
+                              (log/error "Caught exception " e)))))}}]
    ["/:article-url/branches/:branch-name/versions"
-    {:post {:openapi {:summary   "Create a new version (commit) on a branch"
-                      :consumes  #{"application/json"}
-                      :produces  #{"application/json"}
-                      :responses {200 (json-examples {"example-article" {:summary "A single article"
-                                                                         :value   example-article}})}}
-            :handler (fn [{:keys [components path-params] :as request}]
-                       (try
-                         (let [commit      (->commit request)
-                               branch-name (:branch-name path-params)
-                               article-url (:article-url path-params)
-                               result      (articles-api/new-version! (:database components)
-                                                                      {:branch-name   branch-name
-                                                                       :hostname      (hu/get-host request)
-                                                                       :article-url   article-url
-                                                                       :article-tags  (get-in request [:params :article-tags] "thoughts")
-                                                                       :article-title (get-in request [:params :article-title])
-                                                                       :author        (oidc/get-full-name (:identity request))}
-                                                                      commit)]
-                           (log/info result)
-                           (ok result))
-                         (catch Exception e
-                           (log/error "Caught exception " e)
-                           (conflict (ex-message e)))))}}]])
+    {:post {:summary    "Create a new version (commit) on a branch"
+            :responses  {200 {:content {"application/json"
+                                        {:description "Version"
+                                         :schema      [:sequential GetVersionResponse]
+                                         :examples    {"example-version" {:summary "Example version"
+                                                                          :value   example-version-1}}}}}
+                         409 {:body [:= "Cannot change a published branch"]}}
+            :parameters {:path {:article-url string?
+                                :branch-name string?}}
+            :request    {:content {"application/json"
+                                   {:description "Version"
+                                    :schema      CreateVersionRequest
+                                    :examples    {"example-version" {:summary "Example version"
+                                                                     :value   example-version-request}}}}}
+            :handler    (fn [{:keys [components path-params] :as request}]
+                          (try
+                            (let [commit      (->commit request)
+                                  branch-name (:branch-name path-params)
+                                  article-url (:article-url path-params)
+                                  result      (articles-api/new-version! (:database components)
+                                                                         {:branch-name   branch-name
+                                                                          :hostname      (hu/get-host request)
+                                                                          :article-url   article-url
+                                                                          :article-tags  (get-in request [:params :article-tags] "thoughts")
+                                                                          :article-title (get-in request [:params :article-title])
+                                                                          :author        (oidc/get-full-name (:identity request))}
+                                                                         commit)]
+                              (log/info result)
+                              (ok result))
+                            (catch Exception e
+                              (log/error "Caught exception " e)
+                              (conflict (ex-message e)))))}}]])
 
 (def reitit-compositions-routes
   ["/compositions" {:tags ["compositions"]
