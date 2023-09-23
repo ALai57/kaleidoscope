@@ -302,26 +302,23 @@
               :responses   (merge openapi-500
                                   {200 {:description "A collection of all published articles"
                                         :content     {"application/json"
-                                                      {:schema      [:sequential GetCompositionResponse]
-                                                       :examples    {"example-articles" {:summary "A collection of all published articles"
-                                                                                         :value   [example-composition-1]}}}}}})
+                                                      {:schema   [:sequential GetCompositionResponse]
+                                                       :examples {"example-articles" {:summary "A collection of all published articles"
+                                                                                      :value   [example-composition-1]}}}}}})
 
               :handler (fn [{:keys [components] :as request}]
                          (log/infof "Getting compositions for host `%s`" (hu/get-host request))
                          (ok (articles-api/get-published-articles (:database components)
                                                                   {:hostname (hu/get-host request)})))}}]
    ["/:article-url"
-    {:get {:openapi {:summary    "Retrieve a single published article"
-                     :produces   #{"application/json"}
-                     :parameters {:path {:article-url string?}}
-                     :responses  {200 (json-examples {"example-article" {:summary "A single article"
-                                                                         :value   example-article}})}}
-
-           :responses {200 {:body GetCompositionResponse}
-                       404 {:body NotFoundResponse}
-                       500 {:body ErrorResponse}}
-
+    {:get {:summary    "Retrieve a single published article"
            :parameters {:path {:article-url string?}}
+           :responses  (merge openapi-500 openapi-404
+                              {200 {:description "A published article"
+                                    :content     {"application/json"
+                                                  {:schema   GetCompositionResponse
+                                                   :examples {"example-article" {:summary "A single published articles"
+                                                                                 :value   example-composition-1}}}}}})
            :handler    (fn [{:keys [components parameters] :as request}]
                          (log/infof "Retrieving composition %s" (get-in parameters [:path :article-url]))
                          (let [result (articles-api/get-published-articles (:database components) {:article-url (get-in parameters [:path :article-url])})]

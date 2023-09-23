@@ -8,13 +8,10 @@
 
 (def reitit-ping-routes
   ["/ping"
-   {:get {:openapi   {:responses
-                      {200 {:content
-                            {"application/json"
-                             {:examples {"two"   {:summary "2"
-                                                  :value   {:total 2}}
-                                         "three" {:summary "3"
-                                                  :value   {:total 3}}}}}}}}
-          :responses {200 {:body PingResponse}}
+   {:get {:responses {200 {:content
+                           {"application/json"
+                            {:schema   [:map]
+                             :examples {"healthy-ping" {:summary "Healthy ping response"
+                                                        :value   {:version "1.1.1.1"}}}}}}}
           :handler   (fn [_request]
                        (ok (v/get-version-details)))}}])
