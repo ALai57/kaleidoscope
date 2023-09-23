@@ -14,13 +14,6 @@
 (s/def ::message string?)
 (s/def ::error-message (s/keys :req-un [::message]))
 
-(defn ->article [article-url {:keys [body-params] :as request}]
-  (-> body-params
-      (select-keys [:article-name])
-      (assoc :article-url article-url
-             :hostname    (hu/get-host request)
-             :author      (oidc/get-full-name (:identity request)))))
-
 (defn ->commit [{:keys [body-params] :as request}]
   (select-keys body-params [:branch-id :content :created-at :modified-at]))
 
@@ -154,6 +147,20 @@
    :content       "<p>Hello there!</p>"
    :hostname      "andrewslai.localhost"})
 
+(def example-composition-1
+  {:article-id    1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :branch-id     1
+   :branch-name   "branch-1"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :published-at  "2022-01-03T00:00:00Z"
+   :content       "<p>Hello there!</p>"
+   :hostname      "andrewslai.localhost"})
+
 (def example-not-found
   {:reason "missing"})
 
@@ -171,16 +178,16 @@
     {:examples responses}}})
 
 (def openapi-404
-  {404 {:content {"application/json"
-                  {:description "Not found"
-                   :schema      NotFoundResponse
-                   :examples    {"not-found" {:summary "Not found"
-                                              :value   example-not-found}}}}}})
+  {404 {:description "Not found"
+        :content     {"application/json"
+                      {:schema   NotFoundResponse
+                       :examples {"not-found" {:summary "Not found"
+                                               :value   example-not-found}}}}}})
 
 (def openapi-500
-  {500 {:content {"application/json"
-                  {:description "Error response"
-                   :schema      ErrorResponse}}}})
+  {500 {:description "Error response"
+        :content     {"application/json"
+                      {:schema ErrorResponse}}}})
 
 (def reitit-articles-routes
   ["/articles" {:tags    ["articles"]
@@ -192,12 +199,12 @@
                 }
    ["" {:get {:summary   "Retrieve all articles"
               :responses (merge openapi-500
-                                {200 {:content {"application/json"
-                                                {:description "A collection of all articles"
-                                                 :schema      [:sequential GetArticleResponse]
-                                                 :examples    {"example-articles" {:summary "Example articles response"
-                                                                                   :value   [example-article
-                                                                                             example-article-2]}}}}}})
+                                {200 {:description "A collection of all articles"
+                                      :content     {"application/json"
+                                                    {:schema   [:sequential GetArticleResponse]
+                                                     :examples {"example-articles" {:summary "Example articles response"
+                                                                                    :value   [example-article
+                                                                                              example-article-2]}}}}}})
               :handler   (fn [{:keys [components] :as request}]
                            (->> {:hostname (hu/get-host request)}
                                 (articles-api/get-articles (:database components))
@@ -205,11 +212,11 @@
    ["/:article-url"
     {:get {:summary   "Retrieve a single article"
            :responses (merge openapi-404 openapi-500
-                             {200 {:content {"application/json"
-                                             {:description "A single article"
-                                              :schema      GetArticleResponse
-                                              :examples    {"example-article" {:summary "Example article"
-                                                                               :value   example-article}}}}}})
+                             {200 {:description "A single article"
+                                   :content     {"application/json"
+                                                 {:schema   GetArticleResponse
+                                                  :examples {"example-article" {:summary "Example article"
+                                                                                :value   example-article}}}}}})
 
            :parameters {:path {:article-url string?}}
            :handler    (fn [{:keys [components path-params] :as request}]
@@ -220,12 +227,12 @@
    ["/:article-url/branches"
     {:tags ["branches"]
      :get  {:summary    "Retrieve all branches for a specific article"
-            :responses  {200 {:content {"application/json"
-                                        {:description "Branches"
-                                         :schema      [:sequential GetBranchResponse]
-                                         :examples    {"example-branches" {:summary "Example branches"
-                                                                           :value   [example-branch-1
-                                                                                     example-branch-2]}}}}}}
+            :responses  {200 {:description "Branches"
+                              :content     {"application/json"
+                                            {:schema   [:sequential GetBranchResponse]
+                                             :examples {"example-branches" {:summary "Example branches"
+                                                                            :value   [example-branch-1
+                                                                                      example-branch-2]}}}}}}
             :parameters {:path {:article-url string?}}
             :handler    (fn [{:keys [components path-params] :as request}]
                           (let [article-url (:article-url path-params)]
@@ -233,11 +240,11 @@
    ;; The two routes below should be relocated to `branches`
    ["/:article-url/branches/:branch-name/publish"
     {:put {:summary   "Publish an article branch"
-           :responses {200 {:content {"application/json"
-                                      {:description "Branches"
-                                       :schema      [:sequential GetBranchResponse]
-                                       :examples    {"example-branch" {:summary "Example branch"
-                                                                       :value   example-branch-1}}}}}}
+           :responses {200 {:description "Branches"
+                            :content     {"application/json"
+                                          {:schema   [:sequential GetBranchResponse]
+                                           :examples {"example-branch" {:summary "Example branch"
+                                                                        :value   example-branch-1}}}}}}
            :handler   (fn [{:keys [components path-params] :as request}]
                         (let [branch-name (:branch-name path-params)
                               article-url (:article-url path-params)]
@@ -251,19 +258,19 @@
                               (log/error "Caught exception " e)))))}}]
    ["/:article-url/branches/:branch-name/versions"
     {:post {:summary    "Create a new version (commit) on a branch"
-            :responses  {200 {:content {"application/json"
-                                        {:description "Version"
-                                         :schema      [:sequential GetVersionResponse]
-                                         :examples    {"example-version" {:summary "Example version"
-                                                                          :value   example-version-1}}}}}
+            :responses  {200 {:description "Version"
+                              :content     {"application/json"
+                                            {:schema   [:sequential GetVersionResponse]
+                                             :examples {"example-version" {:summary "Example version"
+                                                                           :value   example-version-1}}}}}
                          409 {:body [:= "Cannot change a published branch"]}}
             :parameters {:path {:article-url string?
                                 :branch-name string?}}
-            :request    {:content {"application/json"
-                                   {:description "Version"
-                                    :schema      CreateVersionRequest
-                                    :examples    {"example-version" {:summary "Example version"
-                                                                     :value   example-version-request}}}}}
+            :request    {:description "Version"
+                         :content     {"application/json"
+                                       {:schema   CreateVersionRequest
+                                        :examples {"example-version" {:summary "Example version"
+                                                                      :value   example-version-request}}}}}
             :handler    (fn [{:keys [components path-params] :as request}]
                           (try
                             (let [commit      (->commit request)
@@ -290,18 +297,14 @@
                     ;;
                     ;;:host      "andrewslai.localhost"
                     }
-   ["" {:get {:openapi {:summary     "Retrieve all published articles"
-                        :description (str "This endpoint retrieves all published articles. "
-                                          "The endpoint is currently not paginated")
-                        :produces    #{"application/json"}
-                        :responses   {500 {:body ErrorResponse}
-                                      200 (json-examples {"example-articles" {:summary "A collection of all published articles"
-                                                                              :body    [:sequential GetCompositionResponse]
-                                                                              :value   [example-article]}})}}
-
-              :responses {200 {:description "A collection of all published articles"
-                               :body        [:sequential GetCompositionResponse]}
-                          500 {:body ErrorResponse}}
+   ["" {:get {:summary     "Retrieve all published articles"
+              :description "This endpoint retrieves all published articles. The endpoint is currently not paginated"
+              :responses   (merge openapi-500
+                                  {200 {:description "A collection of all published articles"
+                                        :content     {"application/json"
+                                                      {:schema      [:sequential GetCompositionResponse]
+                                                       :examples    {"example-articles" {:summary "A collection of all published articles"
+                                                                                         :value   [example-composition-1]}}}}}})
 
               :handler (fn [{:keys [components] :as request}]
                          (log/infof "Getting compositions for host `%s`" (hu/get-host request))

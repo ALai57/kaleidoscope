@@ -237,6 +237,11 @@
                        wrap-gzip
                        wrap-content-type
 
+                       wrap-request-identifier
+                       wrap-trace
+                       wrap-multipart-params
+                       log-request!
+
                        parameters/parameters-middleware ;; Add :query-params and :form-params (if url-encoded body), and params (merged)
                        muuntaja/format-middleware       ;; Add :body-params
 

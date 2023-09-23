@@ -20,6 +20,7 @@
             [malli.dev.virhe :as v]
             [next.jdbc :as next]
             [next.jdbc.connection :as connection]
+            [reitit.middleware :as middleware]
             [taoensso.timbre :as log])
   (:import (com.zaxxer.hikari HikariDataSource)))
 
@@ -243,10 +244,11 @@
                                   (apply comp mw/standard-stack)
                                   (apply comp (mw/auth-stack kaleidoscope-authentication
                                                              kaleidoscope-authorization)))
-   :reitit-mw               (comp (mw/session-tracking-stack exception-reporter)
-                                  (apply comp mw/reitit-stack)
-                                  (apply comp (mw/auth-stack kaleidoscope-authentication
-                                                             kaleidoscope-authorization)))
+   :session-tracking        {:name ::session-tracking
+                             :wrap (mw/session-tracking-stack exception-reporter)}
+   :auth-stack              {:name ::auth-stack
+                             :wrap (apply comp (mw/auth-stack kaleidoscope-authentication
+                                                              kaleidoscope-authorization))}
    :static-content-adapters kaleidoscope-static-content-adapters})
 
 (defn make-http-handler

@@ -118,8 +118,8 @@
                 [:data :middleware]
                 (fn [mw]
                   (concat mw [(inject-components components)
-                              (:reitit-mw components)])))))))
-
+                              (:session-tracking components)
+                              (:auth-stack components)])))))))
 ;;
 ;; Temporary dispatch to reitit or Compojure as I port app to use reitit
 ;;
