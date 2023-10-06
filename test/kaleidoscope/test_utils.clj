@@ -4,7 +4,9 @@
             [compojure.api.sweet :refer [GET routes]]
             [compojure.route :as route]
             [kaleidoscope.api.authorization :as auth]
-            [kaleidoscope.http-api.auth.jwt :as jwt])
+            [kaleidoscope.http-api.auth.jwt :as jwt]
+            [malli.dev.pretty :as pretty]
+            [malli.instrument :as mi])
   (:import
    (java.io File)))
 
@@ -78,3 +80,17 @@
   [role]
   [{:pattern #".*"
     :handler (partial auth/require-role role)}])
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Schemas
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defmacro with-schema-enforcement
+  [ns-sym & body]
+  (when-not (coll? ns-sym)
+    (throw (ex-info "First argument to `with-schema-enforcement` must be a symbol"
+                    {})))
+  `(do (mi/collect! {:ns ~ns-sym})
+       (mi/instrument! {:report (pretty/reporter)})
+       ~@body
+       (mi/unstrument!)))

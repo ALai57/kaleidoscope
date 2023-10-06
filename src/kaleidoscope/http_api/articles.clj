@@ -11,9 +11,6 @@
             [ring.util.http-response :refer [not-found ok conflict]]
             [taoensso.timbre :as log]))
 
-(s/def ::message string?)
-(s/def ::error-message (s/keys :req-un [::message]))
-
 (defn ->commit [{:keys [body-params] :as request}]
   (select-keys body-params [:branch-id :content :created-at :modified-at]))
 
@@ -176,12 +173,6 @@
 
 (def example-not-authorized
   {})
-
-(defn json-examples
-  [responses]
-  {:content
-   {"application/json"
-    {:examples responses}}})
 
 (def openapi-401
   {404 {:description "Unauthorized"
@@ -354,7 +345,6 @@
                                         :content     {"application/json"
                                                       {:schema   [:sequential GetBranchResponse]
                                                        :examples {"example-branches" {:summary "A collection of all branches"
-                                                                                      :body    [:sequential GetBranchResponse]
                                                                                       :value   [example-article]}}}}}})
 
               :handler (fn [{:keys [components parameters] :as request}]

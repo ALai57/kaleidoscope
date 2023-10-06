@@ -406,9 +406,8 @@
                       kaleidoscope/kaleidoscope-app
                       tu/wrap-clojure-response)
         response (app (mock/request :get "/projects-portfolio"))]
-    (is (match? {:status 200 :body portfolio/portfolio?}
-                response)
-        (s/explain-str :kaleidoscope/portfolio (:body response)))))
+    (is (match? {:status 200 :body (malli/validator portfolio/Portfolio)}
+                response))))
 
 (defn make-example-file-upload-request-png
   "A function because the body is an input stream, which is consumable and must
