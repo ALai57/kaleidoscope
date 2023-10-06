@@ -81,7 +81,8 @@
                      tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
-                 :body    {:version "version-not-set"}}
+                 :body    {:version string?
+                           :revision string?}}
                 (handler (mock/request :get "/ping"))))))
 
 (deftest home-test

@@ -4,13 +4,14 @@
 
 (def PingResponse
   [:map
-   [:version :string]])
+   [:version :string]
+   [:revision {:optional true} :string]])
 
 (def reitit-ping-routes
   ["/ping"
    {:get {:responses {200 {:content
                            {"application/json"
-                            {:schema   [:map]
+                            {:schema   PingResponse
                              :examples {"healthy-ping" {:summary "Healthy ping response"
                                                         :value   {:version "1.1.1.1"}}}}}}}
           :handler   (fn [_request]
