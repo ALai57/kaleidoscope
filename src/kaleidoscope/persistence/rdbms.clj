@@ -1,7 +1,6 @@
 (ns kaleidoscope.persistence.rdbms
   (:require [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
-            [clojure.spec.alpha :as s]
             [honeysql.core :as hsql]
             [honeysql.helpers :as hh]
             [next.jdbc :as next]
@@ -26,18 +25,6 @@
                  (hsql/format m)
                  {:builder-fn rs/as-unqualified-kebab-maps}))
 
-(defn validate [type data ex]
-  (if (s/valid? type data)
-    true
-    (throw+
-     (let [reason (s/explain-str type data)]
-       {:type ex
-        :subtype type
-        :message {:data data
-                  :reason reason
-                  :feedback (or (:feedback data)
-                                reason)}}))))
-
 (defn find-by-keys
   ([database table query-map]
    (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
@@ -59,10 +46,7 @@
        (getter database)
        (find-by-keys database table query-map)))))
 
-(defn insert! [database table m & {:keys [ex-subtype
-                                          input-validation]}]
-  (when input-validation
-    (validate input-validation m :IllegalArgumentException))
+(defn insert! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
     (try+
      (transact! database (-> (hh/insert-into table)
@@ -85,10 +69,7 @@
                       (when ex-subtype
                         {:subtype ex-subtype})))))))
 
-(defn update! [database table m where & {:keys [ex-subtype
-                                                input-validation]}]
-  (when input-validation
-    (validate input-validation m :IllegalArgumentException))
+(defn update! [database table m where & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
     (try+
      (transact! database (-> (hh/update table)

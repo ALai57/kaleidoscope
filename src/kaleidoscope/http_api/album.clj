@@ -6,6 +6,21 @@
             [taoensso.timbre :as log]
             [kaleidoscope.http-api.http-utils :as hu]))
 
+(def CreateAlbumRequest
+  [:map
+   [:album-name :string]
+   [:cover-photo-id {:optional true} :uuid]
+   [:description {:optional true} :string]
+   [:created-at  inst?]
+   [:modified-at inst?]])
+
+(def example-album-request
+  {:album-name     "hello"
+   :description    "first album"
+   :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"
+   :created-at     "2020-10-28T02:55:27Z",
+   :modified-at    "2020-10-28T02:55:27Z",})
+
 (def reitit-albums-routes
   ["/albums" {:tags    ["albums"]
               :openapi {:security [{:andrewslai-pkce ["roles" "profile"]}]}
@@ -34,11 +49,9 @@
                                                            :value   models.albums/example-album}}}}}}
                :request   {:description "Album"
                            :content     {"application/json"
-                                         {:schema   models.albums/Album
+                                         {:schema   CreateAlbumRequest
                                           :examples {"example-album-1" {:summary "Example album 1"
-                                                                        :value   models.albums/example-album}
-                                                     "example-album-2" {:summary "Example album 2"
-                                                                        :value   models.albums/example-album-2}}}}}
+                                                                        :value   example-album-request}}}}}
                :handler   (fn [{:keys [components body-params] :as request}]
                             (log/info "Creating album" body-params)
                             (ok (first (albums-api/create-album! (:database components) body-params))))}}]
@@ -89,6 +102,11 @@
                                                         {200 {:description "An album's contents"
                                                               :content     {"application/json"
                                                                             {:schema [:sequential models.albums/AlbumContent]}}}})
+                                    :request     {:description "Contents to add"
+                                                  :content     {"application/json"
+                                                                {:schema   [:sequential [:map [:id :uuid]]]
+                                                                 :examples {"example-album-1" {:summary "Example album 1"
+                                                                                               :value   [{:id #uuid "a52a7e7e-89ca-4fbf-9062-e8089254d0e5"}]}}}}}
                                     :parameters  {:path {:album-id string?}}
                                     :handler     (fn [{:keys [components body-params path-params] :as request}]
                                                    (let [{:keys [album-id]} path-params

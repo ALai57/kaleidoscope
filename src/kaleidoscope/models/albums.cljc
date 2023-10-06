@@ -1,11 +1,4 @@
-(ns kaleidoscope.models.albums
-  (:require
-   #?@(:clj  [[clojure.spec.alpha :as s]
-              [clojure.test.check.generators :as gen]
-              [spec-tools.spec :as spec]]
-       :cljs [[cljs.spec.alpha :as s]
-              [clojure.test.check.generators :as gen]
-              [spec-tools.spec :as spec]])))
+(ns kaleidoscope.models.albums)
 
 ;; TODO: Add json decode to/from timestamp
 (def Album

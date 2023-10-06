@@ -4,15 +4,13 @@
   This namespace tests through the HTTP API - testing that all the components
   work together and that the HTTP API behaves according to spec."
   (:require [clojure.java.io :as io]
-            [clojure.spec.alpha :as s]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [kaleidoscope.api.portfolio :as portfolio]
             [kaleidoscope.http-api.cache-control :as cc]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
-            [kaleidoscope.http-api.articles :as http.articles]
-            [kaleidoscope.models.articles :as models.articles ]
             [kaleidoscope.init.env :as env]
             [kaleidoscope.models.albums :refer [example-album example-album-2]]
+            [kaleidoscope.models.articles :as models.articles]
             [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
@@ -35,14 +33,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Predicates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn article?
-  [x]
-  (s/valid? :kaleidoscope.article/article x))
-
-(defn articles?
-  [x]
-  (s/valid? :kaleidoscope.article/articles x))
-
 (defn- malli-match
   "Expects `actual` to be JSON - so it must be interpreted/decoded
   and then compared to the expected schema."
@@ -112,7 +102,7 @@
     (is (match? {:status  200
                  :headers {"Content-Type" #"application/json"}
                  :body    map?}
-                (handler  (mock/request :get "/swagger.json"))))))
+                (handler  (mock/request :get "/openapi.json"))))))
 
 (deftest admin-routes-test
   (testing "Authenticated and Authorized happy path"
@@ -159,7 +149,7 @@
     {:status 200} (mock/request :get "https://andrewslai.com/")
 
     "POST `/swagger.json` is publicly accessible"
-    {:status 200} (mock/request :get "https://andrewslai.com/swagger.json")
+    {:status 200} (mock/request :get "https://andrewslai.com/openapi.json")
 
     "GET `/admin` is not publicly accessible"
     {:status 401} (mock/request :get "https://andrewslai.com/admin")

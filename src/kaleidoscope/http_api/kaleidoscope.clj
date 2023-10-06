@@ -10,7 +10,7 @@
    [kaleidoscope.http-api.articles :refer [reitit-articles-routes reitit-branches-routes reitit-compositions-routes]]
    [kaleidoscope.http-api.audiences :refer [audiences-routes]]
    [kaleidoscope.http-api.groups :refer [reitit-groups-routes]]
-   [kaleidoscope.http-api.photo :refer [photo-routes]]
+   [kaleidoscope.http-api.photo :refer [reitit-photos-routes]]
    [kaleidoscope.http-api.ping :refer [reitit-ping-routes]]
    [kaleidoscope.http-api.portfolio :refer [reitit-portfolio-routes]]
    [kaleidoscope.http-api.swagger :refer [reitit-openapi-routes]]
@@ -62,7 +62,6 @@
         :exceptions {:handlers {:compojure.api.exception/default (exception-handler exception-reporter)}}
         :middleware [http-mw]}
        audiences-routes
-       photo-routes
        default-handler))
 
 ;;
@@ -116,6 +115,7 @@
       reitit-branches-routes
       reitit-compositions-routes
       reitit-groups-routes
+      reitit-photos-routes
       reitit-portfolio-routes
       ]
      (update-in mw/reitit-configuration

@@ -1,14 +1,11 @@
 (ns kaleidoscope.http-api.articles
-  (:require [kaleidoscope.api.articles :as articles-api]
-            [kaleidoscope.api.authentication :as oidc]
-            [kaleidoscope.models.articles :as models.articles] ;; Install specs
-            [kaleidoscope.http-api.http-utils :as hu]
-            [camel-snake-kebab.core :as csk]
+  (:require [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
-            [clojure.spec.alpha :as s]
-            [compojure.api.meta :as compojure-meta]
-            [compojure.api.sweet :refer [context GET POST PUT]]
-            [ring.util.http-response :refer [not-found ok conflict]]
+            [kaleidoscope.api.articles :as articles-api]
+            [kaleidoscope.api.authentication :as oidc]
+            [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.models.articles :as models.articles]
+            [ring.util.http-response :refer [conflict not-found ok]]
             [taoensso.timbre :as log]))
 
 (defn ->commit [{:keys [body-params] :as request}]

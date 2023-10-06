@@ -1,11 +1,4 @@
-(ns kaleidoscope.models.articles
-  (:require
-   #?@(:clj  [[clojure.spec.alpha :as s]
-              [clojure.test.check.generators :as gen]
-              [spec-tools.spec :as spec]]
-       :cljs [[cljs.spec.alpha :as s]
-              [clojure.test.check.generators :as gen]
-              [spec-tools.spec :as spec]])))
+(ns kaleidoscope.models.articles)
 
 (def GetArticleResponse
   [:map
@@ -150,7 +143,6 @@
 (comment
   ;; Example data for article spec
 
-  (gen/sample :kaleidoscope.article/article)
-
-  (s/valid? :kaleidoscope.article/article example-article)
+  (require '[malli.generator :as mg])
+  (mg/generate GetArticleResponse)
   )

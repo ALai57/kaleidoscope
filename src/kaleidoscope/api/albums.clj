@@ -1,6 +1,5 @@
 (ns kaleidoscope.api.albums
-  (:require [clojure.spec.alpha :as s]
-            [kaleidoscope.persistence.filesystem :as fs]
+  (:require [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
             [taoensso.timbre :as log]))

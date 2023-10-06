@@ -1,16 +1,14 @@
 (ns kaleidoscope.http-api.photo
-  (:require
-   [clojure.string :as str]
-   [compojure.api.sweet :refer [context GET POST]]
-   [compojure.api.middleware :as cmw]
-   [image-resizer.core :as rc]
-   [image-resizer.format :as rf]
-   [kaleidoscope.api.albums :as albums-api]
-   [kaleidoscope.http-api.http-utils :as http-utils]
-   [kaleidoscope.utils.core :as u]
-   [ring.util.http-response :refer [created not-found ok]]
-   [steffan-westcott.clj-otel.api.trace.span :as span]
-   [taoensso.timbre :as log]))
+  (:require [clojure.string :as str]
+            [compojure.api.middleware :as cmw]
+            [image-resizer.core :as rc]
+            [image-resizer.format :as rf]
+            [kaleidoscope.api.albums :as albums-api]
+            [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.utils.core :as u]
+            [ring.util.http-response :refer [created not-found ok]]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
+            [taoensso.timbre :as log]))
 
 (def MEDIA-FOLDER
   "media")
@@ -45,7 +43,7 @@
    {:keys [filename tempfile] :as file}]
   (let [{:keys [static-content-adapters database]} (cmw/get-components req)
 
-        hostname (http-utils/get-host req)
+        hostname (hu/get-host req)
         bucket   (bucket-name req)
 
         static-content-adapter (get static-content-adapters bucket)
@@ -71,64 +69,78 @@
       {:photo-id    photo-id
        :version-ids (flatten resized)})))
 
-(def photo-routes
-  (context "/v2/photos" []
-    :coercion   :spec
-    :components [static-content-adapters database]
-    :tags       ["photos"]
+(def reitit-photos-routes
+  ["/v2/photos" {:tags     ["photos"]
+                 :security [{:andrewslai-pkce ["roles" "profile"]}]
+                 ;; For testing only - this is a mechanism to always get results from a particular
+                 ;; host URL.
+                 ;;
+                 ;;:host      "andrewslai.localhost"
+                 }
+   ["" {:get {:summary   "Get photos"
+              :responses (merge hu/openapi-401
+                                {200 {:description "A collection of groups the user owns"
+                                      :content     {"application/json"
+                                                    {:schema [:any]}}}})
 
-    (GET "/" req
-      :swagger {:summary  "Get photos"
-                :produces #{"application/json"}
-                :security [{:andrewslai-pkce ["roles" "profile"]}]}
-      (log/infof "Getting photos matchng %s" (:params req))
-      (let [hostname (http-utils/get-host req)
-            photos   (albums-api/get-full-photos database (assoc (:params req) :hostname hostname))]
-        (ok (map (fn [{:keys [id filename] :as photo}]
-                   (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos))))
+              :handler (fn [{:keys [components query-params] :as req}]
+                         (log/infof "Getting photos matching %s" query-params)
+                         (let [hostname (hu/get-host req)
+                               photos   (albums-api/get-full-photos (:database components) (assoc query-params :hostname hostname))]
+                           (ok (map (fn [{:keys [id filename] :as photo}]
+                                      (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos))))}
+        :post {:summary     "Upload a new file"
+               :description "Add a new image"
+               :responses   (merge hu/openapi-401
+                                   {200 {:description "The group that was created"
+                                         :content     {"application/json"
+                                                       {:schema [:any]}}}})
+               :handler     (fn [{:keys [components body-params] :as req}]
+                              (log/infof "Processing upload request with params:\n %s" (-> body-params
+                                                                                           clojure.pprint/pprint
+                                                                                           with-out-str))
+                              (let [result (->> body-params
+                                                vals
+                                                (filter file-upload?)
+                                                (mapv (partial process-photo-upload! req)))]
 
-    (GET "/:photo-id" [photo-id :as request]
-      :swagger {:summary  "Get photos"
-                :produces #{"application/json"}
-                :security [{:andrewslai-pkce ["roles" "profile"]}]}
-      (log/infof "Getting photo %s" photo-id)
-      (let [hostname (http-utils/get-host request)
-            photos   (albums-api/get-full-photos database {:id       photo-id
-                                                           :hostname hostname})]
-        (if (empty? photos)
-          (not-found {:reason "Missing"})
-          (ok (map (fn [{:keys [id filename] :as photo}]
-                     (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos)))))
+                                ;; Todo create a batch response
+                                (assoc-in (created "/v2/photos" result)
+                                          [:headers "Content-Type"]
+                                          "application/json")))}}]
 
-    (GET "/:photo-id/:filename" request
-      :swagger {:summary  "Get photos"
-                :produces #{"application/json"}
-                :security [{:andrewslai-pkce ["roles" "profile"]}]}
-      (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
-        (let [[version] (albums-api/get-full-photos database (:params request))]
-          (http-utils/get-resource static-content-adapters (-> request
-                                                               (assoc :uri (:path version))
-                                                               http-utils/kebab-case-headers)))))
+   ["/:photo-id" {:get {:summary    "Get photo"
+                        :responses  (merge hu/openapi-401
+                                           {200 {:description "The group that was created"
+                                                 :content     {"application/json"
+                                                               {:schema [:any]}}}})
+                        :parameters {:path {:photo-id string?}}
+                        :handler    (fn [{:keys [components body-params path-params] :as request}]
+                                      (let [{:keys [photo-id]} path-params
 
-    (POST "/" {:keys [uri params] :as req}
-      :swagger {:summary     "Upload a new file"
-                :description "Add a new image"
-                :produces    #{"application/json"}
-                :responses   {200 {:description "A photo"}}}
+                                            _        (log/infof "Getting photo %s" photo-id)
+                                            hostname (hu/get-host request)
+                                            photos   (albums-api/get-full-photos (:database components) {:id       photo-id
+                                                                                                         :hostname hostname})]
+                                        (if (empty? photos)
+                                          (not-found {:reason "Missing"})
+                                          (ok (map (fn [{:keys [id filename] :as photo}]
+                                                     (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos)))))}}]
 
-      (log/infof "Processing upload request with params:\n %s" (-> params
-                                                                   clojure.pprint/pprint
-                                                                   with-out-str))
-      (let [result (->> params
-                        vals
-                        (filter file-upload?)
-                        (mapv (partial process-photo-upload! req)))]
+   ["/:photo-id/filename" {:get {:summary    "Create a group"
+                                 :responses  (merge hu/openapi-401
+                                                    {200 {:description "The group that was created"
+                                                          :content     {"application/json"
+                                                                        {:schema [:any]}}}})
+                                 :parameters {:path {:photo-id string?}}
+                                 :handler    (fn [{:keys [components body-params path-params] :as request}]
+                                               (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
+                                                 (let [[version] (albums-api/get-full-photos (:database components) (:params request))]
+                                                   (hu/get-resource (:static-content-adapters components) (-> request
+                                                                                                              (assoc :uri (:path version))
+                                                                                                              hu/kebab-case-headers)))))}}]
 
-        ;; Todo create a batch response
-        (assoc-in (created "/v2/photos" result)
-                  [:headers "Content-Type"]
-                  "application/json"))
-      )))
+   ])
 
 
 (comment
