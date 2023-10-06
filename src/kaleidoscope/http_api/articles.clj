@@ -171,11 +171,24 @@
   [:map
    [:reason :string]])
 
+(def NotAuthorizedResponse
+  [:any])
+
+(def example-not-authorized
+  {})
+
 (defn json-examples
   [responses]
   {:content
    {"application/json"
     {:examples responses}}})
+
+(def openapi-401
+  {404 {:description "Unauthorized"
+        :content     {"application/json"
+                      {:schema   NotAuthorizedResponse
+                       :examples {"not-authorized" {:summary "Not authorized"
+                                                    :value   example-not-authorized}}}}}})
 
 (def openapi-404
   {404 {:description "Not found"
@@ -334,18 +347,15 @@
                 ;;
                 ;;:host      "andrewslai.localhost"
                 }
-   ["" {:get {:openapi {:summary     "Retrieve all branches"
-                        :description (str "This endpoint retrieves all branches. "
-                                          "The endpoint is currently not paginated")
-                        :produces    #{"application/json"}
-                        :responses   {500 {:body ErrorResponse}
-                                      200 (json-examples {"example-branches" {:summary "A collection of all published articles"
-                                                                              :body    [:sequential GetBranchResponse]
-                                                                              :value   [example-article]}})}}
-
-              :responses {200 {:description "A collection of all branches"
-                               :body        [:sequential GetBranchResponse]}
-                          500 {:body ErrorResponse}}
+   ["" {:get {:summary     "Retrieve all branches"
+              :description "Currently not paginated."
+              :responses   (merge openapi-500
+                                  {200 {:description "A collection of all branches"
+                                        :content     {"application/json"
+                                                      {:schema   [:sequential GetBranchResponse]
+                                                       :examples {"example-branches" {:summary "A collection of all branches"
+                                                                                      :body    [:sequential GetBranchResponse]
+                                                                                      :value   [example-article]}}}}}})
 
               :handler (fn [{:keys [components parameters] :as request}]
                          (let [query-params (-> csk/->kebab-case-keyword
@@ -357,12 +367,9 @@
                            (if (empty? branches)
                              (not-found {:reason "Missing"})
                              (ok branches))))}
-        :post {:openapi {:summary  "Create a new branch"
-                         :produces #{"application/json"}
-                         :consumes #{"application/json"}}
-
-               :responses {200 {:body [:any]}
-                           401 {:body [:any]}}
+        :post {:summary   "Create a new branch"
+               :responses (merge openapi-401
+                                 {200 {:body [:any]}})
                :handler   (fn [{:keys [components body-params] :as request}]
                             (try
                               (ok (articles-api/create-branch! (:database components)
@@ -374,15 +381,13 @@
 
    ["/:branch-id/versions"
     {:tags ["versions"]
-     :get  {:openapi {:summary    "Get versions"
-                      :produces   #{"application/json"}
-                      :parameters {:path {:branch-id string?}}
-                      :responses  {200 (json-examples {"example-versions" {:summary "A single version"
-                                                                           :value   example-article}})}}
-
-            :responses {200 {:body [:any]}
-                        401 {:body [:any]}}
-
+     :get  {:summary    "Get versions"
+            :responses  (merge openapi-401
+                               {200 {:description "Versions"
+                                     :content     {"application/json"
+                                                   {:schema   [:any]
+                                                    :examples {"example-versions" {:summary "A single version"
+                                                                                   :value   [example-version-1]}}}}}})
             :parameters {:path {:branch-id string?}}
             :handler    (fn [{:keys [components parameters] :as request}]
                           (let [branch-id (get-in parameters [:path :branch-id])
