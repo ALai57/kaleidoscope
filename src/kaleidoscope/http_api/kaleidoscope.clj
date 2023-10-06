@@ -5,7 +5,7 @@
    [compojure.api.sweet :refer [api context GET]]
    [kaleidoscope.api.authorization :as auth]
    [kaleidoscope.http-api.middleware :as mw]
-   [kaleidoscope.http-api.admin :refer [admin-routes]]
+   [kaleidoscope.http-api.admin :refer [reitit-admin-routes]]
    [kaleidoscope.http-api.album :refer [album-routes]]
    [kaleidoscope.http-api.articles :refer [reitit-articles-routes reitit-branches-routes reitit-compositions-routes]]
    [kaleidoscope.http-api.audiences :refer [audiences-routes]]
@@ -63,7 +63,6 @@
         :middleware [http-mw]}
        audiences-routes
        portfolio-routes
-       admin-routes
        swagger-ui-routes
        album-routes
        photo-routes
@@ -111,6 +110,7 @@
      [reitit-ping-routes
       reitit-openapi-routes
       reitit-index-routes
+      reitit-admin-routes
       reitit-articles-routes
       reitit-branches-routes
       reitit-compositions-routes]
