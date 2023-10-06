@@ -51,3 +51,41 @@
                                        :headers {"ETag" (fs/object-version result)}
                                        :body    (fs/object-content result)}
                                       (cc/cache-control uri)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; HTTP responses
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def example-not-found
+  {:reason "missing"})
+
+(def ErrorResponse
+  [:map])
+
+(def NotFoundResponse
+  [:map
+   [:reason :string]])
+
+(def NotAuthorizedResponse
+  [:any])
+
+(def example-not-authorized
+  {})
+
+(def openapi-401
+  {404 {:description "Unauthorized"
+        :content     {"application/json"
+                      {:schema   NotAuthorizedResponse
+                       :examples {"not-authorized" {:summary "Not authorized"
+                                                    :value   example-not-authorized}}}}}})
+
+(def openapi-404
+  {404 {:description "Not found"
+        :content     {"application/json"
+                      {:schema   NotFoundResponse
+                       :examples {"not-found" {:summary "Not found"
+                                               :value   example-not-found}}}}}})
+
+(def openapi-500
+  {500 {:description "Error response"
+        :content     {"application/json"
+                      {:schema ErrorResponse}}}})

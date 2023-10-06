@@ -10,6 +10,7 @@
             [kaleidoscope.http-api.cache-control :as cc]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.http-api.articles :as http.articles]
+            [kaleidoscope.models.articles :as models.articles ]
             [kaleidoscope.init.env :as env]
             [kaleidoscope.models.albums :refer [example-album example-album-2]]
             [kaleidoscope.persistence.filesystem :as fs]
@@ -252,7 +253,7 @@
                         app)))))
 
     "/articles"                  {:status 200 :body (has-count 4)}
-    "/articles/my-first-article" {:status 200 :body (malli-matcher http.articles/GetArticleResponse)}
+    "/articles/my-first-article" {:status 200 :body (malli-matcher models.articles/GetArticleResponse)}
     "/articles/does-not-exist"   {:status 404}
     ))
 
@@ -271,7 +272,7 @@
                     (app (mock/request :get (str "http://andrewslai.localhost" endpoint)))))))
 
     "/compositions"                  {:status 200 :body (has-count 4)}
-    "/compositions/my-first-article" {:status 200 :body (malli-matcher http.articles/GetCompositionResponse)}
+    "/compositions/my-first-article" {:status 200 :body (malli-matcher models.articles/GetCompositionResponse)}
     "/compositions/does-not-exist"   {:status 404}))
 
 (deftest create-branch-happy-path-test

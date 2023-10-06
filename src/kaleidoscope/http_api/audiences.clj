@@ -11,7 +11,6 @@
   ;; reverse the order of the emitted bindings, or do what I did, and just
   ;; change the symbol =)
   (context "/article-audiences" +compojure-api-request+
-    :coercion    :spec
     :components  [database]
     :tags        ["audiences"]
 
@@ -19,8 +18,7 @@
       :swagger {:summary   "Retrieve all audiences"
                 :produces  #{"application/json"}
                 :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                :responses {200 {:description "A collection of all audiences"
-                                 :schema      :kaleidoscope.article/articles}}}
+                :responses {200 {:description "A collection of all audiences"}}}
       (let [audiences (->> {:hostname (hu/get-host request)}
                            (audiences-api/get-article-audiences database))]
         (if (empty? audiences)
@@ -31,8 +29,7 @@
       :swagger {:summary   "Create a new audience"
                 :produces  #{"application/json"}
                 :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                :responses {200 {:description "A collection of all audiences"
-                                 :schema      :kaleidoscope.article/articles}}}
+                :responses {200 {:description "A collection of all audiences"}}}
       (let [{:keys [article-id group-id]} (:params request)]
         (ok (audiences-api/add-audience-to-article! database
                                                     {:id       article-id
@@ -42,6 +39,5 @@
       :swagger {:summary   "Delete an audience"
                 :produces  #{"application/json"}
                 :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                :responses {200 {:description "A collection of all audiences"
-                                 :schema      :kaleidoscope.article/articles}}}
+                :responses {200 {:description "A collection of all audiences"}}}
       (ok (audiences-api/delete-article-audience! database id)))))

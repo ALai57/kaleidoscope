@@ -7,21 +7,13 @@
               [clojure.test.check.generators :as gen]
               [spec-tools.spec :as spec]])))
 
-(def timestamp (s/or :date spec/inst? :string spec/string?))
-
-(s/def :kaleidoscope.albums/id spec/integer?)
-(s/def :kaleidoscope.albums/album-name spec/string?)
-(s/def :kaleidoscope.albums/created-at timestamp)
-(s/def :kaleidoscope.albums/modified-at timestamp)
-
-(s/def :kaleidoscope.albums/album
-  (s/keys :req-un [:kaleidoscope.albums/album-name]
-          :opt-un [:kaleidoscope.albums/id
-                   :kaleidoscope.albums/created-at
-                   :kaleidoscope.albums/modified-at]))
-
-(s/def :kaleidoscope.albums/albums
-  (s/coll-of :kaleidoscope.albums/album))
+;; TODO: Add json decode to/from timestamp
+(def Album
+  [:map
+   [:id :uuid]
+   [:album-name :string]
+   [:created-at  inst?]
+   [:modified-at inst?]])
 
 (def example-album
   {:album-name     "hello"
@@ -37,10 +29,24 @@
    :created-at     "2022-10-01T02:55:27Z",
    :modified-at    "2022-10-01T02:55:27Z",})
 
+(def AlbumContent
+  [:map
+   [:album-id :uuid]
+   [:album-content-id :uuid]
+   [:added-to-album-at inst?]
+   [:photo-id :uuid]
+   [:photo-src :string]
+   [:photo-title :string]
+   [:album-name :string]
+   [:album-description :string]
+   [:cover-photo-id :uuid]
+   [:cover-photo-src :string]])
+
 (comment
   ;; Example data for article spec
+  (require '[malli.core :as m])
+  (require '[malli.generator :as mg])
 
-  (gen/sample (s/gen :kaleidoscope.albums/album))
-
-  (s/valid? :kaleidoscope.albums/album example-album)
+  ;; Currently no generator
+  (mg/generate Album)
   )

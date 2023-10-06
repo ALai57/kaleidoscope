@@ -7,52 +7,145 @@
               [clojure.test.check.generators :as gen]
               [spec-tools.spec :as spec]])))
 
-(def timestamp (s/or :date spec/inst? :string spec/string?))
+(def GetArticleResponse
+  [:map
+   [:id            :int]
+   [:author        :string]
+   [:article-url   :string]
+   [:article-title :string]
+   [:hostname      :string]
+   [:modified-at   inst?]
+   [:created-at    inst?]])
 
-(s/def :kaleidoscope.article/id spec/integer?)
-(s/def :kaleidoscope.article/article-name spec/string?)
-(s/def :kaleidoscope.article/article-title spec/string?)
-(s/def :kaleidoscope.article/article-tags spec/string?)
-(s/def :kaleidoscope.article/article-url spec/string?)
-(s/def :kaleidoscope.article/author spec/string?)
-(s/def :kaleidoscope.article/content spec/string?)
+(def GetBranchResponse
+  [:map
+   [:article-id    :int]
+   [:article-title :string]
+   [:article-url   :string]
+   [:author        :string]
+   [:branch-id     :int]
+   [:branch-name   :string]
+   [:created-at    inst?]
+   [:hostname      :string]
+   [:modified-at   inst?]
+   [:published-at  [:maybe inst?]]])
 
-(s/def :kaleidoscope.article/article
-  (s/keys :req-un [:kaleidoscope.article/article-tags
-                   :kaleidoscope.article/author
-                   :kaleidoscope.article/article-url]
-          :opt-un [:kaleidoscope.article/id
-                   :kaleidoscope.article/content
-                   :kaleidoscope.article/article-title]))
+(def GetVersionResponse
+  [:map
+   [:article-id    :int]
+   [:article-tags  :string]
+   [:article-title :string]
+   [:article-url   :string]
+   [:author        :string]
+   [:branch-id     :int]
+   [:branch-name   :string]
+   [:content       :string]
+   [:created-at    inst?]
+   [:hostname      :string]
+   [:modified-at   inst?]
+   [:published-at  [:maybe inst?]]])
 
-(s/def :kaleidoscope.branch/id spec/string?)
-(s/def :kaleidoscope.branch/branch-id spec/string?)
-(s/def :kaleidoscope.branch/article-id spec/string?)
-(s/def :kaleidoscope.branch/published-at timestamp)
-(s/def :kaleidoscope.branch/branch-name spec/string?)
-(s/def :kaleidoscope.branch/created-at timestamp)
-(s/def :kaleidoscope.branch/modified-at timestamp)
+(def GetCompositionResponse
+  [:map
+   [:article-id    :int]
+   [:article-title :string]
+   [:article-url   :string]
+   [:author        :string]
+   [:branch-id     :int]
+   [:branch-name   :string]
+   [:created-at    inst?]
+   [:content       :string]
+   [:hostname      :string]
+   [:modified-at   inst?]
+   [:version-id    :int]])
 
-(s/def :kaleidoscope.article/article-branch
-  (s/keys :req-un [:kaleidoscope.branch/branch-name]
-          :opt-un [:kaleidoscope.branch/article-id
-                   :kaleidoscope.branch/published-at
-                   :kaleidoscope.branch/branch-id
-                   :kaleidoscope.article/author
-                   :kaleidoscope.article/article-url
-                   :kaleidoscope.article/article-tags]))
-
-(s/def :kaleidoscope.article/articles
-  (s/coll-of :kaleidoscope.article/article))
+(def CreateVersionRequest
+  [:map
+   [:article-title {:optional true} :string]
+   [:article-tags  {:optional true} :string]
+   [:content       :string]])
 
 (def example-article
-  {:id           4
-   :article-tags "about",
-   :article-url  "my-fourth-article",
-   :author       "Andrew Lai",
-   :content      "<p>Content from 4</p>"
-   :timestamp    "2020-10-28T02:55:27Z",
-   :title        "My fourth article"})
+  {:id            1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :hostname      "andrewslai.localhost"})
+
+(def example-article-2
+  {:id            2
+   :author        "Andrew Lai"
+   :article-url   "my-second-article"
+   :article-title "My second article"
+   :article-tags  "thoughts"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :hostname      "andrewslai.localhost"})
+
+(def example-branch-1
+  {:article-id    1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :branch-id     1
+   :branch-name   "branch-1"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :published-at  "2022-01-03T00:00:00Z"
+   :hostname      "andrewslai.localhost"})
+
+(def example-branch-2
+  {:article-id    1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :branch-id     1
+   :branch-name   "branch-2"
+   :created-at    "2022-01-02T00:00:00Z"
+   :modified-at   "2022-01-02T00:00:00Z"
+   :published-at  nil
+   :hostname      "andrewslai.localhost"})
+
+(def example-version-request
+  {:article-title "My first article"
+   :article-tags  "thoughts"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :published-at  "2022-01-03T00:00:00Z"
+   :content       "<p>Hello there!</p>"})
+
+(def example-version-1
+  {:article-id    1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :branch-id     1
+   :branch-name   "branch-1"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :published-at  "2022-01-03T00:00:00Z"
+   :content       "<p>Hello there!</p>"
+   :hostname      "andrewslai.localhost"})
+
+(def example-composition-1
+  {:article-id    1
+   :author        "Andrew Lai"
+   :article-url   "my-first-article"
+   :article-title "My first article"
+   :article-tags  "thoughts"
+   :branch-id     1
+   :branch-name   "branch-1"
+   :created-at    "2022-01-01T00:00:00Z"
+   :modified-at   "2022-01-01T00:00:00Z"
+   :published-at  "2022-01-03T00:00:00Z"
+   :content       "<p>Hello there!</p>"
+   :hostname      "andrewslai.localhost"})
 
 (comment
   ;; Example data for article spec

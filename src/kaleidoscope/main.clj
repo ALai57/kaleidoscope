@@ -4,6 +4,7 @@
             [clojure.string :as string]
             [clojure.pprint :as pprint]
             [kaleidoscope.http-api.middleware :as mw]
+            [kaleidoscope.models.registry] ;; load malli extensions for time
             [kaleidoscope.init.env :as env]
             [kaleidoscope.utils.logging :as ul]
             [malli.dev.pretty :as pretty]

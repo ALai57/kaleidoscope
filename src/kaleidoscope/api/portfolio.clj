@@ -23,12 +23,19 @@
    [:links [:sequential PortfolioLink]]
    [:nodes [:sequential PortfolioNode]]])
 
-(def get-nodes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Private helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ^:private get-nodes
   (rdbms/make-finder :portfolio-entries))
 
-(def get-links
+(def ^:private get-links
   (rdbms/make-finder :portfolio-links))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Public API
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-portfolio
   {:malli/schema [:=> [:cat :any]
                   Portfolio]

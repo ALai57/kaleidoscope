@@ -114,8 +114,7 @@
       :swagger {:summary     "Upload a new file"
                 :description "Add a new image"
                 :produces    #{"application/json"}
-                :responses   {200 {:description "A photo"
-                                   :schema      :kaleidoscope.albums/album}}}
+                :responses   {200 {:description "A photo"}}}
 
       (log/infof "Processing upload request with params:\n %s" (-> params
                                                                    clojure.pprint/pprint
