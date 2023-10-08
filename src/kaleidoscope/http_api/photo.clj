@@ -83,10 +83,11 @@
                                       :content     {"application/json"
                                                     {:schema [:any]}}}})
 
-              :handler (fn [{:keys [components query-params] :as req}]
-                         (log/infof "Getting photos matching %s" query-params)
-                         (let [hostname (hu/get-host req)
-                               photos   (albums-api/get-full-photos (:database components) (assoc query-params :hostname hostname))]
+              :handler (fn [{:keys [components parameters] :as req}]
+                         (let [query-params (:query parameters)
+                               _            (log/infof "Getting photos matching %s" query-params)
+                               hostname     (hu/get-host req)
+                               photos       (albums-api/get-full-photos (:database components) (assoc query-params :hostname hostname))]
                            (ok (map (fn [{:keys [id filename] :as photo}]
                                       (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos))))}
         :post {:summary     "Upload a new file"
@@ -129,18 +130,19 @@
                                           (ok (map (fn [{:keys [id filename] :as photo}]
                                                      (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos)))))}}]
 
-   ["/:photo-id/filename" {:get {:summary    "Create a group"
-                                 :responses  (merge hu/openapi-401
-                                                    {200 {:description "The group that was created"
-                                                          :content     {"application/json"
-                                                                        {:schema [:any]}}}})
-                                 :parameters {:path {:photo-id string?}}
-                                 :handler    (fn [{:keys [components body-params path-params] :as request}]
-                                               (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
-                                                 (let [[version] (albums-api/get-full-photos (:database components) (:params request))]
-                                                   (hu/get-resource (:static-content-adapters components) (-> request
-                                                                                                              (assoc :uri (:path version))
-                                                                                                              hu/kebab-case-headers)))))}}]
+   ["/:photo-id/:filename" {:get {:summary    "Get a particular photo"
+                                  :responses  (merge hu/openapi-401
+                                                     {200 {:description "The photo"
+                                                           :content     {"application/json"
+                                                                         {:schema [:any]}}}})
+                                  :parameters {:path {:photo-id string?}}
+                                  :handler    (fn [{:keys [components parameters] :as request}]
+                                                (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
+                                                  (let [path-params                  (:path parameters)
+                                                        [{:keys [path] :as version}] (albums-api/get-full-photos (:database components) path-params)]
+                                                    (hu/get-resource (:static-content-adapters components) (-> request
+                                                                                                               (assoc :uri path)
+                                                                                                               hu/kebab-case-headers)))))}}]
 
    ])
 

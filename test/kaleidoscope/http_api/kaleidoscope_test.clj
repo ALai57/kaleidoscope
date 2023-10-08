@@ -424,7 +424,7 @@
                  tu/wrap-clojure-response)
 
         create-response (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png"))
-        get-response    (app (mock/request :get "https://andrewslai.com/v2/photos/" {:filename "mobile.png"}))
+        get-response    (app (mock/request :get "https://andrewslai.com/v2/photos" {:filename "mobile.png"}))
         image-id        (get-in get-response [:body 0 :id])]
 
     (testing "Upload works"
@@ -441,7 +441,11 @@
     (testing "Retrieval works"
       (testing "Using query params to find `mobile` images"
         (is (match? {:status 200
-                     :body   [{:filename "mobile.png"}]}
+                     :body   (m/in-any-order [{:filename "mobile.png"}
+                                              {:filename "gallery.png"}
+                                              {:filename "raw.png"}
+                                              {:filename "monitor.png"}
+                                              {:filename "thumbnail.png"}])}
                     get-response)))
       (testing "Using the image ID"
         (is (match? {:status  200
