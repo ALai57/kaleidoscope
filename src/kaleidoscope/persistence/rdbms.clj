@@ -1,8 +1,8 @@
 (ns kaleidoscope.persistence.rdbms
   (:require [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
-            [honeysql.core :as hsql]
-            [honeysql.helpers :as hh]
+            [honey.sql :as hsql]
+            [honey.sql.helpers :as hh]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]
             [next.jdbc.sql :as next.sql]
@@ -46,14 +46,31 @@
        (getter database)
        (find-by-keys database table query-map)))))
 
+(defn hsql-insert
+  "Insert into the DB and return the inserted row.
+  This is because H2 does not support the `RETURNING` statement"
+  [query]
+  (let [forms     (->> [:select :* :from :final :table query]
+                       hsql/format-expr-list
+                       (apply concat)
+                       vec)
+        statement (take 6 forms)
+        params    (drop 6 forms)]
+    (concat [(clojure.string/join " " statement)] params)))
+
 (defn insert! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
     (try+
-     (transact! database (-> (hh/insert-into table)
-                             (hh/values (if (map? m)
-                                          [m]
-                                          m))
-                             hsql/format))
+     (let [query           (-> (hh/insert-into table)
+                               (hh/values (if (map? m)
+                                            [m]
+                                            m)))
+           formatted-query (if (= (class database) org.h2.jdbc.JdbcConnection)
+                             (hsql-insert query)
+                             (-> query
+                                 (hh/returning :*)
+                                 hsql/format))]
+       (transact! database formatted-query))
      (catch org.postgresql.util.PSQLException e
        (log/errorf "Caught Exception while inserting: %s" e)
        (throw+ (merge {:type    :PersistenceException
@@ -73,7 +90,7 @@
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
     (try+
      (transact! database (-> (hh/update table)
-                             (hh/sset m)
+                             (hh/set m)
                              (hh/where where)
                              hsql/format))
      (catch org.postgresql.util.PSQLException e

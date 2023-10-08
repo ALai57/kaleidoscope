@@ -46,4 +46,10 @@
   (next/execute! ds ["select * from testing"])
   (next/execute! ds ["select version()"])
 
+
+  (next/execute! ds ["SELECT * FROM FINAL TABLE (INSERT INTO testing VALUES ('hello') ) "])
+  (next/execute! ds ["INSERT INTO testing VALUES ('hello') RETURNING *"])
+
+
+  (= (class ds) org.postgresql.jdbc.PgConnection)
   )

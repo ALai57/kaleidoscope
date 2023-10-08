@@ -26,7 +26,13 @@
   (next/execute! ds ["select * from schema_migrations"])
 
   (next/execute! ds ["CREATE TABLE testing (id varchar)"])
-  (next/execute! ds ["INSERT INTO testing VALUES ('hello')"])
+  (next/execute! ds ["INSERT INTO testing VALUES ('hello') RETURNING *"])
   (next/execute! ds ["select * from testing"])
 
+
+  ;; Testing `RETURNING` statement - H2 doesn't support it and uses
+  ;; data delta tables instead
+  (next/execute! ds ["SELECT * FROM FINAL TABLE (INSERT INTO testing VALUES ('hello') ) "])
+
+  (= (class ds) org.h2.jdbc.JdbcConnection)
   )
