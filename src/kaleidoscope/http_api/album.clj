@@ -63,7 +63,8 @@
                                                                 {:schema [:sequential models.albums/AlbumContent]}}}}
                                  :handler   (fn [{:keys [components] :as request}]
                                               (log/info "Getting contents")
-                                              (ok (albums-api/get-album-contents (:database components))))}}]
+                                              (let [contents (albums-api/get-album-contents (:database components))]
+                                                (ok contents)))}}]
    ["/:album-id" {:get {:summary    "Retrieve album by ID"
                         :responses  (merge hu/openapi-404
                                            {200 {:description "An album"
@@ -90,12 +91,14 @@
                                     :responses  (merge hu/openapi-404
                                                        {200 {:description "An album's contents"
                                                              :content     {"application/json"
-                                                                           {:schema models.albums/AlbumContent}}}})
+                                                                           {:schema [:sequential models.albums/AlbumContent]}}}})
+
                                     :parameters {:path {:album-id string?}}
                                     :handler    (fn [{:keys [components body-params path-params] :as request}]
                                                   (let [{:keys [album-id]} path-params]
                                                     (log/infof "Getting album contents from album: %s" album-id)
-                                                    (ok (albums-api/get-album-contents (:database components) {:album-id album-id}))))}
+                                                    (let [contents (albums-api/get-album-contents (:database components) {:album-id album-id})]
+                                                      (ok contents))))}
                            :post   {:summary     "Add content to album"
                                     :description "Supports bulk insert."
                                     :responses   (merge hu/openapi-401
@@ -112,7 +115,8 @@
                                                    (let [{:keys [album-id]} path-params
                                                          photo-ids          (map :id body-params)]
                                                      (log/infof "Adding photo: %s to album: %s" photo-ids album-id)
-                                                     (ok (albums-api/add-photos-to-album! (:database components) album-id photo-ids))))}
+                                                     (let [new-contents (albums-api/add-photos-to-album! (:database components) album-id photo-ids)]
+                                                       (ok new-contents))))}
                            :delete {:summary    "Delete an album's contents"
                                     :responses  (merge hu/openapi-401
                                                        {200 {:description "An album"

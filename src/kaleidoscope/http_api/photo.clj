@@ -39,9 +39,9 @@
        (:tempfile x)))
 
 (defn process-photo-upload!
-  [{:keys [params] :as req}
+  [{:keys [params components] :as req}
    {:keys [filename tempfile] :as file}]
-  (let [{:keys [static-content-adapters database]} (cmw/get-components req)
+  (let [{:keys [static-content-adapters database]} components
 
         hostname (hu/get-host req)
         bucket   (bucket-name req)
@@ -95,14 +95,16 @@
                                    {200 {:description "The group that was created"
                                          :content     {"application/json"
                                                        {:schema [:any]}}}})
-               :handler     (fn [{:keys [components body-params] :as req}]
-                              (log/infof "Processing upload request with params:\n %s" (-> body-params
+               ;; Uses params because form-multipart isn't automatically included in the
+               ;; `parameters`, or `body-params` keys
+               :handler     (fn [{:keys [components params] :as req}]
+                              (log/infof "Processing upload request with params:\n %s" (-> params
                                                                                            clojure.pprint/pprint
                                                                                            with-out-str))
-                              (let [result (->> body-params
-                                                vals
-                                                (filter file-upload?)
-                                                (mapv (partial process-photo-upload! req)))]
+                              (let [file-uploads (->> params
+                                                      vals
+                                                      (filter file-upload?))
+                                    result       (mapv (partial process-photo-upload! req) file-uploads)]
 
                                 ;; Todo create a batch response
                                 (assoc-in (created "/v2/photos" result)
