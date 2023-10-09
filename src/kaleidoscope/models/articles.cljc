@@ -6,6 +6,7 @@
    [:author        :string]
    [:article-url   :string]
    [:article-title :string]
+   [:article-tags  :string]
    [:hostname      :string]
    [:modified-at   inst?]
    [:created-at    inst?]])
@@ -43,6 +44,7 @@
    [:article-id    :int]
    [:article-title :string]
    [:article-url   :string]
+   [:article-tags  :string]
    [:author        :string]
    [:branch-id     :int]
    [:branch-name   :string]
