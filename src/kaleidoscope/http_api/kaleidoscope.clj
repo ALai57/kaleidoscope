@@ -51,20 +51,6 @@
 
    #_{:pattern #"^/.*" :handler (constantly false)}])
 
-(def default-handler
-  [["/media" {:security [{:andrewslai-pkce ["roles" "profile"]}]
-              :get      {:handler (fn [{:keys [components] :as request}]
-                                    (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
-                                      (http-utils/get-resource (:static-content-adapters components)
-                                                               (-> request
-                                                                   http-utils/kebab-case-headers))))}}]
-   ["/media/" {:security [{:andrewslai-pkce ["roles" "profile"]}]
-               :get      {:handler (fn [{:keys [components] :as request}]
-                                     (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
-                                       (http-utils/get-resource (:static-content-adapters components)
-                                                                (-> request
-                                                                    http-utils/kebab-case-headers))))}}]])
-
 ;; Add a tracing middleware data
 
 (defn get-static-resource
@@ -97,35 +83,44 @@
   ([]
    (kaleidoscope-app {}))
   ([components]
-   (ring/ring-handler
-    (ring/router
-     [
-      ;; Administrative/helpers
-      reitit-ping-routes
-      reitit-openapi-routes
-      reitit-index-routes
-      reitit-admin-routes
+   (let [reitit-config (update-in mw/reitit-configuration
+                                  [:data :middleware]
+                                  (fn [mw]
+                                    (concat mw [(inject-components components)
+                                                (:session-tracking components)
+                                                (:auth-stack components)])))]
+     (ring/ring-handler
+      (ring/router
+       [
+        ;; Administrative/helpers
+        reitit-ping-routes
+        reitit-openapi-routes
+        reitit-index-routes
+        reitit-admin-routes
 
-      ;; API routes
-      reitit-albums-routes
-      reitit-articles-routes
-      reitit-audiences-routes
-      reitit-branches-routes
-      reitit-compositions-routes
-      reitit-groups-routes
-      reitit-photos-routes
-      reitit-portfolio-routes
+        ;; API routes
+        reitit-albums-routes
+        reitit-articles-routes
+        reitit-audiences-routes
+        reitit-branches-routes
+        reitit-compositions-routes
+        reitit-groups-routes
+        reitit-photos-routes
+        reitit-portfolio-routes
 
-      default-handler
-      ]
-
-     (update-in mw/reitit-configuration
-                [:data :middleware]
-                (fn [mw]
-                  (concat mw [(inject-components components)
-                              (:session-tracking components)
-                              (:auth-stack components)]))))
-    (ring/create-default-handler))))
+        ]
+       reitit-config)
+      (ring/create-default-handler
+       {:not-found (fn [{:keys [components] :as request}]
+                     (tap> {:req        request
+                            :components components})
+                     (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
+                       (http-utils/get-resource (:static-content-adapters components)
+                                                (-> request
+                                                    http-utils/kebab-case-headers))))}
+       )
+      (:data reitit-config)
+      ))))
 
 (comment
 

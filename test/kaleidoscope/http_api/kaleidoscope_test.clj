@@ -581,18 +581,17 @@
                                (mock/header "Authorization" "Bearer user first-user"))))))))))
 
 (deftest index.html-test
-  (let [system (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
-                     "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
-                     "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
-                     "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
-                    (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
-                    env/prepare-kaleidoscope)
-        app    (->> system
-                    kaleidoscope/kaleidoscope-app
-                    tu/wrap-clojure-response)]
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Cache-Control" cc/revalidate-0s}
-                 :body    [{:name "afile"} {:name "adir" :type "directory"}]}
+                 :body    [{:name "afile"} {:name "adir" :type :directory}]}
                 (app (-> (mock/request :get "https://andrewslai.com/media/")
                          (mock/header "Authorization" "Bearer x")))))))
 

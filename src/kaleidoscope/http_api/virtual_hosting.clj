@@ -45,7 +45,7 @@
                                            (matching-url? request (get-host-url virtual-host))))
                                  (sort-by get-priority)
                                  (first))]
-    (log/debugf "Virtual hosting: routing to `%s`" url)
+    ;;(log/debugf "Virtual hosting: routing to `%s`" url)
     app))
 
 (defn host-based-routing
@@ -53,7 +53,7 @@
   [virtual-hosts]
   (fn
     [request]
-    (log/debugf "Virtual hosting: routing request for `%s`" (req/request-url request))
+    ;;(log/debugf "Virtual hosting: routing request for `%s`" (req/request-url request))
     (if-let [app (select-app request virtual-hosts)]
       (app request)
       (let [msg (format "Unrecognized host %s." (req/request-url request))]
