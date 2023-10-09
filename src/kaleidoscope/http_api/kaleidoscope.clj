@@ -8,7 +8,7 @@
    [kaleidoscope.http-api.admin :refer [reitit-admin-routes]]
    [kaleidoscope.http-api.album :refer [reitit-albums-routes]]
    [kaleidoscope.http-api.articles :refer [reitit-articles-routes reitit-branches-routes reitit-compositions-routes]]
-   [kaleidoscope.http-api.audiences :refer [audiences-routes]]
+   [kaleidoscope.http-api.audiences :refer [reitit-audiences-routes]]
    [kaleidoscope.http-api.groups :refer [reitit-groups-routes]]
    [kaleidoscope.http-api.photo :refer [reitit-photos-routes]]
    [kaleidoscope.http-api.ping :refer [reitit-ping-routes]]
@@ -20,6 +20,17 @@
    [ring.util.http-response :refer [found]]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
+
+;; TODO: Plug in exception handling
+#_(defn exception-handler
+    [exception-reporter]
+    (fn [e data request]
+      (log/errorf "Error: %s, %s"
+                  (ex-message e)
+                  (stacktrace/print-stack-trace e))
+      (when exception-reporter
+        (exception-reporter e))))
+
 
 (def KALEIDOSCOPE-ACCESS-CONTROL-LIST
   [{:pattern #"^/admin.*"        :handler auth/require-*-admin}
@@ -40,33 +51,13 @@
 
    #_{:pattern #"^/.*" :handler (constantly false)}])
 
-(defn exception-handler
-  [exception-reporter]
-  (fn [e data request]
-    (log/errorf "Error: %s, %s"
-                (ex-message e)
-                (stacktrace/print-stack-trace e))
-    (when exception-reporter
-      (exception-reporter e))))
-
 (def default-handler
-  (GET "*" {:keys [uri headers] :as request}
-    :components [static-content-adapters]
-    (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
-      (http-utils/get-resource static-content-adapters (-> request
-                                                           http-utils/kebab-case-headers)))))
-
-(defn kaleidoscope-compojure-app
-  [{:keys [http-mw exception-reporter] :as components}]
-  (api {:components components
-        :exceptions {:handlers {:compojure.api.exception/default (exception-handler exception-reporter)}}
-        :middleware [http-mw]}
-       audiences-routes
-       default-handler))
-
-;;
-;; Reitit versions of routes
-;;
+  ["/media" {:get {:handler (fn [{:keys [components] :as request}]
+                              (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
+                                (http-utils/get-resource (:static-content-adapters components)
+                                                         (-> request
+                                                             http-utils/kebab-case-headers)))
+                              )}}])
 
 ;; Add a tracing middleware data
 
@@ -112,18 +103,23 @@
       ;; API routes
       reitit-albums-routes
       reitit-articles-routes
+      reitit-audiences-routes
       reitit-branches-routes
       reitit-compositions-routes
       reitit-groups-routes
       reitit-photos-routes
       reitit-portfolio-routes
+
+      default-handler
       ]
+
      (update-in mw/reitit-configuration
                 [:data :middleware]
                 (fn [mw]
                   (concat mw [(inject-components components)
                               (:session-tracking components)
-                              (:auth-stack components)])))))))
+                              (:auth-stack components)]))))
+    (ring/create-default-handler))))
 ;;
 ;; Temporary dispatch to reitit or Compojure as I port app to use reitit
 ;;

@@ -4,40 +4,50 @@
             [kaleidoscope.http-api.http-utils :as hu]
             [ring.util.http-response :refer [ok not-found]]))
 
-(def audiences-routes
-  ;; HACK: I think the `context` macro may be broken, because it emits an s-exp
-  ;; with let-bindings out of order: +compojure-api-request+ is referred to
-  ;; before it is bound. This means that, to fix the bug, you'd need to either
-  ;; reverse the order of the emitted bindings, or do what I did, and just
-  ;; change the symbol =)
-  (context "/article-audiences" +compojure-api-request+
-    :components  [database]
-    :tags        ["audiences"]
+(def reitit-audiences-routes
+  ["/article-audiences" {:tags     ["audiences"]
+                         :security [{:andrewslai-pkce ["roles" "profile"]}]
+                         ;; For testing only - this is a mechanism to always get results from a particular
+                         ;; host URL.
+                         ;;
+                         ;;:host      "andrewslai.localhost"
+                         }
+   ["" {:get {:summary   "Retrieve all audiences"
+              :responses (merge hu/openapi-401
+                                {200 {:description "A collection of all audiences"
+                                      :content     {"application/json"
+                                                    {:schema [:any]}}}})
 
-    (GET "/" request
-      :swagger {:summary   "Retrieve all audiences"
-                :produces  #{"application/json"}
-                :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                :responses {200 {:description "A collection of all audiences"}}}
-      (let [audiences (->> {:hostname (hu/get-host request)}
-                           (audiences-api/get-article-audiences database))]
-        (if (empty? audiences)
-          (not-found)
-          (ok audiences))))
+              :handler (fn [{:keys [components] :as request}]
+                         (let [audiences (->> {:hostname (hu/get-host request)}
+                                              (audiences-api/get-article-audiences (:database components)))]
+                           (if (empty? audiences)
+                             (not-found)
+                             (ok audiences))))}
+        :put {:summary   "A collection of all audiences"
+              :responses (merge hu/openapi-401
+                                {200 {:description "The group that was created"
+                                      :content     {"application/json"
+                                                    {:schema [:any]}}}})
+              :request   {:description "A create audience requestj"
+                          :content     {"application/json"
+                                        {:schema [:map
+                                                  [:article-id :int]
+                                                  [:group-id :uuid]]}}}
+              :handler   (fn [{:keys [components parameters] :as request}]
+                           (tap> {:PARAMS parameters})
+                           (let [{:keys [article-id group-id]} (:request parameters)]
+                             (ok (audiences-api/add-audience-to-article! (:database components)
+                                                                         {:id       article-id
+                                                                          :hostname (hu/get-host request)}
+                                                                         {:id group-id}))))}}]
 
-    (PUT "/" request
-      :swagger {:summary   "Create a new audience"
-                :produces  #{"application/json"}
-                :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                :responses {200 {:description "A collection of all audiences"}}}
-      (let [{:keys [article-id group-id]} (:params request)]
-        (ok (audiences-api/add-audience-to-article! database
-                                                    {:id       article-id
-                                                     :hostname (hu/get-host request)}
-                                                    {:id group-id}))))
-    (DELETE "/:id" [id]
-      :swagger {:summary   "Delete an audience"
-                :produces  #{"application/json"}
-                :security  [{:andrewslai-pkce ["roles" "profile"]}]
-                :responses {200 {:description "A collection of all audiences"}}}
-      (ok (audiences-api/delete-article-audience! database id)))))
+   ["/:audience-id" {:delete {:summary    "Delete an audience"
+                              :responses  (merge hu/openapi-401
+                                                 {200 {:description "Success deleting the group"
+                                                       :content     {"application/json"
+                                                                     {:schema [:any]}}}})
+                              :parameters {:path {:audience-id string?}}
+                              :handler    (fn [{:keys [components parameters] :as request}]
+                                            (let [{:keys [audience-id]} (:path parameters)]
+                                              (ok (audiences-api/delete-article-audience! (:database components) audience-id))))}}]])

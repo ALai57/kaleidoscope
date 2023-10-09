@@ -57,17 +57,32 @@
                         :let [image-stream (if resize
                                              (rf/as-stream (rc/resize tempfile w h) extension)
                                              (u/->file-input-stream tempfile))]]
-                    {:filename   (format "%s.%s" (name image-category) extension)
-                     :version-id (albums-api/create-photo-version-2! database
-                                                                     (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
-                                                                     {:photo-id       photo-id
-                                                                      :image-category (name image-category)
-                                                                      :file           (-> params
-                                                                                          (get "file")
-                                                                                          (assoc :file-input-stream image-stream
-                                                                                                 :extension         extension))})})]
-      {:photo-id    photo-id
-       :version-ids (flatten resized)})))
+                    (first (albums-api/create-photo-version-2! database
+                                                               (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
+                                                               {:photo-id       photo-id
+                                                                :image-category (name image-category)
+                                                                :file           (-> params
+                                                                                    (get "file")
+                                                                                    (assoc :file-input-stream image-stream
+                                                                                           :extension         extension))})))]
+      {:photo-id photo-id
+       :versions resized})))
+
+(def Version
+  [:map
+   [:id :uuid]
+   [:photo-id :uuid]
+   [:image-category :string]
+   [:path :string]
+   [:storage-driver :string]
+   [:storage-root :string]
+   [:modified-at inst?]
+   [:created-at inst?]])
+
+(def CreatePhotoResponse
+  [:map
+   [:photo-id :uuid]
+   [:versions [:sequential Version]]])
 
 (def reitit-photos-routes
   ["/v2/photos" {:tags     ["photos"]
@@ -95,7 +110,7 @@
                :responses   (merge hu/openapi-401
                                    {200 {:description "The group that was created"
                                          :content     {"application/json"
-                                                       {:schema [:any]}}}})
+                                                       {:schema CreatePhotoResponse}}}})
                ;; Uses params because form-multipart isn't automatically included in the
                ;; `parameters`, or `body-params` keys
                :handler     (fn [{:keys [components params] :as req}]

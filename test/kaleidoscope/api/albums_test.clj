@@ -81,14 +81,15 @@
       (is (= [] (albums-api/get-album-contents database))))
 
     (testing "Content gets added to different albums"
-      (let [album-content (mapv (partial albums-api/add-photos-to-album! database)
-                                album-ids
-                                photo-ids)]
-        (is (= 3 (count album-content)))))
+      (let [album-content (mapcat (partial albums-api/add-photos-to-album! database)
+                                  album-ids
+                                  photo-ids)]
+        (is (= 3 (count album-content)))
+        (testing "Get multiple contents"
+          (is (= 3 (count (albums-api/get-album-contents database {:album-content-id (set (map :id album-content))})))))))
 
     (testing "Contents come from different albums"
-      (is (= 3 (count (set (map :album-name (albums-api/get-album-contents database)))))))
-    ))
+      (is (= 3 (count (set (map :album-name (albums-api/get-album-contents database)))))))))
 
 (deftest create-and-retrieve-photo-test
   (let [database (embedded-h2/fresh-db!)]

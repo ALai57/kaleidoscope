@@ -430,12 +430,12 @@
     (testing "Upload works"
       (is (match? {:status  201
                    :headers {"Content-Type" "application/json"}
-                   :body    [{:photo-id    uuid?
-                              :version-ids [{:filename "raw.png"}
-                                            {:filename "thumbnail.png"}
-                                            {:filename "gallery.png"}
-                                            {:filename "monitor.png"}
-                                            {:filename "mobile.png"}]}]}
+                   :body    [{:photo-id uuid?
+                              :versions (m/in-any-order [{:filename "raw.png"}
+                                                         {:filename "thumbnail.png"}
+                                                         {:filename "gallery.png"}
+                                                         {:filename "monitor.png"}
+                                                         {:filename "mobile.png"}])}]}
                   create-response)))
 
     (testing "Retrieval works"
@@ -622,8 +622,7 @@
       (testing "Retrieve newly created album"
         (is (match? {:status 200 :body (-> example-album
                                            (assoc :modified-at string?
-                                                  :created-at  string?)
-                                           (update :cover-photo-id str))}
+                                                  :created-at  string?))}
                     (app (mock/request :get (format "https://andrewslai.com/albums/%s" (:id body)))))))
 
       (testing "Update album"
@@ -653,7 +652,7 @@
         [photo-upload-result] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
         album-create-result   (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
                                               (mock/json-body example-album))))
-        photo-id              (:photo-id photo-upload-result)
+        photo-id              (str (:photo-id photo-upload-result))
         album-id              (:id album-create-result)]
 
     (testing "Album is empty to start"
@@ -662,9 +661,9 @@
 
     (let [result           (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-id))
                                     (mock/json-body [{:id photo-id}])))
-          album-content-id (get-in result [:body 0 :id])]
+          album-content-id (get-in result [:body 0 :album-content-id])]
       (testing "Successfully added photo to album"
-        (is (match? {:status 200 :body [{:id string-uuid?}]}
+        (is (match? {:status 200 :body [{:album-content-id string-uuid?}]}
                     result))
         (is (match? {:status 200 :body [{:album-id         album-id
                                          :photo-id         photo-id
@@ -715,11 +714,11 @@
 
     (testing "Contents retrieved from multiple albums"
       (is (match? {:status 200 :body [{:album-name (:album-name example-album)
-                                       :photo-id   photo-1-id}
+                                       :photo-id   (str photo-1-id)}
                                       {:album-name (:album-name example-album)
-                                       :photo-id   photo-2-id}
+                                       :photo-id   (str photo-2-id)}
                                       {:album-name (:album-name example-album-2)
-                                       :photo-id   photo-1-id}]}
+                                       :photo-id   (str photo-1-id)}]}
                   (app (-> (mock/request :get "https://andrewslai.com/albums/-/contents"))))))))
 
 (deftest albums-auth-test

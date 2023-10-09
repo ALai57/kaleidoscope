@@ -124,7 +124,6 @@
 (def get-album-contents
   (rdbms/make-finder :album-contents))
 
-
 (comment
   (def example-album-content
     {:added-to-album-at #inst "2022-11-01T01:48:16.144313000-00:00",

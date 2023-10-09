@@ -5,20 +5,22 @@
   [:map
    [:id :uuid]
    [:album-name :string]
+   [:cover-photo-id [:maybe :uuid]]
+   [:description [:maybe :string]]
    [:created-at  inst?]
    [:modified-at inst?]])
 
 (def example-album
   {:album-name     "hello"
    :description    "first album"
-   :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"
+   :cover-photo-id "d947c6b0-679f-4067-9747-3d282833a27d"
    :created-at     "2020-10-28T02:55:27Z",
    :modified-at    "2020-10-28T02:55:27Z",})
 
 (def example-album-2
   {:album-name     "bye"
    :description    "secondalbum"
-   :cover-photo-id #uuid "d947c6b0-679f-4067-9747-999999999999"
+   :cover-photo-id "d947c6b0-679f-4067-9747-999999999999"
    :created-at     "2022-10-01T02:55:27Z",
    :modified-at    "2022-10-01T02:55:27Z",})
 
@@ -28,12 +30,10 @@
    [:album-content-id :uuid]
    [:added-to-album-at inst?]
    [:photo-id :uuid]
-   [:photo-src :string]
-   [:photo-title :string]
+   [:photo-title [:maybe :string]]
    [:album-name :string]
    [:album-description :string]
-   [:cover-photo-id :uuid]
-   [:cover-photo-src :string]])
+   [:cover-photo-id :uuid]])
 
 (comment
   ;; Example data for article spec

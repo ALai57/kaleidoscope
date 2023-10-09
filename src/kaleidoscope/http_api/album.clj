@@ -115,7 +115,8 @@
                                                    (let [{:keys [album-id]} path-params
                                                          photo-ids          (map :id body-params)]
                                                      (log/infof "Adding photo: %s to album: %s" photo-ids album-id)
-                                                     (let [new-contents (albums-api/add-photos-to-album! (:database components) album-id photo-ids)]
+                                                     (let [inserted-rows (albums-api/add-photos-to-album! (:database components) album-id photo-ids)
+                                                           new-contents  (albums-api/get-album-contents (:database components) {:album-content-id (set (map :id inserted-rows))})]
                                                        (ok new-contents))))}
                            :delete {:summary    "Delete an album's contents"
                                     :responses  (merge hu/openapi-401

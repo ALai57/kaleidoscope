@@ -42,9 +42,19 @@
                       [(format "SELECT * FROM %s" (csk/->snake_case_string table))]
                       {:builder-fn rs/as-unqualified-kebab-maps})))
     ([database query-map]
-     (if (empty? query-map)
-       (getter database)
-       (find-by-keys database table query-map)))))
+     (let [[[where-in-key where-in-vals] :as where-ins] (filter (fn [[k v]]
+                                                                  (set? v)) query-map)]
+       (cond
+         (empty? query-map)      (getter database)
+         (= 0 (count where-ins)) (find-by-keys database table query-map)
+         (= 1 (count where-ins)) (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
+                                   (next/execute! database
+                                                  (hsql/format {:select :*
+                                                                :from   table
+                                                                :where  [:in where-in-key where-in-vals]})
+                                                  {:builder-fn rs/as-unqualified-kebab-maps}))
+         :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported")))))))
+
 
 (defn hsql-insert
   "Insert into the DB and return the inserted row.
@@ -89,16 +99,15 @@
 (defn update! [database table m where & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
     (try+
-     (transact! database (-> (hh/update table)
-                             (hh/set m)
-                             (hh/where where)
-                             hsql/format))
-     (catch org.postgresql.util.PSQLException e
-       (throw+ (merge {:type    :PersistenceException
-                       :message {:data   m
-                                 :reason (.getMessage e)}}
-                      (when ex-subtype
-                        {:subtype ex-subtype})))))))
+     (let [query           (-> (hh/update table)
+                               (hh/set m)
+                               (hh/where where))
+           formatted-query (if (= (class database) org.h2.jdbc.JdbcConnection)
+                             (hsql-insert query)
+                             (-> query
+                                 (hh/returning :*)
+                                 hsql/format))]
+       (transact! database formatted-query)))))
 
 (defn delete! [database table ids & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.delete.%s" table)}
