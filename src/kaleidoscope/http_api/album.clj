@@ -2,7 +2,7 @@
   (:require [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.models.albums :as models.albums] ;; Install specs
             [compojure.api.sweet :refer [context DELETE GET POST PUT]]
-            [ring.util.http-response :refer [no-content not-found! ok]]
+            [ring.util.http-response :refer [no-content not-found ok]]
             [taoensso.timbre :as log]
             [kaleidoscope.http-api.http-utils :as hu]))
 
@@ -148,7 +148,7 @@
                                                                         :album-content-id content-id})]
                            (if result
                              (ok result)
-                             (not-found!))))}
+                             (not-found {:reason "Requested content-id does not exist"}))))}
      :delete {:summary    "Remove content from an album"
               :responses  (merge hu/openapi-401
                                  {200 {:description "An album"

@@ -127,7 +127,7 @@
                    kaleidoscope/kaleidoscope-app
                    tu/wrap-clojure-response)]
       (is (match? {:status 401 :body "Not authorized"}
-                  (app (-> (mock/request :get "/admin/")
+                  (app (-> (mock/request :get "/admin")
                            (mock/header "Authorization" "Bearer x"))))))))
 
 (deftest access-rule-configuration-test
@@ -154,9 +154,6 @@
     "GET `/admin` is not publicly accessible"
     {:status 401} (mock/request :get "https://andrewslai.com/admin")
 
-    "POST `/media/` is not publicly accessible"
-    {:status 401} (mock/request :post "/media/")
-
     "GET `/projects-portfolio` is publicly accessible"
     {:status 200} (mock/request :get "https://andrewslai.com/projects-portfolio")
 
@@ -166,8 +163,8 @@
     "GET `/articles/does-not-exist` is not publicly accessible"
     {:status 401} (mock/request :get "https://andrewslai.com/articles/does-not-exist")
 
-    "PUT `/articles/new-article` is not publicly accessible"
-    {:status 401} (mock/request :put "https://andrewslai.com/articles/new-article")))
+    "POST `/articles/new-article` is not publicly accessible"
+    {:status 401} (mock/request :post "https://andrewslai.com/articles/new-article/branches/new-branch/versions")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test of Blogging API
@@ -680,7 +677,7 @@
                       delete-result))
           (is (match? {:status 200 :body empty?}
                       (app (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id)))))
-          (is (match? {:status 404}
+          (is (match? {:status 404 :body {:reason string?}}
                       (app (mock/request :get (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id))))))))))
 
 (deftest contents-retrieval-test

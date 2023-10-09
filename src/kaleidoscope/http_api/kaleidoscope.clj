@@ -52,12 +52,18 @@
    #_{:pattern #"^/.*" :handler (constantly false)}])
 
 (def default-handler
-  ["/media" {:get {:handler (fn [{:keys [components] :as request}]
-                              (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
-                                (http-utils/get-resource (:static-content-adapters components)
-                                                         (-> request
-                                                             http-utils/kebab-case-headers)))
-                              )}}])
+  [["/media" {:security [{:andrewslai-pkce ["roles" "profile"]}]
+              :get      {:handler (fn [{:keys [components] :as request}]
+                                    (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
+                                      (http-utils/get-resource (:static-content-adapters components)
+                                                               (-> request
+                                                                   http-utils/kebab-case-headers))))}}]
+   ["/media/" {:security [{:andrewslai-pkce ["roles" "profile"]}]
+               :get      {:handler (fn [{:keys [components] :as request}]
+                                     (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
+                                       (http-utils/get-resource (:static-content-adapters components)
+                                                                (-> request
+                                                                    http-utils/kebab-case-headers))))}}]])
 
 ;; Add a tracing middleware data
 
@@ -87,9 +93,9 @@
     (fn new-handler [request]
       (handler (assoc request :components components)))))
 
-(defn kaleidoscope-reitit-app
+(defn kaleidoscope-app
   ([]
-   (kaleidoscope-reitit-app {}))
+   (kaleidoscope-app {}))
   ([components]
    (ring/ring-handler
     (ring/router
@@ -120,15 +126,6 @@
                               (:session-tracking components)
                               (:auth-stack components)]))))
     (ring/create-default-handler))))
-;;
-;; Temporary dispatch to reitit or Compojure as I port app to use reitit
-;;
-(defn kaleidoscope-app
-  [components]
-  (fn [request]
-    (if-let [response ((kaleidoscope-reitit-app components) request)]
-      response
-      ((kaleidoscope-compojure-app components) request))))
 
 (comment
 
