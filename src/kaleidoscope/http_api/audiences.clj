@@ -35,7 +35,6 @@
                                                   [:article-id :int]
                                                   [:group-id :uuid]]}}}
               :handler   (fn [{:keys [components parameters] :as request}]
-                           (tap> {:PARAMS parameters})
                            (let [{:keys [article-id group-id]} (:request parameters)]
                              (ok (audiences-api/add-audience-to-article! (:database components)
                                                                          {:id       article-id
