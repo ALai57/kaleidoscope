@@ -16,9 +16,6 @@ jobs:
         key: maven-${{ hashFiles('project.clj') }}
         restore-keys: maven-
             
-    #- name: Install dependencies
-      #run: lein deps
-
     - name: Compile
       run: ./bin/compile
 
