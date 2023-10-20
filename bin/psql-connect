@@ -1,0 +1,41 @@
+#!/bin/bash
+
+## All of this nonsense is to be able to parse Bash option flags
+# https://stackoverflow.com/a/7680682
+while getopts ":-:" optchar; do
+    case "${optchar}" in
+        -)
+            case "${OPTARG}" in
+                environment=* )
+                    val=${OPTARG#*=}
+                    opt=${OPTARG%=$val}
+                    ENV_FILE=$val
+                    ;;
+                * )
+                    break
+                    ;;
+            esac;;
+    esac
+done
+
+## Apply the environment variable file if necessary
+if [ -n $ENV_FILE ]
+then
+   set -o allexport
+   ## `source` is only implemented in `bash` (not in `sh`)
+   PWD=`pwd`
+   echo "Applying environment file: $PWD/$ENV_FILE"
+   source "$ENV_FILE"
+   #echo "KALEIDOSCOPE_LOG_LEVEL: $KALEIDOSCOPE_LOG_LEVEL"
+   set +o allexport
+fi
+
+#echo "Options: $OPTS"
+echo "Connecting to: $KALEIDOSCOPE_DB_HOST"
+echo ""
+
+PGPASSWORD=$KALEIDOSCOPE_DB_PASSWORD psql \
+   --host=$KALEIDOSCOPE_DB_HOST \
+   --port=$KALEIDOSCOPE_DB_PORT \
+   --username=$KALEIDOSCOPE_DB_USER \
+   --dbname=$KALEIDOSCOPE_DB_NAME
