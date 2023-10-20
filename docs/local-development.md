@@ -63,9 +63,15 @@ Create an uberjar and build the docker container. Start keycloak
 
 **_Startup in Docker Container_**  
 In the command below, replace `.env.aws` with the environment file you'd like to use.
-```bash
-./bin/aws-sso-creds     # Only if you need AWS Credentials
 
+If you want to be connected to aws use the following with the `AWS_PROFILE` environment variable set to the profile you want:
+```bash
+export AWS_PROFILE=andrew-home-aws-profile
+aws sso login
+```
+
+Then run the container
+```bash
 docker run -d --rm \
   --env-file=.env.aws \
   -p 5000:5000 \

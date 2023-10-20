@@ -137,6 +137,12 @@ docker run --env-file=.env.docker.local \
 ./bin/test
 ```
 
+#### Database access
+
+``` bash
+./bin/psql-connect --environment=.env.aws
+```
+
 ## Development
 For local development, see [local-development.md](./docs/local-development.md)
 
