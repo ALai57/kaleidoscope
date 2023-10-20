@@ -8,7 +8,7 @@
    [:article-title :string]
    [:article-tags  :string]
    [:hostname      :string]
-   [:summary       :string]
+   [:summary       [:maybe :string]]
    [:modified-at   inst?]
    [:created-at    inst?]])
 
@@ -22,7 +22,7 @@
    [:branch-name   :string]
    [:created-at    inst?]
    [:hostname      :string]
-   [:summary       :string]
+   [:summary       [:maybe :string]]
    [:modified-at   inst?]
    [:published-at  [:maybe inst?]]])
 
@@ -38,7 +38,7 @@
    [:content       :string]
    [:created-at    inst?]
    [:hostname      :string]
-   [:summary       :string]
+   [:summary       [:maybe :string]]
    [:modified-at   inst?]
    [:published-at  [:maybe inst?]]])
 
@@ -54,7 +54,7 @@
    [:created-at    inst?]
    [:content       :string]
    [:hostname      :string]
-   [:summary       :string]
+   [:summary       [:maybe :string]]
    [:modified-at   inst?]
    [:version-id    :int]])
 

@@ -1,6 +1,6 @@
 INSERT INTO articles (id, author, hostname, article_url, article_tags, created_at, modified_at, article_title, summary)
 VALUES
-(1, 'Andrew Lai', 'andrewslai.localhost', 'my-first-article' , 'thoughts', '2022-01-01T00:00:00Z', '2022-01-01T00:00:00Z', 'My first article', 'An example summary'),
+(1, 'Andrew Lai', 'andrewslai.localhost', 'my-first-article' , 'thoughts', '2022-01-01T00:00:00Z', '2022-01-01T00:00:00Z', 'My first article', null),
 (2, 'Andrew Lai', 'andrewslai.localhost', 'my-second-article', 'thoughts', '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'My Second Article', 'An different example summary'),
 (3, 'Andrew Lai', 'andrewslai.localhost', 'my-third-article' , 'thoughts', '2022-03-01T00:00:00Z', '2022-03-01T00:00:00Z', 'My Third Article', 'A final example summary'),
 (4, 'Andrew Lai', 'andrewslai.localhost', 'neural-network-explanation', 'thoughts', '2022-04-01T00:00:00Z', '2022-04-01T00:00:00Z', 'Neural Network Explanation', 'My summary');
