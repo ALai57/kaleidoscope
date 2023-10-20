@@ -31,12 +31,13 @@ docker run -d --rm --network host \
 ### Step 3: Upload artifact
 
 ```bash
-./scripts/deployment/push-to-ecr
-./scripts/deployment/deploy-image
+./bin/docker-login
+./bin/docker-push
+./bin/deploy-image
 ```
 
 ## Deployment
 ```
 ./bin/release
-./scripts/deployment/deploy-image
+./bin/deploy-image
 ```

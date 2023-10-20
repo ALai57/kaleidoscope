@@ -14,9 +14,10 @@
 
 (def GetBranchResponse
   [:map
-   [:article-id    :int]
-   [:article-title :string]
-   [:article-url   :string]
+   [:article-id         :int]
+   [:article-title      :string]
+   [:article-url        :string]
+   [:article-created-at inst?]
    [:author        :string]
    [:branch-id     :int]
    [:branch-name   :string]
@@ -28,10 +29,11 @@
 
 (def GetVersionResponse
   [:map
-   [:article-id    :int]
-   [:article-tags  :string]
-   [:article-title :string]
-   [:article-url   :string]
+   [:article-id         :int]
+   [:article-tags       :string]
+   [:article-title      :string]
+   [:article-url        :string]
+   [:article-created-at inst?]
    [:author        :string]
    [:branch-id     :int]
    [:branch-name   :string]
