@@ -92,7 +92,9 @@
        (log/errorf "Caught Exception while inserting: %s" e)
        (throw+ (merge {:type    :PersistenceException
                        :message {:data   (select-keys m [:username :email])
-                                 :reason (.getMessage e)}}
+                                 :reason (if (map? e)
+                                           e
+                                           (.getMessage e))}}
                       (when ex-subtype
                         {:subtype ex-subtype})))))))
 
