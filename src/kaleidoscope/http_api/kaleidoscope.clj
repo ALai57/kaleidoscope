@@ -14,6 +14,7 @@
    [kaleidoscope.http-api.ping :refer [reitit-ping-routes]]
    [kaleidoscope.http-api.portfolio :refer [reitit-portfolio-routes]]
    [kaleidoscope.http-api.swagger :refer [reitit-openapi-routes]]
+   [kaleidoscope.http-api.themes :refer [reitit-themes-routes]]
    [kaleidoscope.http-api.http-utils :as http-utils]
    [kaleidoscope.trace :as-alias trace]
    [reitit.ring :as ring]
@@ -107,6 +108,7 @@
         reitit-groups-routes
         reitit-photos-routes
         reitit-portfolio-routes
+        reitit-themes-routes
 
         ]
        reitit-config)

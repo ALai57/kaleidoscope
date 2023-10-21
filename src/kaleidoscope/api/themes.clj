@@ -6,6 +6,15 @@
             [malli.transform :as mt]
             [taoensso.timbre :as log]))
 
+(def Theme
+  [:map
+   [:id :uuid]
+   [:display-name :string]
+   [:config :any]
+   [:owner-id :string]
+   [:created-at inst?]
+   [:modified-at inst?]])
+
 (defn get-owner
   [theme]
   (:owner-id theme))
@@ -14,11 +23,14 @@
 ;; Themes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn decode-theme
+  [theme]
+  (update theme :config (comp (fn [s]
+                                (json/decode s keyword)) json/decode slurp)))
+
 (defn decode-themes
   [themes]
-  (map (fn [theme]
-         (update theme :config (comp (fn [s]
-                                       (json/decode s keyword)) json/decode slurp)))
+  (map decode-theme
        themes))
 
 (def -get-themes
@@ -26,12 +38,14 @@
 
 (defn get-themes
   ([database]
-   (decode-themes (-get-themes database)))
+   (let [raw-result (-get-themes database)]
+     (map decode-theme raw-result)))
   ([database query]
-   (decode-themes (-get-themes database
-                               (if (map? (:config query))
-                                 (update query :config json/encode)
-                                 query)))))
+   (let [raw-result (-get-themes database)]
+     (map decode-theme (-get-themes database
+                                    (if (map? (:config query))
+                                      (update query :config json/encode)
+                                      query))))))
 
 (defn create-theme!
   [database {:keys [id] :as theme}]
@@ -42,9 +56,9 @@
                        :modified-at now
                        :id          (or id (utils/uuid))))]
     (log/infof "ROW: %s" row)
-    (rdbms/insert! database
-                   :themes row
-                   :ex-subtype :UnableToCreateTheme)))
+    (map decode-theme (rdbms/insert! database
+                                     :themes row
+                                     :ex-subtype :UnableToCreateTheme))))
 
 (defn owns?
   [database requester-id theme-id]

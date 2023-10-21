@@ -780,6 +780,51 @@
                     (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
                              (mock/header "Authorization" "Bearer x")))))))))
 
+(deftest themes-test
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+
+    (testing "No themes to start"
+      (is (match? {:status 404}
+                  (app (-> (mock/request :get "https://andrewslai.localhost/themes")
+                           (mock/header "Authorization" "Bearer x"))))))
+
+    (let [add-response (app (-> (mock/request :post "https://andrewslai.localhost/themes")
+                                (mock/header "Authorization" "Bearer x")
+                                (mock/json-body {:config       {:primary {:main "#ABC123"}}
+                                                 :display-name "My New Theme"})))]
+      (testing "Add a theme"
+        (is (match? {:status 200
+                     :body   {:config       {:primary {:main "#ABC123"}}
+                              :id           string-uuid?
+                              :display-name "My New Theme"}}
+                    add-response)))
+
+      (testing "theme exists"
+        (is (match? {:status 200
+                     :body   [{:config       {:primary {:main "#ABC123"}}
+                               :id           string-uuid?
+                               :display-name "My New Theme"}]}
+                    (app (-> (mock/request :get "https://andrewslai.localhost/themes")
+                             (mock/header "Authorization" "Bearer x"))))))
+
+      #_(testing "Delete the theme"
+          (is (match? {:status 200
+                       :body   []}
+                      (app (-> (mock/request :delete (format "https://andrewslai.localhost/article-themes/%s"
+                                                             (get-in add-response [:body 0 :id])))
+                               (mock/header "Authorization" "Bearer x")))))
+
+          (is (match? {:status 404}
+                      (app (-> (mock/request :get "https://andrewslai.localhost/article-themes")
+                               (mock/header "Authorization" "Bearer x")))))))))
+
 (comment
   (require '[clj-http.client :as http])
 

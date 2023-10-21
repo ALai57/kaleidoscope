@@ -16,6 +16,7 @@
 (def example-theme
   {:display-name "mytheme"
    :owner-id     "user-1"
+   :hostname     "andrewslai.com"
    :config       {:primary {:main "#AAA111"}}})
 
 (deftest create-and-retrieve-theme-test
