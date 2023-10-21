@@ -25,7 +25,7 @@
                :responses  {200 {:description "A collection of themes"
                                  :content     {"application/json"
                                                {:schema [:sequential themes-api/Theme]}}}}
-               :parameters {:query [:map]}
+               :parameters {:query :any}
                :handler    (fn [{:keys [components parameters] :as request}]
                              (log/infof "Received params %s" parameters)
                              (let [query-params (:query parameters)

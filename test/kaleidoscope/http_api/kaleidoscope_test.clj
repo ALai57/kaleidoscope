@@ -798,7 +798,8 @@
     (let [add-response (app (-> (mock/request :post "https://andrewslai.localhost/themes")
                                 (mock/header "Authorization" "Bearer x")
                                 (mock/json-body {:config       {:primary {:main "#ABC123"}}
-                                                 :display-name "My New Theme"})))]
+                                                 :display-name "My New Theme"})))
+          theme-id     (get-in add-response [:body :id])]
       (testing "Add a theme"
         (is (match? {:status 200
                      :body   {:config       {:primary {:main "#ABC123"}}
@@ -812,6 +813,17 @@
                                :id           string-uuid?
                                :display-name "My New Theme"}]}
                     (app (-> (mock/request :get "https://andrewslai.localhost/themes")
+                             (mock/header "Authorization" "Bearer x"))))))
+
+      (testing "theme can be queried"
+        (is (match? {:status 200
+                     :body   [{:config       {:primary {:main "#ABC123"}}
+                               :id           string-uuid?
+                               :display-name "My New Theme"}]}
+                    (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" theme-id))
+                             (mock/header "Authorization" "Bearer x")))))
+        (is (match? {:status 404}
+                    (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" (java.util.UUID/randomUUID)))
                              (mock/header "Authorization" "Bearer x"))))))
 
       #_(testing "Delete the theme"
