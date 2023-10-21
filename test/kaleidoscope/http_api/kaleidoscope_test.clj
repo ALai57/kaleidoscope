@@ -792,8 +792,7 @@
 
     (testing "No themes to start"
       (is (match? {:status 404}
-                  (app (-> (mock/request :get "https://andrewslai.localhost/themes")
-                           (mock/header "Authorization" "Bearer x"))))))
+                  (app (mock/request :get "https://andrewslai.localhost/themes")))))
 
     (let [add-response (app (-> (mock/request :post "https://andrewslai.localhost/themes")
                                 (mock/header "Authorization" "Bearer x")
@@ -826,16 +825,14 @@
                     (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" (java.util.UUID/randomUUID)))
                              (mock/header "Authorization" "Bearer x"))))))
 
-      #_(testing "Delete the theme"
-          (is (match? {:status 200
-                       :body   []}
-                      (app (-> (mock/request :delete (format "https://andrewslai.localhost/article-themes/%s"
-                                                             (get-in add-response [:body 0 :id])))
-                               (mock/header "Authorization" "Bearer x")))))
+      (testing "Delete the theme"
+        (is (match? {:status 204}
+                    (app (-> (mock/request :delete (format "https://andrewslai.localhost/themes/%s"
+                                                           theme-id))
+                             (mock/header "Authorization" "Bearer x")))))
 
-          (is (match? {:status 404}
-                      (app (-> (mock/request :get "https://andrewslai.localhost/article-themes")
-                               (mock/header "Authorization" "Bearer x")))))))))
+        (is (match? {:status 404}
+                    (app (mock/request :get "https://andrewslai.localhost/themes"))))))))
 
 (comment
   (require '[clj-http.client :as http])
