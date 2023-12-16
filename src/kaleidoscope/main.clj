@@ -7,6 +7,7 @@
             [kaleidoscope.models.registry] ;; load malli extensions for time
             [kaleidoscope.init.env :as env]
             [kaleidoscope.utils.logging :as ul]
+            [less.awful.ssl :as less-ssl]
             [malli.dev.pretty :as pretty]
             [malli.instrument :as mi]
             [ring.adapter.jetty :as jetty]
@@ -81,16 +82,31 @@
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn start-application!
+  "Kaleidoscope expects a Load balancer to use TLS termination so it receives HTTP requests.
+  However, for testing, it can be useful to have HTTPS capabilities (especially for Cognito)"
   [env]
   (let [system-components (env/start-system! env)
-        port              5000]
-    (log/infof "Hello! Starting kaleidoscope on port %s" port)
+        http-port         5000
+
+        ;; https://github.com/ring-clojure/ring/blob/246f599b47adaa7c74175f84b4cd4398f06f72d9/ring-jetty-adapter/test/ring/adapter/test/jetty.clj#L180
+        ;; https://github.com/aphyr/less-awful-ssl
+        ssl-props (if (get env "KALEIDOSCOPE_ENABLE_SSL")
+                    (do (log/info "Adding SSL to Jetty server startup. Listening to HTTPS on port 5443")
+                        {:ssl?        true
+                         :ssl-port    5443
+                         :ssl-context (less-ssl/ssl-context "./resources/ssl/andrewslai.localhost-key.pem"
+                                                            "./resources/ssl/andrewslai.localhost.pem"
+                                                            "./resources/ssl/andrewslai.localhost.pem"
+                                                            )})
+                    (log/info "Skipping SSL startup"))]
+    (log/infof "Starting kaleidoscope. Listening to HTTP on port %s" http-port)
     (initialize-logging! env)
     (init-otel!)
     (initialize-schema-enforcement!)
     (-> system-components
         (env/make-http-handler)
-        (jetty/run-jetty {:port port}))))
+        (jetty/run-jetty (cond-> {:port http-port}
+                           ssl-props (merge ssl-props))))))
 
 (defn -main
   "Start a server and run the application"

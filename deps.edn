@@ -29,6 +29,7 @@
            io.zonky.test/embedded-postgres                              {:mvn/version "2.0.3"}
            javax.servlet/servlet-api                                    {:mvn/version "2.5"}
            lambdaisland/deep-diff2                                      {:mvn/version "2.7.169"}
+           less-awful-ssl/less-awful-ssl                                {:mvn/version "1.0.6"}
            metosin/compojure-api                                        {:mvn/version "2.0.0-alpha31"}
            metosin/malli                                                {:mvn/version "0.12.0"}
            metosin/spec-tools                                           {:mvn/version "0.10.3"}

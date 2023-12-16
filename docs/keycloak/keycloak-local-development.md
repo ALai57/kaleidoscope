@@ -89,6 +89,7 @@ For the Linux solution use https://stackoverflow.com/a/55270528
 ```
 docker run -p 8080:8080 \
     --network=host \
+    --platform linux/amd64 \
     -e KC_DB=postgres \
     -e KC_DB_URL_HOST="127.0.0.1" \
     -e KC_DB_DATABASE="keycloak" \
