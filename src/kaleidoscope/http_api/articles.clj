@@ -104,8 +104,8 @@
                                                                          {:branch-name   branch-name
                                                                           :hostname      (hu/get-host request)
                                                                           :article-url   article-url
-                                                                          :article-tags  (get-in request [:params :article-tags] "thoughts")
-                                                                          :article-title (get-in request [:params :article-title] "[New article]")
+                                                                          :article-tags  (get-in request [:body-params :article-tags] "thoughts")
+                                                                          :article-title (get-in request [:body-params :article-title] "[New article]")
                                                                           :author        (oidc/get-full-name (:identity request))}
                                                                          commit)]
                               (log/info result)
