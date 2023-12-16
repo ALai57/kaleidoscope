@@ -9,7 +9,9 @@
             [taoensso.timbre :as log]))
 
 (defn ->commit [{:keys [body-params] :as request}]
-  (select-keys body-params [:branch-id :content :created-at :modified-at]))
+  (let [defaults {:content ""}]
+    (merge defaults
+           (select-keys body-params [:branch-id :content :created-at :modified-at]))))
 
 (def reitit-articles-routes
   ["/articles" {:tags    ["articles"]
@@ -103,7 +105,7 @@
                                                                           :hostname      (hu/get-host request)
                                                                           :article-url   article-url
                                                                           :article-tags  (get-in request [:params :article-tags] "thoughts")
-                                                                          :article-title (get-in request [:params :article-title])
+                                                                          :article-title (get-in request [:params :article-title] "[New article]")
                                                                           :author        (oidc/get-full-name (:identity request))}
                                                                          commit)]
                               (log/info result)
