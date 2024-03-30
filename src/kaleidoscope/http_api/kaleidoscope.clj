@@ -62,17 +62,21 @@
   "All served from a common bucket: the Kaleidoscope app bucket."
   ["" {:no-doc true}
    ["/index.html" {:get {:handler (partial found "/")}}]
+   ["/favicon.ico" {:get {:span-name "kaleidoscope.index.get"
+                          :uri       "static/favicon.ico"
+                          :handler   get-static-resource}}]
    ["/"           {:get {:span-name "kaleidoscope.index.get"
-                         :uri       "index.html"
+                         :uri       "static/index.html"
                          :handler   get-static-resource}}]
 
    ["/silent-check-sso.html"      {:get {:span-name "kaleidoscope.silent-check-sso.get"
                                          :host      "kaleidoscope.pub"
+                                         :uri       "static/silent-check-sso.html"
                                          :handler   get-static-resource}}]
 
-   ["/js/compiled/kaleidoscope/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
-                                         :host      "kaleidoscope.pub"
-                                         :handler   get-static-resource}}]])
+   ["/static/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+                       :host      "kaleidoscope.pub"
+                       :handler   get-static-resource}}]])
 
 (defn inject-components
   [components]
