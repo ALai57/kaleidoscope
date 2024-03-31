@@ -1,4 +1,4 @@
-FROM openjdk:17-jdk-slim
+FROM openjdk:21-jdk-slim
 
 RUN mkdir -p /kaleidoscope
 WORKDIR /kaleidoscope

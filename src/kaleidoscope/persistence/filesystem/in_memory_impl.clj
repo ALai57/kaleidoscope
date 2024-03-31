@@ -73,18 +73,18 @@
 
 (def example-fs
   "An in-memory filesystem used for testing"
-  {"media"      {"afile" (file {:name     "afile"
-                                :content  {:qux :quz}
-                                :version  "1.2"
-                                :metadata {}})
-                 "adir"  {"anotherfile" (file {:name     "afile"
-                                               :content  {:qux :quz}
-                                               :version  "2.3"
-                                               :metadata {}})}}
-   "index.html" (file {:name    "index.html"
-                       :content "<div>Hello</div>"
-                       :version "3.4"
-                       })})
+  {"media"  {"afile" (file {:name     "afile"
+                            :content  {:qux :quz}
+                            :version  "1.2"
+                            :metadata {}})
+             "adir"  {"anotherfile" (file {:name     "afile"
+                                           :content  {:qux :quz}
+                                           :version  "2.3"
+                                           :metadata {}})}}
+   "static" {"index.html" (file {:name    "index.html"
+                                 :content "<div>Hello</div>"
+                                 :version "3.4"
+                                 })}})
 
 (comment
   (def db (atom {"var" {"afile" (tag-as {:name "afile"

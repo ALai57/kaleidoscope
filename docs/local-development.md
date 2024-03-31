@@ -78,6 +78,17 @@ docker run -d --rm \
   kaleidoscope
 ```
 
+Mac build instructions
+
+```bash
+docker run \
+  --env-file=.env.aws \
+  --platform=linux/amd64 \
+  -p 5000:5000 \
+  -v $HOME/.aws:/root/.aws:ro  \
+  kaleidoscope
+```
+
 ## Run app via `clojure`
 **_Startup Without Container_**  
 ```bash
