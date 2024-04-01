@@ -42,18 +42,19 @@
                       [(format "SELECT * FROM %s" (csk/->snake_case_string table))]
                       {:builder-fn rs/as-unqualified-kebab-maps})))
     ([database query-map]
-     (let [[[where-in-key where-in-vals] :as where-ins] (filter (fn [[k v]]
-                                                                  (set? v)) query-map)]
-       (cond
-         (empty? query-map)      (getter database)
-         (= 0 (count where-ins)) (find-by-keys database table query-map)
-         (= 1 (count where-ins)) (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
-                                   (next/execute! database
-                                                  (hsql/format {:select :*
-                                                                :from   table
-                                                                :where  [:in where-in-key where-in-vals]})
-                                                  {:builder-fn rs/as-unqualified-kebab-maps}))
-         :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported")))))))
+     (span/with-span! {:name (format "kaleidoscope.db.get2.%s" table)}
+       (let [[[where-in-key where-in-vals] :as where-ins] (filter (fn [[k v]]
+                                                                    (set? v)) query-map)]
+         (cond
+           (empty? query-map)      (getter database)
+           (= 0 (count where-ins)) (find-by-keys database table query-map)
+           (= 1 (count where-ins)) (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
+                                     (next/execute! database
+                                                    (hsql/format {:select :*
+                                                                  :from   table
+                                                                  :where  [:in where-in-key where-in-vals]})
+                                                    {:builder-fn rs/as-unqualified-kebab-maps}))
+           :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported"))))))))
 
 
 (defn hsql-insert

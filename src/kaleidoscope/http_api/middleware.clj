@@ -82,36 +82,16 @@
                                 with-out-str))
                  request))))
 
-(defn log-transformation-diffs
-  [{:keys [name handler]}]
-  (fn [x]
-    (let [modified-x (handler x)]
-      (log/debugf "Difference introduced by %s: %s"
-                  name
-                  (string-diff x modified-x))
-      modified-x)))
-
-(comment
-  (require '[ring.mock.request :as mock])
-  ((log-transformation-diffs {:name    :Hello
-                              :handler add-request-identifier})
-   (mock/request :get "/endpoint")))
-
-(defn add-request-identifier
-  [request]
-  (let [request-id       (str (java.util.UUID/randomUUID))
-        modified-request (assoc request :request-id request-id)]
-    modified-request))
-
 (defn wrap-request-identifier
   [handler]
   (fn [request]
-    (let [request-id (str (java.util.UUID/randomUUID))]
-      (binding [*request-id* request-id]
-        (handler (let [modified-request (assoc request :request-id request-id)]
-                   ;;(ddiff/pretty-print (remove-unchanged (ddiff/diff request modified-request)))
-                   (log/debugf "Adding request-id %s to ring request" request-id)
-                   modified-request))))))
+    (span/with-span! {:name (format "kaleidoscope.mw.request-id")}
+      (let [request-id (str (java.util.UUID/randomUUID))]
+        (binding [*request-id* request-id]
+          (handler (let [modified-request (assoc request :request-id request-id)]
+                     ;;(ddiff/pretty-print (remove-unchanged (ddiff/diff request modified-request)))
+                     (log/debugf "Adding request-id %s to ring request" request-id)
+                     modified-request)))))))
 
 (defn wrap-trace
   [handler]
@@ -129,9 +109,10 @@
   [session-tracker]
   (fn wrap-session-tracking [handler]
     (fn [request]
-      (handler (do (when session-tracker
-                     (st/start! session-tracker))
-                   request)))))
+      (span/with-span! {:name (format "kaleidoscope.mw.bugsnag-session-init")}
+        (handler (do (when session-tracker
+                       (st/start! session-tracker))
+                     request))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
@@ -221,3 +202,26 @@
                        rrc/coerce-request-middleware    ;; Add :parameters
                        rrc/coerce-response-middleware   ;; ?
                        ]}})
+
+
+
+(comment
+  (defn log-transformation-diffs
+    [{:keys [name handler]}]
+    (fn [x]
+      (let [modified-x (handler x)]
+        (log/debugf "Difference introduced by %s: %s"
+                    name
+                    (string-diff x modified-x))
+        modified-x)))
+
+  (defn add-request-identifier
+    [request]
+    (let [request-id       (str (java.util.UUID/randomUUID))
+          modified-request (assoc request :request-id request-id)]
+      modified-request))
+
+  (require '[ring.mock.request :as mock])
+  ((log-transformation-diffs {:name    :Hello
+                              :handler add-request-identifier})
+   (mock/request :get "/endpoint")))

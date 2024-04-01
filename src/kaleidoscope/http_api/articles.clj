@@ -6,6 +6,7 @@
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.models.articles :as models.articles]
             [ring.util.http-response :refer [conflict not-found ok]]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
 (defn ->commit [{:keys [body-params] :as request}]
@@ -30,9 +31,10 @@
                                                                                     :value   [models.articles/example-article
                                                                                               models.articles/example-article-2]}}}}}})
               :handler   (fn [{:keys [components] :as request}]
-                           (->> {:hostname (hu/get-host request)}
-                                (articles-api/get-articles (:database components))
-                                ok))}}]
+                           (span/with-span! {:name (format "kaleidoscope.handler.articles.get-all" table)}
+                             (->> {:hostname (hu/get-host request)}
+                                  (articles-api/get-articles (:database components))
+                                  ok)))}}]
    ["/:article-url"
     {:get {:summary   "Retrieve a single article"
            :responses (merge hu/openapi-404 hu/openapi-500
