@@ -47,8 +47,8 @@ CMD exec java -Xms512m -Xmx512m \
     #-Dotel.instrumentation.jetty.enabled=true \
     #-Dotel.instrumentation.aws-sdk.enabled=true \
     #-Dotel.instrumentation.jdbc-datasource.enabled=true \
-    ### -Dotel.instrumentation.common.default-enabled=true \
-    ### -Dotel.javaagent.exclude-classes=$TRACE_EXCLUDE_LIST \
+    -Dotel.instrumentation.common.default-enabled=true \
+    -Dotel.javaagent.exclude-classes=$TRACE_EXCLUDE_LIST \
     -jar kaleidoscope.jar
 
 

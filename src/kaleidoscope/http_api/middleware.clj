@@ -116,7 +116,6 @@
 
 (defn wrap-trace
   [handler]
-  #_(trace-http/wrap-server-span handler {:create-span? true})
   (fn [{:keys [uri request-method] :as request}]
 
     (span/with-span! {:name (format "kaleidoscope.%s.%s"

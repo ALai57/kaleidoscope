@@ -21,17 +21,6 @@
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
-;; TODO: Plug in exception handling
-#_(defn exception-handler
-    [exception-reporter]
-    (fn [e data request]
-      (log/errorf "Error: %s, %s"
-                  (ex-message e)
-                  (stacktrace/print-stack-trace e))
-      (when exception-reporter
-        (exception-reporter e))))
-
-
 (def KALEIDOSCOPE-ACCESS-CONTROL-LIST
   [{:pattern #"^/admin.*"        :handler auth/require-*-admin}
    {:pattern #"^/articles.*"     :handler auth/require-*-writer}
