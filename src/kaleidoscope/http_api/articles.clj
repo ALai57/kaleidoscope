@@ -31,7 +31,7 @@
                                                                                     :value   [models.articles/example-article
                                                                                               models.articles/example-article-2]}}}}}})
               :handler   (fn [{:keys [components] :as request}]
-                           (span/with-span! {:name (format "kaleidoscope.handler.articles.get-all" table)}
+                           (span/with-span! {:name "kaleidoscope.handler.articles.get-all"}
                              (->> {:hostname (hu/get-host request)}
                                   (articles-api/get-articles (:database components))
                                   ok)))}}]
