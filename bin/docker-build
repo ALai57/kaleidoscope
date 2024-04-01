@@ -3,7 +3,7 @@
 # In the build, we want to exclude a lot of namespaces from the startup instrumentation
 # However, we MUST include io, because io.opentelemetry is required for OTEL to work
 # properly
-TRACE_EXCLUDE_LIST=$(find ./target/classes -type d -maxdepth 1 -mindepth 1 -exec basename {} \; | grep -E -v "kaleidoscope|META-INF|steffan_westcott|io" | sort | awk 'BEGIN {ORS=".*,"} {print} END {print "\b"}')
+TRACE_EXCLUDE_LIST=$(find ./target/classes -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | grep -E -v "kaleidoscope|META-INF|steffan_westcott|io" | sort | awk 'BEGIN {ORS=".*,"} {print} END {print "\b"}')
 
 docker buildx build --platform=linux/amd64 \
     --build-arg exclude_list=${TRACE_EXCLUDE_LIST} \

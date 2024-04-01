@@ -21,7 +21,8 @@ COPY target/kaleidoscope.jar .
 
 # OpenTelemetry requires a javaagent. Javaagents are a class
 # that intercepts applications on a JVM and modify their bytecode
-COPY opentelemetry-javaagent.jar .
+RUN apt update && apt install libpsl5 publicsuffix wget
+RUN wget https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.2.0/opentelemetry-javaagent.jar
 
 
 # Configuring max and min heap sizes to be identical is a

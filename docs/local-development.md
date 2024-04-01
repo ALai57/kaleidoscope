@@ -72,9 +72,10 @@ aws sso login
 
 Then run the container
 ```bash
-docker run -d --rm \
+docker run \
   --env-file=.env.aws \
   -p 5000:5000 \
+  -v $HOME/.aws:/root/.aws:ro  \
   kaleidoscope
 ```
 
