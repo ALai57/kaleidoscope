@@ -22,6 +22,7 @@
             [ring.util.http-response :refer [unauthorized]]
             [ring.util.response :as resp]
             [steffan-westcott.clj-otel.api.trace.span :as span]
+            [steffan-westcott.clj-otel.api.trace.http :as trace-http]
             [taoensso.timbre :as log])
   (:import
    (lambdaisland.deep_diff2.diff_impl Deletion Insertion Mismatch)))
@@ -69,19 +70,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn log-request! [handler]
   (fn [request]
-    (span/with-span! {:name "kaleidoscope.middleware.log-request"}
-      (handler (do (log/infof "Request received\n %s"
-                              (-> request
-                                  (select-keys [:request-method
-                                                :uri
-                                                ;;:body
-                                                ;;:params
-                                                ;;:multipart-params
-                                                ;;:request-id
-                                                ])
-                                  pprint/pprint
-                                  with-out-str))
-                   request)))))
+    (handler (do (log/infof "Request received\n %s"
+                            (-> request
+                                (select-keys [:request-method
+                                              :uri
+                                              ;;:body
+                                              ;;:params
+                                              ;;:multipart-params
+                                              ;;:request-id
+                                              ])
+                                pprint/pprint
+                                with-out-str))
+                 request))))
 
 (defn debug-log-request!
   "A logging tool that is useful for debugging"
@@ -133,11 +133,15 @@
 
 (defn wrap-trace
   [handler]
-  (fn [{:keys [uri request-method] :as request}]
-    (span/with-span! {:name (format "kaleidoscope%s.%s"
-                                    (string/replace uri "/" ".")
-                                    request-method)}
-      (handler request))))
+  (trace-http/wrap-server-span handler {:create-span? true})
+  #_(fn [{:keys [uri request-method] :as request}]
+
+      (span/with-span! {:name (format "kaleidoscope.%s.%s"
+                                      (string/replace uri "/" ".")
+                                      request-method)}
+        (handler request))))
+
+
 
 (defn session-tracking-stack
   [session-tracker]
@@ -150,23 +154,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def standard-stack
-  "Stack is applied from top down"
-  [wrap-request-identifier
-   wrap-trace
-   wrap-gzip
-   wrap-content-type
-   wrap-json-response
-   wrap-multipart-params
-   wrap-params
-   log-request!])
+#_(def standard-stack
+    "Stack is applied from top down"
+    [wrap-request-identifier
+     wrap-trace
+     wrap-gzip
+     wrap-content-type
+     wrap-json-response
+     wrap-multipart-params
+     wrap-params
+     log-request!])
 
-(def reitit-stack
-  "Stack is applied from top down"
-  [wrap-request-identifier
-   wrap-trace
-   wrap-multipart-params
-   log-request!])
+#_(def reitit-stack
+    "Stack is applied from top down"
+    [wrap-request-identifier
+     wrap-trace
+     wrap-multipart-params
+     log-request!])
 
 (defn auth-stack
   "Stack is applied from top down"

@@ -76,19 +76,19 @@
                                             :d {:e "g"}
                                             :x [{:y :z}]})))))
 
-(deftest standard-stack-test
-  (let [captured-request (atom nil)
-        app              ((apply comp sut/standard-stack) (fn [req]
-                                                            (reset! captured-request req)
-                                                            {:status 200
-                                                             :body   {:foo "bar"}}))]
-    (is (match? {:status  200
-                 :headers {"Content-Type" #"application/json"}
-                 :body    (json/generate-string {:foo "bar"})}
-                (app (mock/request :get "/"))))
-    (is (match? {:uri        "/"
-                 :request-id string?}
-                @captured-request))))
+#_(deftest standard-stack-test
+    (let [captured-request (atom nil)
+          app              ((apply comp sut/standard-stack) (fn [req]
+                                                              (reset! captured-request req)
+                                                              {:status 200
+                                                               :body   {:foo "bar"}}))]
+      (is (match? {:status  200
+                   :headers {"Content-Type" #"application/json"}
+                   :body    (json/generate-string {:foo "bar"})}
+                  (app (mock/request :get "/"))))
+      (is (match? {:uri        "/"
+                   :request-id string?}
+                  @captured-request))))
 
 (deftest auth-stack-happy-path-test
   (let [captured-request (atom nil)

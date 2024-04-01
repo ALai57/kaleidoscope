@@ -1,2 +1,7 @@
 #!/usr/bin/env sh
-docker buildx build --platform=linux/amd64 -t kaleidoscope .
+
+TRACE_EXCLUDE_LIST=$(find ./target/classes -type d -maxdepth 1 -mindepth 1 -exec basename {} \; | grep -E -v "kaleidoscope|META-INF" | sort | awk 'BEGIN {ORS=".*,"} {print} END {print "\b"}')
+
+docker buildx build --platform=linux/amd64 \
+    --build-arg exclude_list=${TRACE_EXCLUDE_LIST} \
+    -t kaleidoscope .

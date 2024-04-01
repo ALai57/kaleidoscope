@@ -240,10 +240,10 @@
     :as   system}]
   {:database                database-connection
    :exception-reporter      (partial er/report! exception-reporter)
-   :http-mw                 (comp (mw/session-tracking-stack exception-reporter)
-                                  (apply comp mw/standard-stack)
-                                  (apply comp (mw/auth-stack kaleidoscope-authentication
-                                                             kaleidoscope-authorization)))
+   #_#_:http-mw                 (comp (mw/session-tracking-stack exception-reporter)
+                                      (apply comp mw/standard-stack)
+                                      (apply comp (mw/auth-stack kaleidoscope-authentication
+                                                                 kaleidoscope-authorization)))
    :session-tracking        {:name ::session-tracking
                              :wrap (mw/session-tracking-stack exception-reporter)}
    :auth-stack              {:name ::auth-stack
