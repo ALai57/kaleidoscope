@@ -127,3 +127,13 @@ Then, create a certificate and keypair for development environment
 ``` bash
 mkcert andrewslai.localhost
 ```
+
+
+# tracing
+```sh
+docker run                     \
+    -p 16686:16686           \
+    -p 4318:4318             \
+    jaegertracing/all-in-one \
+    --collector.otlp.enabled=true
+```

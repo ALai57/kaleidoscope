@@ -83,23 +83,6 @@
                                 with-out-str))
                  request))))
 
-(defn debug-log-request!
-  "A logging tool that is useful for debugging"
-  [msg handler]
-  (fn [request]
-    (handler (do (log/debugf "Debug log: %s" msg)
-                 (log/debugf "Ring Request: %s" (dissoc request
-                                                        :compojure.api.request/swagger
-                                                        :compojure.api.request/muuntaja
-                                                        :compojure.api.request/lookup
-                                                        :compojure.api.request/coercion
-                                                        :compojure.api.request/paths
-                                                        :compojure.api.middleware/components
-                                                        :muuntaja/request
-                                                        :protocol
-                                                        :remote-addr))
-                 request))))
-
 (defn log-transformation-diffs
   [{:keys [name handler]}]
   (fn [x]
@@ -133,13 +116,14 @@
 
 (defn wrap-trace
   [handler]
-  (trace-http/wrap-server-span handler {:create-span? true})
-  #_(fn [{:keys [uri request-method] :as request}]
+  #_(trace-http/wrap-server-span handler {:create-span? true})
+  (fn [{:keys [uri request-method] :as request}]
 
-      (span/with-span! {:name (format "kaleidoscope.%s.%s"
-                                      (string/replace uri "/" ".")
-                                      request-method)}
-        (handler request))))
+    (span/with-span! {:name (format "kaleidoscope.%s.%s"
+                                    (string/replace uri "/" ".")
+                                    request-method)}
+      (log/infof "Inside wrap-trace span %s" (span/get-span))
+      (handler request))))
 
 
 
@@ -154,24 +138,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#_(def standard-stack
-    "Stack is applied from top down"
-    [wrap-request-identifier
-     wrap-trace
-     wrap-gzip
-     wrap-content-type
-     wrap-json-response
-     wrap-multipart-params
-     wrap-params
-     log-request!])
-
-#_(def reitit-stack
-    "Stack is applied from top down"
-    [wrap-request-identifier
-     wrap-trace
-     wrap-multipart-params
-     log-request!])
-
 (defn auth-stack
   "Stack is applied from top down"
   [authentication-backend access-rules]

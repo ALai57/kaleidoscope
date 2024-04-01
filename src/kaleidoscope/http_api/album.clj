@@ -1,7 +1,6 @@
 (ns kaleidoscope.http-api.album
   (:require [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.models.albums :as models.albums] ;; Install specs
-            [compojure.api.sweet :refer [context DELETE GET POST PUT]]
             [ring.util.http-response :refer [no-content not-found ok]]
             [taoensso.timbre :as log]
             [kaleidoscope.http-api.http-utils :as hu]))

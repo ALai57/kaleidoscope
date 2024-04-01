@@ -13,11 +13,14 @@
             [ring.adapter.jetty :as jetty]
             [signal.handler :as sig]
             [signal.amazonica-aws-sso :as amazonica-aws-sso]
-            [steffan-westcott.clj-otel.exporter.otlp.http.trace :as otlp-http-trace]
-            [steffan-westcott.clj-otel.resource.resources :as res]
-            [steffan-westcott.clj-otel.sdk.otel-sdk :as sdk]
+            #_[steffan-westcott.clj-otel.exporter.otlp.http.trace :as otlp-http-trace]
+            #_[steffan-westcott.clj-otel.resource.resources :as res]
+            #_[steffan-westcott.clj-otel.sdk.otel-sdk :as sdk]
+            [steffan-westcott.clj-otel.api.otel :as otel]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]
-            [taoensso.timbre.appenders.core :as appenders]))
+            [taoensso.timbre.appenders.core :as appenders]
+            ))
 
 (try
   (when-let [aws-profile (System/getenv "AWS_PROFILE")]
@@ -60,15 +63,9 @@
      (disable-json-logging? env) (assoc :output-fn ul/clean-output-fn))))
 
 (defn init-otel! []
-  (sdk/init-otel-sdk! "kaleidoscope"
-                      {:resources [(res/host-resource)
-                                   (res/os-resource)
-                                   (res/process-resource)
-                                   (res/process-runtime-resource)]
-                       :tracer-provider {:span-processors [{:exporters [(otlp-http-trace/span-exporter)]}]}}))
-
-(defn close-otel! []
-  (sdk/close-otel-sdk!))
+  (println (bean (otel/get-global-otel!)))
+  (span/with-span! {:name "kaleidoscope.initialization"}
+    (println "Initializing Open Telemetry")))
 
 (defn initialize-schema-enforcement!
   "Enforce Malli function schemas in specific namespaces.
@@ -148,7 +145,13 @@
                         "KALEIDOSCOPE_STATIC_CONTENT_TYPE"         "none"
                         "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
                         "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                        "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"})))
+                        "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"}))
+
+  (def server
+    (-> example-system
+        (env/make-http-handler)
+        (jetty/run-jetty {:port 5000})))
+  )
 
 (comment
   ;; Play with AWS SSO

@@ -2,7 +2,6 @@
   (:require
    [clojure.stacktrace :as stacktrace]
    [clojure.string :as str]
-   [compojure.api.sweet :refer [api context GET]]
    [kaleidoscope.api.authorization :as auth]
    [kaleidoscope.http-api.middleware :as mw]
    [kaleidoscope.http-api.admin :refer [reitit-admin-routes]]
