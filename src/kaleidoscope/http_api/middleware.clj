@@ -22,7 +22,6 @@
             [ring.util.http-response :refer [unauthorized]]
             [ring.util.response :as resp]
             [steffan-westcott.clj-otel.api.trace.span :as span]
-            [steffan-westcott.clj-otel.api.trace.http :as trace-http]
             [taoensso.timbre :as log])
   (:import
    (lambdaisland.deep_diff2.diff_impl Deletion Insertion Mismatch)))
@@ -183,7 +182,8 @@
    :compile (fn [{:keys [host] :as _route-data} opts]
               (fn wrapper [handler]
                 (fn new-handler [request]
-                  (handler (if host (set-host request host) request)))))})
+                  (span/with-span! {:name (format "kaleidoscope.mw.force-host")}
+                    (handler (if host (set-host request host) request))))))})
 
 (def wrap-force-uri
   "If the reitit route has a `:uri` key, force the request to search for that
@@ -192,7 +192,8 @@
    :compile (fn [{:keys [uri] :as _route-data} opts]
               (fn wrapper [handler]
                 (fn new-handler [request]
-                  (handler (if uri (assoc request :uri uri) request)))))})
+                  (span/with-span! {:name (format "kaleidoscope.mw.force-uri")}
+                    (handler (if uri (assoc request :uri uri) request))))))})
 
 (def reitit-configuration
   "Router data affecting all routes"
