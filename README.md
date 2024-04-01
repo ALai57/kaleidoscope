@@ -151,8 +151,9 @@ To deploy, follow instructions in [deployment.md](./docs/deployment.md)
 
 
 # TODO:
-1) Check OTEL - make sure the manual instrumentation is working. This will likely require me
-   to check the changelog
+1) Check if start time can be further reduced by removing more code from instrumentation
+1a) Docker compose for Keycloak + My app + Jaeger...
 2) Make sure I can build on Linux machine
 3) Update to stop using hash-routing
 4) Publish stories to some storybook server?
+5) Add more spans
