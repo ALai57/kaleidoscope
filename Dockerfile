@@ -41,12 +41,14 @@ CMD exec java -Xms512m -Xmx512m \
     -Dotel.exporter.otlp.protocol=http/protobuf \
     -Dotel.exporter.otlp.endpoint=${SUMOLOGIC_OTLP_URL} \
     -Dotel.javaagent.debug=true \
+    -Dotel.metrics.exporter=none \
+    -Dotel.traces.exporter=otlp \
     # Disable auto instrumentation, so we can only enable the things we wwant
-    -Dotel.instrumentation.common.default-enabled=true \
     #-Dotel.instrumentation.jetty.enabled=true \
     #-Dotel.instrumentation.aws-sdk.enabled=true \
     #-Dotel.instrumentation.jdbc-datasource.enabled=true \
-    -Dotel.javaagent.exclude-classes=$TRACE_EXCLUDE_LIST \
+    ### -Dotel.instrumentation.common.default-enabled=true \
+    ### -Dotel.javaagent.exclude-classes=$TRACE_EXCLUDE_LIST \
     -jar kaleidoscope.jar
 
 
