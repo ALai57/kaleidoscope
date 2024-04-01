@@ -112,9 +112,8 @@
         reitit-photos-routes
         reitit-portfolio-routes
         reitit-themes-routes
-
         ]
-       reitit-config)
+       #_reitit-config)
       (ring/create-default-handler
        {:not-found (fn [{:keys [components] :as request}]
                      (tap> {:req        request
@@ -124,6 +123,7 @@
                                                 (-> request
                                                     http-utils/kebab-case-headers))))}
        )
+      ;; I think this was wrapping with middleware twice
       (:data reitit-config)
       ))))
 

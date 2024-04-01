@@ -148,3 +148,11 @@ For local development, see [local-development.md](./docs/local-development.md)
 
 ## Deployment
 To deploy, follow instructions in [deployment.md](./docs/deployment.md)
+
+
+# TODO:
+1) Check OTEL - make sure the manual instrumentation is working. This will likely require me
+   to check the changelog
+2) Make sure I can build on Linux machine
+3) Update to stop using hash-routing
+4) Publish stories to some storybook server?

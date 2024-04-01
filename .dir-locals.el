@@ -10,7 +10,7 @@
 ;; clojure.java.process instead of clojure.java.shell
 
 ((nil . ((cider-preferred-build-tool . clojure-cli)
-         (cider-clojure-cli-global-options . "-A:test:dev:build")
+         (cider-clojure-cli-global-options . "-A:test:dev:build:otel")
          (cider-jack-in-auto-inject-clojure . "1.12.0-alpha3")
          (eval . (progn
                    (make-variable-buffer-local 'cider-jack-in-nrepl-middlewares)
