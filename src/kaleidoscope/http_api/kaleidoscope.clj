@@ -64,7 +64,14 @@
 
    ["/static/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
                        :host      "kaleidoscope.pub"
-                       :handler   get-static-resource}}]])
+                       :handler   get-static-resource}}]
+   ["/media/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+                      :host      "kaleidoscope.pub"
+                      :handler   (fn [{:keys [components] :as request}]
+                                   (span/with-span! {:name (format "kaleidoscope.media.handler.get")}
+                                     (http-utils/get-resource (:static-content-adapters components)
+                                                              (-> request
+                                                                  http-utils/kebab-case-headers))))}}]])
 
 (defn inject-components
   [components]
@@ -108,9 +115,8 @@
                      (tap> {:req        request
                             :components components})
                      (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
-                       (http-utils/get-resource (:static-content-adapters components)
-                                                (-> request
-                                                    http-utils/kebab-case-headers))))}
+                       {:status 404
+                        :body   "Not found"}))}
        )))))
 
 (comment

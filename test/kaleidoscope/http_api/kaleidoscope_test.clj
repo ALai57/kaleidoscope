@@ -591,7 +591,7 @@
                  tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Cache-Control" cc/revalidate-0s}
-                 :body    [{:name "afile"} {:name "adir" :type :directory}]}
+                 :body    [{:name "afile"} {:name "adir" :type "directory"}]}
                 (app (-> (mock/request :get "https://andrewslai.com/media/")
                          (mock/header "Authorization" "Bearer x")))))))
 

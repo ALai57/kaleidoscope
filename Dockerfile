@@ -41,7 +41,7 @@ CMD exec java -Xms512m -Xmx512m \
     -Dotel.resource.attributes=service.name=kaleidoscope \
     -Dotel.exporter.otlp.protocol=http/protobuf \
     -Dotel.exporter.otlp.endpoint=${SUMOLOGIC_OTLP_URL} \
-    -Dotel.javaagent.debug=true \
+    #-Dotel.javaagent.debug=true \
     -Dotel.metrics.exporter=none \
     -Dotel.traces.exporter=otlp \
     # Disable auto instrumentation, so we can only enable the things we wwant
