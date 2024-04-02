@@ -63,15 +63,11 @@
                                          :handler   get-static-resource}}]
 
    ["/static/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+                       ;; Probably shouldn't load all static resources from kaleidoscope
                        :host      "kaleidoscope.pub"
                        :handler   get-static-resource}}]
    ["/media/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
-                      :host      "kaleidoscope.pub"
-                      :handler   (fn [{:keys [components] :as request}]
-                                   (span/with-span! {:name (format "kaleidoscope.media.handler.get")}
-                                     (http-utils/get-resource (:static-content-adapters components)
-                                                              (-> request
-                                                                  http-utils/kebab-case-headers))))}}]])
+                      :handler   get-static-resource}}]])
 
 (defn inject-components
   [components]
