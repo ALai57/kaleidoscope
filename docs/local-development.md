@@ -72,9 +72,21 @@ aws sso login
 
 Then run the container
 ```bash
-docker run -d --rm \
+docker run \
   --env-file=.env.aws \
   -p 5000:5000 \
+  -v $HOME/.aws:/root/.aws:ro  \
+  kaleidoscope
+```
+
+Mac build instructions
+
+```bash
+docker run \
+  --env-file=.env.aws \
+  --platform=linux/amd64 \
+  -p 5000:5000 \
+  -v $HOME/.aws:/root/.aws:ro  \
   kaleidoscope
 ```
 
@@ -82,4 +94,47 @@ docker run -d --rm \
 **_Startup Without Container_**  
 ```bash
 ./bin/run --environment=.env.local
+```
+
+## Serve kaleidoscope from HTTPS
+Some use cases (such as Cognito) must redirect to an HTTPS target. So the
+locally running server MUST be available on HTTPS. By setting the
+`KALEIDOSCOPE_ENABLE_SSL` environment variable, you can start the server using
+the SSL cert in `./resources/ssl`, listening on port 5433.
+
+There is currently an SSL cert in the `./resources/ssl` that can be used for local development
+This cert is NOT SAFE for any other usages except for local testing
+
+### How to generate an SSL cert
+https://web.dev/articles/how-to-use-local-https
+https://auth0.com/blog/using-https-in-your-development-environment/
+
+
+In order to generate a new cert:
+```sh
+sudo apt install mkcert 
+framesetsudo apt install libnss3-tools
+
+brew install mkcert
+
+```
+
+```sh
+mkcert -install
+```
+
+
+Then, create a certificate and keypair for development environment
+``` bash
+mkcert andrewslai.localhost
+```
+
+
+# tracing
+```sh
+docker run                     \
+    -p 16686:16686           \
+    -p 4318:4318             \
+    jaegertracing/all-in-one \
+    --collector.otlp.enabled=true
 ```

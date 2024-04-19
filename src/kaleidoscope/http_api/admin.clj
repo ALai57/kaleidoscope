@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.admin
-  (:require [compojure.api.sweet :refer [context GET]]
-            [ring.util.http-response :refer [ok]]
+  (:require [ring.util.http-response :refer [ok]]
             [taoensso.timbre :as log]))
 
 (def AdminResponse

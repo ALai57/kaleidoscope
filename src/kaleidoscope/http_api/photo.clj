@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.photo
   (:require [clojure.string :as str]
-            [compojure.api.middleware :as cmw]
             [image-resizer.core :as rc]
             [image-resizer.format :as rf]
             [kaleidoscope.api.albums :as albums-api]

@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.portfolio
   (:require [kaleidoscope.api.portfolio :as portfolio-api]
-            [compojure.api.sweet :refer [context defroutes GET]]
             [ring.util.http-response :refer [ok]]
             [kaleidoscope.api.portfolio :as portfolio]))
 

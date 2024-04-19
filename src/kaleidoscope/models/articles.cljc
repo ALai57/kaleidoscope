@@ -62,9 +62,9 @@
 
 (def CreateVersionRequest
   [:map
-   [:article-title {:optional true} :string]
+   [:article-title {:optional true} :string] ;; Sometimes, articles are referred to by url. So title is optional
    [:article-tags  {:optional true} :string]
-   [:content       :string]])
+   [:content       {:optional true} :string]])
 
 (def example-article
   {:id            1

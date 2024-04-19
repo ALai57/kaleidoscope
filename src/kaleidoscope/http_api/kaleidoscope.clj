@@ -2,7 +2,6 @@
   (:require
    [clojure.stacktrace :as stacktrace]
    [clojure.string :as str]
-   [compojure.api.sweet :refer [api context GET]]
    [kaleidoscope.api.authorization :as auth]
    [kaleidoscope.http-api.middleware :as mw]
    [kaleidoscope.http-api.admin :refer [reitit-admin-routes]]
@@ -14,23 +13,13 @@
    [kaleidoscope.http-api.ping :refer [reitit-ping-routes]]
    [kaleidoscope.http-api.portfolio :refer [reitit-portfolio-routes]]
    [kaleidoscope.http-api.swagger :refer [reitit-openapi-routes]]
+   [kaleidoscope.http-api.themes :refer [reitit-themes-routes]]
    [kaleidoscope.http-api.http-utils :as http-utils]
    [kaleidoscope.trace :as-alias trace]
    [reitit.ring :as ring]
    [ring.util.http-response :refer [found]]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
-
-;; TODO: Plug in exception handling
-#_(defn exception-handler
-    [exception-reporter]
-    (fn [e data request]
-      (log/errorf "Error: %s, %s"
-                  (ex-message e)
-                  (stacktrace/print-stack-trace e))
-      (when exception-reporter
-        (exception-reporter e))))
-
 
 (def KALEIDOSCOPE-ACCESS-CONTROL-LIST
   [{:pattern #"^/admin.*"        :handler auth/require-*-admin}
@@ -61,17 +50,24 @@
   "All served from a common bucket: the Kaleidoscope app bucket."
   ["" {:no-doc true}
    ["/index.html" {:get {:handler (partial found "/")}}]
+   ["/favicon.ico" {:get {:span-name "kaleidoscope.index.get"
+                          :uri       "static/favicon.ico"
+                          :handler   get-static-resource}}]
    ["/"           {:get {:span-name "kaleidoscope.index.get"
-                         :uri       "index.html"
+                         :uri       "static/index.html"
                          :handler   get-static-resource}}]
 
    ["/silent-check-sso.html"      {:get {:span-name "kaleidoscope.silent-check-sso.get"
                                          :host      "kaleidoscope.pub"
+                                         :uri       "static/silent-check-sso.html"
                                          :handler   get-static-resource}}]
 
-   ["/js/compiled/kaleidoscope/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
-                                         :host      "kaleidoscope.pub"
-                                         :handler   get-static-resource}}]])
+   ["/static/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+                       ;; Probably shouldn't load all static resources from kaleidoscope
+                       :host      "kaleidoscope.pub"
+                       :handler   get-static-resource}}]
+   ["/media/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+                      :handler   get-static-resource}}]])
 
 (defn inject-components
   [components]
@@ -107,7 +103,7 @@
         reitit-groups-routes
         reitit-photos-routes
         reitit-portfolio-routes
-
+        reitit-themes-routes
         ]
        reitit-config)
       (ring/create-default-handler
@@ -115,12 +111,9 @@
                      (tap> {:req        request
                             :components components})
                      (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
-                       (http-utils/get-resource (:static-content-adapters components)
-                                                (-> request
-                                                    http-utils/kebab-case-headers))))}
-       )
-      (:data reitit-config)
-      ))))
+                       {:status 404
+                        :body   "Not found"}))}
+       )))))
 
 (comment
 

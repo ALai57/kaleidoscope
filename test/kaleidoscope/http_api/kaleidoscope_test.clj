@@ -591,7 +591,7 @@
                  tu/wrap-clojure-response)]
     (is (match? {:status  200
                  :headers {"Cache-Control" cc/revalidate-0s}
-                 :body    [{:name "afile"} {:name "adir" :type :directory}]}
+                 :body    [{:name "afile"} {:name "adir" :type "directory"}]}
                 (app (-> (mock/request :get "https://andrewslai.com/media/")
                          (mock/header "Authorization" "Bearer x")))))))
 
@@ -779,6 +779,60 @@
         (is (match? {:status 404}
                     (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
                              (mock/header "Authorization" "Bearer x")))))))))
+
+(deftest themes-test
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+
+    (testing "No themes to start"
+      (is (match? {:status 404}
+                  (app (mock/request :get "https://andrewslai.localhost/themes")))))
+
+    (let [add-response (app (-> (mock/request :post "https://andrewslai.localhost/themes")
+                                (mock/header "Authorization" "Bearer x")
+                                (mock/json-body {:config       {:primary {:main "#ABC123"}}
+                                                 :display-name "My New Theme"})))
+          theme-id     (get-in add-response [:body :id])]
+      (testing "Add a theme"
+        (is (match? {:status 200
+                     :body   {:config       {:primary {:main "#ABC123"}}
+                              :id           string-uuid?
+                              :display-name "My New Theme"}}
+                    add-response)))
+
+      (testing "theme exists"
+        (is (match? {:status 200
+                     :body   [{:config       {:primary {:main "#ABC123"}}
+                               :id           string-uuid?
+                               :display-name "My New Theme"}]}
+                    (app (-> (mock/request :get "https://andrewslai.localhost/themes")
+                             (mock/header "Authorization" "Bearer x"))))))
+
+      (testing "theme can be queried"
+        (is (match? {:status 200
+                     :body   [{:config       {:primary {:main "#ABC123"}}
+                               :id           string-uuid?
+                               :display-name "My New Theme"}]}
+                    (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" theme-id))
+                             (mock/header "Authorization" "Bearer x")))))
+        (is (match? {:status 404}
+                    (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" (java.util.UUID/randomUUID)))
+                             (mock/header "Authorization" "Bearer x"))))))
+
+      (testing "Delete the theme"
+        (is (match? {:status 204}
+                    (app (-> (mock/request :delete (format "https://andrewslai.localhost/themes/%s"
+                                                           theme-id))
+                             (mock/header "Authorization" "Bearer x")))))
+
+        (is (match? {:status 404}
+                    (app (mock/request :get "https://andrewslai.localhost/themes"))))))))
 
 (comment
   (require '[clj-http.client :as http])

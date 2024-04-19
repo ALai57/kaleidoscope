@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.virtual-hosting
   (:require [clojure.spec.alpha :as s]
             [ring.util.request :as req]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
 ;; Move specs to CLJC ns?
@@ -40,13 +41,14 @@
 (defn select-app
   "Select an app to route the request to"
   [request virtual-hosts]
-  (let [[url {:keys [app]}] (->> virtual-hosts
-                                 (filter (fn [virtual-host]
-                                           (matching-url? request (get-host-url virtual-host))))
-                                 (sort-by get-priority)
-                                 (first))]
-    ;;(log/debugf "Virtual hosting: routing to `%s`" url)
-    app))
+  (span/with-span! {:name (format "kaleidoscope.virtual-hosting.routing")}
+    (let [[url {:keys [app]}] (->> virtual-hosts
+                                   (filter (fn [virtual-host]
+                                             (matching-url? request (get-host-url virtual-host))))
+                                   (sort-by get-priority)
+                                   (first))]
+      ;;(log/debugf "Virtual hosting: routing to `%s`" url)
+      app)))
 
 (defn host-based-routing
   "Route a request to one of the supplied apps"
@@ -54,11 +56,12 @@
   (fn
     [request]
     ;;(log/debugf "Virtual hosting: routing request for `%s`" (req/request-url request))
-    (if-let [app (select-app request virtual-hosts)]
-      (app request)
-      (let [msg (format "Unrecognized host %s." (req/request-url request))]
-        (log/errorf msg)
-        (throw (IllegalArgumentException. msg))))))
+    (span/with-span! {:name (format "kaleidoscope.virtual-hosting.ingest")}
+      (if-let [app (select-app request virtual-hosts)]
+        (app request)
+        (let [msg (format "Unrecognized host %s." (req/request-url request))]
+          (log/errorf msg)
+          (throw (IllegalArgumentException. msg)))))))
 
 (s/def :network/protocol #{"http" "https"})
 (s/def :network/domain string?)

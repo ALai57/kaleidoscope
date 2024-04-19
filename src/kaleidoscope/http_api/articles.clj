@@ -6,10 +6,13 @@
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.models.articles :as models.articles]
             [ring.util.http-response :refer [conflict not-found ok]]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
 (defn ->commit [{:keys [body-params] :as request}]
-  (select-keys body-params [:branch-id :content :created-at :modified-at]))
+  (let [defaults {:content ""}]
+    (merge defaults
+           (select-keys body-params [:branch-id :content :created-at :modified-at]))))
 
 (def reitit-articles-routes
   ["/articles" {:tags    ["articles"]
@@ -28,9 +31,10 @@
                                                                                     :value   [models.articles/example-article
                                                                                               models.articles/example-article-2]}}}}}})
               :handler   (fn [{:keys [components] :as request}]
-                           (->> {:hostname (hu/get-host request)}
-                                (articles-api/get-articles (:database components))
-                                ok))}}]
+                           (span/with-span! {:name "kaleidoscope.handler.articles.get-all"}
+                             (->> {:hostname (hu/get-host request)}
+                                  (articles-api/get-articles (:database components))
+                                  ok)))}}]
    ["/:article-url"
     {:get {:summary   "Retrieve a single article"
            :responses (merge hu/openapi-404 hu/openapi-500
@@ -102,8 +106,8 @@
                                                                          {:branch-name   branch-name
                                                                           :hostname      (hu/get-host request)
                                                                           :article-url   article-url
-                                                                          :article-tags  (get-in request [:params :article-tags] "thoughts")
-                                                                          :article-title (get-in request [:params :article-title])
+                                                                          :article-tags  (get-in request [:body-params :article-tags] "thoughts")
+                                                                          :article-title (get-in request [:body-params :article-title] "[New article]")
                                                                           :author        (oidc/get-full-name (:identity request))}
                                                                          commit)]
                               (log/info result)

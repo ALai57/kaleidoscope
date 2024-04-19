@@ -7,16 +7,17 @@
             [kaleidoscope.models.registry] ;; load malli extensions for time
             [kaleidoscope.init.env :as env]
             [kaleidoscope.utils.logging :as ul]
+            [less.awful.ssl :as less-ssl]
             [malli.dev.pretty :as pretty]
             [malli.instrument :as mi]
             [ring.adapter.jetty :as jetty]
             [signal.handler :as sig]
             [signal.amazonica-aws-sso :as amazonica-aws-sso]
-            [steffan-westcott.clj-otel.exporter.otlp.http.trace :as otlp-http-trace]
-            [steffan-westcott.clj-otel.resource.resources :as res]
-            [steffan-westcott.clj-otel.sdk.otel-sdk :as sdk]
+            [steffan-westcott.clj-otel.api.otel :as otel]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]
-            [taoensso.timbre.appenders.core :as appenders]))
+            [taoensso.timbre.appenders.core :as appenders]
+            ))
 
 (try
   (when-let [aws-profile (System/getenv "AWS_PROFILE")]
@@ -59,15 +60,9 @@
      (disable-json-logging? env) (assoc :output-fn ul/clean-output-fn))))
 
 (defn init-otel! []
-  (sdk/init-otel-sdk! "kaleidoscope"
-                      {:resources [(res/host-resource)
-                                   (res/os-resource)
-                                   (res/process-resource)
-                                   (res/process-runtime-resource)]
-                       :tracer-provider {:span-processors [{:exporters [(otlp-http-trace/span-exporter)]}]}}))
-
-(defn close-otel! []
-  (sdk/close-otel-sdk!))
+  (println (bean (otel/get-global-otel!)))
+  (span/with-span! {:name "kaleidoscope.initialization"}
+    (println "Initializing Open Telemetry")))
 
 (defn initialize-schema-enforcement!
   "Enforce Malli function schemas in specific namespaces.
@@ -81,16 +76,31 @@
 ;; Running the server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn start-application!
+  "Kaleidoscope expects a Load balancer to use TLS termination so it receives HTTP requests.
+  However, for testing, it can be useful to have HTTPS capabilities (especially for Cognito)"
   [env]
   (let [system-components (env/start-system! env)
-        port              5000]
-    (log/infof "Hello! Starting kaleidoscope on port %s" port)
+        http-port         5000
+
+        ;; https://github.com/ring-clojure/ring/blob/246f599b47adaa7c74175f84b4cd4398f06f72d9/ring-jetty-adapter/test/ring/adapter/test/jetty.clj#L180
+        ;; https://github.com/aphyr/less-awful-ssl
+        ssl-props (if (get env "KALEIDOSCOPE_ENABLE_SSL")
+                    (do (log/info "Adding SSL to Jetty server startup. Listening to HTTPS on port 5443")
+                        {:ssl?        true
+                         :ssl-port    5443
+                         :ssl-context (less-ssl/ssl-context "./resources/ssl/andrewslai.localhost-key.pem"
+                                                            "./resources/ssl/andrewslai.localhost.pem"
+                                                            "./resources/ssl/andrewslai.localhost.pem"
+                                                            )})
+                    (log/info "Skipping SSL startup"))]
+    (log/infof "Starting kaleidoscope. Listening to HTTP on port %s" http-port)
     (initialize-logging! env)
     (init-otel!)
     (initialize-schema-enforcement!)
     (-> system-components
         (env/make-http-handler)
-        (jetty/run-jetty {:port port}))))
+        (jetty/run-jetty (cond-> {:port http-port}
+                           ssl-props (merge ssl-props))))))
 
 (defn -main
   "Start a server and run the application"
@@ -132,7 +142,13 @@
                         "KALEIDOSCOPE_STATIC_CONTENT_TYPE"         "none"
                         "KALEIDOSCOPE_WEDDING_AUTH_TYPE"           "custom-authenticated-user"
                         "KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE"  "public-access"
-                        "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"})))
+                        "KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE" "none"}))
+
+  (def server
+    (-> example-system
+        (env/make-http-handler)
+        (jetty/run-jetty {:port 5000})))
+  )
 
 (comment
   ;; Play with AWS SSO

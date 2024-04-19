@@ -1,8 +1,5 @@
 (ns kaleidoscope.http-api.swagger
-  (:require [compojure.api.middleware :as mw]
-            [compojure.api.swagger :as swag]
-            [compojure.api.sweet :refer [GET routes undocumented]]
-            [kaleidoscope.utils.versioning :as v]
+  (:require [kaleidoscope.utils.versioning :as v]
             [reitit.openapi :as openapi]
             [ring.swagger.common :as rsc]
             [ring.swagger.middleware :as rsm]

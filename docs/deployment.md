@@ -28,16 +28,9 @@ docker run -d --rm --network host \
     kaleidoscope
 ```
 
-### Step 3: Upload artifact
+### Step 3: Deploy
 
-```bash
-./bin/docker-login
-./bin/docker-push
-./bin/deploy-image
-```
-
-## Deployment
-```
-./bin/release
+```sh
+./bin/release       # build and push to docker
 ./bin/deploy-image
 ```

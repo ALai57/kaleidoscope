@@ -69,105 +69,54 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn log-request! [handler]
   (fn [request]
-    (span/with-span! {:name "kaleidoscope.middleware.log-request"}
-      (handler (do (log/infof "Request received\n %s"
-                              (-> request
-                                  (select-keys [:request-method
-                                                :uri
-                                                ;;:body
-                                                ;;:params
-                                                ;;:multipart-params
-                                                ;;:request-id
-                                                ])
-                                  pprint/pprint
-                                  with-out-str))
-                   request)))))
-
-(defn debug-log-request!
-  "A logging tool that is useful for debugging"
-  [msg handler]
-  (fn [request]
-    (handler (do (log/debugf "Debug log: %s" msg)
-                 (log/debugf "Ring Request: %s" (dissoc request
-                                                        :compojure.api.request/swagger
-                                                        :compojure.api.request/muuntaja
-                                                        :compojure.api.request/lookup
-                                                        :compojure.api.request/coercion
-                                                        :compojure.api.request/paths
-                                                        :compojure.api.middleware/components
-                                                        :muuntaja/request
-                                                        :protocol
-                                                        :remote-addr))
+    (handler (do (log/infof "Request received\n %s"
+                            (-> request
+                                (select-keys [:request-method
+                                              :uri
+                                              ;;:body
+                                              ;;:params
+                                              ;;:multipart-params
+                                              ;;:request-id
+                                              ])
+                                pprint/pprint
+                                with-out-str))
                  request))))
-
-(defn log-transformation-diffs
-  [{:keys [name handler]}]
-  (fn [x]
-    (let [modified-x (handler x)]
-      (log/debugf "Difference introduced by %s: %s"
-                  name
-                  (string-diff x modified-x))
-      modified-x)))
-
-(comment
-  (require '[ring.mock.request :as mock])
-  ((log-transformation-diffs {:name    :Hello
-                              :handler add-request-identifier})
-   (mock/request :get "/endpoint")))
-
-(defn add-request-identifier
-  [request]
-  (let [request-id       (str (java.util.UUID/randomUUID))
-        modified-request (assoc request :request-id request-id)]
-    modified-request))
 
 (defn wrap-request-identifier
   [handler]
   (fn [request]
-    (let [request-id (str (java.util.UUID/randomUUID))]
-      (binding [*request-id* request-id]
-        (handler (let [modified-request (assoc request :request-id request-id)]
-                   ;;(ddiff/pretty-print (remove-unchanged (ddiff/diff request modified-request)))
-                   (log/debugf "Adding request-id %s to ring request" request-id)
-                   modified-request))))))
+    (span/with-span! {:name (format "kaleidoscope.mw.request-id")}
+      (let [request-id (str (java.util.UUID/randomUUID))]
+        (binding [*request-id* request-id]
+          (handler (let [modified-request (assoc request :request-id request-id)]
+                     ;;(ddiff/pretty-print (remove-unchanged (ddiff/diff request modified-request)))
+                     (log/debugf "Adding request-id %s to ring request" request-id)
+                     modified-request)))))))
 
 (defn wrap-trace
   [handler]
   (fn [{:keys [uri request-method] :as request}]
-    (span/with-span! {:name (format "kaleidoscope%s.%s"
+
+    (span/with-span! {:name (format "kaleidoscope.%s.%s"
                                     (string/replace uri "/" ".")
                                     request-method)}
+      (log/infof "Inside wrap-trace span %s" (span/get-span))
       (handler request))))
+
+
 
 (defn session-tracking-stack
   [session-tracker]
   (fn wrap-session-tracking [handler]
     (fn [request]
-      (handler (do (when session-tracker
-                     (st/start! session-tracker))
-                   request)))))
+      (span/with-span! {:name (format "kaleidoscope.mw.bugsnag-session-init")}
+        (handler (do (when session-tracker
+                       (st/start! session-tracker))
+                     request))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def standard-stack
-  "Stack is applied from top down"
-  [wrap-request-identifier
-   wrap-trace
-   wrap-gzip
-   wrap-content-type
-   wrap-json-response
-   wrap-multipart-params
-   wrap-params
-   log-request!])
-
-(def reitit-stack
-  "Stack is applied from top down"
-  [wrap-request-identifier
-   wrap-trace
-   wrap-multipart-params
-   log-request!])
-
 (defn auth-stack
   "Stack is applied from top down"
   [authentication-backend access-rules]
@@ -214,7 +163,8 @@
    :compile (fn [{:keys [host] :as _route-data} opts]
               (fn wrapper [handler]
                 (fn new-handler [request]
-                  (handler (if host (set-host request host) request)))))})
+                  (span/with-span! {:name (format "kaleidoscope.mw.force-host")}
+                    (handler (if host (set-host request host) request))))))})
 
 (def wrap-force-uri
   "If the reitit route has a `:uri` key, force the request to search for that
@@ -223,7 +173,8 @@
    :compile (fn [{:keys [uri] :as _route-data} opts]
               (fn wrapper [handler]
                 (fn new-handler [request]
-                  (handler (if uri (assoc request :uri uri) request)))))})
+                  (span/with-span! {:name (format "kaleidoscope.mw.force-uri")}
+                    (handler (if uri (assoc request :uri uri) request))))))})
 
 (def reitit-configuration
   "Router data affecting all routes"
@@ -251,3 +202,26 @@
                        rrc/coerce-request-middleware    ;; Add :parameters
                        rrc/coerce-response-middleware   ;; ?
                        ]}})
+
+
+
+(comment
+  (defn log-transformation-diffs
+    [{:keys [name handler]}]
+    (fn [x]
+      (let [modified-x (handler x)]
+        (log/debugf "Difference introduced by %s: %s"
+                    name
+                    (string-diff x modified-x))
+        modified-x)))
+
+  (defn add-request-identifier
+    [request]
+    (let [request-id       (str (java.util.UUID/randomUUID))
+          modified-request (assoc request :request-id request-id)]
+      modified-request))
+
+  (require '[ring.mock.request :as mock])
+  ((log-transformation-diffs {:name    :Hello
+                              :handler add-request-identifier})
+   (mock/request :get "/endpoint")))
