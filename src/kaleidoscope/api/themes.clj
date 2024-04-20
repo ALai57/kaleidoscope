@@ -23,48 +23,35 @@
 ;; Themes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn decode-theme
-  [theme]
-  (update theme :config (comp (fn [s]
-                                (json/decode s keyword)) json/decode slurp)))
-
-(defn decode-themes
-  [themes]
-  (map decode-theme
-       themes))
-
 (def -get-themes
   (rdbms/make-finder :themes))
 
 (defn get-themes
   ([database]
-   (let [raw-result (-get-themes database)]
-     (map decode-theme raw-result)))
+   (-get-themes database))
   ([database query]
    (let [raw-result (-get-themes database)]
-     (map decode-theme (-get-themes database
-                                    (if (map? (:config query))
-                                      (update query :config json/encode)
-                                      query))))))
+     (-get-themes database (dissoc query :config)))))
 
 (defn create-theme!
   [database {:keys [id] :as theme}]
   (let [now (utils/now)
         row (-> theme
-                (update :config json/encode)
+                ;;(update :config json/encode)
+                (update :config #(with-meta % {:pgtype "json"}))
                 (assoc :created-at  now
                        :modified-at now
                        :id          (or id (utils/uuid))))]
     (log/infof "ROW: %s" row)
-    (map decode-theme (rdbms/insert! database
-                                     :themes row
-                                     :ex-subtype :UnableToCreateTheme))))
+    (rdbms/insert-2! database
+                     :themes row
+                     :ex-subtype :UnableToCreateTheme)))
 
 (defn update-theme!
   [database {:keys [id] :as theme}]
   (let [now (utils/now)
         row (-> theme
-                (update :config json/encode)
+                (update :config #(with-meta % {:pgtype "json"}))
                 (assoc :modified-at now))]
     (rdbms/update! database
                    :themes row

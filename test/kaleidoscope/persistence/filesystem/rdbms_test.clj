@@ -12,21 +12,14 @@
     (log/with-min-level tm/*test-log-level*
       (f))))
 
-(def example-honey-insert
-  (let [m {:display-name "another-theme"
-           :id           "my-id"
-           :config       (json/encode {:secondary {:something "else"}})}]
-    (-> (hh/insert-into :themes)
-        (hh/values [m]))))
+(def example-payload
+  {:display-name "another-theme"
+   :id           "my-id"
+   :config       (json/encode {:secondary {:something "else"}})})
 
-(def example-honey-upsert
-  (let [m {:display-name "another-theme"
-           :id           "my-id"
-           :config       (json/encode {:secondary {:something "else"}})}]
-    (-> (hh/insert-into :themes)
-        (hh/values [m])
-        (hh/on-conflict :id)
-        (hh/do-update-set (dissoc m :id)))))
+(def example-honey-insert
+  (-> (hh/insert-into :themes)
+      (hh/values [example-payload])))
 
 (deftest hsql-returning-*-test
   (testing "happy path"
@@ -42,7 +35,7 @@
             "another-theme"
             "my-id"
             "{\"secondary\":{\"something\":\"else\"}}"]
-           (rdbms/hsql-upsert example-honey-upsert)))))
+           (rdbms/hsql-upsert :themes example-payload)))))
 
 
 (comment

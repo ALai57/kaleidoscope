@@ -31,7 +31,7 @@
 
       (testing "Can retrieve example-theme from the DB"
         (is (match? [example-theme]
-                    (themes/get-themes database example-theme))))
+                    (themes/get-themes database (dissoc example-theme :config)))))
 
       (testing "Ownership predicate"
         (is (themes/owns? database "user-1" theme-id))

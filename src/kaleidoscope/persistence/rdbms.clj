@@ -4,12 +4,66 @@
             [honey.sql :as hsql]
             [honey.sql.helpers :as hh]
             [next.jdbc :as next]
+            [next.jdbc.prepare :as prepare]
             [next.jdbc.result-set :as rs]
             [next.jdbc.sql :as next.sql]
             [slingshot.slingshot :refer [throw+ try+]]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]
-            [cheshire.core :as json]))
+            [cheshire.core :as json])
+  (:import (org.postgresql.util PGobject)
+           (java.sql PreparedStatement Types)))
+
+
+(defn ->pgobject
+  "Transforms Clojure data to a PGobject that contains the data as
+  JSON. PGObject type defaults to `jsonb` but can be changed via
+  metadata key `:pgtype`"
+  [x]
+  (let [pgtype (or (:pgtype (meta x)) "jsonb")]
+    (doto (PGobject.)
+      (.setType pgtype)
+      (.setValue (json/encode x)))))
+
+(defn <-pgobject
+  "Transform PGobject containing `json` or `jsonb` value to Clojure
+  data."
+  [^org.postgresql.util.PGobject v]
+  (let [type  (.getType v)
+        value (.getValue v)]
+    (if (#{"jsonb" "json"} type)
+      (when value
+        (with-meta (json/decode value) {:pgtype type}))
+      value)))
+
+;; if a SQL parameter is a Clojure hash map or vector, it'll be transformed
+;; to a PGobject for JSON/JSONB:
+(extend-protocol prepare/SettableParameter
+  clojure.lang.IPersistentMap
+  (set-parameter [m ^PreparedStatement s i]
+    (if (= org.h2.jdbc.JdbcPreparedStatement (class s))
+      (.setObject s i (json/encode m) Types/OTHER)
+      (.setObject s i (->pgobject m))))
+
+  clojure.lang.IPersistentVector
+  (set-parameter [v ^PreparedStatement s i]
+    (.setObject s i (->pgobject v))))
+
+;; if a row contains a PGobject then we'll convert them to Clojure data
+;; while reading (if column is either "json" or "jsonb" type):
+(extend-protocol rs/ReadableColumn
+  ;; H2 returns JSON B as a byte array
+  (Class/forName "[B")
+  (read-column-by-label [v _]
+    (json/decode (apply str (map char v)) true))
+  (read-column-by-index [v _2 _3]
+    (json/decode (apply str (map char v)) true))
+
+  org.postgresql.util.PGobject
+  (read-column-by-label [^org.postgresql.util.PGobject v _]
+    (<-pgobject v))
+  (read-column-by-index [^org.postgresql.util.PGobject v _2 _3]
+    (<-pgobject v)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; API for interacting with a relational database
@@ -70,16 +124,17 @@
         params    (drop 6 forms)]
     (concat [(clojure.string/join " " statement)] params)))
 
+;; Redo this - need to figure out a better way to handle JSON B
+;; Currently failing, and cannot refactor to remove HSQL
 (defn insert! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
     (try+
-     (let [query           (-> (hh/insert-into table)
-                               (hh/values (if (map? m)
-                                            [m]
-                                            m)))
-           formatted-query (if (= (class database) org.h2.jdbc.JdbcConnection)
-                             (hsql-insert query)
-                             (-> query
+     (let [formatted-query (if (= (class database) org.h2.jdbc.JdbcConnection)
+                             (hsql-insert m)
+                             (-> (hh/insert-into table)
+                                 (hh/values (if (map? m)
+                                              [m]
+                                              m))
                                  (hh/returning :*)
                                  hsql/format))]
        (transact! database formatted-query))
@@ -100,48 +155,67 @@
                       (when ex-subtype
                         {:subtype ex-subtype})))))))
 
+(defn insert-2! [database table m & {:keys [ex-subtype]}]
+  (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
+    (try+
+     (if (= (class database) org.h2.jdbc.JdbcConnection)
+       [(next.sql/insert! database table m (merge next/snake-kebab-opts
+                                                  {:return-keys           true
+                                                   :return-generated-keys true
+                                                   :builder-fn            rs/as-unqualified-kebab-maps}))]
+       [(next.sql/insert! database table m (merge next/snake-kebab-opts
+                                                  {:suffix     "RETURNING *"
+                                                   :builder-fn rs/as-unqualified-kebab-maps}))])
+     (catch org.postgresql.util.PSQLException e
+       (log/errorf "Caught Exception while inserting: %s" e)
+       (throw+ (merge {:type    :PersistenceException
+                       :message {:data   (select-keys m [:username :email])
+                                 :reason (.getMessage e)}}
+                      (when ex-subtype
+                        {:subtype ex-subtype}))))
+     (catch Object e
+       (log/errorf "Caught Exception while inserting: %s" e)
+       (throw+ (merge {:type    :PersistenceException
+                       :message {:data   (select-keys m [:username :email])
+                                 :reason (if (map? e)
+                                           e
+                                           (.getMessage e))}}
+                      (when ex-subtype
+                        {:subtype ex-subtype})))))))
+
 (defn using
-  [{:keys [values] :as query}]
-  (let [fields  (first values)
-        qns     (clojure.string/join ", " (repeat (count fields) "?"))
-        sources (clojure.string/join ", " (map csk/->snake_case_string (keys fields)))]
+  [m]
+  (let [qns     (clojure.string/join ", " (repeat (count m) "?"))
+        sources (clojure.string/join ", " (map csk/->snake_case_string (keys m)))]
     (format "(VALUES (%s)) AS source(%s)" qns sources)))
 
 (defn eq-stmts
   [field]
   (format "target.%s = source.%s" field field))
 
-#_(defn on
-    [{:keys [values] :as query}]
-    (let [fields   (map csk/->snake_case_string (keys (first values)))
-          eq-stmts (map eq-stmts fields)
-          sources  (clojure.string/join " AND " eq-stmts)]
-      (clojure.string/join " AND " eq-stmts)))
-
 (defn not-matched
-  [{:keys [values] :as query}]
-  (let [fields       (first values)
-        field-names  (map csk/->snake_case_string (keys fields))
+  [m]
+  (let [field-names  (map csk/->snake_case_string (keys m))
         source-names (map (partial str "source.") field-names)]
     (format "(%s) VALUES (%s)"
             (clojure.string/join ", " field-names)
             (clojure.string/join ", " source-names))))
 
 (defn matched
-  [{:keys [values] :as query}]
-  (let [fields   (map csk/->snake_case_string (keys (dissoc (first values) :id)))
-        eq-stmts (map eq-stmts fields)]
+  [m]
+  (let [m   (map csk/->snake_case_string (keys (dissoc m :id)))
+        eq-stmts (map eq-stmts m)]
     (clojure.string/join "," eq-stmts)))
 
 (defn hsql-upsert
   "Insert into the DB and return the inserted row.
   This is because H2 does not support the `DO UPDATE SET` statement"
-  [{:keys [values] :as query}]
-  (let [merge-stmt            (format "MERGE INTO %s AS target" (csk/->snake_case_string (first (:insert-into query))))
-        using-stmt            (format "USING %s" (using query))
+  [table m]
+  (let [merge-stmt            (format "MERGE INTO %s AS target" (csk/->snake_case_string table))
+        using-stmt            (format "USING %s" (using m))
         on-stmt               (format "ON %s" "source.id = target.id")
-        when-matched-stmt     (format "WHEN MATCHED THEN UPDATE SET %s" (matched query))
-        when-not-matched-stmt (format "WHEN NOT MATCHED THEN INSERT %s" (not-matched query))
+        when-matched-stmt     (format "WHEN MATCHED THEN UPDATE SET %s" (matched m))
+        when-not-matched-stmt (format "WHEN NOT MATCHED THEN INSERT %s" (not-matched m))
         returning-*-stmt      (format "SELECT * FROM FINAL TABLE (%s)"
                                       (clojure.string/join " " [merge-stmt
                                                                 using-stmt
@@ -150,21 +224,21 @@
                                                                 when-not-matched-stmt]))]
     (concat [returning-*-stmt]
             (mapv (fn [v]
-                    (if (nil? v)
-                      nil
-                      (str v)))
-                  (vals (first values))))))
+                    (cond
+                      (nil? v) nil
+                      (map? v) (json/encode v)
+                      :else    (str v)))
+                  (vals m)))))
 
 (defn update! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
     (try+
-     (let [query           (-> (hh/insert-into table)
-                               (hh/values [m])
-                               (hh/on-conflict :id)
-                               (hh/do-update-set (dissoc m :id)))
-           formatted-query (if (= (class database) org.h2.jdbc.JdbcConnection)
-                             (hsql-upsert query)
-                             (-> query
+     (let [formatted-query (if (= (class database) org.h2.jdbc.JdbcConnection)
+                             (hsql-upsert table m)
+                             (-> (hh/insert-into table)
+                                 (hh/values [m])
+                                 (hh/on-conflict :id)
+                                 (hh/do-update-set (dissoc m :id))
                                  (hh/returning :*)
                                  hsql/format))]
        (transact! database formatted-query)))))
