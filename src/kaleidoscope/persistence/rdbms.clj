@@ -115,14 +115,20 @@
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
     (try+
      (if (= (class database) org.h2.jdbc.JdbcConnection)
-       (next.sql/insert-multi! database table
-                               (if (map? m)
-                                 [m]
-                                 m)
-                               (merge next/snake-kebab-opts
-                                      {:return-keys           true
-                                       :return-generated-keys true
-                                       :builder-fn            rs/as-unqualified-kebab-maps}))
+       (let [new-ids (next.sql/insert-multi! database table
+                                             (if (map? m)
+                                               [m]
+                                               m)
+                                             (merge next/snake-kebab-opts
+                                                    {:return-keys           true
+                                                     :return-generated-keys true
+                                                     :builder-fn            rs/as-unqualified-kebab-maps}))]
+         (next.sql/query database (concat [(format "SELECT * FROM %s WHERE id in (%s)"
+                                                   (csk/->snake_case_string table)
+                                                   (clojure.string/join ", " (repeat (count new-ids) "?")))]
+                                          (mapv :id new-ids))
+                         (merge next/snake-kebab-opts
+                                {:builder-fn rs/as-unqualified-kebab-maps})))
        (next.sql/insert-multi! database table
                                (if (map? m)
                                  [m]

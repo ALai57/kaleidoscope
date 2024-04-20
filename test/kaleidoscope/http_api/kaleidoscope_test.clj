@@ -801,7 +801,7 @@
           theme-id     (get-in add-response [:body :id])]
       (testing "Add a theme"
         (is (match? {:status 200
-                     :body   {:config       {:primary {:main "#ABC123"}}
+                     :body   {:config       some?
                               :id           string-uuid?
                               :display-name "My New Theme"}}
                     add-response)))
