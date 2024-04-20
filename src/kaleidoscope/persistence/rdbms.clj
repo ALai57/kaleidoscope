@@ -111,12 +111,12 @@
   [field]
   (format "target.%s = source.%s" field field))
 
-(defn on
-  [{:keys [values] :as query}]
-  (let [fields   (map csk/->snake_case_string (keys (first values)))
-        eq-stmts (map eq-stmts fields)
-        sources  (clojure.string/join " AND " eq-stmts)]
-    (clojure.string/join " AND " eq-stmts)))
+#_(defn on
+    [{:keys [values] :as query}]
+    (let [fields   (map csk/->snake_case_string (keys (first values)))
+          eq-stmts (map eq-stmts fields)
+          sources  (clojure.string/join " AND " eq-stmts)]
+      (clojure.string/join " AND " eq-stmts)))
 
 (defn not-matched
   [{:keys [values] :as query}]
@@ -139,7 +139,7 @@
   [{:keys [values] :as query}]
   (let [merge-stmt            (format "MERGE INTO %s AS target" (csk/->snake_case_string (first (:insert-into query))))
         using-stmt            (format "USING %s" (using query))
-        on-stmt               (format "ON %s" "source.id = target.id"#_(on query))
+        on-stmt               (format "ON %s" "source.id = target.id")
         when-matched-stmt     (format "WHEN MATCHED THEN UPDATE SET %s" (matched query))
         when-not-matched-stmt (format "WHEN NOT MATCHED THEN INSERT %s" (not-matched query))
         returning-*-stmt      (format "SELECT * FROM FINAL TABLE (%s)"

@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.themes-test
   (:require [kaleidoscope.api.themes :as themes]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [cheshire.core :as json]
             [matcher-combinators.test :refer [match?]]
@@ -49,3 +50,38 @@
       (testing "Group owner can delete the theme"
         (is (= [] (themes/delete-theme! database "user-1" theme-id)))
         (is (empty? (#'themes/get-themes database example-theme)))))))
+
+(deftest postgres-compatibility-test
+  (testing "JSON B works"
+    (let [database (embedded-postgres/fresh-db!)]
+      (try
+        (testing "example-theme doesn't exist in the database"
+          (is (empty? (themes/get-themes database (dissoc example-theme :config)))))
+
+        (let [[{theme-id :id} :as result] (themes/create-theme! database example-theme)]
+          (testing "Insert the example-theme"
+            (is (not-empty result)))
+
+          (testing "Can retrieve example-theme from the DB"
+            (is (match? [example-theme]
+                        (themes/get-themes database example-theme))))
+
+          (testing "Ownership predicate"
+            (is (themes/owns? database "user-1" theme-id))
+            (is (not (themes/owns? database "user-2" theme-id))))
+
+          (testing "Can update the theme"
+            (is (match? [{:display-name "another-theme"
+                          :id           theme-id}]
+                        (themes/update-theme! database {:display-name "another-theme"
+                                                        :id           theme-id
+                                                        :config       {:secondary {:something "else"}}}))))
+
+          (testing "Non-owner cannot delete the theme"
+            (is (nil? (themes/delete-theme! database "not-the-owner" theme-id))))
+
+          (testing "Group owner can delete the theme"
+            (is (= [] (themes/delete-theme! database "user-1" theme-id)))
+            (is (empty? (#'themes/get-themes database example-theme)))))
+        (finally
+          (.close database))))))
