@@ -183,7 +183,7 @@
 
 (defn pg-matched
   [m]
-  (let [m   (map csk/->snake_case_string (keys (dissoc m :id)))
+  (let [m   (map csk/->snake_case_string (keys (dissoc m :id :created-at)))
         eq-stmts (map pg-eq-stmts m)]
     (clojure.string/join "," eq-stmts)))
 

@@ -57,6 +57,7 @@
   (let [now (utils/now)
         row (-> theme
                 (update :config #(with-meta % {:pgtype "json"}))
+                (assoc :created-at now)
                 (assoc :modified-at now))]
     (rdbms/update! database
                    :themes row
