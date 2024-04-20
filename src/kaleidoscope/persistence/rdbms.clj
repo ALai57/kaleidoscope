@@ -33,7 +33,7 @@
         value (.getValue v)]
     (if (#{"jsonb" "json"} type)
       (when value
-        (with-meta (json/decode value) {:pgtype type}))
+        (with-meta (json/decode value true) {:pgtype type}))
       value)))
 
 ;; if a SQL parameter is a Clojure hash map or vector, it'll be transformed
@@ -111,61 +111,25 @@
                                                     {:builder-fn rs/as-unqualified-kebab-maps}))
            :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported"))))))))
 
-
-(defn hsql-insert
-  "Insert into the DB and return the inserted row.
-  This is because H2 does not support the `RETURNING` statement"
-  [query]
-  (let [forms     (->> [:select :* :from :final :table query]
-                       hsql/format-expr-list
-                       (apply concat)
-                       vec)
-        statement (take 6 forms)
-        params    (drop 6 forms)]
-    (concat [(clojure.string/join " " statement)] params)))
-
-;; Redo this - need to figure out a better way to handle JSON B
-;; Currently failing, and cannot refactor to remove HSQL
 (defn insert! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
     (try+
-     (let [formatted-query (if (= (class database) org.h2.jdbc.JdbcConnection)
-                             (hsql-insert m)
-                             (-> (hh/insert-into table)
-                                 (hh/values (if (map? m)
-                                              [m]
-                                              m))
-                                 (hh/returning :*)
-                                 hsql/format))]
-       (transact! database formatted-query))
-     (catch org.postgresql.util.PSQLException e
-       (log/errorf "Caught Exception while inserting: %s" e)
-       (throw+ (merge {:type    :PersistenceException
-                       :message {:data   (select-keys m [:username :email])
-                                 :reason (.getMessage e)}}
-                      (when ex-subtype
-                        {:subtype ex-subtype}))))
-     (catch Object e
-       (log/errorf "Caught Exception while inserting: %s" e)
-       (throw+ (merge {:type    :PersistenceException
-                       :message {:data   (select-keys m [:username :email])
-                                 :reason (if (map? e)
-                                           e
-                                           (.getMessage e))}}
-                      (when ex-subtype
-                        {:subtype ex-subtype})))))))
-
-(defn insert-2! [database table m & {:keys [ex-subtype]}]
-  (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
-    (try+
      (if (= (class database) org.h2.jdbc.JdbcConnection)
-       [(next.sql/insert! database table m (merge next/snake-kebab-opts
-                                                  {:return-keys           true
-                                                   :return-generated-keys true
-                                                   :builder-fn            rs/as-unqualified-kebab-maps}))]
-       [(next.sql/insert! database table m (merge next/snake-kebab-opts
-                                                  {:suffix     "RETURNING *"
-                                                   :builder-fn rs/as-unqualified-kebab-maps}))])
+       (next.sql/insert-multi! database table
+                               (if (map? m)
+                                 [m]
+                                 m)
+                               (merge next/snake-kebab-opts
+                                      {:return-keys           true
+                                       :return-generated-keys true
+                                       :builder-fn            rs/as-unqualified-kebab-maps}))
+       (next.sql/insert-multi! database table
+                               (if (map? m)
+                                 [m]
+                                 m)
+                               (merge next/snake-kebab-opts
+                                      {:suffix     "RETURNING *"
+                                       :builder-fn rs/as-unqualified-kebab-maps})))
      (catch org.postgresql.util.PSQLException e
        (log/errorf "Caught Exception while inserting: %s" e)
        (throw+ (merge {:type    :PersistenceException
@@ -207,6 +171,16 @@
         eq-stmts (map eq-stmts m)]
     (clojure.string/join "," eq-stmts)))
 
+(defn pg-eq-stmts
+  [field]
+  (format "%s = EXCLUDED.%s" field field))
+
+(defn pg-matched
+  [m]
+  (let [m   (map csk/->snake_case_string (keys (dissoc m :id)))
+        eq-stmts (map pg-eq-stmts m)]
+    (clojure.string/join "," eq-stmts)))
+
 (defn hsql-upsert
   "Insert into the DB and return the inserted row.
   This is because H2 does not support the `DO UPDATE SET` statement"
@@ -233,15 +207,15 @@
 (defn update! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
     (try+
-     (let [formatted-query (if (= (class database) org.h2.jdbc.JdbcConnection)
-                             (hsql-upsert table m)
-                             (-> (hh/insert-into table)
-                                 (hh/values [m])
-                                 (hh/on-conflict :id)
-                                 (hh/do-update-set (dissoc m :id))
-                                 (hh/returning :*)
-                                 hsql/format))]
-       (transact! database formatted-query)))))
+     (if (= (class database) org.h2.jdbc.JdbcConnection)
+       (next/execute! database
+                      (hsql-upsert table m)
+                      {:return-keys true
+                       :builder-fn  rs/as-unqualified-kebab-maps})
+       [(next.sql/insert! database table m
+                          (merge next/snake-kebab-opts
+                                 {:suffix     (format "ON CONFLICT (id) DO UPDATE SET %s" (pg-matched m))
+                                  :builder-fn rs/as-unqualified-kebab-maps}))]))))
 
 (defn delete! [database table ids & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.delete.%s" table)}

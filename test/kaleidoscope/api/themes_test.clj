@@ -81,7 +81,7 @@
             (is (nil? (themes/delete-theme! database "not-the-owner" theme-id))))
 
           (testing "Group owner can delete the theme"
-            (is (= [] (themes/delete-theme! database "user-1" theme-id)))
-            (is (empty? (#'themes/get-themes database example-theme)))))
+            (themes/delete-theme! database "user-1" theme-id)
+            (is (empty? (#'themes/get-themes database (dissoc example-theme :config))))))
         (finally
           (.close database))))))

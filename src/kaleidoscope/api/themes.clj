@@ -30,8 +30,13 @@
   ([database]
    (-get-themes database))
   ([database query]
-   (let [raw-result (-get-themes database)]
-     (-get-themes database (dissoc query :config)))))
+   (let [raw-result (-get-themes database (dissoc query :config))]
+     (map (fn [theme]
+            (if (map? (:config theme))
+              theme
+              (update theme :config (fn [x]
+                                      (json/decode x true)))))
+          raw-result))))
 
 (defn create-theme!
   [database {:keys [id] :as theme}]
@@ -43,9 +48,9 @@
                        :modified-at now
                        :id          (or id (utils/uuid))))]
     (log/infof "ROW: %s" row)
-    (rdbms/insert-2! database
-                     :themes row
-                     :ex-subtype :UnableToCreateTheme)))
+    (rdbms/insert! database
+                   :themes row
+                   :ex-subtype :UnableToCreateTheme)))
 
 (defn update-theme!
   [database {:keys [id] :as theme}]

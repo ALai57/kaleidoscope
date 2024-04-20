@@ -21,14 +21,6 @@
   (-> (hh/insert-into :themes)
       (hh/values [example-payload])))
 
-(deftest hsql-returning-*-test
-  (testing "happy path"
-    (is (= ["select * from final table (INSERT INTO themes (display_name, id, config) VALUES (?, ?, ?))"
-            "another-theme"
-            "my-id"
-            "{\"secondary\":{\"something\":\"else\"}}"]
-           (rdbms/hsql-insert example-honey-insert)))))
-
 (deftest hsql-upsert-test
   (testing "happy path"
     (is (= ["SELECT * FROM FINAL TABLE (MERGE INTO themes AS target USING (VALUES (?, ?, ?)) AS source(display_name, id, config) ON source.id = target.id WHEN MATCHED THEN UPDATE SET target.display_name = source.display_name,target.config = source.config WHEN NOT MATCHED THEN INSERT (display_name, id, config) VALUES (source.display_name, source.id, source.config))"
