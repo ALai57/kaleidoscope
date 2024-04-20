@@ -24,7 +24,6 @@
   [database album]
   (rdbms/update! database
                  :albums     album
-                 [:= :id (:id album)]
                  :ex-subtype :UnableToUpdateAlbum))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

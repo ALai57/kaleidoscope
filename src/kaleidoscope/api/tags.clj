@@ -33,5 +33,4 @@
   (log/infof "Updating Tag: %s" tag)
   (rdbms/update! database
                  :tags tag
-                 [:= :id (:id tag)]
                  :ex-subtype :UnableToUpdateTag))

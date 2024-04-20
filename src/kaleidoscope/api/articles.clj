@@ -53,8 +53,8 @@
   ([db branch-id now]
    (log/infof "Publishing Branch: %s" branch-id)
    (let [result (rdbms/update! db :article-branches
-                               {:published-at now}
-                               [:= :id branch-id]
+                               {:published-at now
+                                :id           branch-id}
                                :ex-subtype :UnableToPublishBranch)
          result (get-branches db {:branch-id branch-id})]
      (log/infof "Published Branch: %s" result)
@@ -64,8 +64,8 @@
   [db branch-id]
   (log/infof "Unpublishing Branch: %s" branch-id)
   (let [result (rdbms/update! db :article-branches
-                              {:published-at nil}
-                              [:= :id branch-id]
+                              {:published-at nil
+                               :id           branch-id}
                               :ex-subtype :UnableToUnPublishBranch)
         result (get-branches db {:branch-id branch-id})]
     (log/infof "Unpublished Branch: %s" result)

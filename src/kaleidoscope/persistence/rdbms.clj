@@ -8,7 +8,8 @@
             [next.jdbc.sql :as next.sql]
             [slingshot.slingshot :refer [throw+ try+]]
             [steffan-westcott.clj-otel.api.trace.span :as span]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [cheshire.core :as json]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; API for interacting with a relational database
@@ -99,14 +100,68 @@
                       (when ex-subtype
                         {:subtype ex-subtype})))))))
 
-(defn update! [database table m where & {:keys [ex-subtype]}]
+(defn using
+  [{:keys [values] :as query}]
+  (let [fields  (first values)
+        qns     (clojure.string/join ", " (repeat (count fields) "?"))
+        sources (clojure.string/join ", " (map csk/->snake_case_string (keys fields)))]
+    (format "(VALUES (%s)) AS source(%s)" qns sources)))
+
+(defn eq-stmts
+  [field]
+  (format "target.%s = source.%s" field field))
+
+(defn on
+  [{:keys [values] :as query}]
+  (let [fields   (map csk/->snake_case_string (keys (first values)))
+        eq-stmts (map eq-stmts fields)
+        sources  (clojure.string/join " AND " eq-stmts)]
+    (clojure.string/join " AND " eq-stmts)))
+
+(defn not-matched
+  [{:keys [values] :as query}]
+  (let [fields       (first values)
+        field-names  (map csk/->snake_case_string (keys fields))
+        source-names (map (partial str "source.") field-names)]
+    (format "(%s) VALUES (%s)"
+            (clojure.string/join ", " field-names)
+            (clojure.string/join ", " source-names))))
+
+(defn matched
+  [{:keys [values] :as query}]
+  (let [fields   (map csk/->snake_case_string (keys (dissoc (first values) :id)))
+        eq-stmts (map eq-stmts fields)]
+    (clojure.string/join "," eq-stmts)))
+
+(defn hsql-upsert
+  "Insert into the DB and return the inserted row.
+  This is because H2 does not support the `DO UPDATE SET` statement"
+  [{:keys [values] :as query}]
+  (let [merge-stmt            (format "MERGE INTO %s AS target" (csk/->snake_case_string (first (:insert-into query))))
+        using-stmt            (format "USING %s" (using query))
+        on-stmt               (format "ON %s" "source.id = target.id"#_(on query))
+        when-matched-stmt     (format "WHEN MATCHED THEN UPDATE SET %s" (matched query))
+        when-not-matched-stmt (format "WHEN NOT MATCHED THEN INSERT %s" (not-matched query))]
+    (concat [(clojure.string/join " " [merge-stmt
+                                       using-stmt
+                                       on-stmt
+                                       when-matched-stmt
+                                       when-not-matched-stmt])]
+            (mapv (fn [v]
+                    (if (nil? v)
+                      nil
+                      (str v)))
+                  (vals (first values))))))
+
+(defn update! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
     (try+
-     (let [query           (-> (hh/update table)
-                               (hh/set m)
-                               (hh/where where))
+     (let [query           (-> (hh/insert-into table)
+                               (hh/values [m])
+                               (hh/on-conflict :id)
+                               (hh/do-update-set (dissoc m :id)))
            formatted-query (if (= (class database) org.h2.jdbc.JdbcConnection)
-                             (hsql-insert query)
+                             (hsql-upsert query)
                              (-> query
                                  (hh/returning :*)
                                  hsql/format))]

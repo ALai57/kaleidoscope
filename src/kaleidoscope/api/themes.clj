@@ -68,7 +68,6 @@
                 (assoc :modified-at now))]
     (rdbms/update! database
                    :themes row
-                   [:= :id id]
                    :ex-subtype :UnableToUpdateTheme)))
 
 (defn owns?
