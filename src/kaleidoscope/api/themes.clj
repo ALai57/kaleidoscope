@@ -60,6 +60,17 @@
                                      :themes row
                                      :ex-subtype :UnableToCreateTheme))))
 
+(defn update-theme!
+  [database {:keys [id] :as theme}]
+  (let [now (utils/now)
+        row (-> theme
+                (update :config json/encode)
+                (assoc :modified-at now))]
+    (rdbms/update! database
+                   :themes row
+                   [:= :id id]
+                   :ex-subtype :UnableToUpdateTheme)))
+
 (defn owns?
   [database requester-id theme-id]
   (= requester-id (-> database

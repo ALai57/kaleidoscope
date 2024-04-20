@@ -36,6 +36,11 @@
         (is (themes/owns? database "user-1" theme-id))
         (is (not (themes/owns? database "user-2" theme-id))))
 
+      (testing "Can update the theme"
+        (themes/update-theme! database {:display-name "another-theme"
+                                        :id           theme-id
+                                        :config       {:secondary {:something "else"}}}))
+
       (testing "Non-owner cannot delete the theme"
         (is (nil? (themes/delete-theme! database "not-the-owner" theme-id))))
 

@@ -825,6 +825,21 @@
                     (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" (java.util.UUID/randomUUID)))
                              (mock/header "Authorization" "Bearer x"))))))
 
+      (testing "Update theme"
+        (app (-> (mock/request :put (format "https://andrewslai.localhost/themes/%s" theme-id))
+                 (mock/header "Authorization" "Bearer x")
+                 (mock/json-body {:config       {:primary {:main      "#ABC123"
+                                                           :new-field "new-test"}}
+                                  :display-name "Updated name"})))
+
+        (is (match? {:status 200
+                     :body   [{:config       {:primary {:main      "#ABC123"
+                                                        :new-field "new-test"}}
+                               :id           string-uuid?
+                               :display-name "Updated name"}]}
+                    (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" theme-id))
+                             (mock/header "Authorization" "Bearer x"))))))
+
       (testing "Delete the theme"
         (is (match? {:status 204}
                     (app (-> (mock/request :delete (format "https://andrewslai.localhost/themes/%s"
