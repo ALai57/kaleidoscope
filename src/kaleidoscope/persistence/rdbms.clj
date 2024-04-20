@@ -141,12 +141,14 @@
         using-stmt            (format "USING %s" (using query))
         on-stmt               (format "ON %s" "source.id = target.id"#_(on query))
         when-matched-stmt     (format "WHEN MATCHED THEN UPDATE SET %s" (matched query))
-        when-not-matched-stmt (format "WHEN NOT MATCHED THEN INSERT %s" (not-matched query))]
-    (concat [(clojure.string/join " " [merge-stmt
-                                       using-stmt
-                                       on-stmt
-                                       when-matched-stmt
-                                       when-not-matched-stmt])]
+        when-not-matched-stmt (format "WHEN NOT MATCHED THEN INSERT %s" (not-matched query))
+        returning-*-stmt      (format "SELECT * FROM FINAL TABLE (%s)"
+                                      (clojure.string/join " " [merge-stmt
+                                                                using-stmt
+                                                                on-stmt
+                                                                when-matched-stmt
+                                                                when-not-matched-stmt]))]
+    (concat [returning-*-stmt]
             (mapv (fn [v]
                     (if (nil? v)
                       nil

@@ -12,6 +12,13 @@
     (log/with-min-level tm/*test-log-level*
       (f))))
 
+(def example-honey-insert
+  (let [m {:display-name "another-theme"
+           :id           "my-id"
+           :config       (json/encode {:secondary {:something "else"}})}]
+    (-> (hh/insert-into :themes)
+        (hh/values [m]))))
+
 (def example-honey-upsert
   (let [m {:display-name "another-theme"
            :id           "my-id"
@@ -21,9 +28,17 @@
         (hh/on-conflict :id)
         (hh/do-update-set (dissoc m :id)))))
 
+(deftest hsql-returning-*-test
+  (testing "happy path"
+    (is (= ["select * from final table (INSERT INTO themes (display_name, id, config) VALUES (?, ?, ?))"
+            "another-theme"
+            "my-id"
+            "{\"secondary\":{\"something\":\"else\"}}"]
+           (rdbms/hsql-insert example-honey-insert)))))
+
 (deftest hsql-upsert-test
   (testing "happy path"
-    (is (= ["MERGE INTO themes AS target USING (VALUES (?, ?, ?)) AS source(display_name, id, config) ON source.id = target.id WHEN MATCHED THEN UPDATE SET target.display_name = source.display_name,target.config = source.config WHEN NOT MATCHED THEN INSERT (display_name, id, config) VALUES (source.display_name, source.id, source.config)"
+    (is (= ["SELECT * FROM FINAL TABLE (MERGE INTO themes AS target USING (VALUES (?, ?, ?)) AS source(display_name, id, config) ON source.id = target.id WHEN MATCHED THEN UPDATE SET target.display_name = source.display_name,target.config = source.config WHEN NOT MATCHED THEN INSERT (display_name, id, config) VALUES (source.display_name, source.id, source.config))"
             "another-theme"
             "my-id"
             "{\"secondary\":{\"something\":\"else\"}}"]
