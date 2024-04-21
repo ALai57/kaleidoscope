@@ -92,7 +92,7 @@
                                               theme              (merge (:request parameters)
                                                                         {:hostname (hu/get-host request)
                                                                          :owner-id (oidc/get-user-id (:identity request))
-                                                                         :id       theme-id})
+                                                                         :id       (parse-uuid theme-id)})
                                               [result]           (themes-api/update-theme! (:database components) theme)]
                                           (log/infof "Updated theme %s" result)
                                           (ok result))
