@@ -504,8 +504,11 @@ resource "aws_ecs_service" "kaleidoscope_service" {
 
   network_configuration {
     security_groups  = ["${data.aws_security_group.default.id}", "${aws_security_group.ecs_allow_http_https.id}"]
-    subnets          = data.aws_subnets.all.ids
-    assign_public_ip = "true"
+
+    # Only use AZ us-east-1a and 1b - because the LB should
+    # be the only one able to directly connect
+    subnets = ["subnet-e5cea8cb", "subnet-159eb55f"] #data.aws_subnets.all.ids
+    #assign_public_ip = "true"
   }
 
   load_balancer {
