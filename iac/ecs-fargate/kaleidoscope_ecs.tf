@@ -249,7 +249,8 @@ resource "aws_alb" "main" {
   # launch lbs in public or private subnets based on "internal" variable
   internal = false
 
-  subnets = data.aws_subnets.all.ids
+  # Only use AZ us-east-1a and 1b to reduce ENI costs
+  subnets = ["subnet-e5cea8cb", "subnet-159eb55f"] #data.aws_subnets.all.ids
   security_groups = ["${data.aws_security_group.default.id}", "${aws_security_group.ecs_allow_http_https.id}"]
 
 }
