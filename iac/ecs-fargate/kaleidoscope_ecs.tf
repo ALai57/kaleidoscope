@@ -508,7 +508,10 @@ resource "aws_ecs_service" "kaleidoscope_service" {
     # Only use AZ us-east-1a and 1b - because the LB should
     # be the only one able to directly connect
     subnets = ["subnet-e5cea8cb", "subnet-159eb55f"] #data.aws_subnets.all.ids
-    #assign_public_ip = "true"
+
+    # Public IP allows the service to pull a container from the ECR registry
+    # without needing an internet gateway or VPC endpoint
+    assign_public_ip = "true"
   }
 
   load_balancer {
