@@ -41,6 +41,12 @@
                       :hostname "andrewslai.localhost"}]
                     (audiences-api/get-article-audiences database {:id id}))))
 
+      (testing "Duplicate audience insert does not blow up"
+        (is (match? [{:id id}]
+                    (audiences-api/add-audience-to-article! database
+                                                            {:id       1
+                                                             :hostname "andrewslai.localhost"}
+                                                            {:id group-id}))))
 
       (testing "Can delete a audience"
         (audiences-api/delete-article-audience! database id)

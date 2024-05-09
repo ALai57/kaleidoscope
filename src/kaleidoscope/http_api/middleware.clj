@@ -100,7 +100,7 @@
     (span/with-span! {:name (format "kaleidoscope.%s.%s"
                                     (string/replace uri "/" ".")
                                     request-method)}
-      (log/infof "Inside wrap-trace span %s" (span/get-span))
+      ;;(log/infof "Inside wrap-trace span %s" (span/get-span))
       (handler request))))
 
 

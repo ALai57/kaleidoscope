@@ -26,10 +26,18 @@
 
 (defn add-audience-to-article!
   [db article group]
-  (cond
-    (nil? (:hostname article))                      (log/warnf "Article is missing hostname %s" article)
-    (empty? (articles-api/get-articles db article)) (log/warnf "No articles matching %s" article)
-    :else                                           (-add-audiences-to-article! db (:id article) [(:id group)])))
+  ;; TODO: only go to DB after we know we have to
+  (let [existing-audience (get-article-audiences db {:article-id (:id article)
+                                                     :group-id   (:id group)})]
+    (cond
+      (nil? (:hostname article))                      (log/warnf "Article is missing hostname %s" article)
+      (empty? (articles-api/get-articles db article)) (log/warnf "No articles matching %s" article)
+
+      ;; Only attempt to create an audience if it doesn't exist.
+      ;; This is a workaround so I don't have to deal with a multiple upsert in both
+      ;; HSQL and Postgres
+      (not-empty existing-audience) existing-audience
+      (empty? existing-audience)    (-add-audiences-to-article! db (:id article) [(:id group)]))))
 
 (defn delete-article-audience!
   [database audience-id]
