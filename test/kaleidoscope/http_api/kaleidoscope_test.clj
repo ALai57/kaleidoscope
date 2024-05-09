@@ -769,6 +769,17 @@
                     (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
                              (mock/header "Authorization" "Bearer x"))))))
 
+      (testing "Query param search works"
+        (is (match? {:status 200
+                     :body   [{:article-id 1
+                               :hostname   "andrewslai.localhost"
+                               :group-id   group-id}]}
+                    (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences?article-id=1")
+                             (mock/header "Authorization" "Bearer x")))))
+        (is (match? {:status 404}
+                    (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences?article-id=1000000")
+                             (mock/header "Authorization" "Bearer x"))))))
+
       (testing "Delete the audience"
         (is (match? {:status 200
                      :body   []}

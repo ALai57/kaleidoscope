@@ -1,7 +1,8 @@
 (ns kaleidoscope.http-api.audiences
   (:require [kaleidoscope.api.audiences :as audiences-api]
             [kaleidoscope.http-api.http-utils :as hu]
-            [ring.util.http-response :refer [ok not-found]]))
+            [ring.util.http-response :refer [ok not-found]]
+            [taoensso.timbre :as log]))
 
 (def reitit-audiences-routes
   ["/article-audiences" {:tags     ["audiences"]
@@ -11,18 +12,21 @@
                          ;;
                          ;;:host      "andrewslai.localhost"
                          }
-   ["" {:get {:summary   "Retrieve all audiences"
-              :responses (merge hu/openapi-401
-                                {200 {:description "A collection of all audiences"
-                                      :content     {"application/json"
-                                                    {:schema [:any]}}}})
-
-              :handler (fn [{:keys [components] :as request}]
-                         (let [audiences (->> {:hostname (hu/get-host request)}
-                                              (audiences-api/get-article-audiences (:database components)))]
-                           (if (empty? audiences)
-                             (not-found)
-                             (ok audiences))))}
+   ["" {:get {:summary    "Retrieve all audiences"
+              :responses  (merge hu/openapi-401
+                                 {200 {:description "A collection of all audiences"
+                                       :content     {"application/json"
+                                                     {:schema [:any]}}}})
+              :parameters {:query :any}
+              :handler    (fn [{:keys [components parameters] :as request}]
+                            (log/debugf "Received params %s" parameters)
+                            (let [query-params (:query parameters)
+                                  audiences    (->> {:hostname (hu/get-host request)}
+                                                    (merge query-params)
+                                                    (audiences-api/get-article-audiences (:database components) ))]
+                              (if (empty? audiences)
+                                (not-found)
+                                (ok audiences))))}
         :put {:summary   "A collection of all audiences"
               :responses (merge hu/openapi-401
                                 {200 {:description "The group that was created"
