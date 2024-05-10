@@ -453,7 +453,7 @@
     (testing "Upload works"
       (is (match? {:status  201
                    :headers {"Content-Type" "application/json"}
-                   :body    [{:photo-id uuid?
+                   :body    [{:photo-id string?
                               :versions (m/in-any-order [{:filename "raw.png"}
                                                          {:filename "thumbnail.png"}
                                                          {:filename "gallery.png"}

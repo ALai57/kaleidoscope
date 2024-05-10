@@ -17,9 +17,8 @@
                                  {200 {:description "A collection of all audiences"
                                        :content     {"application/json"
                                                      {:schema [:any]}}}})
-              :parameters {:query [:maybe
-                                   [:map
-                                    [:article-id :int]]]}
+              :parameters {:query [:map
+                                   [:article-id {:optional true} :int]]}
               :handler    (fn [{:keys [components parameters] :as request}]
                             (log/debugf "Received params %s" parameters)
                             (let [query-params (:query parameters)

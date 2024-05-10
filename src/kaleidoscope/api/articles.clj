@@ -161,15 +161,20 @@
 ;; TODO: Hostname should probably be added to groups too
 (defn get-published-articles
   "Query should have {:hostname , :other...}"
-  [db {:keys [hostname] :as query} {:keys [email] :as _user}]
-  (let [users-groups (->> {:email email}
+  [db {:keys [hostname article-url] :as query} {:keys [email] :as _user}]
+  (let [article-id (when article-url
+                     (:id (first (get-articles db {:article-url article-url
+                                                   :hostname    hostname}))))
+
+        users-groups (->> {:email email}
                           (api.groups/get-group-memberships db)
                           (map :group-id)
                           (into #{}))
         articles     (->> {:hostname hostname}
                           (get-article-audiences db))
 
-        public-article-ids     (mapv :id (get-articles db {:public-visibility true}))
+        public-article-ids     (mapv :id (get-articles db {:public-visibility true
+                                                           :hostname          hostname}))
         restricted-article-ids (->> articles
                                     (filter (fn [{:keys [group-id article-id public-visibility] :as audience}]
                                               (contains? users-groups group-id)))
@@ -177,7 +182,10 @@
 
         allowed-article-ids (into #{} (concat public-article-ids restricted-article-ids))]
     (log/infof "User `%s` is allowed to view article-ids %s" email allowed-article-ids)
-    (if (not-empty allowed-article-ids)
-      (-get-published-articles db {:article-id allowed-article-ids})
-      [])))
-
+    (cond
+      (and article-url
+           (contains? allowed-article-ids article-id)) (-get-published-articles db {:article-id article-id
+                                                                                    :hostname   hostname})
+      (not-empty allowed-article-ids)                  (-get-published-articles db {:article-id allowed-article-ids
+                                                                                    :hostname   hostname})
+      :else                                            [])))
