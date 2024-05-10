@@ -17,7 +17,9 @@
                                  {200 {:description "A collection of all audiences"
                                        :content     {"application/json"
                                                      {:schema [:any]}}}})
-              :parameters {:query :any}
+              :parameters {:query [:maybe
+                                   [:map
+                                    [:article-id :int]]]}
               :handler    (fn [{:keys [components parameters] :as request}]
                             (log/debugf "Received params %s" parameters)
                             (let [query-params (:query parameters)
@@ -49,7 +51,7 @@
                                                  {200 {:description "Success deleting the group"
                                                        :content     {"application/json"
                                                                      {:schema [:any]}}}})
-                              :parameters {:path {:audience-id string?}}
+                              :parameters {:path {:audience-id :uuid}}
                               :handler    (fn [{:keys [components parameters] :as request}]
                                             (let [{:keys [audience-id]} (:path parameters)]
                                               (ok (articles-api/delete-article-audience! (:database components) audience-id))))}}]])

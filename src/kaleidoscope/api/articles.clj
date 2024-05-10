@@ -125,7 +125,7 @@
                    :article-audiences (for [group-id group-ids
                                             :let     [id (utils/uuid)]]
                                         {:id         id
-                                         :group-id   group-id
+                                         :group-id   (str group-id)
                                          :article-id article-id
                                          :created-at now})
                    :ex-subtype :UnableToAddArticleAudience)))
@@ -134,7 +134,7 @@
   [db {:keys [id] :as article} group]
   ;; TODO: only go to DB after we know we have to
   (let [existing-audience (get-article-audiences db {:article-id (:id article)
-                                                     :group-id   (:id group)})]
+                                                     :group-id   (str (:id group))})]
     (cond
       (nil? (:hostname article))          (log/warnf "Article is missing hostname %s" article)
       (empty? (get-articles db article)) (log/warnf "No articles matching %s" article)
