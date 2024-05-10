@@ -169,12 +169,13 @@
         articles     (->> {:hostname hostname}
                           (get-article-audiences db))
 
-        allowed-article-ids (->> articles
-                                 (filter (fn [{:keys [group-id article-id public-visibility] :as audience}]
-                                           (or public-visibility
-                                               (contains? users-groups group-id))))
-                                 (mapv :article-id)
-                                 (into #{}))]
+        public-article-ids     (mapv :id (get-articles db {:public-visibility true}))
+        restricted-article-ids (->> articles
+                                    (filter (fn [{:keys [group-id article-id public-visibility] :as audience}]
+                                              (contains? users-groups group-id)))
+                                    (mapv :article-id))
+
+        allowed-article-ids (into #{} (concat public-article-ids restricted-article-ids))]
     (log/infof "User `%s` is allowed to view article-ids %s" email allowed-article-ids)
     (if (not-empty allowed-article-ids)
       (-get-published-articles db {:article-id allowed-article-ids})

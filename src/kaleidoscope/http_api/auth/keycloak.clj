@@ -46,7 +46,7 @@
           (when (validate-token keycloak token)
             (jwt/body token))
           (catch Exception e
-            (log/error "Authentication exception" (pr-str e))))))))
+            (log/warn "Authentication exception" (pr-str e))))))))
 
 (comment
   ;; Setting up a service user in Keycloak.
