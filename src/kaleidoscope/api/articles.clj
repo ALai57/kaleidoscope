@@ -1,7 +1,6 @@
 (ns kaleidoscope.api.articles
   (:require [clojure.set :as set]
             [kaleidoscope.persistence.rdbms :as rdbms]
-            [kaleidoscope.api.audiences :as api.audiences]
             [kaleidoscope.api.groups :as api.groups]
             [kaleidoscope.utils.core :as utils]
             [next.jdbc :as next]
@@ -171,8 +170,9 @@
                           (get-article-audiences db))
 
         allowed-article-ids (->> articles
-                                 (filter (fn [{:keys [group-id article-id] :as audience}]
-                                           (contains? users-groups group-id)))
+                                 (filter (fn [{:keys [group-id article-id public-visibility] :as audience}]
+                                           (or public-visibility
+                                               (contains? users-groups group-id))))
                                  (mapv :article-id)
                                  (into #{}))]
     (log/infof "User `%s` is allowed to view article-ids %s" email allowed-article-ids)
