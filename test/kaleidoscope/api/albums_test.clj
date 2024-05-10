@@ -97,12 +97,20 @@
       ;; Migrations seed db now for convenience
       (is (= 3 (count (albums-api/get-photos database)))))
 
-    (testing "Insert the example-photo"
-      (is (match? {:id uuid?}
-                  (albums-api/create-photo! database example-photo))))
+    (let [resp (albums-api/create-photo! database example-photo)]
+      (testing "Insert the example-photo"
+        (is (match? {:id uuid?}
+                    resp)))
 
-    (testing "Can retrieve example-photo from the DB"
-      (is (match? [example-photo] (albums-api/get-photos database {:id #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"}))))))
+      (testing "Can retrieve example-photo from the DB"
+        (is (match? [example-photo] (albums-api/get-photos database {:id #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"}))))
+
+      (testing "Update the photo"
+        (is (match? {:id uuid?}
+                    (albums-api/update-photo! database {:id          (:id resp)
+                                                        :photo-title "New title"
+                                                        :description "New description"})))))
+    ))
 
 (deftest create-and-retrieve-photo-version-test
   (let [database (embedded-h2/fresh-db!)]

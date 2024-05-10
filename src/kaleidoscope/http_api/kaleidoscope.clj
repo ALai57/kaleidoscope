@@ -35,6 +35,9 @@
    {:pattern #"^/media.*" :request-method :post :handler auth/require-*-writer}
    {:pattern #"^/media.*" :request-method :get  :handler auth/public-access}
 
+   {:pattern #"^/v2/photos.*" :request-method :post :handler auth/require-*-admin}
+   {:pattern #"^/v2/photos.*" :request-method :put  :handler auth/require-*-admin}
+
    {:pattern #"^/albums.*"            :handler auth/require-*-admin}
    {:pattern #"^/article-audiences.*" :handler auth/require-*-admin}
 
