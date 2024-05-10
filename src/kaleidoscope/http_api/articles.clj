@@ -133,9 +133,10 @@
                                                                                       :value   [models.articles/example-composition-1]}}}}}})
 
               :handler (fn [{:keys [components] :as request}]
-                         (log/infof "models.articles/Getting compositions for host `%s`" (hu/get-host request))
+                         (log/infof "Getting compositions for host `%s`" (hu/get-host request))
                          (ok (articles-api/get-published-articles (:database components)
-                                                                  {:hostname (hu/get-host request)})))}}]
+                                                                  {:hostname (hu/get-host request)}
+                                                                  (:identity request))))}}]
    ["/:article-url"
     {:get {:summary    "Retrieve a single published article"
            :parameters {:path {:article-url string?}}
@@ -147,7 +148,10 @@
                                                                                  :value   models.articles/example-composition-1}}}}}})
            :handler    (fn [{:keys [components parameters] :as request}]
                          (log/infof "Retrieving composition %s" (get-in parameters [:path :article-url]))
-                         (let [result (articles-api/get-published-articles (:database components) {:article-url (get-in parameters [:path :article-url])})]
+                         (let [result (articles-api/get-published-articles (:database components)
+                                                                           {:article-url (get-in parameters [:path :article-url])
+                                                                            :hostname    (hu/get-host request)}
+                                                                           (:identity request))]
                            (if (empty? result)
                              (not-found {:reason "Missing"})
                              (ok (first result)))))}}]])

@@ -1,6 +1,8 @@
 (ns kaleidoscope.api.articles-test
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.api.articles :as articles]
+            [kaleidoscope.api.groups :as groups]
+            [kaleidoscope.api.groups-test :as groups-test]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.test-main :as tm]
             [clojure.test :refer [deftest is testing use-fixtures]]
@@ -221,7 +223,7 @@
                           :article-id article-id
                           :branch-id  new-branch-id
                           :version-id new-version-id)]
-                  (articles/get-published-articles database {:article-id article-id}))))
+                  (articles/-get-published-articles database {:article-id article-id}))))
 
     (testing "Can retrieve article by URL"
       (is (match? [(assoc article-branch
@@ -229,18 +231,101 @@
                           :article-id article-id
                           :branch-id  new-branch-id
                           :version-id new-version-id)]
-                  (articles/get-published-articles database {:article-url (:article-url article-branch)}))))
+                  (articles/-get-published-articles database {:article-url (:article-url article-branch)}))))
 
     (testing "Can unpublish branch"
       (is (match? [{:published-at nil?}]
                   (articles/unpublish-branch! database old-branch-id)))
       (is (match? [{:published-at nil?}]
                   (articles/unpublish-branch! database new-branch-id)))
-      (is (empty? (articles/get-published-articles database {:article-url (:article-url article-branch)}))))
+      (is (empty? (articles/-get-published-articles database {:article-url (:article-url article-branch)}))))
     ))
 
 
 (deftest get-published-articles-seed-test
   (let [database       (embedded-h2/fresh-db!)]
     (testing "Seed works properly"
-      (is (= 4 (count (articles/get-published-articles database)))))))
+      (is (= 4 (count (articles/-get-published-articles database)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;
+(def example-group
+  {:display-name "mygroup"
+   :owner-id     "user-1"})
+
+(deftest get-published-articles-audience-test
+  (let [database                (embedded-h2/fresh-db!)
+        [{new-group-id :id}]    (groups/create-group! database example-group)
+        [{membership-id-1 :id}] (groups/add-users-to-group! database "user-1" new-group-id {:email "b@z.com"
+                                                                                            :alias "foo"})
+        [{audience-id :id}]     (articles/add-audience-to-article! database
+                                                                   {:id       1 ;; Fixture -  my-first-article
+                                                                    :hostname "andrewslai.localhost"}
+                                                                   {:id new-group-id})
+        [{audience-id :id}]     (articles/add-audience-to-article! database
+                                                                   {:id       2 ;; Fixture -  my-first-article
+                                                                    :hostname "andrewslai.localhost"}
+                                                                   {:id new-group-id})
+        ]
+
+    ;; Fixture data
+    (testing "User in `mygroup` can view articles with `mygroup` as an audience"
+      (is (match? [{:article-tags "thoughts"
+                    :article-url  "my-first-article"
+                    :article-id   1
+                    :author       "Andrew Lai"
+                    :hostname     "andrewslai.localhost"}
+                   {:article-tags "thoughts"
+                    :article-url  "my-second-article"
+                    :article-id   2
+                    :author       "Andrew Lai"
+                    :hostname     "andrewslai.localhost"}]
+                  (articles/get-published-articles database
+                                                   {:hostname "andrewslai.localhost"}
+                                                   {:email "b@z.com"}))))
+    (testing "User not in any group cannot view any articles"
+      (is (match? []
+                  (articles/get-published-articles database
+                                                   {:hostname "andrewslai.localhost"}
+                                                   {:email "missing-group@nowhere.com"}))))
+
+    ))
+
+
+(deftest create-and-retrieve-audience-test
+  (let [database         (embedded-h2/fresh-db!)
+        [{group-id :id}] (groups/create-group! database groups-test/example-group)]
+    (testing "0 example audiences seeded in DB"
+      (is (= 0 (count (articles/get-article-audiences database)))))
+
+    (testing "Fail to add audience if hostname does not match article hostname"
+      (is (nil? (articles/add-audience-to-article! database
+                                                   {:id       1
+                                                    :hostname "does-not-match"}
+                                                   {:id group-id})))
+      (is (empty? (articles/get-article-audiences database {}))))
+
+    ;; Use article ID 1 below because it is seeded in the DB with hostname
+    ;; `andrewslai.localhost`
+    (let [[{:keys [id]}] (articles/add-audience-to-article! database
+                                                            {:id       1
+                                                             :hostname "andrewslai.localhost"}
+                                                            {:id group-id})]
+      (testing "Add an audience"
+        (is (uuid? id)))
+
+      (testing "Can retrieve the audience from the DB"
+        (is (match? [{:id       id
+                      :hostname "andrewslai.localhost"}]
+                    (articles/get-article-audiences database {:id id}))))
+
+      (testing "Duplicate audience insert does not blow up"
+        (is (match? [{:id id}]
+                    (articles/add-audience-to-article! database
+                                                       {:id       1
+                                                        :hostname "andrewslai.localhost"}
+                                                       {:id group-id}))))
+
+      (testing "Can delete a audience"
+        (articles/delete-article-audience! database id)
+
+        (is (empty? (articles/get-article-audiences database {:id id})))))))

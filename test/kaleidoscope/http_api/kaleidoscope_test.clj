@@ -334,9 +334,33 @@
                                        (:article-url article)
                                        (get-in create-response [:body 0 :branch-name]))))))
 
-    (testing "Can retrieve an published article by `/compositions` endpoint"
+    (testing "Cannot retrieve an published article by `/compositions` endpoint if it isn't public"
+      (is (match? {:status 404}
+                  (app (-> (mock/request :get (format "https://andrewslai.com/compositions/%s" (:article-url article)))
+                           (mock/header "Authorization" "Bearer user first-user"))))))
+
+    (testing "Successfully add user `test@test.com` to allowed user list on article"
+      (let [result     (app (-> (mock/request :post "https://andrewslai.com/groups")
+                                (mock/header "Authorization" "Bearer user first-user")
+                                (mock/json-body {:display-name "my-display-name"})))
+            group-id   (get-in result [:body 0 :id])
+            article-id (get-in create-response [:body 0 :article-id])]
+        (app (-> (mock/request :post (format "https://andrewslai.com/groups/%s/members" group-id))
+                 (mock/header "Authorization" "Bearer user first-user")
+                 (mock/json-body {:email "test@test.com"
+                                  :alias "Androo"})))
+        (is (match? {:status 200
+                     :body   [{:group-id   group-id
+                               :article-id article-id}]}
+                    (app (-> (mock/request :put "https://andrewslai.com/article-audiences")
+                             (mock/json-body {:group-id   group-id
+                                              :article-id article-id})
+                             (mock/header "Authorization" "Bearer x")))))))
+
+    (testing "Can retrieve an published article by `/compositions` endpoint when authenticated"
       (is (match? {:status 200 :body (merge article branch version {:author "Test User"})}
-                  (app (get-composition (:article-url article))))))
+                  (app (-> (mock/request :get (format "https://andrewslai.com/compositions/%s" (:article-url article)))
+                           (mock/header "Authorization" "Bearer user first-user"))))))
 
     (testing "Cannot commit to published branch"
       (log/with-min-level :fatal

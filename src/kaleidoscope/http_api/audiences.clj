@@ -1,5 +1,5 @@
 (ns kaleidoscope.http-api.audiences
-  (:require [kaleidoscope.api.audiences :as audiences-api]
+  (:require [kaleidoscope.api.articles :as articles-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [ring.util.http-response :refer [ok not-found]]
             [taoensso.timbre :as log]))
@@ -23,7 +23,7 @@
                             (let [query-params (:query parameters)
                                   audiences    (->> {:hostname (hu/get-host request)}
                                                     (merge query-params)
-                                                    (audiences-api/get-article-audiences (:database components) ))]
+                                                    (articles-api/get-article-audiences (:database components) ))]
                               (if (empty? audiences)
                                 (not-found)
                                 (ok audiences))))}
@@ -39,10 +39,10 @@
                                                   [:group-id :uuid]]}}}
               :handler   (fn [{:keys [components parameters] :as request}]
                            (let [{:keys [article-id group-id]} (:request parameters)]
-                             (ok (audiences-api/add-audience-to-article! (:database components)
-                                                                         {:id       article-id
-                                                                          :hostname (hu/get-host request)}
-                                                                         {:id group-id}))))}}]
+                             (ok (articles-api/add-audience-to-article! (:database components)
+                                                                        {:id       article-id
+                                                                         :hostname (hu/get-host request)}
+                                                                        {:id group-id}))))}}]
 
    ["/:audience-id" {:delete {:summary    "Delete an audience"
                               :responses  (merge hu/openapi-401
@@ -52,4 +52,4 @@
                               :parameters {:path {:audience-id string?}}
                               :handler    (fn [{:keys [components parameters] :as request}]
                                             (let [{:keys [audience-id]} (:path parameters)]
-                                              (ok (audiences-api/delete-article-audience! (:database components) audience-id))))}}]])
+                                              (ok (articles-api/delete-article-audience! (:database components) audience-id))))}}]])

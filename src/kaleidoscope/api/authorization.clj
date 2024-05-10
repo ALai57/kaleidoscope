@@ -50,7 +50,7 @@
   example, when sending a request to andrewslai.com, requires
   `andrewslai.com-reader`"
   [{:keys [identity uri server-name] :as request}]
-  (log/debugf "Checking if user %s has access to endpoint %s" identity uri)
+  (log/debugf "Checking if user %s has access to endpoint %s on domain %s" identity uri server-name)
   (let [role (str server-name ":admin")]
     (if (contains? (oidc/get-realm-roles identity) role)
       true
