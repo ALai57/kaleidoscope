@@ -152,11 +152,12 @@
                                                      {200 {:description "The photo"
                                                            :content     {"application/json"
                                                                          {:schema [:any]}}}})
-                                  :parameters {:path {:photo-id string?}}
+                                  :parameters {:path {:photo-id string?
+                                                      :filename string?}}
                                   :handler    (fn [{:keys [components parameters] :as request}]
                                                 (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
                                                   (let [path-params                  (:path parameters)
-                                                        [{:keys [path] :as version}] (albums-api/get-full-photos (:database components) path-params)]
+                                                        [{:keys [path] :as version} :as photo-versions] (albums-api/get-full-photos (:database components) path-params)]
                                                     (hu/get-resource (:static-content-adapters components) (-> request
                                                                                                                (assoc :uri path)
                                                                                                                hu/kebab-case-headers)))))}}]
