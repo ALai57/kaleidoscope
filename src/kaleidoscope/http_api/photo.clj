@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.photo
   (:require [clojure.string :as str]
+            [cheshire.core :as json]
             [image-resizer.core :as rc]
             [image-resizer.format :as rf]
             [kaleidoscope.api.albums :as albums-api]
@@ -65,7 +66,7 @@
                                                                                     (assoc :file-input-stream image-stream
                                                                                            :extension         extension))})))]
       {:photo-id photo-id
-       :versions resized})))
+       :versions (vec resized)})))
 
 (def Version
   [:map
@@ -122,7 +123,9 @@
                                     result       (mapv (partial process-photo-upload! req) file-uploads)]
 
                                 ;; Todo create a batch response
-                                (assoc-in (created "/v2/photos" result)
+                                ;; Must be JSON encoded because Jetty doesn't know how to serialize
+                                ;; Clojure vectors
+                                (assoc-in (created "/v2/photos" (json/encode result))
                                           [:headers "Content-Type"]
                                           "application/json")))}}]
 
