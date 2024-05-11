@@ -161,19 +161,20 @@
                                                     :examples {"example-update" {:summary "Example update"
                                                                                  :value   {:title       "My title"
                                                                                            :description "My photo taken somewhere"}}}}}}
-                        :parameters {:path {:photo-id string?}}
+                        :parameters {:path {:photo-id uuid?}}
                         :handler    (fn [{:keys [components body-params path-params] :as request}]
                                       (let [{:keys [photo-id]} path-params
 
+                                            id       (parse-uuid photo-id)
                                             _        (log/infof "Getting photo %s" photo-id)
                                             hostname (hu/get-host request)
-                                            photo   (albums-api/get-photos (:database components) {:id       photo-id
+                                            photo   (albums-api/get-photos (:database components) {:id       id
                                                                                                    :hostname hostname})]
                                         (if (empty? photo)
                                           (do
                                             (log/warnf "Photo `%s` does not exist for `%s`" photo-id hostname)
                                             (not-found {:reason "Missing"}))
-                                          (ok (albums-api/update-photo! (:database components) (merge {:id photo-id}
+                                          (ok (albums-api/update-photo! (:database components) (merge {:id id}
                                                                                                       body-params))))))}
                   }]
 
