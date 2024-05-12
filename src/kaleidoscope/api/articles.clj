@@ -25,6 +25,16 @@
     (log/infof "Created Article: %s" result)
     result))
 
+(defn update-article!
+  [db {:keys [id public-visibility] :as article}]
+  (log/infof "Updating Article: %s" article)
+  (let [now    (utils/now)
+        result (rdbms/update! db
+                              :articles   (assoc article :modified-at now)
+                              :ex-subtype :UnableToCreateArticle)]
+    (log/infof "Updated Article: %s" result)
+    result))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Branches
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
