@@ -8,7 +8,7 @@ Identity Provider from it's officially supported docker image
 ## Notes on the Keycloak upgrade from Wildfly to Quarkus:
 Old versions of Keycloak used an Application Server to manage deployment.
 However, Keycloak released a new version of the container that does not depend
-on an  Application Server (Wildfly) for deployment. This keeps the image and the
+on an Application Server (Wildfly) for deployment. This keeps the image and the
 container much smaller and simpler. I recently upgraded Keycloak to use the new
 image, which depends on Quarkus instead of Wildfly.
 
@@ -26,19 +26,18 @@ and directly run the container. Then, you can connect to it in your browser usin
 
 ```
 docker run -p 8080:8080 \
-    # If you're on a Mac 
     --platform linux/arm64 \
     -e KC_DB=postgres \
-    -e KC_DB_URL_HOST=<HOSTNAME> \
-    -e KC_DB_DATABASE=<DATABASE-NAME> \
-    -e KC_DB_USERNAME=<USERNAME> \
-    -e KC_DB_PASSWORD=<PASSWORD> \
+    -e KC_DB_URL_HOST="host.docker.internal" \
+    -e KC_DB_DATABASE="keycloak" \
+    -e KC_DB_USERNAME="keycloak" \
+    -e KC_DB_PASSWORD="keycloak" \
     -e KC_HOSTNAME_STRICT=false \
     -e KC_EDGE=proxy \
     -e KC_HTTP_ENABLED=true \
     -e KC_FEATURES=token-exchange \
     quay.io/keycloak/keycloak:20.0.3 start
-    ```
+```
 
 ### Setting up a Local postgres database for testing
 ```bash
