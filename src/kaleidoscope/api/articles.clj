@@ -1,5 +1,7 @@
 (ns kaleidoscope.api.articles
-  (:require [kaleidoscope.persistence.rdbms :as rdbms]
+  (:require [clojure.set :as set]
+            [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.api.groups :as api.groups]
             [kaleidoscope.utils.core :as utils]
             [next.jdbc :as next]
             [taoensso.timbre :as log]))
@@ -21,6 +23,16 @@
                                           (nil? article-title) (assoc :article-title article-url))
                               :ex-subtype :UnableToCreateArticle)]
     (log/infof "Created Article: %s" result)
+    result))
+
+(defn update-article!
+  [db {:keys [id public-visibility] :as article}]
+  (log/infof "Updating Article: %s" article)
+  (let [now    (utils/now)
+        result (rdbms/update! db
+                              :articles   (assoc article :modified-at now)
+                              :ex-subtype :UnableToCreateArticle)]
+    (log/infof "Updated Article: %s" result)
     result))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -109,7 +121,81 @@
           (create-version! tx branch article-version))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Audiences:
+;; - Attach a group to an article
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def get-article-audiences
+  (rdbms/make-finder :full-article-audiences))
+
+(defn- -add-audiences-to-article!
+  [db article-id group-ids]
+  (log/infof "Adding an audience to article %s" article-id)
+  (let [now (utils/now)]
+    (rdbms/insert! db
+                   :article-audiences (for [group-id group-ids
+                                            :let     [id (utils/uuid)]]
+                                        {:id         id
+                                         :group-id   (str group-id)
+                                         :article-id article-id
+                                         :created-at now})
+                   :ex-subtype :UnableToAddArticleAudience)))
+
+(defn add-audience-to-article!
+  [db {:keys [id] :as article} group]
+  ;; TODO: only go to DB after we know we have to
+  (let [existing-audience (get-article-audiences db {:article-id (:id article)
+                                                     :group-id   (str (:id group))})]
+    (cond
+      (nil? (:hostname article))          (log/warnf "Article is missing hostname %s" article)
+      (empty? (get-articles db article)) (log/warnf "No articles matching %s" article)
+
+      ;; Only attempt to create an audience if it doesn't exist.
+      ;; This is a workaround so I don't have to deal with a multiple upsert in both
+      ;; HSQL and Postgres
+      (not-empty existing-audience) existing-audience
+      (empty? existing-audience)    (-add-audiences-to-article! db (:id article) [(:id group)]))))
+
+(defn delete-article-audience!
+  [database audience-id]
+  (log/infof "Deleting Article Audience: %s" audience-id)
+  (rdbms/delete! database
+                 :article-audiences audience-id
+                 :ex-subtype :UnableToDeleteArticleAudience))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Published articles
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def get-published-articles
+(def -get-published-articles
   (rdbms/make-finder :published-articles))
+
+;; TODO: Hostname should probably be added to groups too
+(defn get-published-articles
+  "Query should have {:hostname , :other...}"
+  [db {:keys [hostname article-url] :as query} {:keys [email] :as _user}]
+  (let [article-id (when article-url
+                     (:id (first (get-articles db {:article-url article-url
+                                                   :hostname    hostname}))))
+
+        users-groups (->> {:email email}
+                          (api.groups/get-group-memberships db)
+                          (map :group-id)
+                          (into #{}))
+        articles     (->> {:hostname hostname}
+                          (get-article-audiences db))
+
+        public-article-ids     (mapv :id (get-articles db {:public-visibility true
+                                                           :hostname          hostname}))
+        restricted-article-ids (->> articles
+                                    (filter (fn [{:keys [group-id article-id public-visibility] :as audience}]
+                                              (contains? users-groups group-id)))
+                                    (mapv :article-id))
+
+        allowed-article-ids (into #{} (concat public-article-ids restricted-article-ids))]
+    (log/infof "User `%s` is allowed to view article-ids %s" email allowed-article-ids)
+    (cond
+      (and article-url
+           (contains? allowed-article-ids article-id)) (-get-published-articles db {:article-id article-id
+                                                                                    :hostname   hostname})
+      (not-empty allowed-article-ids)                  (-get-published-articles db {:article-id allowed-article-ids
+                                                                                    :hostname   hostname})
+      :else                                            [])))

@@ -210,7 +210,7 @@
                       :else    (str v)))
                   (vals m)))))
 
-(defn update! [database table m & {:keys [ex-subtype]}]
+(defn update! [database table {:keys [id] :as m} & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
     (try+
      (if (= (class database) org.h2.jdbc.JdbcConnection)
@@ -218,9 +218,10 @@
                       (hsql-upsert table m)
                       {:return-keys true
                        :builder-fn  rs/as-unqualified-kebab-maps})
-       [(next.sql/insert! database table m
+       [(next.sql/update! database table (dissoc m :id)
+                          {:id id}
                           (merge next/snake-kebab-opts
-                                 {:suffix     (format "ON CONFLICT (id) DO UPDATE SET %s" (pg-matched m))
+                                 {:suffix    "RETURNING *"
                                   :builder-fn rs/as-unqualified-kebab-maps}))]))))
 
 (defn delete! [database table ids & {:keys [ex-subtype]}]

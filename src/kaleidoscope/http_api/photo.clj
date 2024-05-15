@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.photo
   (:require [clojure.string :as str]
+            [cheshire.core :as json]
             [image-resizer.core :as rc]
             [image-resizer.format :as rf]
             [kaleidoscope.api.albums :as albums-api]
@@ -65,7 +66,7 @@
                                                                                     (assoc :file-input-stream image-stream
                                                                                            :extension         extension))})))]
       {:photo-id photo-id
-       :versions resized})))
+       :versions (vec resized)})))
 
 (def Version
   [:map
@@ -122,7 +123,9 @@
                                     result       (mapv (partial process-photo-upload! req) file-uploads)]
 
                                 ;; Todo create a batch response
-                                (assoc-in (created "/v2/photos" result)
+                                ;; Must be JSON encoded because Jetty doesn't know how to serialize
+                                ;; Clojure vectors
+                                (assoc-in (created "/v2/photos" (json/encode result))
                                           [:headers "Content-Type"]
                                           "application/json")))}}]
 
@@ -142,18 +145,50 @@
                                         (if (empty? photos)
                                           (not-found {:reason "Missing"})
                                           (ok (map (fn [{:keys [id filename] :as photo}]
-                                                     (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos)))))}}]
+                                                     (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos)))))}
+
+                  :put {:summary   "Update photo"
+                        :responses (merge hu/openapi-401
+                                          {200 {:description "The photo metadata that was updated"
+                                                :content     {"application/json"
+                                                              {:schema [:any]}}}})
+
+                        :request    {:description "Photo metadata"
+                                     :content     {"application/json"
+                                                   {:schema   [:map
+                                                               [:title {:optional true} :string]
+                                                               [:description {:optional true} :string]]
+                                                    :examples {"example-update" {:summary "Example update"
+                                                                                 :value   {:title       "My title"
+                                                                                           :description "My photo taken somewhere"}}}}}}
+                        :parameters {:path {:photo-id uuid?}}
+                        :handler    (fn [{:keys [components body-params path-params] :as request}]
+                                      (let [{:keys [photo-id]} path-params
+
+                                            id       (parse-uuid photo-id)
+                                            _        (log/infof "Getting photo %s" photo-id)
+                                            hostname (hu/get-host request)
+                                            photo   (albums-api/get-photos (:database components) {:id       id
+                                                                                                   :hostname hostname})]
+                                        (if (empty? photo)
+                                          (do
+                                            (log/warnf "Photo `%s` does not exist for `%s`" photo-id hostname)
+                                            (not-found {:reason "Missing"}))
+                                          (ok (albums-api/update-photo! (:database components) (merge {:id id}
+                                                                                                      body-params))))))}
+                  }]
 
    ["/:photo-id/:filename" {:get {:summary    "Get a particular photo"
                                   :responses  (merge hu/openapi-401
                                                      {200 {:description "The photo"
                                                            :content     {"application/json"
                                                                          {:schema [:any]}}}})
-                                  :parameters {:path {:photo-id string?}}
+                                  :parameters {:path {:photo-id string?
+                                                      :filename string?}}
                                   :handler    (fn [{:keys [components parameters] :as request}]
                                                 (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
-                                                  (let [path-params                  (:path parameters)
-                                                        [{:keys [path] :as version}] (albums-api/get-full-photos (:database components) path-params)]
+                                                  (let [path-params                                     (:path parameters)
+                                                        [{:keys [path] :as version} :as photo-versions] (albums-api/get-full-photos (:database components) path-params)]
                                                     (hu/get-resource (:static-content-adapters components) (-> request
                                                                                                                (assoc :uri path)
                                                                                                                hu/kebab-case-headers)))))}}]

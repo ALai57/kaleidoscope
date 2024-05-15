@@ -49,7 +49,34 @@
                          (let [article-url (:article-url path-params)]
                            (if-let [article (first (articles-api/get-articles (:database components) {:article-url article-url}))]
                              (ok article)
-                             (not-found {:reason "Missing"}))))}}]
+                             (not-found {:reason "Missing"}))))}
+     :put {:summary    "Update a single article"
+           :responses  (merge hu/openapi-404 hu/openapi-500
+                              {200 {:description "A single article"
+                                    :content     {"application/json"
+                                                  {:schema   models.articles/GetArticleResponse
+                                                   :examples {"example-article" {:summary "Example article"
+                                                                                 :value   models.articles/example-article}}}}}})
+           :request    {:description "Update article request"
+                        :content     {"application/json"
+                                      {:schema   [:map
+                                                  [:public-visibility :string]]
+                                       :examples {"example-request-1" {:summary "Example request 1"
+                                                                       :value   {:public-visibility true}}}}}}
+           :parameters {:path {:article-url string?}}
+           :handler    (fn [{:keys [components path-params body-params] :as request}]
+                         (let [article-url                (:article-url path-params)
+                               [{:keys [id] :as article}] (articles-api/get-articles (:database components)
+                                                                                     {:article-url article-url
+                                                                                      :hostname    (hu/get-host request)})]
+                           (if article
+                             (ok (first (articles-api/update-article! (:database components)
+                                                                      (-> body-params
+                                                                          (select-keys [:public-visibility])
+                                                                          (update :public-visibility parse-boolean)
+                                                                          (merge {:id id})))))
+                             (not-found {:reason "Missing"}))))}
+     }]
    ["/:article-url/branches"
     {:tags ["branches"]
      :get  {:summary    "Retrieve all branches for a specific article"
@@ -133,9 +160,10 @@
                                                                                       :value   [models.articles/example-composition-1]}}}}}})
 
               :handler (fn [{:keys [components] :as request}]
-                         (log/infof "models.articles/Getting compositions for host `%s`" (hu/get-host request))
+                         (log/infof "Getting compositions for host `%s`" (hu/get-host request))
                          (ok (articles-api/get-published-articles (:database components)
-                                                                  {:hostname (hu/get-host request)})))}}]
+                                                                  {:hostname (hu/get-host request)}
+                                                                  (:identity request))))}}]
    ["/:article-url"
     {:get {:summary    "Retrieve a single published article"
            :parameters {:path {:article-url string?}}
@@ -147,7 +175,10 @@
                                                                                  :value   models.articles/example-composition-1}}}}}})
            :handler    (fn [{:keys [components parameters] :as request}]
                          (log/infof "Retrieving composition %s" (get-in parameters [:path :article-url]))
-                         (let [result (articles-api/get-published-articles (:database components) {:article-url (get-in parameters [:path :article-url])})]
+                         (let [result (articles-api/get-published-articles (:database components)
+                                                                           {:article-url (get-in parameters [:path :article-url])
+                                                                            :hostname    (hu/get-host request)}
+                                                                           (:identity request))]
                            (if (empty? result)
                              (not-found {:reason "Missing"})
                              (ok (first result)))))}}]])

@@ -139,6 +139,7 @@
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
                "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
                                                                                  :sub          "my-user-id"
+                                                                                 :email        "test@test.com" ;; Critical for identity-based access
                                                                                  :realm_access {:roles ["andrewslai.com:admin"
                                                                                                         "andrewslai.localhost:admin"
                                                                                                         "sahiltalkingcents.com:admin"
@@ -185,7 +186,7 @@
 
                                       st/SessionTracker
                                       (start! [this]
-                                        (log/info "Starting session with mock session tracker..."))))}
+                                        (log/debug "Starting session with mock session tracker..."))))}
    :default   "none"})
 
 (def DEFAULT-BOOT-INSTRUCTIONS

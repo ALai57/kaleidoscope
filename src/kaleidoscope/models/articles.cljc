@@ -8,6 +8,7 @@
    [:article-title :string]
    [:article-tags  :string]
    [:hostname      :string]
+   [:public-visibility :boolean]
    [:summary       [:maybe :string]]
    [:modified-at   inst?]
    [:created-at    inst?]])
@@ -19,6 +20,7 @@
    [:article-url        :string]
    [:article-created-at inst?]
    [:author        :string]
+   [:public-visibility :boolean]
    [:branch-id     :int]
    [:branch-name   :string]
    [:created-at    inst?]
@@ -34,6 +36,7 @@
    [:article-title      :string]
    [:article-url        :string]
    [:article-created-at inst?]
+   [:public-visibility :boolean]
    [:author        :string]
    [:branch-id     :int]
    [:branch-name   :string]

@@ -55,6 +55,13 @@
 (def get-photo-versions
   (rdbms/make-finder :photo_versions))
 
+(defn update-photo!
+  [database photo]
+  (let [now-time (utils/now)]
+    (first (rdbms/update! database
+                          :photos     photo
+                          :ex-subtype :UnableToUpdatePhoto))))
+
 (defn create-photo-version!
   [database photo-version]
   (let [now-time (utils/now)]

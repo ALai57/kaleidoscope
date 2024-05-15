@@ -249,7 +249,8 @@ resource "aws_alb" "main" {
   # launch lbs in public or private subnets based on "internal" variable
   internal = false
 
-  subnets = data.aws_subnets.all.ids
+  # Only use AZ us-east-1a and 1b to reduce ENI costs
+  subnets = ["subnet-e5cea8cb", "subnet-159eb55f"] #data.aws_subnets.all.ids
   security_groups = ["${data.aws_security_group.default.id}", "${aws_security_group.ecs_allow_http_https.id}"]
 
 }
@@ -503,7 +504,13 @@ resource "aws_ecs_service" "kaleidoscope_service" {
 
   network_configuration {
     security_groups  = ["${data.aws_security_group.default.id}", "${aws_security_group.ecs_allow_http_https.id}"]
-    subnets          = data.aws_subnets.all.ids
+
+    # Only use AZ us-east-1a and 1b - because the LB should
+    # be the only one able to directly connect
+    subnets = ["subnet-e5cea8cb", "subnet-159eb55f"] #data.aws_subnets.all.ids
+
+    # Public IP allows the service to pull a container from the ECR registry
+    # without needing an internet gateway or VPC endpoint
     assign_public_ip = "true"
   }
 
