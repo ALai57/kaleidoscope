@@ -2,7 +2,6 @@
   (:require
    [cheshire.core :as json]
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [honey.sql.helpers :as hh]
    [kaleidoscope.persistence.rdbms :as rdbms]
    [kaleidoscope.test-main :as tm]
    [taoensso.timbre :as log]))
@@ -16,10 +15,6 @@
   {:display-name "another-theme"
    :id           "my-id"
    :config       (json/encode {:secondary {:something "else"}})})
-
-(def example-honey-insert
-  (-> (hh/insert-into :themes)
-      (hh/values [example-payload])))
 
 (deftest hsql-upsert-test
   (testing "happy path"
@@ -38,29 +33,4 @@
   ;; WHEN MATCHED THEN UPDATE SET V = S.V
   ;; WHEN NOT MATCHED THEN INSERT VALUES (S.ID, S.V);
 
-  (def example-raw
-    ;; => {:insert-into [:themes],
-    ;;     :values
-    ;;     [{:display-name "another-theme",
-    ;;       :id "my-id",
-    ;;       :config "{\"secondary\":{\"something\":\"else\"}}"}],
-    ;;     :on-conflict [:id],
-    ;;     :do-update-set
-    ;;     [{:display-name "another-theme",
-    ;;       :config "{\"secondary\":{\"something\":\"else\"}}"}]}
-
-    (let [m {:display-name "another-theme"
-             :id           "my-id"
-             :config       (json/encode {:secondary {:something "else"}})}]
-      (-> (hh/insert-into :themes)
-          (hh/values [m])
-          (hh/on-conflict :id)
-          (hh/do-update-set (dissoc m :id)))))
-
-  (def example-formatted
-    (hsql/format example-raw))
-
-  (using example-raw)
-  (on example-raw)
-  (not-matched example-raw)
   )

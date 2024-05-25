@@ -1,6 +1,7 @@
 (ns kaleidoscope.persistence.rdbms
   (:require [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
+            [clojure.string :as str]
             [honey.sql :as hsql]
             [honey.sql.helpers :as hh]
             [next.jdbc :as next]
@@ -74,12 +75,6 @@
   (next/execute! conn stmt {:return-keys true
                             :builder-fn  rs/as-unqualified-kebab-maps}))
 
-(defn select
-  [database m]
-  (next/execute! database
-                 (hsql/format m)
-                 {:builder-fn rs/as-unqualified-kebab-maps}))
-
 (defn find-by-keys
   ([database table query-map]
    (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
@@ -109,7 +104,7 @@
                                                                   :from   table
                                                                   :where  [:in where-in-key where-in-vals]})
                                                     {:builder-fn rs/as-unqualified-kebab-maps}))
-           :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported"))))))))
+           :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported" {}))))))))
 
 (defn insert! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
@@ -125,7 +120,7 @@
                                                      :builder-fn            rs/as-unqualified-kebab-maps}))]
          (next.sql/query database (concat [(format "SELECT * FROM %s WHERE id in (%s)"
                                                    (csk/->snake_case_string table)
-                                                   (clojure.string/join ", " (repeat (count new-ids) "?")))]
+                                                   (str/join ", " (repeat (count new-ids) "?")))]
                                           (mapv :id new-ids))
                          (merge next/snake-kebab-opts
                                 {:builder-fn rs/as-unqualified-kebab-maps})))
@@ -155,8 +150,8 @@
 
 (defn using
   [m]
-  (let [qns     (clojure.string/join ", " (repeat (count m) "?"))
-        sources (clojure.string/join ", " (map csk/->snake_case_string (keys m)))]
+  (let [qns     (str/join ", " (repeat (count m) "?"))
+        sources (str/join ", " (map csk/->snake_case_string (keys m)))]
     (format "(VALUES (%s)) AS source(%s)" qns sources)))
 
 (defn eq-stmts
@@ -168,24 +163,14 @@
   (let [field-names  (map csk/->snake_case_string (keys m))
         source-names (map (partial str "source.") field-names)]
     (format "(%s) VALUES (%s)"
-            (clojure.string/join ", " field-names)
-            (clojure.string/join ", " source-names))))
+            (str/join ", " field-names)
+            (str/join ", " source-names))))
 
 (defn matched
   [m]
   (let [m   (map csk/->snake_case_string (keys (dissoc m :id)))
         eq-stmts (map eq-stmts m)]
-    (clojure.string/join "," eq-stmts)))
-
-(defn pg-eq-stmts
-  [field]
-  (format "%s = EXCLUDED.%s" field field))
-
-(defn pg-matched
-  [m]
-  (let [m   (map csk/->snake_case_string (keys (dissoc m :id :created-at)))
-        eq-stmts (map pg-eq-stmts m)]
-    (clojure.string/join "," eq-stmts)))
+    (str/join "," eq-stmts)))
 
 (defn hsql-upsert
   "Insert into the DB and return the inserted row.
@@ -197,11 +182,11 @@
         when-matched-stmt     (format "WHEN MATCHED THEN UPDATE SET %s" (matched m))
         when-not-matched-stmt (format "WHEN NOT MATCHED THEN INSERT %s" (not-matched m))
         returning-*-stmt      (format "SELECT * FROM FINAL TABLE (%s)"
-                                      (clojure.string/join " " [merge-stmt
-                                                                using-stmt
-                                                                on-stmt
-                                                                when-matched-stmt
-                                                                when-not-matched-stmt]))]
+                                      (str/join " " [merge-stmt
+                                                     using-stmt
+                                                     on-stmt
+                                                     when-matched-stmt
+                                                     when-not-matched-stmt]))]
     (concat [returning-*-stmt]
             (mapv (fn [v]
                     (cond
@@ -239,6 +224,7 @@
                       (when ex-subtype
                         {:subtype ex-subtype})))))))
 
+#_:clj-kondo/ignore
 (comment
   (def example-user
     {:id         #uuid "f5778c59-e57d-46f0-b5e5-516e5d36481c"

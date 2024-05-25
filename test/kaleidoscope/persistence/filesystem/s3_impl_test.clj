@@ -19,6 +19,7 @@
       (f))))
 
 
+#_:clj-kondo/ignore
 (comment
   (defspec put-object-spec
     (prop/for-all [bucket       gen-s3/gen-bucket-name
