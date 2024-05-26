@@ -17,7 +17,8 @@
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]
-            ))
+            )
+  (:import (com.stripe Stripe)))
 
 (try
   (when-let [aws-profile (System/getenv "AWS_PROFILE")]
@@ -61,8 +62,17 @@
 
 (defn init-otel! []
   (println (bean (otel/get-global-otel!)))
-  (span/with-span! {:name "kaleidoscope.initialization"}
+  (span/with-span! {:name "kaleidoscope.initialization.otel"}
     (println "Initializing Open Telemetry")))
+
+(defn init-stripe! [env]
+  (span/with-span! {:name "kaleidoscope.initialization.stripe"}
+    (println "Initializing Stripe")
+    (if-let [api-key (get env "KALEIDOSCOPE_STRIPE_API_KEY")]
+      (do (set! Stripe/apiKey api-key)
+          (println "Found stripe API key - initializing"))
+      (println "Could not find stripe API key. Is `STRIPE_API_KEY` environment variable set?"))
+    ))
 
 (defn initialize-schema-enforcement!
   "Enforce Malli function schemas in specific namespaces.
@@ -96,6 +106,7 @@
     (log/infof "Starting kaleidoscope. Listening to HTTP on port %s" http-port)
     (initialize-logging! env)
     (init-otel!)
+    (init-stripe! env)
     (initialize-schema-enforcement!)
     (-> system-components
         (env/make-http-handler)
@@ -118,6 +129,11 @@
     (log/info "Caught SIGHUP, doing nothing."))
 
   (start-application! (into {} (System/getenv))) ;; b/c getenv returns java.util.Collections$UnmodifiableMap
+  )
+
+(comment
+  (init-stripe! (into {} (System/getenv)))
+  Stripe/apiKey
   )
 
 (comment

@@ -423,6 +423,21 @@
     (is (match? {:status 200 :body (malli/validator portfolio/Portfolio)}
                 response))))
 
+(deftest payments-test
+  (let [app      (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                       "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                       "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                       "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                      (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                      env/prepare-kaleidoscope
+                      kaleidoscope/kaleidoscope-app
+                      tu/wrap-clojure-response)
+        response (app (mock/request :get "/v1/payments"))]
+    (is (match? {:status  200
+                 :headers {"Content-Type" "application/json; charset=utf-8"}
+                 :body    (malli/validator kaleidoscope/PaymentIntent)}
+                response))))
+
 (defn make-example-file-upload-request-png
   "A function because the body is an input stream, which is consumable and must
   be regenerated each request"

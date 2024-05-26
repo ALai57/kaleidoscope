@@ -3,6 +3,7 @@
    [clojure.stacktrace :as stacktrace]
    [clojure.string :as str]
    [kaleidoscope.api.authorization :as auth]
+   [kaleidoscope.clients.stripe :as stripe]
    [kaleidoscope.http-api.middleware :as mw]
    [kaleidoscope.http-api.admin :refer [reitit-admin-routes]]
    [kaleidoscope.http-api.album :refer [reitit-albums-routes]]
@@ -79,6 +80,20 @@
    ["/media/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
                       :handler   get-static-resource}}]])
 
+(def PaymentIntent
+  [:map
+   [:client-secret :string]])
+
+(def reitit-stripe-routes
+  "Stripe requires the frontend to receive a payment intent secret that the backend generates
+
+  https://docs.stripe.com/payments/accept-a-payment?ui=elements&architecture-style=resources&shell=true&api=true&resource=payment_intents&action=create"
+  ["" {:no-doc true}
+   ["/v1/payments"      {:get {:span-name "kaleidoscope.payments.get"
+                               :handler   (fn [{:keys [components] :as request}]
+                                            {:status 200
+                                             :body   (stripe/payment-intent {})})}}]])
+
 (defn inject-components
   [components]
   (fn wrap [handler]
@@ -114,6 +129,7 @@
         reitit-photos-routes
         reitit-portfolio-routes
         reitit-themes-routes
+        reitit-stripe-routes
         ]
        reitit-config)
       (ring/create-default-handler
