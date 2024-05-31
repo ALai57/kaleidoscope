@@ -458,6 +458,10 @@ resource "aws_ecs_task_definition" "kaleidoscope_task" {
       {
         "name": "KALEIDOSCOPE_BUGSNAG_KEY",
         "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:bugsnag_key::"
+      },
+      {
+        "name": "KALEIDOSCOPE_STRIPE_API_KEY",
+        "valueFrom": "${aws_secretsmanager_secret.kaleidoscope_secrets.arn}:stripe_api_key::"
       }
      ],
     "environment": [
