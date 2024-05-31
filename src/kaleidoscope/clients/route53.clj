@@ -1,7 +1,6 @@
 (ns kaleidoscope.clients.route53
   (:require [amazonica.aws.route53domains :as r53d]
             [amazonica.aws.simpleemail :as ses]
-            [amazonica.core :as amazon]
             [clojure.string :as str]
             [clojure.java.io :as io]
             [selmer.parser :as selmer]

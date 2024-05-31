@@ -4,18 +4,19 @@
    [clojure.string :as str]
    [kaleidoscope.api.authorization :as auth]
    [kaleidoscope.clients.stripe :as stripe]
-   [kaleidoscope.http-api.middleware :as mw]
    [kaleidoscope.http-api.admin :refer [reitit-admin-routes]]
    [kaleidoscope.http-api.album :refer [reitit-albums-routes]]
    [kaleidoscope.http-api.articles :refer [reitit-articles-routes reitit-branches-routes reitit-compositions-routes]]
    [kaleidoscope.http-api.audiences :refer [reitit-audiences-routes]]
    [kaleidoscope.http-api.groups :refer [reitit-groups-routes]]
+   [kaleidoscope.http-api.http-utils :as http-utils]
+   [kaleidoscope.http-api.middleware :as mw]
    [kaleidoscope.http-api.photo :refer [reitit-photos-routes]]
    [kaleidoscope.http-api.ping :refer [reitit-ping-routes]]
    [kaleidoscope.http-api.portfolio :refer [reitit-portfolio-routes]]
+   [kaleidoscope.http-api.registration :refer [reitit-registration-routes]]
    [kaleidoscope.http-api.swagger :refer [reitit-openapi-routes]]
    [kaleidoscope.http-api.themes :refer [reitit-themes-routes]]
-   [kaleidoscope.http-api.http-utils :as http-utils]
    [kaleidoscope.trace :as-alias trace]
    [reitit.ring :as ring]
    [ring.util.http-response :refer [found]]
@@ -130,6 +131,7 @@
         reitit-portfolio-routes
         reitit-themes-routes
         reitit-stripe-routes
+        reitit-registration-routes
         ]
        reitit-config)
       (ring/create-default-handler
