@@ -45,6 +45,7 @@
            peridot/peridot                                      {:mvn/version "0.5.4"}
            ring/ring                                            {:mvn/version "1.9.6"}
            ring/ring-json                                       {:mvn/version "0.5.1"}
+           selmer/selmer                                        {:mvn/version "1.12.61"}
            slingshot/slingshot                                  {:mvn/version "0.12.2"}
            spootnik/signal                                      {:mvn/version "0.2.4"}}
  :aliases {:dev  {:extra-deps {djblue/portal {:mvn/version "0.37.1"}}}
