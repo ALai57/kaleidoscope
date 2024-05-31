@@ -34,14 +34,12 @@
                               :error  "PENDING"})))
 
 (defn receive-order!
-  [{:keys [domain price name email]}]
-  (let [email-text (selmer/render template {:name   "andrew"
-                                            :domain domain
-                                            :price  price})]
+  [{:keys [domain price name email] :as inputs}]
+  (let [email-text (selmer/render template inputs)]
     (ses/send-email {:destination        {:to-addresses ["andrew.s.lai5@gmail.com"]}
                      :reply-to-addresses ["andrew.s.lai5@gmail.com"]
                      :source             "andrew@andrewslai.com"
-                     :message            {:subject "Intent to purchase domain"
+                     :message            {:subject (format "Intent to purchase %s" domain)
                                           :body    {:html email-text}}}))
   )
 
