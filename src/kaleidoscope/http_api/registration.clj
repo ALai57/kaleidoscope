@@ -19,5 +19,4 @@
                                 [:domain :string]]}
            :handler    (fn [{:keys [components parameters] :as request}]
                          (let [domain (get-in parameters [:query :domain])]
-                           (println "DOMAIN" domain)
                            (ok (r53/check-availability domain))))}}]])
