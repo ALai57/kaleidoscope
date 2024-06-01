@@ -435,7 +435,8 @@
                       env/prepare-kaleidoscope
                       kaleidoscope/kaleidoscope-app
                       tu/wrap-clojure-response)
-        response (app (mock/request :get "/v1/payments"))]
+        response (app (-> (mock/request :post "/v1/payments")
+                          (mock/json-body {:amount 1200 :currency "USD"})))]
     (is (match? {:status  200
                  :headers {"Content-Type" "application/json; charset=utf-8"}
                  :body    (malli/validator kaleidoscope/PaymentIntent)}
@@ -456,12 +457,12 @@
                    :headers {"Content-Type" "application/json; charset=utf-8"}
                    :body    {:domain    "andrewslai.net"
                              :available true
-                             :prices    [{:registration-price     {:price 15 :currency "USD"}
-                                          :transfer-price         {:price 15 :currency "USD"}
-                                          :renewal-price          {:price 15 :currency "USD"}
-                                          :change-ownership-price {:price 0 :currency "USD"}
-                                          :restoration-price      {:price 57 :currency "USD"}
-                                          :net                    "net"}]}}
+                             :prices    {:registration-price     {:price 15 :currency "USD"}
+                                         :transfer-price         {:price 15 :currency "USD"}
+                                         :renewal-price          {:price 15 :currency "USD"}
+                                         :change-ownership-price {:price 0 :currency "USD"}
+                                         :restoration-price      {:price 57 :currency "USD"}
+                                         :net                    "net"}}}
                   response))))
 
 (defn make-example-file-upload-request-png

@@ -7,8 +7,8 @@
   "Returns a client secret - which must be passed to the Frontend to initiate a payment"
   [{:keys [amount currency]}]
   (let [params (.build (doto (PaymentIntentCreateParams/builder)
-                         (.setAmount 1099)
-                         (.setCurrency "usd")))
+                         (.setAmount (long amount))
+                         (.setCurrency currency)))
         pi (PaymentIntent/create params)]
     {:client-secret (.getClientSecret pi)}))
 

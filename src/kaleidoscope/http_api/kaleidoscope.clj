@@ -90,10 +90,24 @@
 
   https://docs.stripe.com/payments/accept-a-payment?ui=elements&architecture-style=resources&shell=true&api=true&resource=payment_intents&action=create"
   ["" {:no-doc true}
-   ["/v1/payments"      {:get {:span-name "kaleidoscope.payments.get"
-                               :handler   (fn [{:keys [components] :as request}]
-                                            {:status 200
-                                             :body   (stripe/payment-intent {})})}}]])
+   ["/v1/payments"
+    {:post {:span-name "kaleidoscope.payments.create"
+
+            :responses {200 {:description "Payment secret"
+                             :content     {"application/json"
+                                           {:schema [:map
+                                                     [:client-secret :string]]}}}}
+            :request   {:description "Version"
+                        :content     {"application/json"
+                                      {:schema   [:map
+                                                  [:amount :int]
+                                                  [:currency :string]]
+                                       :examples {"example-price" {:summary "Example price"
+                                                                   :value   {:amount   12
+                                                                             :currency "USD"}}}}}}
+            :handler   (fn [{:keys [components body-params] :as request}]
+                         {:status 200
+                          :body   (stripe/payment-intent body-params)})}}]])
 
 (defn inject-components
   [components]

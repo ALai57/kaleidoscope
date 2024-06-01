@@ -20,10 +20,13 @@
       "UNAVAILABLE" (do (log/infof "Domain is unavailable")
                         {:domain    domain
                          :available false})
-      "AVAILABLE"   (let [prices (r53d/list-prices {:tld tld})]
+
+      ;; :prices is normally a vector, but since we're requesting for a specific TLD
+      ;; we always expect one and only one element
+      "AVAILABLE"   (let [prices (update (r53d/list-prices {:tld tld})
+                                         :prices first)]
 
                       ;; TODO: Send confirmation to purchaser
-
                       (merge {:domain    domain
                               :available true}
                              prices))
