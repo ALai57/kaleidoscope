@@ -10,12 +10,20 @@
 (def template
   (slurp (io/resource "email-templates/intent-to-purchase-domain.html")))
 
+(defn check-domain-availability
+  "A simple wrapper around amazonica that handles aws exceptions"
+  [domain]
+  (try
+    (r53d/check-domain-availability {:domain-name domain})
+    (catch com.amazonaws.services.route53domains.model.UnsupportedTLDException e
+      {:availability "UNSUPPORTED_TLD"})))
+
 (defn check-availability
   [domain]
   (log/infof "Checking availability for domain `%s`" domain)
   (let [parts                  (str/split domain #"\.")
         tld                    (last parts)
-        {:keys [availability]} (r53d/check-domain-availability {:domain-name domain})]
+        {:keys [availability]} (check-domain-availability domain)]
     (case availability
       "UNAVAILABLE" (do (log/infof "Domain is unavailable")
                         {:domain    domain
@@ -23,13 +31,16 @@
 
       ;; :prices is normally a vector, but since we're requesting for a specific TLD
       ;; we always expect one and only one element
-      "AVAILABLE"   (let [prices (update (r53d/list-prices {:tld tld})
-                                         :prices first)]
+      "AVAILABLE" (let [prices (update (r53d/list-prices {:tld tld})
+                                       :prices first)]
 
-                      ;; TODO: Send confirmation to purchaser
-                      (merge {:domain    domain
-                              :available true}
-                             prices))
+                    ;; TODO: Send confirmation to purchaser
+                    (merge {:domain    domain
+                            :available true}
+                           prices))
+
+      "UNSUPPORTED_TLD"      {:domain domain
+                              :error  "UNSUPPORTED_TLD"}
       "INVALID_NAME_FOR_TLD" {:domain domain
                               :error  "INVALID_NAME_FOR_TLD"}
       "PENDING"              {:domain domain
@@ -48,9 +59,13 @@
 (comment
   (r53d/check-domain-availability {:domain-name "andrewslai.net.com"})
   (r53d/check-domain-availability {:domain-name "andrewslai.com"})
+  (r53d/check-domain-availability {:domain-name "andrewslai.ai"})
   ;; => {:availability "UNAVAILABLE"}
 
+  (check-domain-availability "andrewslai.ai")
+
   (r53d/list-prices {:tld "com"})
+  (r53d/list-prices {:tld "ai"})
 
   (check-availability "andrewfff.com")
   ;; => {:domain "andrewfff.com",
