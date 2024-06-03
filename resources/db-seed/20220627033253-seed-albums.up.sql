@@ -6,9 +6,9 @@ INSERT INTO albums VALUES
 --;;
 
 INSERT INTO photos VALUES
-('4a3db5ec-358c-4e36-9f19-3e0193001ff4', 'My first photo',  '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'andrewslai.localhost', 'Description 1'),
-('f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4', 'My second photo', '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'andrewslai.localhost', 'A photo I took somewhere'),
-('bb854ba0-974c-46dc-b403-cbfd0f36e88f', 'My third photo',  '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'andrewslai.localhost', 'Another photo!');
+('4a3db5ec-358c-4e36-9f19-3e0193001ff4', 'My first photo',  '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'andrewslai.com', 'Description 1'),
+('f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4', 'My second photo', '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'andrewslai.com', 'A photo I took somewhere'),
+('bb854ba0-974c-46dc-b403-cbfd0f36e88f', 'My third photo',  '2022-02-01T00:00:00Z', '2022-02-01T00:00:00Z', 'andrewslai.com', 'Another photo!');
 
 --;;
 

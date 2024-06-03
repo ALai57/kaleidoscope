@@ -141,6 +141,7 @@
                                                                                  :sub          "my-user-id"
                                                                                  :email        "test@test.com" ;; Critical for identity-based access
                                                                                  :realm_access {:roles ["andrewslai.com:admin"
+                                                                                                        "andrewslai.test:admin"
                                                                                                         "andrewslai.localhost:admin"
                                                                                                         "sahiltalkingcents.com:admin"
                                                                                                         "caheriaguilar.com:admin"
@@ -154,25 +155,27 @@
                "use-access-control-list" (fn [_env] kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST)}
    :default   "use-access-control-list"})
 
+;; TODO: Allow this to work using entire domain name. Otherwise, we could get collisions.
 (def kaleidoscope-static-content-adapter-boot-instructions
   {:name      :kaleidoscope-static-content-adapters
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn  [env] {"kaleidoscope"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
-                                              "andrewslai"                   (s3-storage/make-s3 {:bucket "andrewslai"})
-                                              "caheriaguilar"                (s3-storage/make-s3 {:bucket "caheriaguilar"})
-                                              "sahiltalkingcents"            (s3-storage/make-s3 {:bucket "sahiltalkingcents"})
-                                              "caheriaguilar.and.andrewslai" (s3-storage/make-s3 {:bucket "wedding"})})
-               "in-memory"        (fn [_env] {"kaleidoscope"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
-                                              "andrewslai"                   (memory/make-mem-fs {:store (atom memory/example-fs)})
-                                              "caheriaguilar"                (memory/make-mem-fs {:store (atom memory/example-fs)})
-                                              "sahiltalkingcents"            (memory/make-mem-fs {:store (atom memory/example-fs)})
-                                              "caheriaguilar.and.andrewslai" (memory/make-mem-fs {:store (atom memory/example-fs)})})
-               "local-filesystem" (fn  [env] {"kaleidoscope"                 (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
-                                              "andrewslai"                   (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
-                                              "caheriaguilar"                (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
-                                              "sahiltalkingcents"            (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
-                                              "caheriaguilar.and.andrewslai" (local-fs/make-local-fs (env->kaleidoscope-local-fs env))})}
+               "s3"               (fn  [env] {"kaleidoscope.com"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
+                                              "andrewslai.com"                   (s3-storage/make-s3 {:bucket "andrewslai"})
+                                              "caheriaguilar.com"                (s3-storage/make-s3 {:bucket "caheriaguilar"})
+                                              "sahiltalkingcents.com"            (s3-storage/make-s3 {:bucket "sahiltalkingcents"})
+                                              "caheriaguilar.and.andrewslai.com" (s3-storage/make-s3 {:bucket "wedding"})})
+               "in-memory"        (fn [_env] {"kaleidoscope.com"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
+                                              "andrewslai.com"                   (memory/make-mem-fs {:store (atom memory/example-fs)})
+                                              "andrewslai.test"                  (memory/make-mem-fs {:store (atom memory/example-fs)})
+                                              "caheriaguilar.com"                (memory/make-mem-fs {:store (atom memory/example-fs)})
+                                              "sahiltalkingcents.com"            (memory/make-mem-fs {:store (atom memory/example-fs)})
+                                              "caheriaguilar.and.andrewslai.com" (memory/make-mem-fs {:store (atom memory/example-fs)})})
+               "local-filesystem" (fn  [env] {"kaleidoscope.com"                 (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
+                                              "andrewslai.com"                   (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
+                                              "caheriaguilar.com"                (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
+                                              "sahiltalkingcents.com"            (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
+                                              "caheriaguilar.and.andrewslai.com" (local-fs/make-local-fs (env->kaleidoscope-local-fs env))})}
    :default   "s3"})
 
 (def exception-reporter-boot-instructions

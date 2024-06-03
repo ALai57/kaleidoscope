@@ -7,5 +7,5 @@
   (are [expected host]
     (= expected (sut/bucket-name {:headers {"host" host}}))
 
-    "andrewslai" "andrewslai.com"
-    "a.b.c"      "a.b.c.com"))
+    "andrewslai.com" "andrewslai.com"
+    "a.b.c.com"      "a.b.c.com"))

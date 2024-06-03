@@ -13,12 +13,6 @@
 (def MEDIA-FOLDER
   "media")
 
-(defn bucket-name
-  "Getting host name is from ring.util.request"
-  [request]
-  (let [server-name (get-in request [:headers "host"])]
-    (str/join "." (butlast (str/split server-name #"\.")))))
-
 (def IMAGE-DIMENSIONS
   ;; category  wd   ht
   {:raw       nil
@@ -44,9 +38,8 @@
   (let [{:keys [static-content-adapters database]} components
 
         hostname (hu/get-host req)
-        bucket   (bucket-name req)
 
-        static-content-adapter (get static-content-adapters bucket)
+        static-content-adapter (get static-content-adapters hostname)
 
         photo-id  (java.util.UUID/randomUUID)
         extension (get-file-extension filename)]

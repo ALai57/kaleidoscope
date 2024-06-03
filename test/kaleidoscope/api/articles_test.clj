@@ -259,11 +259,11 @@
                                                                                             :alias "foo"})
         [{audience-id :id}]     (articles/add-audience-to-article! database
                                                                    {:id       1 ;; Fixture -  my-first-article
-                                                                    :hostname "andrewslai.localhost"}
+                                                                    :hostname "andrewslai.com"}
                                                                    {:id new-group-id})
         [{audience-id :id}]     (articles/add-audience-to-article! database
                                                                    {:id       2 ;; Fixture -  my-first-article
-                                                                    :hostname "andrewslai.localhost"}
+                                                                    :hostname "andrewslai.com"}
                                                                    {:id new-group-id})
         ]
 
@@ -273,19 +273,19 @@
                     :article-url  "my-first-article"
                     :article-id   1
                     :author       "Andrew Lai"
-                    :hostname     "andrewslai.localhost"}
+                    :hostname     "andrewslai.com"}
                    {:article-tags "thoughts"
                     :article-url  "my-second-article"
                     :article-id   2
                     :author       "Andrew Lai"
-                    :hostname     "andrewslai.localhost"}]
+                    :hostname     "andrewslai.com"}]
                   (articles/get-published-articles database
-                                                   {:hostname "andrewslai.localhost"}
+                                                   {:hostname "andrewslai.com"}
                                                    {:email "b@z.com"}))))
     (testing "User not in any group cannot view any articles"
       (is (match? []
                   (articles/get-published-articles database
-                                                   {:hostname "andrewslai.localhost"}
+                                                   {:hostname "andrewslai.com"}
                                                    {:email "missing-group@nowhere.com"}))))
 
     ))
@@ -305,24 +305,24 @@
       (is (empty? (articles/get-article-audiences database {}))))
 
     ;; Use article ID 1 below because it is seeded in the DB with hostname
-    ;; `andrewslai.localhost`
+    ;; `andrewslai.com`
     (let [[{:keys [id]}] (articles/add-audience-to-article! database
                                                             {:id       1
-                                                             :hostname "andrewslai.localhost"}
+                                                             :hostname "andrewslai.com"}
                                                             {:id group-id})]
       (testing "Add an audience"
         (is (uuid? id)))
 
       (testing "Can retrieve the audience from the DB"
         (is (match? [{:id       id
-                      :hostname "andrewslai.localhost"}]
+                      :hostname "andrewslai.com"}]
                     (articles/get-article-audiences database {:id id}))))
 
       (testing "Duplicate audience insert does not blow up"
         (is (match? [{:id id}]
                     (articles/add-audience-to-article! database
                                                        {:id       1
-                                                        :hostname "andrewslai.localhost"}
+                                                        :hostname "andrewslai.com"}
                                                        {:id group-id}))))
 
       (testing "Can delete a audience"

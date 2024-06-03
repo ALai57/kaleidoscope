@@ -169,7 +169,7 @@
     (testing "Can retrieve the version from the DB"
       (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
                     :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
-                    :hostname       "andrewslai.localhost"
+                    :hostname       "andrewslai.com"
                     :filename       "thumbnail.png"
                     :storage-driver "in-memory"
                     :storage-root   "media"}]
@@ -178,7 +178,7 @@
     (testing "Can retrieve the version from the DB with string"
       (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
                     :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
-                    :hostname       "andrewslai.localhost"
+                    :hostname       "andrewslai.com"
                     :filename       "thumbnail.png"
                     :storage-driver "in-memory"
                     :storage-root   "media"}]
@@ -213,7 +213,7 @@
       (testing "Can retrieve the version from the DB"
         (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
                       :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
-                      :hostname       "andrewslai.localhost"
+                      :hostname       "andrewslai.com"
                       :filename       "thumbnail.png"
                       :storage-driver "in-memory"
                       :storage-root   "media"}]
@@ -222,7 +222,7 @@
       (testing "Can retrieve the version from the DB with string"
         (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
                       :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
-                      :hostname       "andrewslai.localhost"
+                      :hostname       "andrewslai.com"
                       :filename       "thumbnail.png"
                       :storage-driver "in-memory"
                       :storage-root   "media"}]

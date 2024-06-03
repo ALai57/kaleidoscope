@@ -235,7 +235,7 @@
                      kaleidoscope/kaleidoscope-app
                      tu/wrap-clojure-response)]
         (is (match? expected
-                    (-> (mock/request :get (str "http://andrewslai.localhost" endpoint))
+                    (-> (mock/request :get (str "http://andrewslai.com" endpoint))
                         (mock/header "Authorization" "Bearer x")
                         app)))))
 
@@ -258,7 +258,7 @@
                        kaleidoscope/kaleidoscope-app
                        tu/wrap-clojure-response)]
           (is (match? expected
-                      (app (mock/request :get (str "http://andrewslai.localhost" endpoint)))))))
+                      (app (mock/request :get (str "http://andrewslai.com" endpoint)))))))
 
       "/compositions"                  {:status 200 :body (has-count 4)}
       "/compositions/my-first-article" {:status 200 :body (malli-matcher models.articles/GetCompositionResponse)}
@@ -279,7 +279,7 @@
 
         create-result          (app (-> article
                                         (assoc :branch-name "branch-1")
-                                        (create-branch "http://andrewslai.com")))
+                                        (create-branch "http://andrewslai.test")))
         [{:keys [article-id]}] (:body create-result)]
 
     (testing "Article creation succeeds for branch 1"
@@ -293,12 +293,12 @@
                   (app (-> article
                            (assoc :branch-name "branch-2"
                                   :article-id  article-id)
-                           (create-branch "http://andrewslai.com"))))))
+                           (create-branch "http://andrewslai.test"))))))
 
     (testing "The 2 branches were created"
       (is (match? {:status 200 :body (has-count 2)}
                   (app (-> {:article-id article-id}
-                           (get-branches "http://andrewslai.com"))))))
+                           (get-branches "http://andrewslai.test"))))))
 
     (testing "The branches can't be viewed when asking wrong host"
       (is (match? {:status 401}
@@ -426,24 +426,26 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Registration APIs
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(deftest payments-test
-  (let [app      (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
-                       "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
-                       "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
-                       "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
-                      (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
-                      env/prepare-kaleidoscope
-                      kaleidoscope/kaleidoscope-app
-                      tu/wrap-clojure-response)
-        response (app (-> (mock/request :post "/v1/payments")
-                          (mock/json-body {:amount 1200 :currency "USD"})))]
-    (is (match? {:status  200
-                 :headers {"Content-Type" "application/json; charset=utf-8"}
-                 :body    (malli/validator kaleidoscope/PaymentIntent)}
-                response))))
+(comment
+  ;; Requires a live internet connection to check stripe
+  (deftest payments-test
+    (let [app      (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                         "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                         "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                         "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                        (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                        env/prepare-kaleidoscope
+                        kaleidoscope/kaleidoscope-app
+                        tu/wrap-clojure-response)
+          response (app (-> (mock/request :post "/v1/payments")
+                            (mock/json-body {:amount 1200 :currency "USD"})))]
+      (is (match? {:status  200
+                   :headers {"Content-Type" "application/json; charset=utf-8"}
+                   :body    (malli/validator kaleidoscope/PaymentIntent)}
+                  response))))
 
-;; TODO: Mock the Route 53 response
-#_(deftest check-domain
+  ;; TODO: Mock the Route 53 response
+  (deftest check-domain
     (let [app      (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                          "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
                          "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
@@ -455,7 +457,7 @@
           response (app (mock/request :get "/check-domain?domain=andrewslai.com"))]
       (is (match? {:status  200
                    :headers {"Content-Type" "application/json; charset=utf-8"}
-                   :body    {:domain    "andrewslai.net"
+                   :body    {:domain    "andrewslai.test"
                              :available true
                              :prices    {:registration-price     {:price 15 :currency "USD"}
                                          :transfer-price         {:price 15 :currency "USD"}
@@ -463,7 +465,7 @@
                                          :change-ownership-price {:price 0 :currency "USD"}
                                          :restoration-price      {:price 57 :currency "USD"}
                                          :net                    "net"}}}
-                  response))))
+                  response)))))
 
 (defn make-example-file-upload-request-png
   "A function because the body is an input stream, which is consumable and must
@@ -488,8 +490,9 @@
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)
 
-        create-response (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png"))
-        get-response    (app (mock/request :get "https://andrewslai.com/v2/photos" {:filename "mobile.png"}))
+        create-response (app (make-example-file-upload-request-png "https://andrewslai.test" "example-image.png"))
+        get-response    (app (-> (mock/request :get "https://andrewslai.test/v2/photos" {:filename "mobile.png"})
+                                 (mock/header "Authorization" "Bearer x")))
         image-id        (get-in get-response [:body 0 :id])]
 
     (testing "Upload works"
@@ -518,7 +521,7 @@
                      :body    [{:id             image-id
                                 :path           (str "/v2/photos/" image-id "/raw.png")
                                 :image-category "raw"
-                                :hostname       "andrewslai.com"}
+                                :hostname       "andrewslai.test"}
                                {:path           (str "/v2/photos/" image-id "/thumbnail.png")
                                 :image-category "thumbnail"}
                                {:path           (str "/v2/photos/" image-id "/gallery.png")
@@ -527,15 +530,15 @@
                                 :image-category "monitor"}
                                {:path           (str "/v2/photos/" image-id "/mobile.png")
                                 :image-category "mobile"}]}
-                    (app (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id))))))
+                    (app (mock/request :get (str "https://andrewslai.test/v2/photos/" image-id))))))
       (testing "Direct access via HTTP API"
         (is (match? {:status 200}
-                    (app (mock/request :get (format "https://andrewslai.com/v2/photos/%s/raw.png" image-id)))))))
+                    (app (mock/request :get (format "https://andrewslai.test/v2/photos/%s/raw.png" image-id)))))))
 
     (testing "Matching Etags return a 304 - not modified response"
       (let [image-path (str "media/" image-id "/raw.png")]
         (is (match? {:status 304}
-                    (app (-> (mock/request :get (str "https://andrewslai.com/v2/photos/" image-id "/raw.png"))
+                    (app (-> (mock/request :get (str "https://andrewslai.test/v2/photos/" image-id "/raw.png"))
                              ;; The in-memory filesystem uses the MD5 hash of
                              ;; the path to calculate the version. So if we use that here,
                              ;; we should hit the code path that triggers an ETag match
@@ -810,17 +813,17 @@
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)
 
-        result   (app (-> (mock/request :post "https://andrewslai.localhost/groups")
+        result   (app (-> (mock/request :post "https://andrewslai.com/groups")
                           (mock/header "Authorization" "Bearer x")
                           (mock/json-body {:display-name "my-display-name"})))
         group-id (get-in result [:body 0 :id])]
 
     (testing "No audience to start"
       (is (match? {:status 404}
-                  (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
+                  (app (-> (mock/request :get "https://andrewslai.com/article-audiences")
                            (mock/header "Authorization" "Bearer x"))))))
 
-    (let [add-response (app (-> (mock/request :put "https://andrewslai.localhost/article-audiences")
+    (let [add-response (app (-> (mock/request :put "https://andrewslai.com/article-audiences")
                                 (mock/header "Authorization" "Bearer x")
                                 (mock/json-body {:article-id 1
                                                  :group-id   group-id})))]
@@ -832,31 +835,31 @@
       (testing "Audience exists"
         (is (match? {:status 200
                      :body   [{:article-id 1
-                               :hostname   "andrewslai.localhost"
+                               :hostname   "andrewslai.com"
                                :group-id   group-id}]}
-                    (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
+                    (app (-> (mock/request :get "https://andrewslai.com/article-audiences")
                              (mock/header "Authorization" "Bearer x"))))))
 
       (testing "Query param search works"
         (is (match? {:status 200
                      :body   [{:article-id 1
-                               :hostname   "andrewslai.localhost"
+                               :hostname   "andrewslai.com"
                                :group-id   group-id}]}
-                    (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences?article-id=1")
+                    (app (-> (mock/request :get "https://andrewslai.com/article-audiences?article-id=1")
                              (mock/header "Authorization" "Bearer x")))))
         (is (match? {:status 404}
-                    (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences?article-id=1000000")
+                    (app (-> (mock/request :get "https://andrewslai.com/article-audiences?article-id=1000000")
                              (mock/header "Authorization" "Bearer x"))))))
 
       (testing "Delete the audience"
         (is (match? {:status 200
                      :body   []}
-                    (app (-> (mock/request :delete (format "https://andrewslai.localhost/article-audiences/%s"
+                    (app (-> (mock/request :delete (format "https://andrewslai.com/article-audiences/%s"
                                                            (get-in add-response [:body 0 :id])))
                              (mock/header "Authorization" "Bearer x")))))
 
         (is (match? {:status 404}
-                    (app (-> (mock/request :get "https://andrewslai.localhost/article-audiences")
+                    (app (-> (mock/request :get "https://andrewslai.com/article-audiences")
                              (mock/header "Authorization" "Bearer x")))))))))
 
 (deftest themes-test
@@ -871,9 +874,9 @@
 
     (testing "No themes to start"
       (is (match? {:status 404}
-                  (app (mock/request :get "https://andrewslai.localhost/themes")))))
+                  (app (mock/request :get "https://andrewslai.com/themes")))))
 
-    (let [add-response (app (-> (mock/request :post "https://andrewslai.localhost/themes")
+    (let [add-response (app (-> (mock/request :post "https://andrewslai.com/themes")
                                 (mock/header "Authorization" "Bearer x")
                                 (mock/json-body {:config       {:primary {:main "#ABC123"}}
                                                  :display-name "My New Theme"})))
@@ -890,7 +893,7 @@
                      :body   [{:config       {:primary {:main "#ABC123"}}
                                :id           string-uuid?
                                :display-name "My New Theme"}]}
-                    (app (-> (mock/request :get "https://andrewslai.localhost/themes")
+                    (app (-> (mock/request :get "https://andrewslai.com/themes")
                              (mock/header "Authorization" "Bearer x"))))))
 
       (testing "theme can be queried"
@@ -898,14 +901,14 @@
                      :body   [{:config       {:primary {:main "#ABC123"}}
                                :id           string-uuid?
                                :display-name "My New Theme"}]}
-                    (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" theme-id))
+                    (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" theme-id))
                              (mock/header "Authorization" "Bearer x")))))
         (is (match? {:status 404}
-                    (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" (java.util.UUID/randomUUID)))
+                    (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" (java.util.UUID/randomUUID)))
                              (mock/header "Authorization" "Bearer x"))))))
 
       (testing "Update theme"
-        (app (-> (mock/request :put (format "https://andrewslai.localhost/themes/%s" theme-id))
+        (app (-> (mock/request :put (format "https://andrewslai.com/themes/%s" theme-id))
                  (mock/header "Authorization" "Bearer x")
                  (mock/json-body {:config       {:primary {:main      "#ABC123"
                                                            :new-field "new-test"}}
@@ -916,17 +919,17 @@
                                                         :new-field "new-test"}}
                                :id           string-uuid?
                                :display-name "Updated name"}]}
-                    (app (-> (mock/request :get (format "https://andrewslai.localhost/themes?id=%s" theme-id))
+                    (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" theme-id))
                              (mock/header "Authorization" "Bearer x"))))))
 
       (testing "Delete the theme"
         (is (match? {:status 204}
-                    (app (-> (mock/request :delete (format "https://andrewslai.localhost/themes/%s"
+                    (app (-> (mock/request :delete (format "https://andrewslai.com/themes/%s"
                                                            theme-id))
                              (mock/header "Authorization" "Bearer x")))))
 
         (is (match? {:status 404}
-                    (app (mock/request :get "https://andrewslai.localhost/themes"))))))))
+                    (app (mock/request :get "https://andrewslai.com/themes"))))))))
 
 (comment
   (require '[clj-http.client :as http])
