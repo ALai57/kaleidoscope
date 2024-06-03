@@ -67,11 +67,15 @@
     (write-stream! input-stream (format "%s/%s" root path))
     (fs/get this path)))
 
+;; Expect to find a folder of structure
+;; ROOT (e.g. /resources/public)
+;; -> Subpath (e.g. andrewslai.com)
+;; -> Subpath (e.g. kaleidoscope.pub)
 (defn make-local-fs
-  [{:keys [root] :as m}]
+  [{:keys [root subpath] :as m}]
   (assoc (map->LocalFS m)
          :storage-driver "local-filesystem"
-         :storage-root   root))
+         :storage-root   (str root "/" subpath)))
 
 (comment
   (def fs

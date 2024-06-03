@@ -83,10 +83,12 @@
 (defn env->kaleidoscope-local-fs
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:root [:string {:error/message "Missing Local FS root path. Set via KALEIDOSCOPE_STATIC_CONTENT_FOLDER environment variable."}]]]]
+                   [:root [:string {:error/message "Missing Local FS root path. Set via KALEIDOSCOPE_STATIC_CONTENT_FOLDER environment variable."}]]
+                   [:subpath [:string {:error/message "Missing Local FS subpath. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
-  [env]
-  {:root (get env "KALEIDOSCOPE_STATIC_CONTENT_FOLDER")})
+  [env subpath]
+  {:root    (get env "KALEIDOSCOPE_STATIC_CONTENT_FOLDER")
+   :subpath subpath})
 
 (defn env->bugsnag
   {:malli/schema [:=> [:cat :map]
@@ -160,22 +162,22 @@
   {:name      :kaleidoscope-static-content-adapters
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn  [env] {"kaleidoscope.com"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
+               "s3"               (fn  [env] {"kaleidoscope.pub"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
                                               "andrewslai.com"                   (s3-storage/make-s3 {:bucket "andrewslai"})
                                               "caheriaguilar.com"                (s3-storage/make-s3 {:bucket "caheriaguilar"})
                                               "sahiltalkingcents.com"            (s3-storage/make-s3 {:bucket "sahiltalkingcents"})
                                               "caheriaguilar.and.andrewslai.com" (s3-storage/make-s3 {:bucket "wedding"})})
-               "in-memory"        (fn [_env] {"kaleidoscope.com"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
+               "in-memory"        (fn [_env] {"kaleidoscope.pub"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "andrewslai.com"                   (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "andrewslai.test"                  (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "caheriaguilar.com"                (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "sahiltalkingcents.com"            (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "caheriaguilar.and.andrewslai.com" (memory/make-mem-fs {:store (atom memory/example-fs)})})
-               "local-filesystem" (fn  [env] {"kaleidoscope.com"                 (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
-                                              "andrewslai.com"                   (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
-                                              "caheriaguilar.com"                (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
-                                              "sahiltalkingcents.com"            (local-fs/make-local-fs (env->kaleidoscope-local-fs env))
-                                              "caheriaguilar.and.andrewslai.com" (local-fs/make-local-fs (env->kaleidoscope-local-fs env))})}
+               "local-filesystem" (fn  [env] {"kaleidoscope.pub"                 (local-fs/make-local-fs (env->kaleidoscope-local-fs env "kaleidoscope.pub"))
+                                              "andrewslai.com"                   (local-fs/make-local-fs (env->kaleidoscope-local-fs env "andrewslai.com"))
+                                              "caheriaguilar.com"                (local-fs/make-local-fs (env->kaleidoscope-local-fs env "caheriaguilar.com"))
+                                              "sahiltalkingcents.com"            (local-fs/make-local-fs (env->kaleidoscope-local-fs env "sahiltalkingcents.com"))
+                                              "caheriaguilar.and.andrewslai.com" (local-fs/make-local-fs (env->kaleidoscope-local-fs env "caheriaguilar.and.andrewslai.com"))})}
    :default   "s3"})
 
 (def exception-reporter-boot-instructions
