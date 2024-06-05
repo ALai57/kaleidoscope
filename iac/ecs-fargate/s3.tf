@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "kaleidoscope_assets_bucket" {
-  for_each = toset(["kaleidoscope.pub"])
+  for_each = toset(["kaleidoscope.pub", "kaleidoscope.client"])
   bucket = each.key
 }
 
