@@ -58,6 +58,7 @@
   [{:keys [components] :as request}]
   (http-utils/get-resource (:static-content-adapters components) request))
 
+;; TODO: Fix up how I'm dealing with static assets
 (def reitit-index-routes
   "All served from a common bucket: the Kaleidoscope app bucket."
   ["" {:no-doc true}
@@ -74,10 +75,24 @@
                                          :uri       "static/silent-check-sso.html"
                                          :handler   get-static-resource}}]
 
-   ["/static/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
-                       ;; Probably shouldn't load all static resources from kaleidoscope
-                       :host      "kaleidoscope.pub"
-                       :handler   get-static-resource}}]
+   #_["kaleidoscope.client/static.*"
+      {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+             ;; Load all compiled JS assets from the kaleidoscope-client bucket
+             :host      "kaleidoscope.client"
+             :handler   get-static-resource}}]
+
+   ["/static/js/compiled/kaleidoscope.client*"
+    {:conflicting true
+     :get         {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+                   ;; Load all compiled JS assets from the kaleidoscope-client bucket
+                   :host      "kaleidoscope.client"
+                   :handler   get-static-resource}}]
+
+   ["/static/*" {:conflicting true
+                 :get         {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+                               ;; Probably shouldn't load all static resources from kaleidoscope
+                               ;;:host      "kaleidoscope.pub"
+                               :handler   get-static-resource}}]
    ["/media/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
                       :handler   get-static-resource}}]])
 

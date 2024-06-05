@@ -33,7 +33,7 @@
 
 (defn get-resource
   [static-content-adapters {:keys [uri headers] :as request}]
-  (log/infof "Getting resource at %s" uri)
+  (log/infof "Getting resource at %s for %s" uri (bucket-name request))
   (let [bucket  (bucket-name request)
         adapter (get static-content-adapters bucket)
         result  (when adapter

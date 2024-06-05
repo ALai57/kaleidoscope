@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "blog_buckets" {
-  for_each = toset(["andrewslai", "caheriaguilar", "sahiltalkingcents"])
+  for_each = toset(["andrewslai", "caheriaguilar", "sahiltalkingcents", "andrewslai.com", "caheriaguilar.com", "sahiltalkingcents.com"])
   bucket = each.key
 }
 
