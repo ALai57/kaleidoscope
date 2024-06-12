@@ -58,7 +58,6 @@
   [{:keys [components] :as request}]
   (http-utils/get-resource (:static-content-adapters components) request))
 
-;; TODO: Fix up how I'm dealing with static assets
 (def reitit-index-routes
   "All served from a common bucket: the Kaleidoscope app bucket."
   ["" {:no-doc true}
@@ -74,12 +73,6 @@
                                          :host      "kaleidoscope.pub"
                                          :uri       "static/silent-check-sso.html"
                                          :handler   get-static-resource}}]
-
-   #_["kaleidoscope.client/static.*"
-      {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
-             ;; Load all compiled JS assets from the kaleidoscope-client bucket
-             :host      "kaleidoscope.client"
-             :handler   get-static-resource}}]
 
    ["/static/js/compiled/kaleidoscope.client*"
     {:conflicting true
@@ -164,12 +157,17 @@
         ]
        reitit-config)
       (ring/create-default-handler
-       {:not-found (fn [{:keys [components] :as request}]
+       {:not-found (fn [request]
                      (tap> {:req        request
                             :components components})
+                     ;; May not have the middleware components!
+                     ;; Redirect to index.html for client-side routing
                      (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
-                       {:status 404
-                        :body   "Not found"}))}
+                       (get-static-resource (-> request
+                                                (assoc :uri "static/index.html")
+                                                ;; Components must be added here because this isn't
+                                                ;; wrapped with middleware the same way other routes are
+                                                (assoc :components components)))))}
        )))))
 
 (comment
