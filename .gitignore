@@ -40,3 +40,5 @@ pom.xml*
 .lsp/.cache/*
 .cpcache/*
 .clj-kondo/*
+
+opentelemetry-javaagent.jar
