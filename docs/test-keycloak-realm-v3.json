@@ -399,7 +399,7 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "http://localhost:5000/*"
+        "http://kaleidoscope.pub.localhost:5000/*"
       ],
       "webOrigins": [
         "",
