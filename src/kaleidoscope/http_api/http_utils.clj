@@ -26,10 +26,9 @@
 (defn bucket-name
   "Getting host name is from ring.util.request"
   [request]
-  (let [server-name (get-in request [:headers "host"])]
-    (if (nil? server-name)
-      (log/warnf "Request without a host. Cannot lookup associated bucket.")
-      server-name)))
+  (if-let [server-name (get-host request)]
+    server-name
+    (log/warnf "Request without a host. Cannot lookup associated bucket.")))
 
 (defn get-resource
   [static-content-adapters {:keys [uri headers] :as request}]

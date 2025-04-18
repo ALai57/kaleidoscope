@@ -42,3 +42,4 @@ pom.xml*
 .clj-kondo/*
 
 opentelemetry-javaagent.jar
+kaleidoscope.iml

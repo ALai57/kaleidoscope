@@ -104,6 +104,7 @@ docker run -p 8080:8080 \
 ```
 
 TODO: Set up test realm!!
-Then import `test-keycloak-realm.json` to set up the realm and test client
+Then import `test-keycloak-realm-v3.json` to set up the realm and test client. You'll also need to create
+a user in the keycloak realm, and assign them specific roles/permissions
 This is a specific example showing how to set up the container connected to a locally running
 Postgres instance.
