@@ -1,15 +1,16 @@
 (ns kaleidoscope.persistence.filesystem.s3-impl
   (:require
-   [amazonica.aws.s3 :as s3]
-   [amazonica.core :as amazon]
-   [clojure.spec.alpha :as s]
-   [kaleidoscope.models.s3.get-response :as s3.get]
-   [kaleidoscope.models.s3.ls-response :as s3.ls]
-   [kaleidoscope.models.s3.put-response :as s3.put]
-   [kaleidoscope.persistence.filesystem :as fs]
-   [ring.util.mime-type :as mt]
-   [steffan-westcott.clj-otel.api.trace.span :as span]
-   [taoensso.timbre :as log]))
+    [amazonica.aws.s3 :as s3]
+    [amazonica.core :as amazon]
+    [clojure.java.io :as io]
+    [clojure.spec.alpha :as s]
+    [kaleidoscope.models.s3.get-response :as s3.get]
+    [kaleidoscope.models.s3.ls-response :as s3.ls]
+    [kaleidoscope.models.s3.put-response :as s3.put]
+    [kaleidoscope.persistence.filesystem :as fs]
+    [ring.util.mime-type :as mt]
+    [steffan-westcott.clj-otel.api.trace.span :as span]
+    [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
@@ -60,9 +61,14 @@
 
 (defn get-response->fs-object
   [s3-response]
-  (fs/object {:version  (s3.get/etag s3-response)
-              :metadata (s3.get/metadata s3-response)
-              :content  (s3.get/content s3-response)}))
+  ;; Must slurp input stream to close it, otherwise you'll end up getting
+  ;; Timeout waiting for connection pool errors. This does seem to have some memory
+  ;; implications, so we'll see how well this scales in practice, in contrast to creating temporary files.
+  ;; https://github.com/mcohen01/amazonica/issues/206
+  (let [s3-input-stream (s3.get/content s3-response)]
+    (fs/object {:version  (s3.get/etag s3-response)
+                :metadata (s3.get/metadata s3-response)
+                :content  (io/input-stream (.getBytes (slurp s3-input-stream)))})))
 
 (defn put-response->fs-object
   [input-stream response]

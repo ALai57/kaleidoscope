@@ -168,7 +168,11 @@
                                               "andrewslai.com"                   (s3-storage/make-s3 {:bucket "andrewslai.com"})
                                               "caheriaguilar.com"                (s3-storage/make-s3 {:bucket "caheriaguilar.com"})
                                               "sahiltalkingcents.com"            (s3-storage/make-s3 {:bucket "sahiltalkingcents.com"})
-                                              "caheriaguilar.and.andrewslai.com" (s3-storage/make-s3 {:bucket "wedding"})})
+                                              "caheriaguilar.and.andrewslai.com" (s3-storage/make-s3 {:bucket "wedding"})
+
+                                              ;; For testing locally
+                                              "andrewslai.com.localhost"         (s3-storage/make-s3 {:bucket "andrewslai.com"})
+                                              })
                "in-memory"        (fn [_env] {"kaleidoscope.pub"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "kaleidoscope.client"              (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "andrewslai.com"                   (memory/make-mem-fs {:store (atom memory/example-fs)})
