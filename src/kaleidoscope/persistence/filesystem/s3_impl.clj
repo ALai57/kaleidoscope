@@ -1,16 +1,16 @@
 (ns kaleidoscope.persistence.filesystem.s3-impl
   (:require
-    [amazonica.aws.s3 :as s3]
-    [amazonica.core :as amazon]
-    [clojure.java.io :as io]
-    [clojure.spec.alpha :as s]
-    [kaleidoscope.models.s3.get-response :as s3.get]
-    [kaleidoscope.models.s3.ls-response :as s3.ls]
-    [kaleidoscope.models.s3.put-response :as s3.put]
-    [kaleidoscope.persistence.filesystem :as fs]
-    [ring.util.mime-type :as mt]
-    [steffan-westcott.clj-otel.api.trace.span :as span]
-    [taoensso.timbre :as log]))
+   [amazonica.aws.s3 :as s3]
+   [amazonica.core :as amazon]
+   [clojure.java.io :as io]
+   [clojure.spec.alpha :as s]
+   [kaleidoscope.models.s3.get-response :as s3.get]
+   [kaleidoscope.models.s3.ls-response :as s3.ls]
+   [kaleidoscope.models.s3.put-response :as s3.put]
+   [kaleidoscope.persistence.filesystem :as fs]
+   [ring.util.mime-type :as mt]
+   [steffan-westcott.clj-otel.api.trace.span :as span]
+   [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Install multimethod to get resource-data from URLs using S3-PROTOCOL
@@ -59,6 +59,15 @@
   [amazon-ex-map]
   (= "NoSuchKey" (:error-code amazon-ex-map)))
 
+(defn copy-input-stream
+  "So that AWS can release connections"
+  [input-stream]
+  (span/with-span! {:name "kaleidoscope.s3.get.convert-input-stream"}
+    (let [baos (java.io.ByteArrayOutputStream.)]
+      (io/copy input-stream baos)
+      (.close input-stream)
+      (io/input-stream (.toByteArray baos)))))
+
 (defn get-response->fs-object
   [s3-response]
   ;; Must slurp input stream to close it, otherwise you'll end up getting
@@ -68,7 +77,7 @@
   (let [s3-input-stream (s3.get/content s3-response)]
     (fs/object {:version  (s3.get/etag s3-response)
                 :metadata (s3.get/metadata s3-response)
-                :content  (io/input-stream (.getBytes (slurp s3-input-stream)))})))
+                :content  (copy-input-stream s3-input-stream)})))
 
 (defn put-response->fs-object
   [input-stream response]
@@ -165,9 +174,28 @@
                                  :content-length (count b)
                                  :user-metadata  {:something "some-value"}}})
 
-  (s3/get-object {:bucket-name "andrewslai"
-                  :key         "lock.svg"})
+  (require '[signal.amazonica-aws-sso :as amazonica-aws-sso]
+           '[amazonica.aws.securitytoken :as sts])
+  (try
+    (when-let [aws-profile (System/getenv "AWS_PROFILE")]
+      (log/infof "Attempting to use AWS_PROFILE: %s" aws-profile)
+      (amazonica-aws-sso/init!))
+    (sts/get-caller-identity)
+    (catch Exception e
+      (log/warn "Unable to set up SSO provider!")))
 
+  (def is
+    (s3/get-object {:bucket-name "andrewslai.com"
+                    :key         "static/images/splash-logo.svg"}))
+
+
+  (let [baos (java.io.ByteArrayOutputStream.)
+        i-stream (:input-stream is)]
+    (io/copy i-stream baos)
+    (.close i-stream)
+    (io/copy (io/input-stream (.toByteArray baos))
+             (io/file "splash-logo.svg"))
+    )
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;  Just basic play
