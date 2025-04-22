@@ -53,7 +53,7 @@
             resized (for [[image-category [w h :as resize]] IMAGE-DIMENSIONS
 
                           :let [image-stream (if resize
-                                               (rf/as-stream (my-resize tempfile w h) extension)
+                                               (rf/as-stream (rc/resize tempfile w h) extension)
                                                (u/->file-input-stream tempfile))]]
                       (first (albums-api/create-photo-version-2! database
                                                                  (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
