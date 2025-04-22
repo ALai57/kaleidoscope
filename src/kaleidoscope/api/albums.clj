@@ -2,7 +2,6 @@
   (:require [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
-            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78,32 +77,31 @@
    {:keys [storage-root storage-driver photos-folder] :as static-content-adapter
     :or   {photos-folder "media"}}
    {:keys [file image-category photo-id] :as photo-version}]
-  (span/with-span! {:name "kaleidoscope.api.photo-version.create"}
-    (let [id       (utils/uuid)
-          now-time (utils/now)
-          filename (format "%s.%s" image-category (:extension file))
-          path     (format "%s/%s/%s" photos-folder photo-id filename)
-          metadata (dissoc file :tempfile :file-input-stream)
+  (let [id       (utils/uuid)
+        now-time (utils/now)
+        filename (format "%s.%s" image-category (:extension file))
+        path     (format "%s/%s/%s" photos-folder photo-id filename)
+        metadata (dissoc file :tempfile :file-input-stream)
 
-          _         (log/infof "Creating photo version for %s" path)
+        _         (log/infof "Creating photo version for %s" path)
 
-          db-result (rdbms/insert! database
-                                   :photo-versions (-> photo-version
-                                                       (select-keys [:photo-id :image-category])
-                                                       (assoc
-                                                        :id             id
-                                                        :storage-driver storage-driver
-                                                        :storage-root   storage-root
-                                                        :path           path
-                                                        :filename       filename
-                                                        :created-at     now-time
-                                                        :modified-at    now-time))
-                                   :ex-subtype     :UnableToCreatePhotoVersion)]
-      (fs/put-file static-content-adapter
-                   path
-                   (:file-input-stream file)
-                   metadata)
-      db-result)))
+        db-result (rdbms/insert! database
+                                 :photo-versions (-> photo-version
+                                                     (select-keys [:photo-id :image-category])
+                                                     (assoc
+                                                      :id             id
+                                                      :storage-driver storage-driver
+                                                      :storage-root   storage-root
+                                                      :path           path
+                                                      :filename       filename
+                                                      :created-at     now-time
+                                                      :modified-at    now-time))
+                                 :ex-subtype     :UnableToCreatePhotoVersion)]
+    (fs/put-file static-content-adapter
+                 path
+                 (:file-input-stream file)
+                 metadata)
+    db-result))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums

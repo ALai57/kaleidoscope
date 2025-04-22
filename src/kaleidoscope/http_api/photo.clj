@@ -32,39 +32,34 @@
        (:filename x)
        (:tempfile x)))
 
-(defn my-resize [tempfile w h]
-  (span/with-span! {:name "kaleidoscope.api.photo.resize"}
-    (rc/resize tempfile w h)))
-
 (defn process-photo-upload!
   [{:keys [params components] :as req}
    {:keys [filename tempfile] :as file}]
-  (span/with-span! {:name "kaleidoscope.api.photo.upload-and-process"}
-    (let [{:keys [static-content-adapters database]} components
+  (let [{:keys [static-content-adapters database]} components
 
-          hostname (hu/get-host req)
+        hostname (hu/get-host req)
 
-          static-content-adapter (get static-content-adapters hostname)
+        static-content-adapter (get static-content-adapters hostname)
 
-          photo-id  (java.util.UUID/randomUUID)
-          extension (get-file-extension filename)]
-      (log/infof "Processing file %s" filename)
-      (let [photo   (albums-api/create-photo! database {:id photo-id :hostname hostname})
-            resized (for [[image-category [w h :as resize]] IMAGE-DIMENSIONS
+        photo-id  (java.util.UUID/randomUUID)
+        extension (get-file-extension filename)]
+    (log/infof "Processing file %s" filename)
+    (let [photo   (albums-api/create-photo! database {:id photo-id :hostname hostname})
+          resized (for [[image-category [w h :as resize]] IMAGE-DIMENSIONS
 
-                          :let [image-stream (if resize
-                                               (rf/as-stream (my-resize tempfile w h) extension)
-                                               (u/->file-input-stream tempfile))]]
-                      (first (albums-api/create-photo-version-2! database
-                                                                 (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
-                                                                 {:photo-id       photo-id
-                                                                  :image-category (name image-category)
-                                                                  :file           (-> params
-                                                                                      (get "file")
-                                                                                      (assoc :file-input-stream image-stream
-                                                                                             :extension         extension))})))]
-        {:photo-id photo-id
-         :versions (vec resized)}))))
+                        :let [image-stream (if resize
+                                             (rf/as-stream (rc/resize tempfile w h) extension)
+                                             (u/->file-input-stream tempfile))]]
+                    (first (albums-api/create-photo-version-2! database
+                                                               (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
+                                                               {:photo-id       photo-id
+                                                                :image-category (name image-category)
+                                                                :file           (-> params
+                                                                                    (get "file")
+                                                                                    (assoc :file-input-stream image-stream
+                                                                                           :extension         extension))})))]
+      {:photo-id photo-id
+       :versions (vec resized)})))
 
 (def Version
   [:map
