@@ -34,7 +34,7 @@
 
 (defn my-resize [tempfile w h]
   (span/with-span! {:name "kaleidoscope.api.photo.resize"}
-    (rc/resize tempfile w h)))
+    (rc/resize ^java.io.File tempfile w h)))
 
 (defn process-photo-upload!
   [{:keys [params components] :as req}
@@ -50,19 +50,24 @@
           extension (get-file-extension filename)]
       (log/infof "Processing file %s" filename)
       (let [photo   (albums-api/create-photo! database {:id photo-id :hostname hostname})
-            resized (for [[image-category [w h :as resize]] IMAGE-DIMENSIONS
-
-                          :let [image-stream (if resize
-                                               (rf/as-stream (my-resize tempfile w h) extension)
-                                               (u/->file-input-stream tempfile))]]
-                      (first (albums-api/create-photo-version-2! database
-                                                                 (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
-                                                                 {:photo-id       photo-id
-                                                                  :image-category (name image-category)
-                                                                  :file           (-> params
-                                                                                      (get "file")
-                                                                                      (assoc :file-input-stream image-stream
-                                                                                             :extension         extension))})))]
+            resized (for [[image-category [w h :as resize]] IMAGE-DIMENSIONS]
+                      (try
+                        (let [image-stream (if resize
+                                             (rf/as-stream (my-resize tempfile w h) extension)
+                                             (u/->file-input-stream tempfile))]
+                          (first (albums-api/create-photo-version-2! database
+                                                                     (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
+                                                                     {:photo-id       photo-id
+                                                                      :image-category (name image-category)
+                                                                      :file           (-> params
+                                                                                          (get "file")
+                                                                                          (assoc :file-input-stream image-stream
+                                                                                                 :extension         extension))})))
+                        (catch Throwable e
+                          (log/errorf "Caught error processing photo Filename '%s' Tempfile '%s' Exists?" filename tempfile)
+                          (log/error e)
+                          (throw e))
+                        ))]
         {:photo-id photo-id
          :versions (vec resized)}))))
 
