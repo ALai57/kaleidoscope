@@ -32,21 +32,27 @@
 (defn clean [_]
   (b/delete {:path OUTPUT-DIR}))
 
-(defn compile [_]
+(defn compile [prod?]
+  (println "PROD?" prod?)
   (clean nil)
   (b/write-pom {:class-dir CLASS-DIR
                 :lib       LIB
                 :version   VERSION
                 :basis     BASIS
                 :src-dirs  ["src" "resources"]})
-  (b/copy-dir {:src-dirs   ["src" "resources"]
-               :target-dir CLASS-DIR})
-  (b/compile-clj {:basis        BASIS
-                  :src-dirs     ["src"]
-                  :class-dir    CLASS-DIR}))
+  (b/copy-dir (cond-> {:src-dirs   ["src" "resources"]
+                       :target-dir CLASS-DIR}
+                prod? (assoc :ignores #{
+                                        #".*migrations.clj$"
+                                        #".*embedded.*"
+                                        })))
+  (b/compile-clj {:basis     BASIS
+                  ;;:src-dirs  ["src"]
+                  :src-dirs  ["target/classes/kaleidoscope"]
+                  :class-dir CLASS-DIR}))
 
 (defn uberjar [_]
-  (compile nil)
+  (compile true)
   (b/uber {:class-dir CLASS-DIR
            :uber-file UBER-FILE
            :basis     BASIS

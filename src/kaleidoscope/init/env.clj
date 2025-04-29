@@ -11,8 +11,6 @@
             [kaleidoscope.persistence.filesystem.in-memory-impl :as memory]
             [kaleidoscope.persistence.filesystem.local :as local-fs]
             [kaleidoscope.persistence.filesystem.s3-impl :as s3-storage]
-            [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
-            [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [kaleidoscope.http-api.auth.access-control :as ac]
             [kaleidoscope.utils.versioning :as vu]
             [malli.core :as m]
@@ -130,8 +128,12 @@
                                                                  (env->pg-conn env))]
                                        (initialize-connection-pool! ds)
                                        ds))
-               "embedded-h2"       (fn [_env] (embedded-h2/fresh-db!))
-               "embedded-postgres" (fn [_env] (embedded-pg/fresh-db!))}
+               "embedded-h2"       (fn [_env]
+                                     (require (symbol "kaleidoscope.persistence.rdbms.embedded-h2-impl"))
+                                     ((resolve "kaleidoscope.persistence.rdbms.embedded-h2-impl/fresh-db!")))
+               "embedded-postgres" (fn [_env]
+                                     (require (symbol "kaleidoscope.persistence.rdbms.embedded-postgres-impl"))
+                                     ((resolve "kaleidoscope.persistence.rdbms.embedded-postgres-impl/fresh-db!")))}
    :default   "postgres"})
 
 
