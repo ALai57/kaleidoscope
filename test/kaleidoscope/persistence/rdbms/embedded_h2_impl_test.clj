@@ -1,8 +1,9 @@
-(ns kaleidoscope.persistence.filesystem.rdbms-test
+(ns kaleidoscope.persistence.rdbms.embedded-h2-impl-test
   (:require
+   [clojure.test :refer :all]
    [cheshire.core :as json]
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [kaleidoscope.persistence.rdbms :as rdbms]
+   [kaleidoscope.persistence.rdbms.embedded-h2-impl :as h2-impl]
    [kaleidoscope.test-main :as tm]
    [taoensso.timbre :as log]))
 
@@ -22,15 +23,4 @@
             "another-theme"
             "my-id"
             "{\"secondary\":{\"something\":\"else\"}}"]
-           (rdbms/hsql-upsert :themes example-payload)))))
-
-
-(comment
-  ;; From HSQL documentation:
-  ;; https://h2database.com/html/commands.html?highlight=merge%2Cusing&search=merge%20using#merge_into
-  ;; MERGE INTO TARGET T USING (VALUES (1, 4), (2, 15)) S(ID, V)
-  ;; ON T.ID = S.ID
-  ;; WHEN MATCHED THEN UPDATE SET V = S.V
-  ;; WHEN NOT MATCHED THEN INSERT VALUES (S.ID, S.V);
-
-  )
+           (h2-impl/hsql-upsert :themes example-payload)))))
