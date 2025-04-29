@@ -52,6 +52,7 @@
            :basis     BASIS
            :main      MAIN
            :exclude   #{#"META-INF/license/LICENSE.aix-netbsd.txt"
+                        #"kaleidoscope/persistence/rdbms/.*" ;; For embedded Databases
                         #"META-INF/license/LICENSE.boringssl.txt"
                         #"META-INF/license/LICENSE.mvn-wrapper.txt"
                         #"META-INF/license/LICENSE.tomcat-native.txt"}}))

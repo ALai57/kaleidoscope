@@ -65,7 +65,7 @@
                                                                                                  :extension         extension))})))
                         (catch Throwable e
                           (log/errorf "Caught error processing photo Filename '%s' Tempfile '%s' Exists?" filename tempfile)
-                          (log/error e)
+                          (log/error (ex-message e))
                           (throw e))
                         ))]
         {:photo-id photo-id

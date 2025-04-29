@@ -40,12 +40,6 @@
 ;; if a SQL parameter is a Clojure hash map or vector, it'll be transformed
 ;; to a PGobject for JSON/JSONB:
 (extend-protocol prepare/SettableParameter
-  clojure.lang.IPersistentMap
-  (set-parameter [m ^PreparedStatement s i]
-    (if (= org.h2.jdbc.JdbcPreparedStatement (class s))
-      (.setObject s i (json/encode m) Types/OTHER)
-      (.setObject s i (->pgobject m))))
-
   clojure.lang.IPersistentVector
   (set-parameter [v ^PreparedStatement s i]
     (.setObject s i (->pgobject v))))
@@ -106,31 +100,24 @@
                                                     {:builder-fn rs/as-unqualified-kebab-maps}))
            :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported" {}))))))))
 
+(defmulti insert-impl!
+  (fn [database table m]
+    (class database)))
+
+(defmethod insert-impl! :default
+  [database table m]
+  (next.sql/insert-multi! database table
+                          (if (map? m)
+                            [m]
+                            m)
+                          (merge next/snake-kebab-opts
+                                 {:suffix     "RETURNING *"
+                                  :builder-fn rs/as-unqualified-kebab-maps})))
+
 (defn insert! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
     (try+
-     (if (= (class database) org.h2.jdbc.JdbcConnection)
-       (let [new-ids (next.sql/insert-multi! database table
-                                             (if (map? m)
-                                               [m]
-                                               m)
-                                             (merge next/snake-kebab-opts
-                                                    {:return-keys           true
-                                                     :return-generated-keys true
-                                                     :builder-fn            rs/as-unqualified-kebab-maps}))]
-         (next.sql/query database (concat [(format "SELECT * FROM %s WHERE id in (%s)"
-                                                   (csk/->snake_case_string table)
-                                                   (str/join ", " (repeat (count new-ids) "?")))]
-                                          (mapv :id new-ids))
-                         (merge next/snake-kebab-opts
-                                {:builder-fn rs/as-unqualified-kebab-maps})))
-       (next.sql/insert-multi! database table
-                               (if (map? m)
-                                 [m]
-                                 m)
-                               (merge next/snake-kebab-opts
-                                      {:suffix     "RETURNING *"
-                                       :builder-fn rs/as-unqualified-kebab-maps})))
+     (insert-impl! database table m)
      (catch org.postgresql.util.PSQLException e
        (log/errorf "Caught Exception while inserting: %s" e)
        (throw+ (merge {:type    :PersistenceException
@@ -195,19 +182,22 @@
                       :else    (str v)))
                   (vals m)))))
 
+(defmulti update-impl!
+  (fn [database table {:keys [id] :as m}]
+    (class database)))
+
+(defmethod update-impl! :default
+  [database table {:keys [id] :as m}]
+  [(next.sql/update! database table (dissoc m :id)
+                     {:id id}
+                     (merge next/snake-kebab-opts
+                            {:suffix    "RETURNING *"
+                             :builder-fn rs/as-unqualified-kebab-maps}))])
+
 (defn update! [database table {:keys [id] :as m} & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
     (try+
-     (if (= (class database) org.h2.jdbc.JdbcConnection)
-       (next/execute! database
-                      (hsql-upsert table m)
-                      {:return-keys true
-                       :builder-fn  rs/as-unqualified-kebab-maps})
-       [(next.sql/update! database table (dissoc m :id)
-                          {:id id}
-                          (merge next/snake-kebab-opts
-                                 {:suffix    "RETURNING *"
-                                  :builder-fn rs/as-unqualified-kebab-maps}))]))))
+     (update-impl! database table))))
 
 (defn delete! [database table ids & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.delete.%s" table)}
