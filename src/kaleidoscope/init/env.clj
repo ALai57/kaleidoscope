@@ -130,10 +130,10 @@
                                        ds))
                "embedded-h2"       (fn [_env]
                                      (require (symbol "kaleidoscope.persistence.rdbms.embedded-h2-impl"))
-                                     ((resolve "kaleidoscope.persistence.rdbms.embedded-h2-impl/fresh-db!")))
+                                     ((resolve 'kaleidoscope.persistence.rdbms.embedded-h2-impl/fresh-db!)))
                "embedded-postgres" (fn [_env]
                                      (require (symbol "kaleidoscope.persistence.rdbms.embedded-postgres-impl"))
-                                     ((resolve "kaleidoscope.persistence.rdbms.embedded-postgres-impl/fresh-db!")))}
+                                     ((resolve 'kaleidoscope.persistence.rdbms.embedded-postgres-impl/fresh-db!)))}
    :default   "postgres"})
 
 

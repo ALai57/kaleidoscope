@@ -12,12 +12,9 @@
   (:import (java.sql PreparedStatement Types)))
 
 
-(extend-protocol prepare/SettableParameter
-  clojure.lang.IPersistentMap
-  (set-parameter [m ^PreparedStatement s i]
-    (if (= org.h2.jdbc.JdbcPreparedStatement (class s))
-      (.setObject s i (json/encode m) Types/OTHER)
-      (.setObject s i (rdbms/->pgobject m)))))
+(defmethod rdbms/handle-map org.h2.jdbc.JdbcPreparedStatement
+  [m ^PreparedStatement s i]
+  (.setObject s i (json/encode m) Types/OTHER))
 
 (defmethod rdbms/insert-impl! org.h2.jdbc.JdbcConnection
   [database table m & {:keys [ex-subtype]}]

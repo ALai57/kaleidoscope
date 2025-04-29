@@ -37,6 +37,19 @@
         (with-meta (json/decode value true) {:pgtype type}))
       value)))
 
+(defmulti handle-map
+  (fn [m ^PreparedStatement s i]
+    (class s)))
+
+(defmethod handle-map :default
+  [m ^PreparedStatement s i]
+  (.setObject s i (->pgobject m)))
+
+(extend-protocol prepare/SettableParameter
+  clojure.lang.IPersistentMap
+  (set-parameter [m ^PreparedStatement s i]
+    (handle-map m s i)))
+
 ;; if a SQL parameter is a Clojure hash map or vector, it'll be transformed
 ;; to a PGobject for JSON/JSONB:
 (extend-protocol prepare/SettableParameter
@@ -141,16 +154,16 @@
 
 (defmethod update-impl! :default
   [database table {:keys [id] :as m}]
-  [(next.sql/update! database table (dissoc m :id)
-                     {:id id}
-                     (merge next/snake-kebab-opts
-                            {:suffix    "RETURNING *"
-                             :builder-fn rs/as-unqualified-kebab-maps}))])
+  (let [result (next.sql/update! database table (dissoc m :id)
+                                 {:id id}
+                                 (merge next/snake-kebab-opts
+                                        {:suffix    "RETURNING *"
+                                         :builder-fn rs/as-unqualified-kebab-maps}))]
+    [result]))
 
 (defn update! [database table {:keys [id] :as m} & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
-    (try+
-     (update-impl! database table))))
+    (update-impl! database table m)))
 
 (defn delete! [database table ids & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.delete.%s" table)}
