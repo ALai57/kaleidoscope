@@ -135,53 +135,6 @@
                       (when ex-subtype
                         {:subtype ex-subtype})))))))
 
-(defn using
-  [m]
-  (let [qns     (str/join ", " (repeat (count m) "?"))
-        sources (str/join ", " (map csk/->snake_case_string (keys m)))]
-    (format "(VALUES (%s)) AS source(%s)" qns sources)))
-
-(defn eq-stmts
-  [field]
-  (format "target.%s = source.%s" field field))
-
-(defn not-matched
-  [m]
-  (let [field-names  (map csk/->snake_case_string (keys m))
-        source-names (map (partial str "source.") field-names)]
-    (format "(%s) VALUES (%s)"
-            (str/join ", " field-names)
-            (str/join ", " source-names))))
-
-(defn matched
-  [m]
-  (let [m   (map csk/->snake_case_string (keys (dissoc m :id)))
-        eq-stmts (map eq-stmts m)]
-    (str/join "," eq-stmts)))
-
-(defn hsql-upsert
-  "Insert into the DB and return the inserted row.
-  This is because H2 does not support the `DO UPDATE SET` statement"
-  [table m]
-  (let [merge-stmt            (format "MERGE INTO %s AS target" (csk/->snake_case_string table))
-        using-stmt            (format "USING %s" (using m))
-        on-stmt               (format "ON %s" "source.id = target.id")
-        when-matched-stmt     (format "WHEN MATCHED THEN UPDATE SET %s" (matched m))
-        when-not-matched-stmt (format "WHEN NOT MATCHED THEN INSERT %s" (not-matched m))
-        returning-*-stmt      (format "SELECT * FROM FINAL TABLE (%s)"
-                                      (str/join " " [merge-stmt
-                                                     using-stmt
-                                                     on-stmt
-                                                     when-matched-stmt
-                                                     when-not-matched-stmt]))]
-    (concat [returning-*-stmt]
-            (mapv (fn [v]
-                    (cond
-                      (nil? v) nil
-                      (map? v) (json/encode v)
-                      :else    (str v)))
-                  (vals m)))))
-
 (defmulti update-impl!
   (fn [database table {:keys [id] :as m}]
     (class database)))
