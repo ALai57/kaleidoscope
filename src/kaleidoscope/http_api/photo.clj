@@ -2,9 +2,10 @@
   (:require [clojure.string :as str]
             [cheshire.core :as json]
             [image-resizer.core :as rc]
-            [image-resizer.format :as rf]
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.filesystem :as fs]
+            [kaleidoscope.utils.core :as utils]
             [kaleidoscope.utils.core :as u]
             [ring.util.http-response :refer [created not-found ok]]
             [steffan-westcott.clj-otel.api.trace.span :as span]
@@ -13,13 +14,14 @@
 (def MEDIA-FOLDER
   "media")
 
-(def IMAGE-DIMENSIONS
+(def IMAGE-VERSIONS
   ;; category  wd   ht
-  {:raw       nil
-   :thumbnail [100 100]
-   ;;:gallery   [165 165]
-   :monitor   [1920 1080]
-   :mobile    [1200 630]})
+  [:raw
+   :thumbnail                                               ;;[100 100]
+   :gallery                                                 ;;[165 165]
+   :monitor                                                 ;;[1920 1080]
+   :mobile                                                  ;;[1200 630]
+   ])
 
 (defn get-file-extension
   [path]
@@ -37,50 +39,42 @@
     (rc/resize ^java.io.File tempfile w h)))
 
 (defn process-photo-upload!
-  [{:keys [params components] :as req}
+  [{:keys [components] :as req}
    {:keys [filename tempfile] :as file}]
   (span/with-span! {:name "kaleidoscope.api.photo.upload-and-process"}
+    (log/infof "Processing file %s" filename)
     (let [{:keys [static-content-adapters database notify-image-resizer!]} components
-
-          hostname (hu/get-host req)
-
-          static-content-adapter (get static-content-adapters hostname)
-
           photo-id (java.util.UUID/randomUUID)
-          extension (get-file-extension filename)]
-      (log/infof "Processing file %s" filename)
-      (let [photo (albums-api/create-photo! database {:id photo-id :hostname hostname})
-            ;; Extract to Go Lambda, add SQS queue, add DLQ and processing statistics
-            resized (for [[image-category [w h :as resize]] IMAGE-DIMENSIONS]
-                      (try
-                        (let [image-stream (if resize
-                                             (rf/as-stream (my-resize tempfile w h) extension)
-                                             (u/->file-input-stream tempfile))]
-                          (first (albums-api/create-photo-version-2! database
-                                                                     (assoc static-content-adapter :photos-folder MEDIA-FOLDER)
-                                                                     {:photo-id       photo-id
-                                                                      :image-category (name image-category)
-                                                                      :file           (-> params
-                                                                                          (get "file")
-                                                                                          (assoc :file-input-stream image-stream
-                                                                                                 :extension extension))})))
-                        (catch Throwable e
-                          (log/errorf "Caught error processing photo Filename '%s' Tempfile '%s' Exists?" filename tempfile)
-                          (log/error (ex-message e))
-                          (throw e))
-                        ))]
-        (try
-          (let [image-path (format "s3://%s/media/%s/raw.%s" hostname photo-id extension)]
-            (log/infof "Notifying image resizer for async processing of %s" image-path)
-            (notify-image-resizer! :subject "image-resize-requested"
-                                   :message image-path
-                                   :message-attributes {"hostname" hostname "extension" extension}))
-          (catch Throwable e
-            (log/errorf "Caught error publishing to Image Notifier topic for image '%s'" filename)
-            (log/error (ex-message e))
-            (throw e)))
-        {:photo-id photo-id
-         :versions (vec resized)}))))
+          hostname (hu/get-host req)
+          extension (get-file-extension filename)
+          now-time (utils/now)
+
+          photo (albums-api/create-photo! database {:id photo-id :hostname hostname})
+
+          static-content-adapter (-> static-content-adapters
+                                     (get hostname)
+                                     (assoc :photos-folder MEDIA-FOLDER))
+
+          _ (fs/put-file static-content-adapter
+                         (format "%s/%s/raw.%s" MEDIA-FOLDER photo-id extension)
+                         (u/->file-input-stream tempfile)
+                         (dissoc file :tempfile :file-input-stream))
+
+          versions (map (partial albums-api/make-image-version static-content-adapter photo-id extension now-time) IMAGE-VERSIONS)
+
+          results (albums-api/create-photo-version-2! database versions)]
+      (try
+        (let [image-path (format "s3://%s/media/%s/raw.%s" hostname photo-id extension)]
+          (log/infof "Notifying image resizer for async processing of %s" image-path)
+          (notify-image-resizer! :subject "image-resize-requested"
+                                 :message image-path
+                                 :message-attributes {"hostname" hostname "extension" extension}))
+        (catch Throwable e
+          (log/errorf "Caught error publishing to Image Notifier topic for image '%s'" filename)
+          (log/error (ex-message e))
+          (throw e)))
+      {:photo-id photo-id
+       :versions (vec results)})))
 
 (def Version
   [:map

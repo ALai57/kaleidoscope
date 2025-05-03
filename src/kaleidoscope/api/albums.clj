@@ -15,16 +15,16 @@
   [database album]
   (let [now (utils/now)]
     (rdbms/insert! database
-                   :albums     (assoc album
-                                      :id          (utils/uuid)
-                                      :created-at  now
-                                      :modified-at now)
+                   :albums (assoc album
+                             :id (utils/uuid)
+                             :created-at now
+                             :modified-at now)
                    :ex-subtype :UnableToCreateAlbum)))
 
 (defn update-album!
   [database album]
   (rdbms/update! database
-                 :albums     album
+                 :albums album
                  :ex-subtype :UnableToUpdateAlbum))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -41,16 +41,16 @@
    (-get-full-photos database))
   ([database query-map]
    (-get-full-photos database (cond-> query-map
-                                (:id query-map)       (update :id (comp parse-uuid str))
-                                (:photo-id query-map) (update :photo-id (comp parse-uuid str))))))
+                                      (:id query-map) (update :id (comp parse-uuid str))
+                                      (:photo-id query-map) (update :photo-id (comp parse-uuid str))))))
 
 (defn create-photo!
   [database photo]
   (let [now-time (utils/now)]
     (first (rdbms/insert! database
-                          :photos     (assoc photo
-                                             :created-at  now-time
-                                             :modified-at now-time)
+                          :photos (assoc photo
+                                    :created-at now-time
+                                    :modified-at now-time)
                           :ex-subtype :UnableToCreatePhoto))))
 
 (def get-photo-versions
@@ -60,7 +60,7 @@
   [database photo]
   (let [now-time (utils/now)]
     (first (rdbms/update! database
-                          :photos     photo
+                          :photos photo
                           :ex-subtype :UnableToUpdatePhoto))))
 
 (defn create-photo-version!
@@ -68,48 +68,44 @@
   (let [now-time (utils/now)]
     (first (rdbms/insert! database
                           :photo-versions (assoc photo-version
-                                                 :id          (utils/uuid)
-                                                 :created-at  now-time
-                                                 :modified-at now-time)
-                          :ex-subtype     :UnableToCreatePhotoVersion))))
+                                            :id (utils/uuid)
+                                            :created-at now-time
+                                            :modified-at now-time)
+                          :ex-subtype :UnableToCreatePhotoVersion))))
+
+(defn make-image-version
+  [static-content-adapter photo-id extension now-time image-version-name]
+  (let [id (utils/uuid)
+        image-category (name image-version-name)
+        path (format "%s/%s/%s.%s" (:photos-folder static-content-adapter) photo-id image-category extension)]
+    (-> {:image-category image-category
+         :photo-id       photo-id
+         :id             id
+         :storage-driver (:storage-driver static-content-adapter)
+         :storage-root   (:storage-root static-content-adapter)
+         :path           path
+         :filename       (format "%s.%s" image-category extension)
+         :created-at     now-time
+         :modified-at    now-time})))
 
 (defn create-photo-version-2!
-  [database
-   {:keys [storage-root storage-driver photos-folder] :as static-content-adapter
-    :or   {photos-folder "media"}}
-   {:keys [file image-category photo-id] :as photo-version}]
+  [database photo-versions]
   (span/with-span! {:name "kaleidoscope.api.photo-version.create"}
-    (let [id       (utils/uuid)
-          now-time (utils/now)
-          filename (format "%s.%s" image-category (:extension file))
-          path     (format "%s/%s/%s" photos-folder photo-id filename)
-          metadata (dissoc file :tempfile :file-input-stream)
-
-          _         (log/infof "Creating photo version for %s" path)
-
-          db-result (rdbms/insert! database
-                                   :photo-versions (-> photo-version
-                                                       (select-keys [:photo-id :image-category])
-                                                       (assoc
-                                                        :id             id
-                                                        :storage-driver storage-driver
-                                                        :storage-root   storage-root
-                                                        :path           path
-                                                        :filename       filename
-                                                        :created-at     now-time
-                                                        :modified-at    now-time))
-                                   :ex-subtype     :UnableToCreatePhotoVersion)]
-      (fs/put-file static-content-adapter
-                   path
-                   (:file-input-stream file)
-                   metadata)
-      db-result)))
+    ;;(log/infof "Creating photo version for %s" path)
+    (let [now (utils/now)]
+      (rdbms/insert! database
+                    :photo-versions (map (fn [{:keys [id created-at] :as photo-version}]
+                                           (cond-> photo-version
+                                                   (not id) (assoc :id (utils/uuid))
+                                                   (not created-at) (assoc :created-at now :modified-at now)))
+                                         photo-versions)
+                    :ex-subtype :UnableToCreatePhotoVersion))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn add-photos-to-album! [database album-id photo-ids]
-  (let [now-time        (utils/now)
+  (let [now-time (utils/now)
         photos-in-album (vec (for [photo-id (if (seq? photo-ids) photo-ids [photo-ids])]
                                {:id          (utils/uuid)
                                 :photo-id    photo-id

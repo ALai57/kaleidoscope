@@ -3,6 +3,7 @@
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
             [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
+            [kaleidoscope.utils.core :as util]
             [kaleidoscope.utils.core :as u]
             [kaleidoscope.test-main :as tm]
             [clojure.test :refer [deftest is testing use-fixtures]]
@@ -12,9 +13,9 @@
             [kaleidoscope.test-utils :as tu]))
 
 (use-fixtures :each
-  (fn [f]
-    (log/with-min-level tm/*test-log-level*
-      (f))))
+              (fn [f]
+                (log/with-min-level tm/*test-log-level*
+                                    (f))))
 
 (def example-album
   {:album-name     "Test album"
@@ -54,8 +55,8 @@
 
 (deftest album-contents-test
   ;; 3 example-albums seeded in DB
-  (let [database  (embedded-h2/fresh-db!)
-        album-id  (:id (first (albums-api/get-albums database)))
+  (let [database (embedded-h2/fresh-db!)
+        album-id (:id (first (albums-api/get-albums database)))
         photo-ids (map :id (albums-api/get-photos database))]
 
     (testing "No contents in the album to start"
@@ -73,7 +74,7 @@
 
 (deftest get-album-contents-test
   ;; 3 example-albums seeded in DB
-  (let [database  (embedded-h2/fresh-db!)
+  (let [database (embedded-h2/fresh-db!)
         album-ids (map :id (albums-api/get-albums database))
         photo-ids (map :id (albums-api/get-photos database))]
 
@@ -130,44 +131,43 @@
     (testing "example-photos and versions were seeded into the DB"
       ;; Migrations seed db now for convenience
       (is (match?
-           [{:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :image-category "thumbnail"
-             :path           "media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
-            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :image-category "raw"
-             :path           "media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
-            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :image-category "thumbnail"
-             :path           "media/processed/20210422_134816 (2)-500.jpg"}
-            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :image-category "raw"
-             :path           "media/processed/20210422_134816 (2)-500.jpg"}
-            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :image-category "thumbnail"
-             :path           "media/processed/20210422_134824 (2)-500.jpg"}
-            {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
-             :image-category "raw"
-             :path           "media/processed/20210422_134824 (2)-500.jpg"}]
-           (albums-api/get-full-photos database {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"}))))))
+            [{:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+              :image-category "thumbnail"
+              :path           "media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
+             {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+              :image-category "raw"
+              :path           "media/processed/1d675bdc-e6ec-4522-8920-4950d33d4eee-500.jpg"}
+             {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+              :image-category "thumbnail"
+              :path           "media/processed/20210422_134816 (2)-500.jpg"}
+             {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+              :image-category "raw"
+              :path           "media/processed/20210422_134816 (2)-500.jpg"}
+             {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+              :image-category "thumbnail"
+              :path           "media/processed/20210422_134824 (2)-500.jpg"}
+             {:id             #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"
+              :image-category "raw"
+              :path           "media/processed/20210422_134824 (2)-500.jpg"}]
+            (albums-api/get-full-photos database {:id #uuid "4a3db5ec-358c-4e36-9f19-3e0193001ff4"}))))))
 
 (def UUID-REGEX
   "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 
 (deftest create-photo-version--test
   (let [database (embedded-h2/fresh-db!)
-        mock-fs  (atom {})]
+        mock-fs (atom {})]
     (testing "Create photo version"
       (is (match? [{:id uuid?}]
                   (albums-api/create-photo-version-2! database
-                                                      (in-mem/make-mem-fs {:store mock-fs})
-                                                      (assoc example-photo-version
-                                                             :file {:filename          "myfile.png"
-                                                                    :more-metadata     12345
-                                                                    :extension         "png"
-                                                                    :file-input-stream (u/->file-input-stream (io/file (io/resource "public/images/lock.svg")))})))))
+                                                      [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
+                                                                                      #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
+                                                                                      "png"
+                                                                                      (util/now)
+                                                                                      "thumbnail")]))))
 
     (testing "Can retrieve the version from the DB"
-      (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+      (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
                     :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                     :hostname       "andrewslai.com"
                     :filename       "thumbnail.png"
@@ -176,7 +176,7 @@
                   (albums-api/get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
     (testing "Can retrieve the version from the DB with string"
-      (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+      (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
                     :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                     :hostname       "andrewslai.com"
                     :filename       "thumbnail.png"
@@ -186,10 +186,11 @@
 
 
     (testing "File exists in Filesystem"
+      (println "MOCK FS" @mock-fs)
       (is (match? {"media"
                    {"f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                     {"thumbnail.png"
-                     {:path     (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+                     {:path     (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
                       :name     "thumbnail.png"
                       :content  tu/file-input-stream?
                       :metadata {:filename      "myfile.png"
@@ -201,17 +202,16 @@
 (deftest create-photo-version-postgres--test
   (testing "Postgres specific conversion"
     (let [database (embedded-postgres/fresh-db!)
-          mock-fs  (atom {})]
+          mock-fs (atom {})]
       (albums-api/create-photo-version-2! database
-                                          (in-mem/make-mem-fs {:store mock-fs})
-                                          (assoc example-photo-version
-                                                 :file {:filename          "myfile.png"
-                                                        :more-metadata     12345
-                                                        :extension         "png"
-                                                        :file-input-stream (u/->file-input-stream (io/file (io/resource "public/images/lock.svg")))}))
+                                          [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
+                                                                          #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
+                                                                          "png"
+                                                                          (util/now)
+                                                                          "thumbnail")])
 
       (testing "Can retrieve the version from the DB"
-        (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+        (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
                       :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                       :hostname       "andrewslai.com"
                       :filename       "thumbnail.png"
@@ -220,7 +220,7 @@
                     (albums-api/get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
       (testing "Can retrieve the version from the DB with string"
-        (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
+        (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
                       :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                       :hostname       "andrewslai.com"
                       :filename       "thumbnail.png"
