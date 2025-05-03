@@ -16,10 +16,10 @@
 (def IMAGE-DIMENSIONS
   ;; category  wd   ht
   {:raw       nil
-   :thumbnail [100  100 ]
-   :gallery   [165  165 ]
+   :thumbnail [100 100]
+   :gallery   [165 165]
    :monitor   [1920 1080]
-   :mobile    [1200 630 ]})
+   :mobile    [1200 630]})
 
 (defn get-file-extension
   [path]
@@ -46,10 +46,10 @@
 
           static-content-adapter (get static-content-adapters hostname)
 
-          photo-id  (java.util.UUID/randomUUID)
+          photo-id (java.util.UUID/randomUUID)
           extension (get-file-extension filename)]
       (log/infof "Processing file %s" filename)
-      (let [photo   (albums-api/create-photo! database {:id photo-id :hostname hostname})
+      (let [photo (albums-api/create-photo! database {:id photo-id :hostname hostname})
             ;; Extract to Go Lambda, add SQS queue, add DLQ and processing statistics
             resized (for [[image-category [w h :as resize]] IMAGE-DIMENSIONS]
                       (try
@@ -63,15 +63,20 @@
                                                                       :file           (-> params
                                                                                           (get "file")
                                                                                           (assoc :file-input-stream image-stream
-                                                                                                 :extension         extension))})))
+                                                                                                 :extension extension))})))
                         (catch Throwable e
                           (log/errorf "Caught error processing photo Filename '%s' Tempfile '%s' Exists?" filename tempfile)
                           (log/error (ex-message e))
                           (throw e))
                         ))]
-         (notify-image-resizer! :subject "image-resize-requested"
+        (try
+          (notify-image-resizer! :subject "image-resize-requested"
                                 :message (format "s3://%s/%s/raw.%s" hostname photo-id extension)
-                                :message-attributes {"hostname" hostname "extension" extension} )
+                                :message-attributes {"hostname" hostname "extension" extension})
+          (catch Throwable e
+            (log/errorf "Caught error publishing to Image Notifier topic for image '%s'" filename)
+            (log/error (ex-message e))
+            (throw e)))
         {:photo-id photo-id
          :versions (vec resized)}))))
 
@@ -99,19 +104,19 @@
                  ;;
                  ;;:host      "andrewslai.localhost"
                  }
-   ["" {:get {:summary   "Get photos"
-              :responses (merge hu/openapi-401
-                                {200 {:description "A collection of groups the user owns"
-                                      :content     {"application/json"
-                                                    {:schema [:any]}}}})
+   ["" {:get  {:summary   "Get photos"
+               :responses (merge hu/openapi-401
+                                 {200 {:description "A collection of groups the user owns"
+                                       :content     {"application/json"
+                                                     {:schema [:any]}}}})
 
-              :handler (fn [{:keys [components parameters] :as req}]
-                         (let [query-params (:query parameters)
-                               _            (log/infof "Getting photos matching %s" query-params)
-                               hostname     (hu/get-host req)
-                               photos       (albums-api/get-full-photos (:database components) (assoc query-params :hostname hostname))]
-                           (ok (map (fn [{:keys [id filename] :as photo}]
-                                      (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos))))}
+               :handler   (fn [{:keys [components parameters] :as req}]
+                            (let [query-params (:query parameters)
+                                  _ (log/infof "Getting photos matching %s" query-params)
+                                  hostname (hu/get-host req)
+                                  photos (albums-api/get-full-photos (:database components) (assoc query-params :hostname hostname))]
+                              (ok (map (fn [{:keys [id filename] :as photo}]
+                                         (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos))))}
         :post {:summary     "Upload a new file"
                :description "Add a new image"
                :responses   (merge hu/openapi-401
@@ -127,7 +132,7 @@
                               (let [file-uploads (->> params
                                                       vals
                                                       (filter file-upload?))
-                                    result       (mapv (partial process-photo-upload! req) file-uploads)]
+                                    result (mapv (partial process-photo-upload! req) file-uploads)]
 
                                 ;; Todo create a batch response
                                 ;; Must be JSON encoded because Jetty doesn't know how to serialize
@@ -145,20 +150,20 @@
                         :handler    (fn [{:keys [components body-params path-params] :as request}]
                                       (let [{:keys [photo-id]} path-params
 
-                                            _        (log/infof "Getting photo %s" photo-id)
+                                            _ (log/infof "Getting photo %s" photo-id)
                                             hostname (hu/get-host request)
-                                            photos   (albums-api/get-full-photos (:database components) {:id       photo-id
-                                                                                                         :hostname hostname})]
+                                            photos (albums-api/get-full-photos (:database components) {:id       photo-id
+                                                                                                       :hostname hostname})]
                                         (if (empty? photos)
                                           (not-found {:reason "Missing"})
                                           (ok (map (fn [{:keys [id filename] :as photo}]
                                                      (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos)))))}
 
-                  :put {:summary   "Update photo"
-                        :responses (merge hu/openapi-401
-                                          {200 {:description "The photo metadata that was updated"
-                                                :content     {"application/json"
-                                                              {:schema [:any]}}}})
+                  :put {:summary    "Update photo"
+                        :responses  (merge hu/openapi-401
+                                           {200 {:description "The photo metadata that was updated"
+                                                 :content     {"application/json"
+                                                               {:schema [:any]}}}})
 
                         :request    {:description "Photo metadata"
                                      :content     {"application/json"
@@ -172,11 +177,11 @@
                         :handler    (fn [{:keys [components body-params path-params] :as request}]
                                       (let [{:keys [photo-id]} path-params
 
-                                            id       (parse-uuid photo-id)
-                                            _        (log/infof "Getting photo %s" photo-id)
+                                            id (parse-uuid photo-id)
+                                            _ (log/infof "Getting photo %s" photo-id)
                                             hostname (hu/get-host request)
-                                            photo   (albums-api/get-photos (:database components) {:id       id
-                                                                                                   :hostname hostname})]
+                                            photo (albums-api/get-photos (:database components) {:id       id
+                                                                                                 :hostname hostname})]
                                         (if (empty? photo)
                                           (do
                                             (log/warnf "Photo `%s` does not exist for `%s`" photo-id hostname)
@@ -194,7 +199,7 @@
                                                       :filename string?}}
                                   :handler    (fn [{:keys [components parameters] :as request}]
                                                 (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
-                                                  (let [path-params                                     (:path parameters)
+                                                  (let [path-params (:path parameters)
                                                         [{:keys [path] :as version} :as photo-versions] (albums-api/get-full-photos (:database components) path-params)]
                                                     (hu/get-resource (:static-content-adapters components) (-> request
                                                                                                                (assoc :uri path)

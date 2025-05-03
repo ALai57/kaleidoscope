@@ -238,6 +238,14 @@ resource "aws_iam_role_policy" "ecsTaskRolePolicy" {
                 "logs:PutMetricFilter"
             ],
             "Resource": "*"
+        },
+        {
+            "Sid": "ImageNotifierPublish",
+            "Effect": "Allow",
+            "Action": [
+                "sns:Publish"
+            ],
+            "Resource": "${var.KALEIDOSCOPE_IMAGE_NOTIFIER_ARN}"
         }
     ]
   }
@@ -470,7 +478,7 @@ resource "aws_ecs_task_definition" "kaleidoscope_task" {
       }
      ],
     "environment": [
-      {"name": "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE", "value": "${var.KALEIDOSCOPE_DB_TYPE}"},
+      {"name": "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE", "value": "${var.KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE}"},
       {"name": "KALEIDOSCOPE_IMAGE_NOTIFIER_ARN", "value": "${var.KALEIDOSCOPE_IMAGE_NOTIFIER_ARN}"},
 
       {"name": "KALEIDOSCOPE_DB_TYPE", "value": "${var.KALEIDOSCOPE_DB_TYPE}"},

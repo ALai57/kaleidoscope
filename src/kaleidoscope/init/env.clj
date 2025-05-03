@@ -38,11 +38,11 @@
 (defn env->keycloak
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:realm             [:string {:error/message "Missing Keycloak realm. Set via KALEIDOSCOPE_AUTH_REALM environment variable."}]]
-                   [:auth-server-url   [:string {:error/message "Missing Keycloak auth server url. Set via KALEIDOSCOPE_AUTH_URL environment variable."}]]
-                   [:client-id         [:string {:error/message "Missing Keycloak client id. Set via KALEIDOSCOPE_AUTH_CLIENT environment variable."}]]
-                   [:client-secret     [:string {:error/message "Missing Keycloak secret. Set via KALEIDOSCOPE_AUTH_SECRET environment variable."}]]
-                   [:ssl-required      [:string {:error/message "Missing Keycloak ssl requirement. Set in code. Should never happen."}]]
+                   [:realm [:string {:error/message "Missing Keycloak realm. Set via KALEIDOSCOPE_AUTH_REALM environment variable."}]]
+                   [:auth-server-url [:string {:error/message "Missing Keycloak auth server url. Set via KALEIDOSCOPE_AUTH_URL environment variable."}]]
+                   [:client-id [:string {:error/message "Missing Keycloak client id. Set via KALEIDOSCOPE_AUTH_CLIENT environment variable."}]]
+                   [:client-secret [:string {:error/message "Missing Keycloak secret. Set via KALEIDOSCOPE_AUTH_SECRET environment variable."}]]
+                   [:ssl-required [:string {:error/message "Missing Keycloak ssl requirement. Set in code. Should never happen."}]]
                    [:confidential-port [:int {:error/message "Missing Keycloak confidential port. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
@@ -56,15 +56,15 @@
 (defn env->pg-conn
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:dbname      [:string {:error/message "Missing DB name. Set via KALEIDOSCOPE_DB_NAME environment variable."}]]
-                   [:db-port     [:string {:error/message "Missing DB port. Set via KALEIDOSCOPE_DB_PORT environment variable."}]]
-                   [:host        [:string {:error/message "Missing DB host. Set via KALEIDOSCOPE_DB_HOST environment variable."}]]
-                   [:username    [:string {:error/message "Missing DB user. Set via KALEIDOSCOPE_DB_USER environment variable."}]]
-                   [:password    [:string {:error/message "Missing DB pass. Set via KALEIDOSCOPE_DB_PASSWORD environment variable."}]]
-                   [:dbtype      [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]
+                   [:dbname [:string {:error/message "Missing DB name. Set via KALEIDOSCOPE_DB_NAME environment variable."}]]
+                   [:db-port [:string {:error/message "Missing DB port. Set via KALEIDOSCOPE_DB_PORT environment variable."}]]
+                   [:host [:string {:error/message "Missing DB host. Set via KALEIDOSCOPE_DB_HOST environment variable."}]]
+                   [:username [:string {:error/message "Missing DB user. Set via KALEIDOSCOPE_DB_USER environment variable."}]]
+                   [:password [:string {:error/message "Missing DB pass. Set via KALEIDOSCOPE_DB_PASSWORD environment variable."}]]
+                   [:dbtype [:string {:error/message "Missing DB type. Set in code. Should never happen."}]]
                    ;; pascalCase for Java Interop
-                   [:minimumIdle [:int    {:error/message "Missing Minimum Idle. Set in code. Should never happen."}]]
-                   [:idleTimeout [:int    {:error/message "Missing DB Idle timeout. Set in code. Should never happen."}]]]]
+                   [:minimumIdle [:int {:error/message "Missing Minimum Idle. Set in code. Should never happen."}]]
+                   [:idleTimeout [:int {:error/message "Missing DB Idle timeout. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
   {:dbname      (get env "KALEIDOSCOPE_DB_NAME")
@@ -76,7 +76,7 @@
    ;; Minimum number of connections when the pool is idle. Set intentionally
    ;; low, because the app uses db.t4g.micro and we don't want to eat up CPU.
    :minimumIdle 3
-   :idleTimeout 120000 ;; Shut down connections after 2 mins
+   :idleTimeout 120000                                      ;; Shut down connections after 2 mins
    })
 
 (defn env->kaleidoscope-image-notifier
@@ -102,7 +102,7 @@
 (defn env->bugsnag
   {:malli/schema [:=> [:cat :map]
                   [:map
-                   [:api-key     [:string {:error/message "Missing Bugsnag key. Set via KALEIDOSCOPE_BUGSNAG_KEY environment variable."}]]
+                   [:api-key [:string {:error/message "Missing Bugsnag key. Set via KALEIDOSCOPE_BUGSNAG_KEY environment variable."}]]
                    [:app-version [:string {:error/message "Missing App version. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
@@ -133,7 +133,7 @@
 (def database-boot-instructions
   {:name      :database-connection
    :path      "KALEIDOSCOPE_DB_TYPE"
-   :launchers {"postgres"          (fn  [env]
+   :launchers {"postgres"          (fn [env]
                                      (let [ds (connection/->pool HikariDataSource
                                                                  (env->pg-conn env))]
                                        (initialize-connection-pool! ds)
@@ -150,7 +150,7 @@
 (def kaleidoscope-authentication-boot-instructions
   {:name      :kaleidoscope-authentication
    :path      "KALEIDOSCOPE_AUTH_TYPE"
-   :launchers {"keycloak"                  (fn  [env] (bb/keycloak-backend (env->keycloak env)))
+   :launchers {"keycloak"                  (fn [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
                "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
                                                                                  :sub          "my-user-id"
@@ -173,11 +173,11 @@
 (def kaleidoscope-notify-image-resizer-boot-instructions
   {:name      :kaleidoscope-notify-image-resizer
    :path      "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE"
-   :launchers {"none"             (fn [_env] identity)
-               "println"          (fn [_env] (fn [& args] (println "Arguments to image notifier" args)))
-               "sns"              (fn  [env]
-                                    (let [{:keys [image-notifier-arn]} (env->kaleidoscope-image-notifier env)]
-                                        (partial sns/publish :topic-arn image-notifier-arn)) )}
+   :launchers {"none"    (fn [_env] identity)
+               "println" (fn [_env] (fn [& args] (println "Arguments to image notifier" args)))
+               "sns"     (fn [env]
+                           (let [{:keys [image-notifier-arn]} (env->kaleidoscope-image-notifier env)]
+                             (partial sns/publish :topic-arn image-notifier-arn)))}
    :default   "sns"})
 
 ;; TODO: Allow this to work using entire domain name. Otherwise, we could get collisions.
@@ -185,16 +185,16 @@
   {:name      :kaleidoscope-static-content-adapters
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn  [env] {"kaleidoscope.pub"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
-                                              "kaleidoscope.client"              (s3-storage/make-s3 {:bucket "kaleidoscope.client"})
-                                              "andrewslai.com"                   (s3-storage/make-s3 {:bucket "andrewslai.com"})
-                                              "caheriaguilar.com"                (s3-storage/make-s3 {:bucket "caheriaguilar.com"})
-                                              "sahiltalkingcents.com"            (s3-storage/make-s3 {:bucket "sahiltalkingcents.com"})
-                                              "caheriaguilar.and.andrewslai.com" (s3-storage/make-s3 {:bucket "wedding"})
+               "s3"               (fn [env] {"kaleidoscope.pub"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
+                                             "kaleidoscope.client"              (s3-storage/make-s3 {:bucket "kaleidoscope.client"})
+                                             "andrewslai.com"                   (s3-storage/make-s3 {:bucket "andrewslai.com"})
+                                             "caheriaguilar.com"                (s3-storage/make-s3 {:bucket "caheriaguilar.com"})
+                                             "sahiltalkingcents.com"            (s3-storage/make-s3 {:bucket "sahiltalkingcents.com"})
+                                             "caheriaguilar.and.andrewslai.com" (s3-storage/make-s3 {:bucket "wedding"})
 
-                                              ;; For testing locally
-                                              "andrewslai.com.localhost"         (s3-storage/make-s3 {:bucket "andrewslai.com"})
-                                              })
+                                             ;; For testing locally
+                                             "andrewslai.com.localhost"         (s3-storage/make-s3 {:bucket "andrewslai.com"})
+                                             })
                "in-memory"        (fn [_env] {"kaleidoscope.pub"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "kaleidoscope.client"              (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "andrewslai.com"                   (memory/make-mem-fs {:store (atom memory/example-fs)})
@@ -202,21 +202,21 @@
                                               "caheriaguilar.com"                (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "sahiltalkingcents.com"            (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "caheriaguilar.and.andrewslai.com" (memory/make-mem-fs {:store (atom memory/example-fs)})})
-               "local-filesystem" (fn  [env] {"kaleidoscope.pub"                 (local-fs/make-local-fs (env->kaleidoscope-local-fs env "kaleidoscope.pub"))
-                                              "kaleidoscope.pub.localhost"       (local-fs/make-local-fs (env->kaleidoscope-local-fs env "kaleidoscope.pub"))
-                                              "kaleidoscope.client"              (local-fs/make-local-fs (env->kaleidoscope-local-fs env "kaleidoscope.client"))
-                                              "kaleidoscope.client.localhost"    (local-fs/make-local-fs (env->kaleidoscope-local-fs env "kaleidoscope.client"))
-                                              "andrewslai.com"                   (local-fs/make-local-fs (env->kaleidoscope-local-fs env "andrewslai.com"))
-                                              "andrewslai.com.localhost"         (local-fs/make-local-fs (env->kaleidoscope-local-fs env "andrewslai.com"))
-                                              "caheriaguilar.com"                (local-fs/make-local-fs (env->kaleidoscope-local-fs env "caheriaguilar.com"))
-                                              "sahiltalkingcents.com"            (local-fs/make-local-fs (env->kaleidoscope-local-fs env "sahiltalkingcents.com"))
-                                              "caheriaguilar.and.andrewslai.com" (local-fs/make-local-fs (env->kaleidoscope-local-fs env "caheriaguilar.and.andrewslai.com"))})}
+               "local-filesystem" (fn [env] {"kaleidoscope.pub"                 (local-fs/make-local-fs (env->kaleidoscope-local-fs env "kaleidoscope.pub"))
+                                             "kaleidoscope.pub.localhost"       (local-fs/make-local-fs (env->kaleidoscope-local-fs env "kaleidoscope.pub"))
+                                             "kaleidoscope.client"              (local-fs/make-local-fs (env->kaleidoscope-local-fs env "kaleidoscope.client"))
+                                             "kaleidoscope.client.localhost"    (local-fs/make-local-fs (env->kaleidoscope-local-fs env "kaleidoscope.client"))
+                                             "andrewslai.com"                   (local-fs/make-local-fs (env->kaleidoscope-local-fs env "andrewslai.com"))
+                                             "andrewslai.com.localhost"         (local-fs/make-local-fs (env->kaleidoscope-local-fs env "andrewslai.com"))
+                                             "caheriaguilar.com"                (local-fs/make-local-fs (env->kaleidoscope-local-fs env "caheriaguilar.com"))
+                                             "sahiltalkingcents.com"            (local-fs/make-local-fs (env->kaleidoscope-local-fs env "sahiltalkingcents.com"))
+                                             "caheriaguilar.and.andrewslai.com" (local-fs/make-local-fs (env->kaleidoscope-local-fs env "caheriaguilar.and.andrewslai.com"))})}
    :default   "s3"})
 
 (def exception-reporter-boot-instructions
   {:name      :exception-reporter
    :path      "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"
-   :launchers {"bugsnag" (fn  [env] (bugsnag/make-bugsnag-client (env->bugsnag env)))
+   :launchers {"bugsnag" (fn [env] (bugsnag/make-bugsnag-client (env->bugsnag env)))
                "none"    (fn [_env] (reify
                                       er/ErrorReporter
                                       (report! [this e]
@@ -239,10 +239,10 @@
 
 (def BootInstruction
   [:map
-   [:name      [:keyword {:error/message "Invalid Boot Instruction. Missing name."}]]
-   [:path      [:string  {:error/message "Invalid Boot Instruction. Missing path."}]]
-   [:default   [:string  {:error/message "Invalid Boot Instruction. Missing default."}]]
-   [:launchers [:map     {:error/message "Invalid Boot Instruction. Missing launchers."}]]
+   [:name [:keyword {:error/message "Invalid Boot Instruction. Missing name."}]]
+   [:path [:string {:error/message "Invalid Boot Instruction. Missing path."}]]
+   [:default [:string {:error/message "Invalid Boot Instruction. Missing default."}]]
+   [:launchers [:map {:error/message "Invalid Boot Instruction. Missing launchers."}]]
    ])
 
 (def BootInstructions
@@ -258,7 +258,7 @@
   ([boot-instructions env]
    (reduce (fn [acc {:keys [name path default launchers] :as system-component}]
              (let [launcher (get env path default)
-                   init-fn  (get launchers launcher)]
+                   init-fn (get launchers launcher)]
                (if init-fn
                  (do (log/debugf "Starting %s using `%s`launcher: %s" name launcher init-fn)
                      (assoc acc name (init-fn env)))
