@@ -17,7 +17,7 @@
   ;; category  wd   ht
   {:raw       nil
    :thumbnail [100 100]
-   :gallery   [165 165]
+   ;;:gallery   [165 165]
    :monitor   [1920 1080]
    :mobile    [1200 630]})
 
@@ -70,9 +70,11 @@
                           (throw e))
                         ))]
         (try
-          (notify-image-resizer! :subject "image-resize-requested"
-                                :message (format "s3://%s/%s/raw.%s" hostname photo-id extension)
-                                :message-attributes {"hostname" hostname "extension" extension})
+          (let [image-path (format "s3://%s/media/%s/raw.%s" hostname photo-id extension)]
+            (log/infof "Notifying image resizer for async processing of %s" image-path)
+            (notify-image-resizer! :subject "image-resize-requested"
+                                   :message image-path
+                                   :message-attributes {"hostname" hostname "extension" extension}))
           (catch Throwable e
             (log/errorf "Caught error publishing to Image Notifier topic for image '%s'" filename)
             (log/error (ex-message e))
