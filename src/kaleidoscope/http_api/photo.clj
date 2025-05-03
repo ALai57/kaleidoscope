@@ -14,15 +14,6 @@
 (def MEDIA-FOLDER
   "media")
 
-(def IMAGE-VERSIONS
-  ;; category  wd   ht
-  [:raw
-   :thumbnail                                               ;;[100 100]
-   :gallery                                                 ;;[165 165]
-   :monitor                                                 ;;[1920 1080]
-   :mobile                                                  ;;[1200 630]
-   ])
-
 (defn get-file-extension
   [path]
   (last (str/split path #"\.")))
@@ -44,37 +35,20 @@
   (span/with-span! {:name "kaleidoscope.api.photo.upload-and-process"}
     (log/infof "Processing file %s" filename)
     (let [{:keys [static-content-adapters database notify-image-resizer!]} components
-          photo-id (java.util.UUID/randomUUID)
           hostname (hu/get-host req)
           extension (get-file-extension filename)
-          now-time (utils/now)
-
-          photo (albums-api/create-photo! database {:id photo-id :hostname hostname})
 
           static-content-adapter (-> static-content-adapters
                                      (get hostname)
-                                     (assoc :photos-folder MEDIA-FOLDER))
-
-          _ (fs/put-file static-content-adapter
-                         (format "%s/%s/raw.%s" MEDIA-FOLDER photo-id extension)
-                         (u/->file-input-stream tempfile)
-                         (dissoc file :tempfile :file-input-stream))
-
-          versions (map (partial albums-api/make-image-version static-content-adapter photo-id extension now-time) IMAGE-VERSIONS)
-
-          results (albums-api/create-photo-version-2! database versions)]
+                                     (assoc :photos-folder MEDIA-FOLDER))]
       (try
-        (let [image-path (format "s3://%s/media/%s/raw.%s" hostname photo-id extension)]
-          (log/infof "Notifying image resizer for async processing of %s" image-path)
-          (notify-image-resizer! :subject "image-resize-requested"
-                                 :message image-path
-                                 :message-attributes {"hostname" hostname "extension" extension}))
+        (albums-api/new-image (assoc components :static-content-adapter static-content-adapter)
+                              hostname
+                              (assoc file :extension extension))
         (catch Throwable e
-          (log/errorf "Caught error publishing to Image Notifier topic for image '%s'" filename)
+          (log/errorf "Caught error processing photo upload" filename)
           (log/error (ex-message e))
-          (throw e)))
-      {:photo-id photo-id
-       :versions (vec results)})))
+          (throw e))))))
 
 (def Version
   [:map

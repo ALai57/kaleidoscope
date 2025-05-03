@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.albums
   (:require [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.utils.core :as u]
             [kaleidoscope.utils.core :as utils]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
@@ -73,6 +74,15 @@
                                             :modified-at now-time)
                           :ex-subtype :UnableToCreatePhotoVersion))))
 
+(def IMAGE-VERSIONS
+  ;; category  wd   ht
+  [:raw
+   :thumbnail                                               ;;[100 100]
+   :gallery                                                 ;;[165 165]
+   :monitor                                                 ;;[1920 1080]
+   :mobile                                                  ;;[1200 630]
+   ])
+
 (defn make-image-version
   [static-content-adapter photo-id extension now-time image-version-name]
   (let [id (utils/uuid)
@@ -93,13 +103,43 @@
   (span/with-span! {:name "kaleidoscope.api.photo-version.create"}
     ;;(log/infof "Creating photo version for %s" path)
     (let [now (utils/now)]
+      (println "Creating photo versions " (count photo-versions))
       (rdbms/insert! database
-                    :photo-versions (map (fn [{:keys [id created-at] :as photo-version}]
-                                           (cond-> photo-version
-                                                   (not id) (assoc :id (utils/uuid))
-                                                   (not created-at) (assoc :created-at now :modified-at now)))
-                                         photo-versions)
-                    :ex-subtype :UnableToCreatePhotoVersion))))
+                     :photo-versions (map (fn [{:keys [id created-at] :as photo-version}]
+                                            (cond-> photo-version
+                                                    (not id) (assoc :id (utils/uuid))
+                                                    (not created-at) (assoc :created-at now :modified-at now)))
+                                          photo-versions)
+                     :ex-subtype :UnableToCreatePhotoVersion))))
+
+(defn new-image
+  [{:keys [static-content-adapter database notify-image-resizer!] :as components}
+   hostname
+   {:keys [filename tempfile extension photo-id] :as file}]
+  (let [photo-id (or photo-id (utils/uuid))
+        now-time (utils/now)
+
+        photo (create-photo! database {:id photo-id :hostname hostname})
+
+        versions (map (partial make-image-version static-content-adapter photo-id extension now-time) IMAGE-VERSIONS)
+        results (create-photo-version-2! database versions)]
+
+    (fs/put-file static-content-adapter
+                 (format "%s/%s/raw.%s" (:photos-folder static-content-adapter) photo-id extension)
+                 (u/->file-input-stream tempfile)
+                 (dissoc file :tempfile :file-input-stream))
+    (try
+      (let [image-path (format "s3://%s/media/%s/raw.%s" hostname photo-id extension)]
+        (log/infof "Notifying image resizer for async processing of %s" image-path)
+        (notify-image-resizer! :subject "image-resize-requested"
+                               :message image-path
+                               :message-attributes {"hostname" hostname "extension" extension}))
+      (catch Throwable e
+        (log/errorf "Caught error publishing to Image Notifier topic for image '%s'" filename)
+        (log/error (ex-message e))
+        (throw e)))
+    {:photo-id photo-id
+     :versions (vec results)}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums

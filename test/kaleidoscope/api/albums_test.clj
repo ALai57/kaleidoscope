@@ -182,21 +182,7 @@
                     :filename       "thumbnail.png"
                     :storage-driver "in-memory"
                     :storage-root   "media"}]
-                  (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
-
-
-    (testing "File exists in Filesystem"
-      (println "MOCK FS" @mock-fs)
-      (is (match? {"media"
-                   {"f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
-                    {"thumbnail.png"
-                     {:path     (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
-                      :name     "thumbnail.png"
-                      :content  tu/file-input-stream?
-                      :metadata {:filename      "myfile.png"
-                                 :more-metadata 12345}
-                      }}}}
-                  @mock-fs)))))
+                  (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))))
 
 
 (deftest create-photo-version-postgres--test
@@ -227,3 +213,66 @@
                       :storage-driver "in-memory"
                       :storage-root   "media"}]
                     (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"})))))))
+
+
+(deftest new-image-test
+  (let [database (embedded-h2/fresh-db!)
+        mock-fs (atom {})
+        captured-notification (atom [])]
+    (testing "Create photo version"
+      (is (match? {:photo-id uuid?
+                   :versions vector?}
+                  (albums-api/new-image {:database               database
+                                         :static-content-adapter (in-mem/make-mem-fs {:store mock-fs})
+                                         :notify-image-resizer!  (fn [& inputs] (swap! captured-notification conj (apply hash-map inputs)))}
+                                        "andrewslai.com"
+                                        {:filename          "myfile.png"
+                                         :photo-id          #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"
+                                         :more-metadata     12345
+                                         :extension         "png"
+                                         :tempfile          (io/file (io/resource "public/images/lock.svg"))
+                                         :file-input-stream (u/->file-input-stream (io/file (io/resource "public/images/lock.svg")))}))))
+
+    (testing "Can retrieve the version from the DB"
+      (is (match? [{:path           (re-pattern (format "media-folder/%s/raw.png" UUID-REGEX))
+                    :photo-id       #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"
+                    :hostname       "andrewslai.com"
+                    :filename       "raw.png"
+                    :storage-driver "in-memory"
+                    :storage-root   "media"}
+                   {:filename "thumbnail.png"}
+                   {:filename "gallery.png"}
+                   {:filename "monitor.png"}
+                   {:filename "mobile.png"}]
+                  (albums-api/get-full-photos database {:id #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"}))))
+
+    (testing "Can retrieve the version from the DB with string"
+      (is (match? [{:path           (re-pattern (format "media-folder/%s/raw.png" UUID-REGEX))
+                    :photo-id       #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"
+                    :hostname       "andrewslai.com"
+                    :filename       "raw.png"
+                    :storage-driver "in-memory"
+                    :storage-root   "media"}
+                   {:filename "thumbnail.png"}
+                   {:filename "gallery.png"}
+                   {:filename "monitor.png"}
+                   {:filename "mobile.png"}]
+                  (albums-api/get-full-photos database {:id "11111111-4c9f-42c0-9e68-c4aeedf7cae4"}))))
+
+    (testing "Sends notifications"
+      (is (= [{:message            "s3://andrewslai.com/media/11111111-4c9f-42c0-9e68-c4aeedf7cae4/raw.png"
+               :subject            "image-resize-requested"
+               :message-attributes {"hostname"  "andrewslai.com"
+                                    "extension" "png"}}]
+             @captured-notification)))
+    (testing "File exists in Filesystem"
+      (is (match? {"media-folder"
+                   {"11111111-4c9f-42c0-9e68-c4aeedf7cae4"
+                    {"raw.png"
+                     {:path     (re-pattern (format "media-folder/%s/raw.png" UUID-REGEX))
+                      :name     "raw.png"
+                      :content  tu/file-input-stream?
+                      :metadata {:filename      "myfile.png"
+                                 :more-metadata 12345}
+                      }}}}
+                  @mock-fs)))))
