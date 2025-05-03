@@ -5,6 +5,7 @@
          com.amazonaws/aws-java-sdk-s3      {:mvn/version "1.12.385"}
          com.amazonaws/aws-java-sdk-route53 {:mvn/version "1.12.385"}
          com.amazonaws/aws-java-sdk-ses     {:mvn/version "1.12.385"}
+         com.amazonaws/aws-java-sdk-sns     {:mvn/version "1.12.385"}
 
          com.signal-ai/amazonica-aws-sso                      {:mvn/version "1.0.2"} ;; Allow SSO credentials via CredentialsProviderChain
          software.amazon.awssdk/ssooidc                       {:mvn/version "2.20.50"} ;; Required to use SSO OIDC related properties for login

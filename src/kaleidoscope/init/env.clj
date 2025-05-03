@@ -1,7 +1,8 @@
 (ns kaleidoscope.init.env
   "Parses environment variables into Clojure maps that are used to boot system
   components."
-  (:require [kaleidoscope.clients.bugsnag :as bugsnag]
+  (:require [amazonica.aws.sns :as sns]
+            [kaleidoscope.clients.bugsnag :as bugsnag]
             [kaleidoscope.clients.error-reporter :as er]
             [kaleidoscope.clients.session-tracker :as st]
             [kaleidoscope.http-api.auth.buddy-backends :as bb]
@@ -77,6 +78,15 @@
    :minimumIdle 3
    :idleTimeout 120000 ;; Shut down connections after 2 mins
    })
+
+(defn env->kaleidoscope-image-notifier
+  {:malli/schema [:=> [:cat :map]
+                  [:map
+                   [:image-notifier-arn [:string {:error/message "Missing Image Notifier ARN. Set via KALEIDOSCOPE_IMAGE_NOTIFIER_ARN environment variable"}]]]]
+   :malli/scope  #{:output}}
+  [env]
+  {:image-notifier-arn (get env "KALEIDOSCOPE_IMAGE_NOTIFIER_ARN")})
+
 
 (defn env->kaleidoscope-local-fs
   {:malli/schema [:=> [:cat :map]
@@ -160,6 +170,16 @@
                "use-access-control-list" (fn [_env] kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST)}
    :default   "use-access-control-list"})
 
+(def kaleidoscope-notify-image-resizer-boot-instructions
+  {:name      :kaleidoscope-notify-image-resizer
+   :path      "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE"
+   :launchers {"none"             (fn [_env] identity)
+               "println"          (fn [_env] (fn [& args] (println "Arguments to image notifier" args)))
+               "sns"              (fn  [env]
+                                    (let [{:keys [image-notifier-arn]} (env->kaleidoscope-image-notifier env)]
+                                        (partial sns/publish :topic-arn image-notifier-arn)) )}
+   :default   "sns"})
+
 ;; TODO: Allow this to work using entire domain name. Otherwise, we could get collisions.
 (def kaleidoscope-static-content-adapter-boot-instructions
   {:name      :kaleidoscope-static-content-adapters
@@ -214,7 +234,8 @@
 
    kaleidoscope-authentication-boot-instructions
    kaleidoscope-authorization-boot-instructions
-   kaleidoscope-static-content-adapter-boot-instructions])
+   kaleidoscope-static-content-adapter-boot-instructions
+   kaleidoscope-notify-image-resizer-boot-instructions])
 
 (def BootInstruction
   [:map
@@ -255,7 +276,8 @@
            exception-reporter
            kaleidoscope-authentication
            kaleidoscope-authorization
-           kaleidoscope-static-content-adapters]
+           kaleidoscope-static-content-adapters
+           kaleidoscope-notify-image-resizer]
     :as   system}]
   {:database                database-connection
    :exception-reporter      (partial er/report! exception-reporter)
@@ -264,7 +286,8 @@
    :auth-stack              {:name ::auth-stack
                              :wrap (apply comp (mw/auth-stack kaleidoscope-authentication
                                                               kaleidoscope-authorization))}
-   :static-content-adapters kaleidoscope-static-content-adapters})
+   :static-content-adapters kaleidoscope-static-content-adapters
+   :notify-image-resizer!   kaleidoscope-notify-image-resizer})
 
 (defn make-http-handler
   [system]

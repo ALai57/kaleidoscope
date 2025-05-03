@@ -3,6 +3,11 @@
 ##############################################################
 # Variables
 ##############################################################
+variable "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE" {
+  description = "Image Notifier type"
+  default = "sns"
+}
+variable "KALEIDOSCOPE_IMAGE_NOTIFIER_ARN" {description = "SNS queue to notify upon image resize request"}
 
 variable "KALEIDOSCOPE_DB_TYPE" {description = "Database type"}
 variable "KALEIDOSCOPE_DB_USER" {description = "Database username"}
@@ -465,6 +470,9 @@ resource "aws_ecs_task_definition" "kaleidoscope_task" {
       }
      ],
     "environment": [
+      {"name": "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE", "value": "${var.KALEIDOSCOPE_DB_TYPE}"},
+      {"name": "KALEIDOSCOPE_IMAGE_NOTIFIER_ARN", "value": "${var.KALEIDOSCOPE_IMAGE_NOTIFIER_ARN}"},
+
       {"name": "KALEIDOSCOPE_DB_TYPE", "value": "${var.KALEIDOSCOPE_DB_TYPE}"},
       {"name": "KALEIDOSCOPE_DB_USER", "value": "${var.KALEIDOSCOPE_DB_USER}"},
       {"name": "KALEIDOSCOPE_DB_NAME", "value": "${var.KALEIDOSCOPE_DB_NAME}"},

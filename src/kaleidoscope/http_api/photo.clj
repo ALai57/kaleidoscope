@@ -40,7 +40,7 @@
   [{:keys [params components] :as req}
    {:keys [filename tempfile] :as file}]
   (span/with-span! {:name "kaleidoscope.api.photo.upload-and-process"}
-    (let [{:keys [static-content-adapters database]} components
+    (let [{:keys [static-content-adapters database notify-image-resizer!]} components
 
           hostname (hu/get-host req)
 
@@ -50,6 +50,7 @@
           extension (get-file-extension filename)]
       (log/infof "Processing file %s" filename)
       (let [photo   (albums-api/create-photo! database {:id photo-id :hostname hostname})
+            ;; Extract to Go Lambda, add SQS queue, add DLQ and processing statistics
             resized (for [[image-category [w h :as resize]] IMAGE-DIMENSIONS]
                       (try
                         (let [image-stream (if resize
@@ -68,6 +69,9 @@
                           (log/error (ex-message e))
                           (throw e))
                         ))]
+         (notify-image-resizer! :subject "image-resize-requested"
+                                :message (format "s3://%s/%s/raw.%s" hostname photo-id extension)
+                                :message-attributes {"hostname" hostname "extension" extension} )
         {:photo-id photo-id
          :versions (vec resized)}))))
 
