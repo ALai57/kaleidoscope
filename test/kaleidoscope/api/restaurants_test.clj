@@ -16,7 +16,7 @@
   {:display-name "mygroup"
    :owner-id     "user-1"})
 
-(deftest create-and-retrieve-group-test
+(deftest create-and-retrieve-eater-group-test
   (let [database (embedded-h2/fresh-db!)]
     (testing "example-group doesn't exist in the database"
       (is (empty? (#'restaurants/get-eater-groups database example-group))))
@@ -39,7 +39,7 @@
         (is (= [] (restaurants/delete-eater-group! database "user-1" group-id)))
         (is (empty? (#'restaurants/get-eater-groups database example-group)))))))
 
-(deftest create-and-retrieve-group-memberships-test
+(deftest create-and-retrieve-eater-group-memberships-test
   (let [database (embedded-h2/fresh-db!)]
     (testing "no group-memberships exist in the database"
       (is (empty? (restaurants/get-users-eater-groups database "user-1"))))

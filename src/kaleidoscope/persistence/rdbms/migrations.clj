@@ -31,7 +31,7 @@
   ;; THE BUFFER WITH THIS MODULE
 
   (m/create {:migration-dir "migrations"}
-            "add-title-to-articles")
+            "add-restaurants")
   (-main "init")
   (-main "migrate")
   (-main "up")
