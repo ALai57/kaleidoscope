@@ -28,7 +28,7 @@ data "aws_subnets" "all" {
 }
 
 data "aws_security_group" "default" {
-  vpc_id = "${data.aws_vpc.default.id}"
+  vpc_id = data.aws_vpc.default.id
   name   = "default"
 }
 
@@ -39,7 +39,7 @@ data "aws_security_group" "default" {
 resource "aws_security_group" "keycloak_allow_http_https" {
   name        = "keycloak_allow_http_https"
   description = "Allow http and https traffic"
-  vpc_id      = "${data.aws_vpc.default.id}"
+  vpc_id      = data.aws_vpc.default.id
 
   ingress {
     description = "HTTP Traffic"
@@ -88,7 +88,7 @@ resource "aws_security_group" "keycloak_allow_http_https" {
 # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html
 resource "aws_iam_role" "ecsTaskExecutionRole" {
   name               = "keycloak-production-ecs"
-  assume_role_policy = "${data.aws_iam_policy_document.assume_role_policy.json}"
+  assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }
 
 # Generates an IAM policy document in JSON format
@@ -105,7 +105,7 @@ data "aws_iam_policy_document" "assume_role_policy" {
 
 # Attaches a managed IAM Policy to an IAM role
 resource "aws_iam_role_policy_attachment" "ecsTaskExecutionRole_policy" {
-  role       = "${aws_iam_role.ecsTaskExecutionRole.name}"
+  role       = aws_iam_role.ecsTaskExecutionRole.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
@@ -121,7 +121,7 @@ resource "aws_alb_target_group" "main" {
   name                 = "keycloak-production"
   port                 = 443
   protocol             = "HTTP"
-  vpc_id               = "${data.aws_vpc.default.id}"
+  vpc_id               = data.aws_vpc.default.id
   target_type          = "ip"
 
   health_check {
@@ -143,24 +143,24 @@ data "aws_acm_certificate" "issued" {
 }
 
 data "aws_lb_listener" "main" {
-  load_balancer_arn = "${data.aws_alb.main.arn}"
+  load_balancer_arn = data.aws_alb.main.arn
   port              = 443
 }
 
 # Add SSL Cert for keycloak.andrewslai.com to existing LB
 resource "aws_lb_listener_certificate" "keycloak_cert" {
-  listener_arn    = "${data.aws_lb_listener.main.arn}"
-  certificate_arn = "${data.aws_acm_certificate.issued.arn}"
+  listener_arn    = data.aws_lb_listener.main.arn
+  certificate_arn = data.aws_acm_certificate.issued.arn
 }
 
 # Add a rule to the existing load balancer for my app
 resource "aws_lb_listener_rule" "host_based_routing" {
-  listener_arn = "${data.aws_lb_listener.main.arn}"
+  listener_arn = data.aws_lb_listener.main.arn
   priority     = 20
 
   action {
     type = "forward"
-    target_group_arn  = "${aws_alb_target_group.main.arn}"
+    target_group_arn  = aws_alb_target_group.main.arn
   }
 
   condition {
@@ -190,7 +190,7 @@ resource "aws_ecs_task_definition" "keycloak_task" {
   network_mode          = "awsvpc"
   cpu                   = "256"
   memory                = "512"
-  execution_role_arn    = "${aws_iam_role.ecsTaskExecutionRole.arn}"
+  execution_role_arn    = aws_iam_role.ecsTaskExecutionRole.arn
 
   # PROXY_ADDRESS_FORWARDING is necesssary because Keycloak will be behind an
 # AWS ALB which is doing SSL termination
@@ -238,19 +238,19 @@ DEFINITION
 
 resource "aws_ecs_service" "keycloak_service" {
   name            = "keycloak-service"
-  cluster         = "${aws_ecs_cluster.keycloak_cluster.id}"
+  cluster         = aws_ecs_cluster.keycloak_cluster.id
   launch_type     = "FARGATE"
-  task_definition = "${aws_ecs_task_definition.keycloak_task.arn}"
+  task_definition = aws_ecs_task_definition.keycloak_task.arn
   desired_count   = 1
 
   network_configuration {
-    security_groups  = ["${data.aws_security_group.default.id}", "${aws_security_group.keycloak_allow_http_https.id}"]
+    security_groups  = [data.aws_security_group.default.id, aws_security_group.keycloak_allow_http_https.id]
     subnets          = data.aws_subnets.all.ids
     assign_public_ip = "true"
   }
 
   load_balancer {
-    target_group_arn = "${aws_alb_target_group.main.id}"
+    target_group_arn = aws_alb_target_group.main.id
     container_name   = "keycloak"
     container_port   = "8080"
   }
@@ -279,6 +279,6 @@ resource "aws_secretsmanager_secret" "keycloak_admin_password" {
 }
 
 resource "aws_secretsmanager_secret_version" "keycloak_admin_password" {
-   secret_id = "${aws_secretsmanager_secret.keycloak_admin_password.id}"
-   secret_string = "${var.KEYCLOAK_PASSWORD}"
+   secret_id = aws_secretsmanager_secret.keycloak_admin_password.id
+   secret_string = var.KEYCLOAK_PASSWORD
 }

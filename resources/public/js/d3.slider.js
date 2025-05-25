@@ -273,11 +273,11 @@ return function module() {
         value[ active - 1 ] = newValue;
         if (d3.event) {
           dispatch.call("slide",d3.event, value );
-        };
+        }
       } else {
         if (d3.event) {
           dispatch.call("slide",d3.event.sourceEvent || d3.event, value = newValue);
-        };
+        }
       }
 
       if ( value[ 0 ] >= value[ 1 ] ) return;
@@ -328,7 +328,7 @@ return function module() {
       if (Math.abs(valModStep) * 2 >= step) {
         alignValue += (valModStep > 0) ? step : -step;
       }
-    };
+    }
 
     return alignValue;
 
@@ -346,16 +346,16 @@ return function module() {
         if (Math.abs(dist[i]) < r) {
           r = Math.abs(dist[i]);
           index = i;
-        };
+        }
     } while (dist[i] > 0 && i < dist.length - 1);
 
     return ticks[index];
-  };
+  }
 
   // Return the type of an object
   function toType(v) {
     return ({}).toString.call(v).match(/\s([a-zA-Z]+)/)[1].toLowerCase();
-  };
+  }
 
   // Getter/setter functions
   slider.min = function(_) {
@@ -404,7 +404,7 @@ return function module() {
     if (!arguments.length) return value;
     if (value) {
       moveHandle(stepValue(_));
-    };
+    }
     value = _;
     return slider;
   };

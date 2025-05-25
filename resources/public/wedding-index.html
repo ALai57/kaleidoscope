@@ -39,7 +39,7 @@
           return "http://172.17.0.1:8080/auth/realms/test";
       } else {
           return "https://keycloak.andrewslai.com/auth/realms/andrewslai";
-      };
+      }
   }
 
   function get_client_id() {
@@ -47,7 +47,7 @@
           return "test-login";
       } else {
           return "andrewslai-frontend";
-      };
+      }
   }
 
   var keycloak_url = get_auth_url();

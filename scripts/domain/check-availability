@@ -1,0 +1,32 @@
+#!/bin/bash
+
+DOMAIN_NAME=$1
+# TLD="${DOMAIN_NAME##*.}"
+
+# # echo "Checking availability for $DOMAIN_NAME, $TLD"
+
+# # # Check domain availability
+# # availability=$(aws route53domains check-domain-availability --domain-name "$DOMAIN_NAME" --query "Availability" --output text)
+# # echo "Domain Availability: $availability"
+
+# # # Get domain price
+# # price_info=$(aws route53domains list-prices --tld "$TLD" --query "Prices[0]" --output json)
+# # e
+#echo "Domain Price Info: $price_info"
+
+#!/bin/bash
+
+# Check domain availability
+availability=$(aws route53domains check-domain-availability --domain-name "$DOMAIN_NAME" --query 'Availability' --output text)
+
+if [ "$availability" = "AVAILABLE" ] || [ "$availability" = "AVAILABLE_RESERVED" ] || [ "$availability" = "AVAILABLE_PREORDER" ]; then
+    echo "Domain $DOMAIN_NAME is available!"
+
+    # Get domain pricing
+    pricing=$(aws route53domains list-prices --query "Prices[?DomainName=='$DOMAIN_NAME']" --output json)
+
+    echo "Pricing for $DOMAIN_NAME:"
+    echo "$pricing" | jq .
+else
+    echo "Domain $DOMAIN_NAME is not available. Status: $availability"
+fi

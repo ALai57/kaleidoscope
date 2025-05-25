@@ -12,7 +12,7 @@ data "aws_acm_certificate" "issued" {
 }
 
 data "aws_lb_listener" "main" {
-  load_balancer_arn = "${data.aws_alb.main.arn}"
+  load_balancer_arn = data.aws_alb.main.arn
   port              = 443
 }
 
@@ -23,8 +23,8 @@ data "aws_alb_target_group" "main" {
 
 # Add SSL Cert for caheriaguilar.and.andrewslai.com to existing LB
 resource "aws_lb_listener_certificate" "wedding_cert" {
-  listener_arn    = "${data.aws_lb_listener.main.arn}"
-  certificate_arn = "${data.aws_acm_certificate.issued.arn}"
+  listener_arn    = data.aws_lb_listener.main.arn
+  certificate_arn = data.aws_acm_certificate.issued.arn
 }
 
 # Add a rule to the existing load balancer for my app

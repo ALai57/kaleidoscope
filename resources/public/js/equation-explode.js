@@ -44,7 +44,7 @@ function translate(xIn,yIn){
     return "translate(" + xIn + "," + yIn + ")";
 }
 function translateRotate(xIn,yIn,rIn,wdth,hgt){
-    return "translate(" + xIn + "," + yIn + ")" + "rotate(" + rIn + "," + wdth + "," + hgt + ")";;
+    return "translate(" + xIn + "," + yIn + ")" + "rotate(" + rIn + "," + wdth + "," + hgt + ")";
 }
 
 function calcWidth(w){

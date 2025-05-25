@@ -34,14 +34,14 @@ variable "andrewslai_db_port"     {default = "5432"}
 resource "aws_security_group" "allow_vpc_traffic" {
   name        = "allow_vpc_traffic"
   description = "Allow VPC inbound traffic"
-  vpc_id      = "${data.aws_vpc.default.id}"
+  vpc_id      = data.aws_vpc.default.id
 
   ingress {
     description = "Traffic from VPC"
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["${data.aws_vpc.default.cidr_block}"]
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
   }
 
   egress {
