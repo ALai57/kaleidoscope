@@ -101,14 +101,14 @@
 
     (let [resp (albums-api/create-photo! database example-photo)]
       (testing "Insert the example-photo"
-        (is (match? {:id uuid?}
+        (is (match? [{:id uuid?}]
                     resp)))
 
       (testing "Can retrieve example-photo from the DB"
         (is (match? [example-photo] (albums-api/get-photos database {:id #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"}))))
 
       (testing "Update the photo"
-        (is (match? {:id uuid?}
+        (is (match? [{:id uuid?}]
                     (albums-api/update-photo! database {:id          (:id resp)
                                                         :photo-title "New title"
                                                         :description "New description"})))))
@@ -191,13 +191,8 @@
                       :storage-root   "media"}]
                     (albums-api/get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
-      (testing "Can retrieve the version from the DB with string blows up"
-        (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
-                      :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
-                      :hostname       "andrewslai.com"
-                      :filename       "thumbnail.png"
-                      :storage-driver "in-memory"
-                      :storage-root   "media"}]
+      (testing "Retrieval with string blows up"
+        (is (thrown? org.postgresql.util.PSQLException
                     (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"})))))))
 
 

@@ -156,8 +156,8 @@
                                           (do
                                             (log/warnf "Photo `%s` does not exist for `%s`" photo-id hostname)
                                             (not-found {:reason "Missing"}))
-                                          (ok (albums-api/update-photo! (:database components) (merge {:id id}
-                                                                                                      body-params))))))}
+                                          (ok (first (albums-api/update-photo! (:database components) (merge {:id id}
+                                                                                                       body-params)))))))}
                   }]
 
    ;; Update parameters key here for automatic parsing

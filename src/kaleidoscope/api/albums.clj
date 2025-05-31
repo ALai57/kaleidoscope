@@ -3,7 +3,6 @@
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as u]
             [kaleidoscope.utils.core :as utils]
-            [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -30,26 +29,20 @@
 (def get-photos
   (rdbms/make-finder :photos))
 
-(def -get-full-photos
+(def get-full-photos
   (rdbms/make-finder :full_photos))
-
-(defn get-full-photos
-  ([database]
-   (-get-full-photos database))
-  ([database query-map]
-   (-get-full-photos database query-map)))
 
 (defn create-photo!
   [database photo]
-  (first (rdbms/insert! database
-                        :photos photo
-                        :ex-subtype :UnableToCreatePhoto)))
+  (rdbms/insert! database
+                 :photos photo
+                 :ex-subtype :UnableToCreatePhoto))
 
 (defn update-photo!
   [database photo]
-  (first (rdbms/update! database
-                        :photos photo
-                        :ex-subtype :UnableToUpdatePhoto)))
+  (rdbms/update! database
+                 :photos photo
+                 :ex-subtype :UnableToUpdatePhoto))
 
 (def IMAGE-VERSIONS
   ;; category  wd   ht
@@ -80,12 +73,11 @@
 
 (defn create-photo-version!
   [database photo-versions]
-  (span/with-span! {:name "kaleidoscope.api.photo-version.create"}
-    ;;(log/infof "Creating photo version for %s" path)
-    (log/infof "Creating photo versions %s" (count photo-versions))
-    (rdbms/insert! database
-                   :photo-versions (map add-id photo-versions)
-                   :ex-subtype :UnableToCreatePhotoVersion)))
+  ;;(log/infof "Creating photo version for %s" path)
+  (log/infof "Creating photo versions %s" (count photo-versions))
+  (rdbms/insert! database
+                 :photo-versions (map add-id photo-versions)
+                 :ex-subtype :UnableToCreatePhotoVersion))
 
 (defn new-image
   [{:keys [static-content-adapter database notify-image-resizer!] :as components}

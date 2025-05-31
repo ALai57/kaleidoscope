@@ -553,7 +553,9 @@
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
-                 tu/wrap-clojure-response)]
+                 tu/wrap-clojure-response)
+
+        group-id-2 "22222222-2222-2222-2222-222222222222"]
 
     (testing "No groups to start"
       (is (match? {:status 200
@@ -564,7 +566,7 @@
     (let [result (app (-> (mock/request :post "https://andrewslai.com/groups")
                           (mock/header "Authorization" "Bearer user first-user")
                           (mock/json-body {:display-name "my-display-name"})))
-          id     (get-in result [:body 0 :id])]
+          group-id-1     (get-in result [:body 0 :id])]
       (testing "Create group"
         (is (match? {:status 200
                      :body   [{:id string?}]}
@@ -572,8 +574,8 @@
 
       (testing "A different user ID creates a second group"
         (is (match? {:status 200
-                     :body   [{:id "other-users-group"}]}
-                    (app (-> (mock/request :put "https://andrewslai.com/groups/other-users-group")
+                     :body   [{:id group-id-2}]}
+                    (app (-> (mock/request :put (format "https://andrewslai.com/groups/%s" group-id-2))
                              (mock/header "Authorization" "Bearer user second-user")
                              (mock/json-body {:display-name "my-display-name"}))))))
 
@@ -581,19 +583,19 @@
         (let [response (app (-> (mock/request :get "https://andrewslai.com/groups")
                                 (mock/header "Authorization" "Bearer user first-user")))]
           (is (match? {:status 200
-                       :body   [{:group-id id}]}
+                       :body   [{:group-id group-id-1}]}
                       response))
           (is (= 1 (count (:body response))))))
 
       (testing "I cannot delete groups I do not own"
         (log/with-min-level :error
           (is (match? {:status 401}
-                      (app (-> (mock/request :delete "https://andrewslai.com/groups/other-users-group")
+                      (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s" group-id-2))
                                (mock/header "Authorization" "Bearer user first-user")))))))
 
       (testing "Deleted group doesn't exist"
         (is (match? {:status 204}
-                    (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s" id))
+                    (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s" group-id-1))
                              (mock/header "Authorization" "Bearer user first-user")))))
         (is (match? {:status 200
                      :body   empty?}
