@@ -163,7 +163,6 @@
                                                       [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
                                                                                       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                                                                                       "png"
-                                                                                      (util/now)
                                                                                       "thumbnail")]))))
 
     (testing "Can retrieve the version from the DB"
@@ -193,7 +192,6 @@
                                           [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
                                                                           #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                                                                           "png"
-                                                                          (util/now)
                                                                           "thumbnail")])
 
       (testing "Can retrieve the version from the DB"

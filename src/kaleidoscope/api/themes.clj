@@ -2,8 +2,6 @@
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
             [cheshire.core :as json]
-            [malli.core :as m]
-            [malli.transform :as mt]
             [taoensso.timbre :as log]))
 
 (def Theme
@@ -40,13 +38,10 @@
 
 (defn create-theme!
   [database {:keys [id] :as theme}]
-  (let [now (utils/now)
-        row (-> theme
+  (let [row (-> theme
                 ;;(update :config json/encode)
                 (update :config #(with-meta % {:pgtype "json"}))
-                (assoc :created-at  now
-                       :modified-at now
-                       :id          (or id (utils/uuid))))]
+                (assoc :id (or id (utils/uuid))))]
     (log/infof "ROW: %s" row)
     (rdbms/insert! database
                    :themes row
@@ -54,11 +49,7 @@
 
 (defn update-theme!
   [database {:keys [id] :as theme}]
-  (let [now (utils/now)
-        row (-> theme
-                (update :config #(with-meta % {:pgtype "json"}))
-                (assoc :created-at now)
-                (assoc :modified-at now))]
+  (let [row (update theme :config #(with-meta % {:pgtype "json"}))]
     (rdbms/update! database
                    :themes row
                    :ex-subtype :UnableToUpdateTheme)))
@@ -76,6 +67,6 @@
   [database requester-id theme-id]
   (if (owns? database requester-id theme-id)
     (rdbms/delete! database
-                   :themes     theme-id
+                   :themes theme-id
                    :ex-subtype :UnableToDeleteGroup)
     (log/warnf "User %s does not have permissions to delete the theme %s" requester-id theme-id)))

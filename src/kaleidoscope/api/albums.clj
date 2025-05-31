@@ -14,13 +14,9 @@
 
 (defn create-album!
   [database album]
-  (let [now (utils/now)]
-    (rdbms/insert! database
-                   :albums (assoc album
-                             :id (utils/uuid)
-                             :created-at now
-                             :modified-at now)
-                   :ex-subtype :UnableToCreateAlbum)))
+  (rdbms/insert! database
+                 :albums (assoc album :id (utils/uuid))
+                 :ex-subtype :UnableToCreateAlbum))
 
 (defn update-album!
   [database album]
@@ -47,32 +43,24 @@
 
 (defn create-photo!
   [database photo]
-  (let [now-time (utils/now)]
-    (first (rdbms/insert! database
-                          :photos (assoc photo
-                                    :created-at now-time
-                                    :modified-at now-time)
-                          :ex-subtype :UnableToCreatePhoto))))
+  (first (rdbms/insert! database
+                        :photos photo
+                        :ex-subtype :UnableToCreatePhoto)))
 
 (def get-photo-versions
   (rdbms/make-finder :photo_versions))
 
 (defn update-photo!
   [database photo]
-  (let [now-time (utils/now)]
-    (first (rdbms/update! database
-                          :photos photo
-                          :ex-subtype :UnableToUpdatePhoto))))
+  (first (rdbms/update! database
+                        :photos photo
+                        :ex-subtype :UnableToUpdatePhoto)))
 
 (defn create-photo-version!
   [database photo-version]
-  (let [now-time (utils/now)]
-    (first (rdbms/insert! database
-                          :photo-versions (assoc photo-version
-                                            :id (utils/uuid)
-                                            :created-at now-time
-                                            :modified-at now-time)
-                          :ex-subtype :UnableToCreatePhotoVersion))))
+  (first (rdbms/insert! database
+                        :photo-versions (assoc photo-version :id (utils/uuid))
+                        :ex-subtype :UnableToCreatePhotoVersion)))
 
 (def IMAGE-VERSIONS
   ;; category  wd   ht
@@ -84,7 +72,7 @@
    ])
 
 (defn make-image-version
-  [static-content-adapter photo-id extension now-time image-version-name]
+  [static-content-adapter photo-id extension image-version-name]
   (let [id (utils/uuid)
         image-category (name image-version-name)
         path (format "%s/%s/%s.%s" (:photos-folder static-content-adapter) photo-id image-category extension)]
@@ -94,34 +82,30 @@
          :storage-driver (:storage-driver static-content-adapter)
          :storage-root   (:storage-root static-content-adapter)
          :path           path
-         :filename       (format "%s.%s" image-category extension)
-         :created-at     now-time
-         :modified-at    now-time})))
+         :filename       (format "%s.%s" image-category extension)})))
+
+(defn- add-id [{:keys [id] :as photo-version}]
+  (if id
+    photo-version
+    (assoc photo-version :id (utils/uuid))))
 
 (defn create-photo-version-2!
   [database photo-versions]
   (span/with-span! {:name "kaleidoscope.api.photo-version.create"}
     ;;(log/infof "Creating photo version for %s" path)
-    (let [now (utils/now)]
-      (println "Creating photo versions " (count photo-versions))
-      (rdbms/insert! database
-                     :photo-versions (map (fn [{:keys [id created-at] :as photo-version}]
-                                            (cond-> photo-version
-                                                    (not id) (assoc :id (utils/uuid))
-                                                    (not created-at) (assoc :created-at now :modified-at now)))
-                                          photo-versions)
-                     :ex-subtype :UnableToCreatePhotoVersion))))
+    (log/infof "Creating photo versions %s" (count photo-versions))
+    (rdbms/insert! database
+                   :photo-versions (map add-id photo-versions)
+                   :ex-subtype :UnableToCreatePhotoVersion)))
 
 (defn new-image
   [{:keys [static-content-adapter database notify-image-resizer!] :as components}
    hostname
    {:keys [filename tempfile extension photo-id] :as file}]
   (let [photo-id (or photo-id (utils/uuid))
-        now-time (utils/now)
+        _ (create-photo! database {:id photo-id :hostname hostname})
 
-        photo (create-photo! database {:id photo-id :hostname hostname})
-
-        versions (map (partial make-image-version static-content-adapter photo-id extension now-time) IMAGE-VERSIONS)
+        versions (map (partial make-image-version static-content-adapter photo-id extension) IMAGE-VERSIONS)
         results (create-photo-version-2! database versions)]
 
     (fs/put-file static-content-adapter
