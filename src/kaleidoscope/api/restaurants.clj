@@ -13,25 +13,20 @@
 (def get-restaurants
   (rdbms/make-finder :articles))
 
+;; rdbms/insert! and rdbms/update should handle created at and modified at
 (defn create-restaurant!
   [db {:keys [url name] :as restaurant}]
   (log/infof "Creating Restaurant: %s" restaurant)
-  (let [now    (utils/now)
-        result (rdbms/insert! db
-                              :restaurants (cond-> (assoc restaurant
-                                                          :created-at  now
-                                                          :modified-at now)
-                                             (nil? article-title) (assoc :article-title article-url))
-                              :ex-subtype :UnableToCreateRestaurant)]
+  (let [result (rdbms/insert! db restaurant :ex-subtype :UnableToCreateRestaurant)]
     (log/infof "Created Restaurant: %s" result)
     result))
 
 (defn update-restaurant!
   [db {:keys [id] :as restaurant}]
-  (log/infof "Updating Restaurant: %s" article)
+  (log/infof "Updating Restaurant: %s" restaurant)
   (let [now    (utils/now)
         result (rdbms/update! db
-                              :restaurants   (assoc article :modified-at now)
+                              :restaurants   (assoc restaurant :modified-at now)
                               :ex-subtype :UnableToCreateRestaurant)]
     (log/infof "Updated Restaurant: %s" result)
     result))

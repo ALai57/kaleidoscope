@@ -9,6 +9,7 @@
             [next.jdbc.result-set :as rs]
             [next.jdbc.sql :as next.sql]
             [slingshot.slingshot :refer [throw+ try+]]
+            [kaleidoscope.utils.core :as utils]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]
             [cheshire.core :as json])
@@ -30,7 +31,7 @@
   "Transform PGobject containing `json` or `jsonb` value to Clojure
   data."
   [^org.postgresql.util.PGobject v]
-  (let [type  (.getType v)
+  (let [type (.getType v)
         value (.getValue v)]
     (if (#{"jsonb" "json"} type)
       (when value
@@ -103,7 +104,7 @@
        (let [[[where-in-key where-in-vals] :as where-ins] (filter (fn [[k v]]
                                                                     (set? v)) query-map)]
          (cond
-           (empty? query-map)      (getter database)
+           (empty? query-map) (getter database)
            (= 0 (count where-ins)) (find-by-keys database table query-map)
            (= 1 (count where-ins)) (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
                                      (next/execute! database
@@ -111,42 +112,53 @@
                                                                   :from   table
                                                                   :where  [:in where-in-key where-in-vals]})
                                                     {:builder-fn rs/as-unqualified-kebab-maps}))
-           :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported" {}))))))))
+           :else (throw (ex-info "Multiple `WHERE IN` clauses currently not supported" {}))))))))
 
 (defmulti insert-impl!
-  (fn [database table m]
+  (fn [database table xs]
     (class database)))
 
 (defmethod insert-impl! :default
-  [database table m]
+  [database table xs]
   (next.sql/insert-multi! database table
-                          (if (map? m)
-                            [m]
-                            m)
+                          xs
                           (merge next/snake-kebab-opts
                                  {:suffix     "RETURNING *"
                                   :builder-fn rs/as-unqualified-kebab-maps})))
 
+(defn add-now-date [m]
+  (let [now (utils/now)]
+    (cond-> m
+            (nil? (:created-at m)) (assoc :created-at now)
+            (nil? (:modified-at m)) (assoc :modified-at now))))
+
 (defn insert! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
     (try+
-     (insert-impl! database table m)
-     (catch org.postgresql.util.PSQLException e
-       (log/errorf "Caught Exception while inserting: %s" e)
-       (throw+ (merge {:type    :PersistenceException
-                       :message {:data   (select-keys m [:username :email])
-                                 :reason (.getMessage e)}}
-                      (when ex-subtype
-                        {:subtype ex-subtype}))))
-     (catch Object e
-       (log/errorf "Caught Exception while inserting: %s" e)
-       (throw+ (merge {:type    :PersistenceException
-                       :message {:data   (select-keys m [:username :email])
-                                 :reason (if (map? e)
-                                           e
-                                           (.getMessage e))}}
-                      (when ex-subtype
-                        {:subtype ex-subtype})))))))
+      (let [data (if (map? m)
+                   [(add-now-date m)]
+                   (mapv add-now-date m))
+            result (insert-impl! database table data)]
+
+        (log/infof "Created Restaurant: %s" result)
+        result)
+
+      (catch org.postgresql.util.PSQLException e
+        (log/errorf "Caught Exception while inserting: %s" e)
+        (throw+ (merge {:type    :PersistenceException
+                        :message {:data   (select-keys m [:username :email])
+                                  :reason (.getMessage e)}}
+                       (when ex-subtype
+                         {:subtype ex-subtype}))))
+      (catch Object e
+        (log/errorf "Caught Exception while inserting: %s" e)
+        (throw+ (merge {:type    :PersistenceException
+                        :message {:data   (select-keys m [:username :email])
+                                  :reason (if (map? e)
+                                            e
+                                            (.getMessage e))}}
+                       (when ex-subtype
+                         {:subtype ex-subtype})))))))
 
 (defmulti update-impl!
   (fn [database table {:keys [id] :as m}]
@@ -157,7 +169,7 @@
   (let [result (next.sql/update! database table (dissoc m :id)
                                  {:id id}
                                  (merge next/snake-kebab-opts
-                                        {:suffix    "RETURNING *"
+                                        {:suffix     "RETURNING *"
                                          :builder-fn rs/as-unqualified-kebab-maps}))]
     [result]))
 
@@ -168,17 +180,17 @@
 (defn delete! [database table ids & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.delete.%s" table)}
     (try+
-     (transact! database (-> (hh/delete-from table)
-                             (hh/where [:in :id (if (coll? ids)
-                                                  ids
-                                                  [ids])])
-                             hsql/format))
-     (catch org.postgresql.util.PSQLException e
-       (throw+ (merge {:type    :PersistenceException
-                       :message {:data   ids
-                                 :reason (.getMessage e)}}
-                      (when ex-subtype
-                        {:subtype ex-subtype})))))))
+      (transact! database (-> (hh/delete-from table)
+                              (hh/where [:in :id (if (coll? ids)
+                                                   ids
+                                                   [ids])])
+                              hsql/format))
+      (catch org.postgresql.util.PSQLException e
+        (throw+ (merge {:type    :PersistenceException
+                        :message {:data   ids
+                                  :reason (.getMessage e)}}
+                       (when ex-subtype
+                         {:subtype ex-subtype})))))))
 
 #_:clj-kondo/ignore
 (comment

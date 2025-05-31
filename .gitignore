@@ -43,3 +43,4 @@ pom.xml*
 
 opentelemetry-javaagent.jar
 kaleidoscope.iml
+.DS_Store

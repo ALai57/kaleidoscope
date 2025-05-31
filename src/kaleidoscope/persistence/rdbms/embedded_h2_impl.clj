@@ -17,11 +17,9 @@
   (.setObject s i (json/encode m) Types/OTHER))
 
 (defmethod rdbms/insert-impl! org.h2.jdbc.JdbcConnection
-  [database table m & {:keys [ex-subtype]}]
+  [database table xs]
   (let [new-ids (next.sql/insert-multi! database table
-                                        (if (map? m)
-                                          [m]
-                                          m)
+                                        xs
                                         (merge next/snake-kebab-opts
                                                {:return-keys           true
                                                 :return-generated-keys true

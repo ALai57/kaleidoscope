@@ -8,7 +8,7 @@ CREATE TABLE restaurants(
        owner_id          VARCHAR (100),
        created_at        TIMESTAMP,
        modified_at       TIMESTAMP
-)
+);
 
 --;;
 
@@ -29,6 +29,7 @@ CREATE TABLE eater_group_memberships(
        alias             VARCHAR,        -- nickname
        group_id          VARCHAR (36),   -- uuid
        created_at        TIMESTAMP,
+       modified_at       TIMESTAMP,
 
        UNIQUE(group_id, email)
 );
@@ -41,6 +42,7 @@ CREATE TABLE restaurant_audiences(
        eater_group_id   VARCHAR NOT NULL,
        restaurant_id VARCHAR(36) NOT NULL,
        created_at TIMESTAMP,
+       modified_at TIMESTAMP,
 
        UNIQUE(eater_group_id, restaurant_id),
 

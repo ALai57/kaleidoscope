@@ -31,7 +31,7 @@
   ;; THE BUFFER WITH THIS MODULE
 
   (m/create {:migration-dir "migrations"}
-            "add-restaurants")
+            "add-modified-at")
   (-main "init")
   (-main "migrate")
   (-main "up")
