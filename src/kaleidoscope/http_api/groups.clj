@@ -43,13 +43,13 @@
                                                  :content     {"application/json"
                                                                {:schema [:any]}}}})
                         :parameters {:path {:group-id :uuid}}
-                        :handler    (fn [{:keys [components body-params path-params] :as request}]
+                        :handler    (fn [{:keys [components body-params path-params parameters] :as request}]
                                       (try
-                                        (let [{:keys [group-id]} path-params
-                                              _                  (log/info "Creating group!" group-id body-params)
-                                              group              (assoc body-params
-                                                                        :id       group-id
-                                                                        :owner-id (oidc/get-user-id (:identity request)))]
+                                        (let [{:keys [group-id]} (:path parameters)
+                                              _ (log/info "Creating group!" group-id body-params)
+                                              group (assoc body-params
+                                                      :id group-id
+                                                      :owner-id (oidc/get-user-id (:identity request)))]
                                           (ok (doto (groups-api/create-group! (:database components) group)
                                                 log/info)))
                                         (catch Exception e
@@ -63,7 +63,7 @@
                            :handler    (fn [{:keys [components path-params] :as request}]
                                          (try
                                            (let [{:keys [group-id]} path-params
-                                                 requester-id       (oidc/get-user-id (:identity request))]
+                                                 requester-id (oidc/get-user-id (:identity request))]
                                              (log/infof "User %s attempting to delete group %s!" requester-id group-id)
                                              (if-let [result (groups-api/delete-group! (:database components) requester-id group-id)]
                                                (no-content)

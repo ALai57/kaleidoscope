@@ -117,8 +117,8 @@
                                                  :content     {"application/json"
                                                                {:schema [:any]}}}})
                         :parameters {:path {:photo-id :uuid}}
-                        :handler    (fn [{:keys [components body-params path-params] :as request}]
-                                      (let [{:keys [photo-id]} path-params
+                        :handler    (fn [{:keys [components body-params path-params parameters] :as request}]
+                                      (let [{:keys [photo-id]} (:path parameters)
 
                                             _ (log/infof "Getting photo %s" photo-id)
                                             hostname (hu/get-host request)
@@ -144,8 +144,8 @@
                                                                                  :value   {:title       "My title"
                                                                                            :description "My photo taken somewhere"}}}}}}
                         :parameters {:path {:photo-id :uuid}}
-                        :handler    (fn [{:keys [components body-params path-params] :as request}]
-                                      (let [{:keys [photo-id]} path-params
+                        :handler    (fn [{:keys [components body-params path-params parameters] :as request}]
+                                      (let [{:keys [photo-id]} (:path parameters)
 
                                             id (parse-uuid photo-id)
                                             _ (log/infof "Getting photo %s" photo-id)
@@ -157,7 +157,7 @@
                                             (log/warnf "Photo `%s` does not exist for `%s`" photo-id hostname)
                                             (not-found {:reason "Missing"}))
                                           (ok (first (albums-api/update-photo! (:database components) (merge {:id id}
-                                                                                                       body-params)))))))}
+                                                                                                             body-params)))))))}
                   }]
 
    ;; Update parameters key here for automatic parsing
