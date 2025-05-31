@@ -17,18 +17,14 @@
 (defn create-restaurant!
   [db {:keys [url name] :as restaurant}]
   (log/infof "Creating Restaurant: %s" restaurant)
-  (let [result (rdbms/insert! db restaurant :ex-subtype :UnableToCreateRestaurant)]
-    (log/infof "Created Restaurant: %s" result)
-    result))
+  (rdbms/insert! db restaurant :ex-subtype :UnableToCreateRestaurant))
 
 (defn update-restaurant!
   [db {:keys [id] :as restaurant}]
   (log/infof "Updating Restaurant: %s" restaurant)
-  (let [result (rdbms/update! db
-                              :restaurants restaurant
-                              :ex-subtype :UnableToCreateRestaurant)]
-    (log/infof "Updated Restaurant: %s" result)
-    result))
+  (rdbms/update! db
+                 :restaurants restaurant
+                 :ex-subtype :UnableToCreateRestaurant))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -11,11 +11,9 @@
 (defn create-tag!
   [db {:keys [name hostname] :as tag}]
   (log/infof "Creating Tag: %s" tag)
-  (let [result (rdbms/insert! db
-                              :tags tag
-                              :ex-subtype :UnableToCreateTag)]
-    (log/infof "Created Tag: %s" result)
-    result))
+  (rdbms/insert! db
+                 :tags tag
+                 :ex-subtype :UnableToCreateTag))
 
 (defn delete-tag!
   [database tag-id]

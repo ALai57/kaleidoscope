@@ -109,7 +109,7 @@
 
       (testing "Update the photo"
         (is (match? [{:id uuid?}]
-                    (albums-api/update-photo! database {:id          (:id resp)
+                    (albums-api/update-photo! database {:id          (:id (first resp))
                                                         :photo-title "New title"
                                                         :description "New description"})))))
     ))
