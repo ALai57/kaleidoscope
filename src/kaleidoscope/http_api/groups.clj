@@ -42,7 +42,7 @@
                                            {200 {:description "The group that was created"
                                                  :content     {"application/json"
                                                                {:schema [:any]}}}})
-                        :parameters {:path {:group-id string?}}
+                        :parameters {:path {:group-id :uuid}}
                         :handler    (fn [{:keys [components body-params path-params] :as request}]
                                       (try
                                         (let [{:keys [group-id]} path-params
@@ -59,7 +59,7 @@
                                               {200 {:description "Success deleting the group"
                                                     :content     {"application/json"
                                                                   {:schema [:any]}}}})
-                           :parameters {:path {:group-id string?}}
+                           :parameters {:path {:group-id :uuid}}
                            :handler    (fn [{:keys [components path-params] :as request}]
                                          (try
                                            (let [{:keys [group-id]} path-params
@@ -75,7 +75,7 @@
                                                     {200 {:description "The member that was added"
                                                           :content     {"application/json"
                                                                         {:schema [:any]}}}})
-                                 :parameters {:path {:group-id string?}}
+                                 :parameters {:path {:group-id :uuid}}
                                  :handler    (fn [{:keys [components body-params path-params] :as request}]
                                                (try
                                                  (log/info "Adding member!" body-params)
@@ -91,8 +91,8 @@
                                                                      {204 {:description "Success deleting the member"
                                                                            :content     {"application/json"
                                                                                          {:schema [:any]}}}})
-                                                  :parameters {:path {:group-id      string?
-                                                                      :membership-id string?}}
+                                                  :parameters {:path {:group-id      :uuid
+                                                                      :membership-id :uuid}}
                                                   :handler    (fn [{:keys [components path-params] :as request}]
                                                                 (try
                                                                   (let [{:keys [group-id membership-id]} path-params
