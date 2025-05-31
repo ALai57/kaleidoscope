@@ -11,14 +11,16 @@
    [:modified-at inst?]])
 
 (def example-album
-  {:album-name     "hello"
+  {:id             "33333333-3333-4444-4444-555555555555"
+   :album-name     "hello"
    :description    "first album"
    :cover-photo-id "d947c6b0-679f-4067-9747-3d282833a27d"
    :created-at     "2020-10-28T02:55:27Z",
    :modified-at    "2020-10-28T02:55:27Z",})
 
 (def example-album-2
-  {:album-name     "bye"
+  {:id             "66666666-7777-8888-4444-555555555555"
+   :album-name     "bye"
    :description    "secondalbum"
    :cover-photo-id "d947c6b0-679f-4067-9747-999999999999"
    :created-at     "2022-10-01T02:55:27Z",

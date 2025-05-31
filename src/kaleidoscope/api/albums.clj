@@ -15,7 +15,7 @@
 (defn create-album!
   [database album]
   (rdbms/insert! database
-                 :albums (assoc album :id (utils/uuid))
+                 :albums album
                  :ex-subtype :UnableToCreateAlbum))
 
 (defn update-album!
@@ -47,20 +47,11 @@
                         :photos photo
                         :ex-subtype :UnableToCreatePhoto)))
 
-(def get-photo-versions
-  (rdbms/make-finder :photo_versions))
-
 (defn update-photo!
   [database photo]
   (first (rdbms/update! database
                         :photos photo
                         :ex-subtype :UnableToUpdatePhoto)))
-
-(defn create-photo-version!
-  [database photo-version]
-  (first (rdbms/insert! database
-                        :photo-versions (assoc photo-version :id (utils/uuid))
-                        :ex-subtype :UnableToCreatePhotoVersion)))
 
 (def IMAGE-VERSIONS
   ;; category  wd   ht
@@ -89,7 +80,7 @@
     photo-version
     (assoc photo-version :id (utils/uuid))))
 
-(defn create-photo-version-2!
+(defn create-photo-version!
   [database photo-versions]
   (span/with-span! {:name "kaleidoscope.api.photo-version.create"}
     ;;(log/infof "Creating photo version for %s" path)
@@ -106,7 +97,7 @@
         _ (create-photo! database {:id photo-id :hostname hostname})
 
         versions (map (partial make-image-version static-content-adapter photo-id extension) IMAGE-VERSIONS)
-        results (create-photo-version-2! database versions)]
+        results (create-photo-version! database versions)]
 
     (fs/put-file static-content-adapter
                  (format "%s/%s/raw.%s" (:photos-folder static-content-adapter) photo-id extension)
@@ -129,13 +120,10 @@
 ;; Photos in albums
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn add-photos-to-album! [database album-id photo-ids]
-  (let [now-time (utils/now)
-        photos-in-album (vec (for [photo-id (if (seq? photo-ids) photo-ids [photo-ids])]
+  (let [photos-in-album (vec (for [photo-id (if (seq? photo-ids) photo-ids [photo-ids])]
                                {:id          (utils/uuid)
                                 :photo-id    photo-id
-                                :album-id    album-id
-                                :created-at  now-time
-                                :modified-at now-time}))]
+                                :album-id    album-id}))]
     (vec (rdbms/insert! database
                         :photos_in_albums photos-in-album
                         :ex-subtype :UnableToAddPhotoToAlbum))))

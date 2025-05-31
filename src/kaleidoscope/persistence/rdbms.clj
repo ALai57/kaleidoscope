@@ -140,12 +140,8 @@
     (try+
       (let [data (if (map? m)
                    [(add-basic-fields m)]
-                   (mapv add-basic-fields m))
-            result (insert-impl! database table data)]
-
-        (log/infof "Created Restaurant: %s" result)
-        result)
-
+                   (mapv add-basic-fields m))]
+        (insert-impl! database table data))
       (catch org.postgresql.util.PSQLException e
         (log/errorf "Caught Exception while inserting: %s" e)
         (throw+ (merge {:type    :PersistenceException

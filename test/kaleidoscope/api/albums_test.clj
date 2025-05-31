@@ -18,7 +18,8 @@
                                     (f))))
 
 (def example-album
-  {:album-name     "Test album"
+  {:id             #uuid "00000000-1111-2222-3333-444444444444"
+   :album-name     "Test album"
    :description    "My description"
    :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"})
 
@@ -113,19 +114,6 @@
                                                         :description "New description"})))))
     ))
 
-(deftest create-and-retrieve-photo-version-test
-  (let [database (embedded-h2/fresh-db!)]
-    (testing "example-photos were seeded into the DB"
-      ;; Migrations seed db now for convenience
-      (is (= 6 (count (albums-api/get-photo-versions database)))))
-
-    (testing "Insert the example-photo"
-      (is (match? {:id uuid?}
-                  (albums-api/create-photo-version! database example-photo-version))))
-
-    (testing "Can retrieve example-photo from the DB"
-      (is (match? [example-photo-version] (albums-api/get-photo-versions database {:photo-id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))))
-
 (deftest retrieve-full-photos-test
   (let [database (embedded-h2/fresh-db!)]
     (testing "example-photos and versions were seeded into the DB"
@@ -159,8 +147,8 @@
         mock-fs (atom {})]
     (testing "Create photo version"
       (is (match? [{:id uuid?}]
-                  (albums-api/create-photo-version-2! database
-                                                      [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
+                  (albums-api/create-photo-version! database
+                                                    [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
                                                                                       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                                                                                       "png"
                                                                                       "thumbnail")]))))
@@ -188,8 +176,8 @@
   (testing "Postgres specific conversion"
     (let [database (embedded-postgres/fresh-db!)
           mock-fs (atom {})]
-      (albums-api/create-photo-version-2! database
-                                          [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
+      (albums-api/create-photo-version! database
+                                        [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
                                                                           #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                                                                           "png"
                                                                           "thumbnail")])
