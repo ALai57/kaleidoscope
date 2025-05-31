@@ -126,9 +126,12 @@
                                  {:suffix     "RETURNING *"
                                   :builder-fn rs/as-unqualified-kebab-maps})))
 
-(defn add-now-date [m]
-  (let [now (utils/now)]
+(defn add-basic-fields [m]
+  (let [now (utils/now)
+        ;;id  (utils/uuid)
+        ]
     (cond-> m
+            ;;(nil? (:id m)) (assoc :id id)
             (nil? (:created-at m)) (assoc :created-at now)
             (nil? (:modified-at m)) (assoc :modified-at now))))
 
@@ -136,8 +139,8 @@
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
     (try+
       (let [data (if (map? m)
-                   [(add-now-date m)]
-                   (mapv add-now-date m))
+                   [(add-basic-fields m)]
+                   (mapv add-basic-fields m))
             result (insert-impl! database table data)]
 
         (log/infof "Created Restaurant: %s" result)

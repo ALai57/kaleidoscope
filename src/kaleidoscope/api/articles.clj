@@ -15,11 +15,8 @@
 (defn create-article!
   [db {:keys [article-url article-title] :as article}]
   (log/infof "Creating Article: %s" article)
-  (let [now    (utils/now)
-        result (rdbms/insert! db
-                              :articles (cond-> (assoc article
-                                                       :created-at  now
-                                                       :modified-at now)
+  (let [result (rdbms/insert! db
+                              :articles (cond-> article
                                           (nil? article-title) (assoc :article-title article-url))
                               :ex-subtype :UnableToCreateArticle)]
     (log/infof "Created Article: %s" result)
@@ -28,9 +25,8 @@
 (defn update-article!
   [db {:keys [id public-visibility] :as article}]
   (log/infof "Updating Article: %s" article)
-  (let [now    (utils/now)
-        result (rdbms/update! db
-                              :articles   (assoc article :modified-at now)
+  (let [result (rdbms/update! db
+                              :articles article
                               :ex-subtype :UnableToCreateArticle)]
     (log/infof "Updated Article: %s" result)
     result))
@@ -45,15 +41,12 @@
   [db {:keys [article-id author branch-name] :as article-branch}]
   (log/infof "Creating branch: %s" article-branch)
   (next/with-transaction [tx db]
-    (let [now    (utils/now)
-          [{article-id :id :as article}] (if article-id
+    (let [[{article-id :id :as article}] (if article-id
                                            (get-articles tx {:id article-id})
                                            (create-article! tx (select-keys article-branch [:author :article-url :article-tags :hostname :article-title])))
           [{branch-id :id :as branch}]   (rdbms/insert! tx
                                                         :article-branches {:branch-name branch-name
-                                                                           :article-id  article-id
-                                                                           :created-at  now
-                                                                           :modified-at now}
+                                                                           :article-id  article-id}
                                                         :ex-subtype :UnableToCreateArticleBranch)
           result                         (get-branches tx {:branch-id branch-id})]
       (log/infof "Created Article Branch: %s" result)
@@ -93,12 +86,8 @@
   [db {:keys [branch-id] :as article-branch} {:keys [created-at] :as article-version}]
   (let [branch-id                      (or branch-id (get-in (get-branches db article-branch)
                                                              [0 :branch-id]))
-        now                            (or created-at (utils/now))
         [{version-id :id :as version}] (rdbms/insert! db
-                                                      :article-versions (assoc article-version
-                                                                               :branch-id   branch-id
-                                                                               :created-at  now
-                                                                               :modified-at now)
+                                                      :article-versions (assoc article-version :branch-id   branch-id)
                                                       :ex-subtype :UnableToCreateArticleBranch)
 
         result (get-versions db {:version-id version-id})]
@@ -130,15 +119,13 @@
 (defn- -add-audiences-to-article!
   [db article-id group-ids]
   (log/infof "Adding an audience to article %s" article-id)
-  (let [now (utils/now)]
-    (rdbms/insert! db
-                   :article-audiences (for [group-id group-ids
-                                            :let     [id (utils/uuid)]]
-                                        {:id         id
-                                         :group-id   (str group-id)
-                                         :article-id article-id
-                                         :created-at now})
-                   :ex-subtype :UnableToAddArticleAudience)))
+  (rdbms/insert! db
+                 :article-audiences (for [group-id group-ids
+                                          :let [id (utils/uuid)]]
+                                      {:id         id
+                                       :group-id   (str group-id)
+                                       :article-id article-id})
+                 :ex-subtype :UnableToAddArticleAudience))
 
 (defn add-audience-to-article!
   [db {:keys [id] :as article} group]
