@@ -24,9 +24,8 @@
 (defn update-restaurant!
   [db {:keys [id] :as restaurant}]
   (log/infof "Updating Restaurant: %s" restaurant)
-  (let [now    (utils/now)
-        result (rdbms/update! db
-                              :restaurants   (assoc restaurant :modified-at now)
+  (let [result (rdbms/update! db
+                              :restaurants restaurant
                               :ex-subtype :UnableToCreateRestaurant)]
     (log/infof "Updated Restaurant: %s" result)
     result))
@@ -40,13 +39,9 @@
 
 (defn create-eater-group!
   [database {:keys [id] :as group}]
-  (let [now (utils/now)]
-    (rdbms/insert! database
-                   :eater-groups     (assoc group
-                                            :created-at  now
-                                            :modified-at now
-                                            :id          (or id (utils/uuid)))
-                   :ex-subtype :UnableToCreateEaterGroup)))
+  (rdbms/insert! database
+                 :eater-groups (assoc group :id (or id (utils/uuid)))
+                 :ex-subtype :UnableToCreateEaterGroup))
 
 (defn owns?
   [database requester-id group-id]
@@ -120,13 +115,11 @@
   ID in Keycloak?"
   [database requester-id group-id users]
   (if (owns? database requester-id group-id)
-    (let [now-time    (utils/now)
-          memberships (vec (for [{:keys [email alias] :as user} (if (vector? users) users [users])]
+    (let [memberships (vec (for [{:keys [email alias] :as user} (if (vector? users) users [users])]
                              {:id         (utils/uuid)
                               :email      email
                               :alias      alias
-                              :group-id   group-id
-                              :created-at now-time}))]
+                              :group-id   group-id}))]
       (vec (rdbms/insert! database
                           :eater-group-memberships memberships
                           :ex-subtype             :UnableToAddUserToEaterGroup)))

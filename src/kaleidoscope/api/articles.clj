@@ -87,7 +87,7 @@
   (let [branch-id                      (or branch-id (get-in (get-branches db article-branch)
                                                              [0 :branch-id]))
         [{version-id :id :as version}] (rdbms/insert! db
-                                                      :article-versions (assoc article-version :branch-id   branch-id)
+                                                      :article-versions (assoc article-version :branch-id branch-id)
                                                       :ex-subtype :UnableToCreateArticleBranch)
 
         result (get-versions db {:version-id version-id})]

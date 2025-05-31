@@ -1,6 +1,5 @@
 (ns kaleidoscope.api.tags
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
-            [kaleidoscope.utils.core :as utils]
             [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -12,11 +11,8 @@
 (defn create-tag!
   [db {:keys [name hostname] :as tag}]
   (log/infof "Creating Tag: %s" tag)
-  (let [now    (utils/now)
-        result (rdbms/insert! db
-                              :tags (assoc tag
-                                           :created-at  now
-                                           :modified-at now)
+  (let [result (rdbms/insert! db
+                              :tags tag
                               :ex-subtype :UnableToCreateTag)]
     (log/infof "Created Tag: %s" result)
     result))

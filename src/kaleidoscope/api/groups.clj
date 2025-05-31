@@ -15,13 +15,9 @@
 
 (defn create-group!
   [database {:keys [id] :as group}]
-  (let [now (utils/now)]
-    (rdbms/insert! database
-                   :groups     (assoc group
-                                      :created-at  now
-                                      :modified-at now
-                                      :id          (or id (utils/uuid)))
-                   :ex-subtype :UnableToCreateGroup)))
+  (rdbms/insert! database
+                 :groups (assoc group :id (or id (utils/uuid)))
+                 :ex-subtype :UnableToCreateGroup))
 
 (defn owns?
   [database requester-id group-id]
@@ -95,13 +91,11 @@
   ID in Keycloak?"
   [database requester-id group-id users]
   (if (owns? database requester-id group-id)
-    (let [now-time    (utils/now)
-          memberships (vec (for [{:keys [email alias] :as user} (if (vector? users) users [users])]
+    (let [memberships (vec (for [{:keys [email alias] :as user} (if (vector? users) users [users])]
                              {:id         (utils/uuid)
                               :email      email
                               :alias      alias
-                              :group-id   group-id
-                              :created-at now-time}))]
+                              :group-id   group-id}))]
       (vec (rdbms/insert! database
                           :user-group-memberships memberships
                           :ex-subtype             :UnableToAddUserToGroup)))
