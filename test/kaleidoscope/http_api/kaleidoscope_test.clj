@@ -602,6 +602,58 @@
                     (app (-> (mock/request :get "https://andrewslai.com/groups")
                              (mock/header "Authorization" "Bearer user first-user")))))))))
 
+(deftest retrieve-group-test-postgres
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-postgres"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)
+
+        result   (app (-> (mock/request :post "https://andrewslai.com/groups")
+                          (mock/header "Authorization" "Bearer user first-user")
+                          (mock/json-body {:display-name "my-display-name"})))
+        group-id (get-in result [:body 0 :id])]
+
+    (testing "Create group"
+      (is (match? {:status 200
+                   :body   [{:id group-id}]}
+                  result)))
+
+    (let [add-member-result (app (-> (mock/request :post (format "https://andrewslai.com/groups/%s/members" group-id))
+                                     (mock/header "Authorization" "Bearer user first-user")
+                                     (mock/json-body {:email "my-email@email.com"
+                                                      :alias "Androo"})))
+          member-id         (get-in add-member-result [:body 0 :id])]
+      (testing "Add members"
+        (is (match? {:status 200
+                     :body   [{:id string?}]}
+                    add-member-result)))
+
+      (testing "Retrieve group with members"
+        (let [response (app (-> (mock/request :get "https://andrewslai.com/groups")
+                                (mock/header "Authorization" "Bearer user first-user")))]
+          (is (match? {:status 200
+                       :body   [{:group-id     group-id
+                                 :display-name "my-display-name"
+                                 :memberships  [{:membership-id         string?
+                                                 :membership-created-at string?
+                                                 :alias                 "Androo"
+                                                 :email                 "my-email@email.com"}]}]}
+                      response))))
+
+      (testing "Remove member from group"
+        (let [response (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s/members/%s" group-id member-id))
+                                (mock/header "Authorization" "Bearer user first-user")))]
+          (is (match? {:status 204}
+                      response))
+          (is (match? {:status 200
+                       :body   [{:memberships empty?}]}
+                      (app (-> (mock/request :get "https://andrewslai.com/groups")
+                               (mock/header "Authorization" "Bearer user first-user"))))))))))
+
 (deftest retrieve-group-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"

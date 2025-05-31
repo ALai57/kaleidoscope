@@ -76,12 +76,12 @@
                                                           :content     {"application/json"
                                                                         {:schema [:any]}}}})
                                  :parameters {:path {:group-id :uuid}}
-                                 :handler    (fn [{:keys [components body-params path-params] :as request}]
+                                 :handler    (fn [{:keys [components body-params path-params parameters] :as request}]
                                                (try
                                                  (log/info "Adding member!" body-params)
-                                                 (let [{:keys [group-id]} path-params
-                                                       requester-id       (oidc/get-user-id (:identity request))
-                                                       member             body-params]
+                                                 (let [{:keys [group-id]} (:path parameters)
+                                                       requester-id (oidc/get-user-id (:identity request))
+                                                       member body-params]
                                                    (ok (doto (groups-api/add-users-to-group! (:database components) requester-id group-id member)
                                                          log/info)))
                                                  (catch Exception e
@@ -93,10 +93,10 @@
                                                                                          {:schema [:any]}}}})
                                                   :parameters {:path {:group-id      :uuid
                                                                       :membership-id :uuid}}
-                                                  :handler    (fn [{:keys [components path-params] :as request}]
+                                                  :handler    (fn [{:keys [components path-params parameters] :as request}]
                                                                 (try
-                                                                  (let [{:keys [group-id membership-id]} path-params
-                                                                        requester-id                     (oidc/get-user-id (:identity request))]
+                                                                  (let [{:keys [group-id membership-id]} (:path parameters)
+                                                                        requester-id (oidc/get-user-id (:identity request))]
                                                                     (log/infof "User %s attempting to remove member %s from group %s!" requester-id membership-id group-id)
                                                                     (if-let [result (groups-api/remove-user-from-group! (:database components) requester-id group-id membership-id)]
                                                                       (no-content)
