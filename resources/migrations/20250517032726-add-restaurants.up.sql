@@ -1,6 +1,6 @@
 
 CREATE TABLE restaurants(
-       id                VARCHAR (36) PRIMARY KEY, --uuid
+       id                UUID NOT NULL PRIMARY KEY,
        display_name      VARCHAR (100),
        url               VARCHAR,
        -- This corresponds to the `sub` field in a Keycloak access token.
@@ -14,7 +14,7 @@ CREATE TABLE restaurants(
 
 -- People who go to restaurants together. Basically, people with specific palettes
 CREATE TABLE eater_groups(
-       id                VARCHAR (36) PRIMARY KEY, --uuid
+       id                UUID NOT NULL PRIMARY KEY,
        display_name      VARCHAR (100),
        owner_id          VARCHAR (100),
        created_at        TIMESTAMP,
@@ -24,10 +24,10 @@ CREATE TABLE eater_groups(
 --;;
 
 CREATE TABLE eater_group_memberships(
-       id                VARCHAR (36) PRIMARY KEY, --uuid
+       id                UUID NOT NULL PRIMARY KEY,
        email             VARCHAR,        -- this is the users id
        alias             VARCHAR,        -- nickname
-       group_id          VARCHAR (36),   -- uuid
+       group_id          UUID NOT NULL,
        created_at        TIMESTAMP,
        modified_at       TIMESTAMP,
 
@@ -39,8 +39,8 @@ CREATE TABLE eater_group_memberships(
 -- Attach a group to a restaurant for permissioning
 CREATE TABLE restaurant_audiences(
        id         UUID NOT NULL PRIMARY KEY,
-       eater_group_id   VARCHAR NOT NULL,
-       restaurant_id VARCHAR(36) NOT NULL,
+       eater_group_id   UUID NOT NULL,
+       restaurant_id UUID NOT NULL,
        created_at TIMESTAMP,
        modified_at TIMESTAMP,
 

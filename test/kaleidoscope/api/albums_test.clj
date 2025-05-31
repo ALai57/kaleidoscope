@@ -191,7 +191,7 @@
                       :storage-root   "media"}]
                     (albums-api/get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
-      (testing "Can retrieve the version from the DB with string"
+      (testing "Can retrieve the version from the DB with string blows up"
         (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
                       :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                       :hostname       "andrewslai.com"

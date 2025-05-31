@@ -61,8 +61,8 @@
         (is (match? [{:eater-group-id group-id
                       :owner-id       "user-1"
                       :display-name   "mygroup"
-                      :memberships    [{:membership-id string? :membership-created-at inst? :email "b@z.com" :alias "foo"}
-                                       {:membership-id string? :membership-created-at inst? :email "c@z.com" :alias "bar"}]}]
+                      :memberships    [{:membership-id uuid? :membership-created-at inst? :email "b@z.com" :alias "foo"}
+                                       {:membership-id uuid? :membership-created-at inst? :email "c@z.com" :alias "bar"}]}]
                     (restaurants/get-users-eater-groups database "user-1"))))
 
       (testing "Delete a user fails if not group owner"

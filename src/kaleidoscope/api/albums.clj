@@ -37,9 +37,7 @@
   ([database]
    (-get-full-photos database))
   ([database query-map]
-   (-get-full-photos database (cond-> query-map
-                                      (:id query-map) (update :id (comp parse-uuid str))
-                                      (:photo-id query-map) (update :photo-id (comp parse-uuid str))))))
+   (-get-full-photos database query-map)))
 
 (defn create-photo!
   [database photo]
