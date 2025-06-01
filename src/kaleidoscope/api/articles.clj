@@ -1,6 +1,5 @@
 (ns kaleidoscope.api.articles
-  (:require [clojure.set :as set]
-            [kaleidoscope.persistence.rdbms :as rdbms]
+  (:require [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.api.groups :as api.groups]
             [kaleidoscope.utils.core :as utils]
             [next.jdbc :as next]

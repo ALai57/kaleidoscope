@@ -42,7 +42,7 @@
 (deftest create-and-retrieve-group-memberships-test
   (let [database (embedded-h2/fresh-db!)]
     (testing "no group-memberships exist in the database"
-      (is (empty? (groups/get-users-groups database "user-1"))))
+      (is (empty? (groups/get-users-groups database {:owner-id "user-1"}))))
 
     (let [[{group-id :id}]        (groups/create-group! database example-group)
           [{membership-id-1 :id}] (groups/add-users-to-group! database "user-1" group-id {:email "b@z.com"
@@ -63,12 +63,12 @@
                       :display-name "mygroup"
                       :memberships  [{:membership-id uuid? :membership-created-at inst? :email "b@z.com" :alias "foo"}
                                      {:membership-id uuid? :membership-created-at inst? :email "c@z.com" :alias "bar"}]}]
-                    (groups/get-users-groups database "user-1"))))
+                    (groups/get-users-groups database {:owner-id "user-1"}))))
 
       (testing "Delete a user fails if not group owner"
         (is (nil? (groups/remove-user-from-group! database "not-the-owner" group-id membership-id-1))))
 
       (testing "Delete a user in the group"
         (is (empty? (groups/remove-user-from-group! database "user-1" group-id membership-id-1)))
-        (is (= 1 (count (groups/get-users-groups database "user-1")))))
+        (is (= 1 (count (groups/get-users-groups database {:owner-id "user-1"})))))
       )))

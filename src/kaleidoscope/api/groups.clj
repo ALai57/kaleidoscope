@@ -78,9 +78,9 @@
 
 (defn get-users-groups
   "Only return the groups owned by the requesting user"
-  [database requester-id]
-  (log/infof "Getting groups that user `%s` owns" requester-id)
-  (normalize-memberships (get-group-memberships database {:owner-id requester-id})))
+  [database {:keys [owner-id hostname] :as filters}]
+  (log/infof "Getting groups that user `%s` owns" owner-id)
+  (normalize-memberships (get-group-memberships database filters)))
 
 (defn add-users-to-group!
   "This functionality makes a strong assumption: that users are uniquely identified

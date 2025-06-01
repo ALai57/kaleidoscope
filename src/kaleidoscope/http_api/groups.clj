@@ -13,15 +13,16 @@
               ;;
               ;;:host      "andrewslai.localhost"
               }
-   ["" {:get {:summary   "Retrieve groups the user owns"
-              :responses (merge hu/openapi-401
-                                {200 {:description "A collection of groups the user owns"
-                                      :content     {"application/json"
-                                                    {:schema [:any]}}}})
+   ["" {:get  {:summary   "Retrieve groups the user owns"
+               :responses (merge hu/openapi-401
+                                 {200 {:description "A collection of groups the user owns"
+                                       :content     {"application/json"
+                                                     {:schema [:any]}}}})
 
-              :handler (fn [{:keys [components] :as request}]
-                         (ok (groups-api/get-users-groups (:database components)
-                                                          (oidc/get-user-id (:identity request)))))}
+               :handler   (fn [{:keys [components] :as request}]
+                            (ok (groups-api/get-users-groups (:database components)
+                                                             {:owner-id (oidc/get-user-id (:identity request))
+                                                              :hostname (hu/get-host request)})))}
         :post {:summary   "Create a group"
                :responses (merge hu/openapi-401
                                  {200 {:description "The group that was created"
@@ -31,29 +32,31 @@
                             (try
                               (log/info "Creating group!" body-params)
                               (let [group (assoc body-params
-                                                 :owner-id (oidc/get-user-id (:identity request)))]
+                                            :hostname (hu/get-host request)
+                                            :owner-id (oidc/get-user-id (:identity request)))]
                                 (ok (doto (groups-api/create-group! (:database components) group)
                                       log/info)))
                               (catch Exception e
                                 (log/error "Caught exception " e))))}}]
 
-   ["/:group-id" {:put {:summary    "Create a group"
-                        :responses  (merge hu/openapi-401
-                                           {200 {:description "The group that was created"
-                                                 :content     {"application/json"
-                                                               {:schema [:any]}}}})
-                        :parameters {:path {:group-id :uuid}}
-                        :handler    (fn [{:keys [components body-params path-params parameters] :as request}]
-                                      (try
-                                        (let [{:keys [group-id]} (:path parameters)
-                                              _ (log/info "Creating group!" group-id body-params)
-                                              group (assoc body-params
-                                                      :id group-id
-                                                      :owner-id (oidc/get-user-id (:identity request)))]
-                                          (ok (doto (groups-api/create-group! (:database components) group)
-                                                log/info)))
-                                        (catch Exception e
-                                          (log/error "Caught exception " e))))}
+   ["/:group-id" {:put    {:summary    "Create a group"
+                           :responses  (merge hu/openapi-401
+                                              {200 {:description "The group that was created"
+                                                    :content     {"application/json"
+                                                                  {:schema [:any]}}}})
+                           :parameters {:path {:group-id :uuid}}
+                           :handler    (fn [{:keys [components body-params path-params parameters] :as request}]
+                                         (try
+                                           (let [{:keys [group-id]} (:path parameters)
+                                                 _ (log/info "Creating group!" group-id body-params)
+                                                 group (assoc body-params
+                                                         :id group-id
+                                                         :hostname (hu/get-host request)
+                                                         :owner-id (oidc/get-user-id (:identity request)))]
+                                             (ok (doto (groups-api/create-group! (:database components) group)
+                                                   log/info)))
+                                           (catch Exception e
+                                             (log/error "Caught exception " e))))}
                   :delete {:summary    "Delete a group"
                            :responses  (merge hu/openapi-401
                                               {200 {:description "Success deleting the group"
