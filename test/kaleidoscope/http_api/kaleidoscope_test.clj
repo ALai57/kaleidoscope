@@ -644,6 +644,14 @@
                                                  :email                 "my-email@email.com"}]}]}
                       response))))
 
+      (testing "Groups are scoped to hostname"
+        ;; Wrong hostname
+        (let [response (app (-> (mock/request :get "https://sahiltalkingcents.com/groups")
+                                (mock/header "Authorization" "Bearer user first-user")))]
+          (is (match? {:status 200
+                       :body   empty?}
+                      response))))
+
       (testing "Remove member from group"
         (let [response (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s/members/%s" group-id member-id))
                                 (mock/header "Authorization" "Bearer user first-user")))]

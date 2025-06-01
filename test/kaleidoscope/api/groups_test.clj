@@ -14,7 +14,8 @@
 
 (def example-group
   {:display-name "mygroup"
-   :owner-id     "user-1"})
+   :owner-id     "user-1"
+   :hostname     "andrewslai.com"})
 
 (deftest create-and-retrieve-group-test
   (let [database (embedded-h2/fresh-db!)]
@@ -28,6 +29,9 @@
       (testing "Can retrieve example-group from the DB"
         (is (match? [example-group]
                     (#'groups/get-groups database example-group))))
+
+      (testing "Cannot retrieve example-group from the DB"
+        (is (empty? (#'groups/get-groups database (assoc example-group :hostname "wrong-host.com")))))
 
       (testing "Ownership predicate"
         (is (groups/owns? database "user-1" group-id)))
