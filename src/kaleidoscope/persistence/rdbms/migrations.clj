@@ -31,7 +31,7 @@
   ;; THE BUFFER WITH THIS MODULE
 
   (m/create {:migration-dir "migrations"}
-            "add-modified-at")
+            "add-owner-to-tables")
   (-main "init")
   (-main "migrate")
   (-main "up")

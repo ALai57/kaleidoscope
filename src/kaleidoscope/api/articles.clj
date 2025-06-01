@@ -15,21 +15,17 @@
 (defn create-article!
   [db {:keys [article-url article-title] :as article}]
   (log/infof "Creating Article: %s" article)
-  (let [result (rdbms/insert! db
-                              :articles (cond-> article
-                                          (nil? article-title) (assoc :article-title article-url))
-                              :ex-subtype :UnableToCreateArticle)]
-    (log/infof "Created Article: %s" result)
-    result))
+  (rdbms/insert! db
+                 :articles (cond-> article
+                                   (nil? article-title) (assoc :article-title article-url))
+                 :ex-subtype :UnableToCreateArticle))
 
 (defn update-article!
   [db {:keys [id public-visibility] :as article}]
   (log/infof "Updating Article: %s" article)
-  (let [result (rdbms/update! db
-                              :articles article
-                              :ex-subtype :UnableToCreateArticle)]
-    (log/infof "Updated Article: %s" result)
-    result))
+  (rdbms/update! db
+                 :articles article
+                 :ex-subtype :UnableToCreateArticle))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Branches
@@ -47,10 +43,8 @@
           [{branch-id :id :as branch}]   (rdbms/insert! tx
                                                         :article-branches {:branch-name branch-name
                                                                            :article-id  article-id}
-                                                        :ex-subtype :UnableToCreateArticleBranch)
-          result                         (get-branches tx {:branch-id branch-id})]
-      (log/infof "Created Article Branch: %s" result)
-      result)))
+                                                        :ex-subtype :UnableToCreateArticleBranch)]
+      (get-branches tx {:branch-id branch-id}))))
 
 (defn publish-branch!
   ([db branch-id]
@@ -60,10 +54,8 @@
    (let [result (rdbms/update! db :article-branches
                                {:published-at now
                                 :id           branch-id}
-                               :ex-subtype :UnableToPublishBranch)
-         result (get-branches db {:branch-id branch-id})]
-     (log/infof "Published Branch: %s" result)
-     result)))
+                               :ex-subtype :UnableToPublishBranch)]
+     (get-branches db {:branch-id branch-id}))))
 
 (defn unpublish-branch!
   [db branch-id]
@@ -71,10 +63,8 @@
   (let [result (rdbms/update! db :article-branches
                               {:published-at nil
                                :id           branch-id}
-                              :ex-subtype :UnableToUnPublishBranch)
-        result (get-branches db {:branch-id branch-id})]
-    (log/infof "Unpublished Branch: %s" result)
-    result))
+                              :ex-subtype :UnableToUnPublishBranch)]
+    (get-branches db {:branch-id branch-id})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Versions
@@ -84,15 +74,13 @@
 
 (defn create-version!
   [db {:keys [branch-id] :as article-branch} {:keys [created-at] :as article-version}]
+  (log/infof "Creating Article version for branch: %s" branch-id)
   (let [branch-id                      (or branch-id (get-in (get-branches db article-branch)
                                                              [0 :branch-id]))
         [{version-id :id :as version}] (rdbms/insert! db
                                                       :article-versions (assoc article-version :branch-id branch-id)
-                                                      :ex-subtype :UnableToCreateArticleBranch)
-
-        result (get-versions db {:version-id version-id})]
-    (log/infof "Created Article version: %s" result)
-    result))
+                                                      :ex-subtype :UnableToCreateArticleBranch)]
+    (get-versions db {:version-id version-id})))
 
 (defn published?
   [branch]
