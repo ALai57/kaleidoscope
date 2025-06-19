@@ -7,24 +7,43 @@
   [group]
   (:owner-id group))
 
+(defn owns?
+  [getter database requester-id id]
+  (= requester-id (-> database
+                      (getter {:id id})
+                      first
+                      get-owner)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Restaurants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def get-restaurants
-  (rdbms/make-finder :articles))
+  (rdbms/make-finder :restaurants))
+
+(def owns-restaurant?
+  (partial owns? get-restaurants))
 
 ;; rdbms/insert! and rdbms/update should handle created at and modified at
 (defn create-restaurant!
   [db {:keys [url name] :as restaurant}]
   (log/infof "Creating Restaurant: %s" restaurant)
-  (rdbms/insert! db restaurant :ex-subtype :UnableToCreateRestaurant))
+  (rdbms/insert! db :restaurants restaurant :ex-subtype :UnableToCreateRestaurant))
 
 (defn update-restaurant!
-  [db {:keys [id] :as restaurant}]
-  (log/infof "Updating Restaurant: %s" restaurant)
-  (rdbms/update! db
-                 :restaurants restaurant
-                 :ex-subtype :UnableToCreateRestaurant))
+  [db requester-id {:keys [id] :as restaurant}]
+  (if (owns-restaurant? db requester-id id)
+    (rdbms/update! db
+                   :restaurants restaurant
+                   :ex-subtype :UnableToUpdateRestaurant)
+    (log/warnf "User %s does not have permissions to update the restaurant %s" requester-id id)))
+
+(defn delete-restaurant!
+  [db requester-id restaurant-id]
+  (if (owns-restaurant? db requester-id restaurant-id)
+    (rdbms/delete! db
+                   :restaurants restaurant-id
+                   :ex-subtype :UnableToUpdateRestaurant)
+    (log/warnf "User %s does not have permissions to delete the restaurant %s" requester-id restaurant-id)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,18 +58,14 @@
                  :eater-groups (assoc group :id (or id (utils/uuid)))
                  :ex-subtype :UnableToCreateEaterGroup))
 
-(defn owns?
-  [database requester-id group-id]
-  (= requester-id (-> database
-                      (get-eater-groups {:id group-id})
-                      first
-                      get-owner)))
+(def owns-eater-group?
+  (partial owns? get-eater-groups))
 
 (defn delete-eater-group!
   "Only allow a user to delete a group if they are the owner.
   The `user-id` is the identity of the user requesting the operation."
   [database requester-id group-id]
-  (if (owns? database requester-id group-id)
+  (if (owns-eater-group? database requester-id group-id)
     (rdbms/delete! database
                    :eater-groups     group-id
                    :ex-subtype :UnableToDeleteEaterGroup)
@@ -110,7 +125,7 @@
   group, we don't have to worry about the problem of 'What is this users' unique
   ID in Keycloak?"
   [database requester-id group-id users]
-  (if (owns? database requester-id group-id)
+  (if (owns-eater-group? database requester-id group-id)
     (let [memberships (vec (for [{:keys [email alias] :as user} (if (vector? users) users [users])]
                              {:id         (utils/uuid)
                               :email      email
@@ -123,7 +138,7 @@
 
 (defn remove-user-from-eater-group!
   [database requester-id group-id user-group-membership-id]
-  (if (owns? database requester-id group-id)
+  (if (owns-eater-group? database requester-id group-id)
     (rdbms/delete! database
                    :eater-group-memberships user-group-membership-id
                    :ex-subtype :UnableToDeleteUserFromEaterGroup)

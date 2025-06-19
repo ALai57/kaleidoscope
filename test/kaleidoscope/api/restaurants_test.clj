@@ -10,7 +10,51 @@
     ;; Manually override the minimum error level because some of the tests will
     ;; emit warnings
     (log/with-min-level :error
-      (f))))
+                        (f))))
+
+(def example-restaurant
+  {:id           #uuid "00000000-1111-2222-3333-444444444444"
+   :display-name "myrestaurant"
+   :owner-id     "user-1"
+   :url          "abc123.com"})
+
+(deftest create-and-retrieve-restaurant-test
+  (let [database (embedded-h2/fresh-db!)]
+    (testing "example-restaurant doesn't exist in the database"
+      (is (empty? (restaurants/get-restaurants database example-restaurant))))
+    (testing "insert example-restaurant"
+      (is (match? [{:created-at   inst?
+                    :modified-at  inst?
+                    :id           uuid?
+                    :display-name "myrestaurant"
+                    :owner-id     "user-1"
+                    :url          "abc123.com"}]
+                  (restaurants/create-restaurant! database example-restaurant))))
+    (testing "example-restaurant exists"
+      (is (not-empty (restaurants/get-restaurants database example-restaurant))))
+    (testing "Update example-restaurant with wrong owner fails"
+      (is (nil? (restaurants/update-restaurant! database "not-user-1" (assoc example-restaurant :url "new-url.com"))))
+      (is (match? [{:owner-id "user-1"
+                    :url      "abc123.com"}]
+                  (restaurants/get-restaurants database example-restaurant))))
+    (testing "Update example-restaurant with owner works"
+      (is (match? [{:owner-id "user-1"
+                    :url      "new-url.com"}]
+                  (restaurants/update-restaurant! database "user-1" (assoc example-restaurant :url "new-url.com"))))
+      (is (match? [{:owner-id "user-1"
+                    :url      "new-url.com"}]
+                  (restaurants/get-restaurants database (dissoc example-restaurant :url)))))
+
+    (testing "Delete example-restaurant with wrong owner fails"
+      (is (nil? (restaurants/delete-restaurant! database "not-user-1" #uuid "00000000-1111-2222-3333-444444444444")))
+      (is (match? [{:owner-id "user-1"
+                    :url      "new-url.com"}]
+                  (restaurants/update-restaurant! database "user-1" (assoc example-restaurant :url "new-url.com")))))
+
+    (testing "Delete example-restaurant with owner succeeds"
+      (is (empty? (restaurants/delete-restaurant! database "user-1" #uuid "00000000-1111-2222-3333-444444444444")))
+      (is (empty? (restaurants/update-restaurant! database "user-1" (assoc example-restaurant :url "new-url.com")))))
+    ))
 
 (def example-group
   {:display-name "mygroup"
@@ -30,7 +74,7 @@
                     (#'restaurants/get-eater-groups database example-group))))
 
       (testing "Ownership predicate"
-        (is (restaurants/owns? database "user-1" group-id)))
+        (is (restaurants/owns-eater-group? database "user-1" group-id)))
 
       (testing "Non-owner cannot delete the group"
         (is (nil? (restaurants/delete-eater-group! database "not-the-owner" group-id))))
@@ -44,7 +88,7 @@
     (testing "no group-memberships exist in the database"
       (is (empty? (restaurants/get-users-eater-groups database "user-1"))))
 
-    (let [[{group-id :id}]        (restaurants/create-eater-group! database example-group)
+    (let [[{group-id :id}] (restaurants/create-eater-group! database example-group)
           [{membership-id-1 :id}] (restaurants/add-users-to-eater-group! database "user-1" group-id {:email "b@z.com"
                                                                                                      :alias "foo"})
           [{membership-id-2 :id}] (restaurants/add-users-to-eater-group! database "user-1" group-id {:email "c@z.com"
