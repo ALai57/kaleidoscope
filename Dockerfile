@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk-jammy
+FROM eclipse-temurin:21-jre-jammy
 
 # This list excludes specific classes from instrumentation
 # To avoid a lot of Java instrumentation at start time,
