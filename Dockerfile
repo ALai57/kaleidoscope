@@ -2,25 +2,32 @@
 # jlink requires the full JDK, so we use the JDK image here only.
 FROM eclipse-temurin:21-jdk-jammy AS jre-builder
 
-# Modules required by this app:
-#   java.base          - core Java
-#   java.desktop       - ImageIO / BufferedImage used by image-resizer
+# Module list derived from:
+#   jdeps --multi-release 21 --print-module-deps target/kaleidoscope.jar
+# plus three modules jdeps cannot detect (loaded at runtime, not via static bytecode refs):
 #   java.instrument    - required for the OTEL javaagent premain mechanism
-#   java.logging       - java.util.logging (used by several dependencies)
-#   java.management    - JMX/MBeans (HikariCP pool monitoring)
-#   java.naming        - JNDI (referenced by JDBC drivers and AWS SDK)
-#   java.net.http      - HTTP client (AWS SDK, Stripe)
-#   java.security.jgss - GSSAPI/Kerberos (TLS negotiation, AWS auth)
-#   java.sql           - JDBC API (PostgreSQL, HikariCP)
-#   java.xml           - DOM/SAX parsing (AWS SDK v1 response parsing)
-#   jdk.crypto.ec      - elliptic-curve cipher suites for TLS (required for SSL DB connections)
+#   jdk.crypto.ec      - elliptic-curve TLS cipher suites (needed for SSL DB connections)
 #   jdk.unsupported    - sun.misc.Unsafe (required by byte-buddy, which the OTEL agent uses)
+#
+#   java.base          - core Java
+#   java.desktop       - java.awt / javax.imageio / javax.swing / java.beans (image-resizer + Clojure inspector)
+#   java.instrument    - OTEL javaagent [runtime-only, not in jdeps output]
+#   java.logging       - java.util.logging (AWS SDK, Keycloak, many deps)
+#   java.management    - javax.management / JMX (HikariCP pool monitoring)
+#   java.naming        - javax.naming / JNDI (JDBC drivers, AWS SDK)
+#   java.net.http      - HTTP client (AWS SDK v2 SSOOIDC, Stripe)
+#   java.scripting     - javax.script / ScriptEngine (referenced by bundled deps)
+#   java.security.jgss - org.ietf.jgss / GSSAPI / Kerberos (TLS negotiation, AWS auth)
+#   java.sql           - JDBC API / javax.sql (PostgreSQL, HikariCP)
+#   java.xml           - javax.xml / org.w3c.dom / org.xml.sax (AWS SDK v1 response parsing)
+#   jdk.crypto.ec      - elliptic-curve TLS [runtime-only, not in jdeps output]
+#   jdk.unsupported    - sun.misc.Unsafe [runtime-only, not in jdeps output]
 RUN jlink \
     --no-header-files \
     --no-man-pages \
     --compress=2 \
     --strip-debug \
-    --add-modules java.base,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.security.jgss,java.sql,java.xml,jdk.crypto.ec,jdk.unsupported \
+    --add-modules java.base,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.scripting,java.security.jgss,java.sql,java.xml,jdk.crypto.ec,jdk.unsupported \
     --output /custom-jre
 
 # Stage 2: Minimal Debian runtime — no JDK tooling, no package manager cruft.
