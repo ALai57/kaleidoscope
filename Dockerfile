@@ -1,4 +1,4 @@
-FROM openjdk:21-jdk-slim
+FROM eclipse-temurin:21-jdk-jammy
 
 # This list excludes specific classes from instrumentation
 # To avoid a lot of Java instrumentation at start time,
