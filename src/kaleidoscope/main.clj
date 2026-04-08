@@ -110,7 +110,7 @@
     (initialize-schema-enforcement!)
     (-> system-components
         (env/make-http-handler)
-        (jetty/run-jetty (cond-> {:port http-port}
+        (jetty/run-jetty (cond-> {:port http-port :host "0.0.0.0"}
                            ssl-props (merge ssl-props))))))
 
 (defn -main
