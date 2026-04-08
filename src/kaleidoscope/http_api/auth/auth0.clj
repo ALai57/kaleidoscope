@@ -27,7 +27,8 @@
         algorithm    (Algorithm/RSA256 (rsa-key-provider jwk-provider))
         verifier     (-> (JWT/require algorithm)
                          (.withIssuer (into-array String [(str "https://" domain "/")]))
-                         (.withAudience (into-array String [audience]))
+                         (.withAudience (into-array String [audience
+                                                            (str "https://" domain "/userinfo")]))
                          (.build))]
     (fn authfn [{:keys [request-id] :as _request} token]
       (span/with-span! {:name "kaleidoscope.authentication.auth0.verifier"}
@@ -35,5 +36,5 @@
           (log/infof "Validating Auth0 JWT token for request-id: %s" request-id)
           (when (.verify verifier token)
             (jwt/body token))
-          (catch Exception e
-            (log/warn "Auth0 authentication exception" (pr-str e))))))))
+          (catch Throwable e
+            (log/warn "Auth0 authentication failed" (.getMessage e))))))))
