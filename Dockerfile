@@ -1,4 +1,40 @@
-FROM eclipse-temurin:21-jre-jammy
+# Stage 1: Build a custom JRE containing only the modules this app needs.
+# jlink requires the full JDK, so we use the JDK image here only.
+FROM eclipse-temurin:21-jdk-jammy AS jre-builder
+
+# Modules required by this app:
+#   java.base          - core Java
+#   java.desktop       - ImageIO / BufferedImage used by image-resizer
+#   java.instrument    - required for the OTEL javaagent premain mechanism
+#   java.logging       - java.util.logging (used by several dependencies)
+#   java.management    - JMX/MBeans (HikariCP pool monitoring)
+#   java.naming        - JNDI (referenced by JDBC drivers and AWS SDK)
+#   java.net.http      - HTTP client (AWS SDK, Stripe)
+#   java.security.jgss - GSSAPI/Kerberos (TLS negotiation, AWS auth)
+#   java.sql           - JDBC API (PostgreSQL, HikariCP)
+#   java.xml           - DOM/SAX parsing (AWS SDK v1 response parsing)
+#   jdk.crypto.ec      - elliptic-curve cipher suites for TLS (required for SSL DB connections)
+#   jdk.unsupported    - sun.misc.Unsafe (required by byte-buddy, which the OTEL agent uses)
+RUN jlink \
+    --no-header-files \
+    --no-man-pages \
+    --compress=2 \
+    --strip-debug \
+    --add-modules java.base,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.security.jgss,java.sql,java.xml,jdk.crypto.ec,jdk.unsupported \
+    --output /custom-jre
+
+# Stage 2: Minimal Debian runtime — no JDK tooling, no package manager cruft.
+FROM debian:12-slim
+
+# java.desktop (used headlessly for ImageIO) requires fontconfig and freetype at the OS level.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libfreetype6 \
+    libfontconfig1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=jre-builder /custom-jre /opt/jre
+ENV PATH="/opt/jre/bin:$PATH"
+ENV JAVA_HOME="/opt/jre"
 
 # This list excludes specific classes from instrumentation
 # To avoid a lot of Java instrumentation at start time,
@@ -12,42 +48,28 @@ WORKDIR /kaleidoscope
 
 COPY target/kaleidoscope.jar .
 
-# Only use the /kaleidoscope/assets folder if serving content from the local filesystem
-#RUN mkdir -p /kaleidoscope/assets
-#COPY resources/public/css assets/public/css
-#COPY resources/public/images assets/public/images
-#COPY resources/public/index.html assets/public/index.html
-#COPY resources/public/js assets/public/js
-
 # Slim OTEL agent built from opentelemetry-java-instrumentation v2.2.0 with only the
 # instrumentation modules used by this app (jdbc, hikaricp, jetty, aws-sdk-1.11,
 # apache-httpclient, okhttp). ~15MB vs ~200MB for the full agent.
 COPY opentelemetry-javaagent.jar .
 
-
-# Configuring max and min heap sizes to be identical is a
-# best practice for optimizing GC performance.
-RUN echo "***********************"
-RUN echo $TRACE_EXCLUDE_LIST
-RUN echo "***********************"
-
 # CMD with a vector or exec starts a process and the process gets signals
 # instead of a /bin/sh process getting PID 1 and getting all signals.
 # https://vsupalov.com/docker-compose-stop-slow/
 CMD exec java -Xms512m -Xmx512m \
+    # Run ImageIO headlessly — no display required on the server.
+    -Djava.awt.headless=true \
     # Opentelemetry support. This configures where the OTel agent
     # sends the traces it collects.
     -javaagent:opentelemetry-javaagent.jar \
     -Dotel.resource.attributes=service.name=kaleidoscope \
     -Dotel.exporter.otlp.protocol=http/protobuf \
     -Dotel.exporter.otlp.endpoint=${SUMOLOGIC_OTLP_URL} \
-    #-Dotel.javaagent.debug=true \
     -Dotel.metrics.exporter=none \
     -Dotel.traces.exporter=otlp \
     # Slim agent only contains: jdbc, hikaricp, jetty, aws-sdk-1.11, apache-httpclient, okhttp.
     # All included modules are enabled by default — no need to opt in individually.
     -Dotel.javaagent.exclude-classes=$TRACE_EXCLUDE_LIST \
     -jar kaleidoscope.jar
-
 
 EXPOSE 5000
