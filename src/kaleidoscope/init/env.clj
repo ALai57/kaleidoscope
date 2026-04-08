@@ -73,6 +73,7 @@
    :username    (get env "KALEIDOSCOPE_DB_USER")
    :password    (get env "KALEIDOSCOPE_DB_PASSWORD")
    :dbtype      "postgresql"
+   :sslmode     (get env "KALEIDOSCOPE_DB_SSL_MODE" "require")
    ;; Minimum number of connections when the pool is idle. Set intentionally
    ;; low, because the app uses db.t4g.micro and we don't want to eat up CPU.
    :minimumIdle 3
