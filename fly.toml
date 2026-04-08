@@ -1,0 +1,57 @@
+app = "kaleidoscope-publishing"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  KALEIDOSCOPE_DB_TYPE                    = "postgres"
+  KALEIDOSCOPE_DB_HOST                    = "ep-polished-frost-an34qo7y.c-6.us-east-1.aws.neon.tech"
+  KALEIDOSCOPE_DB_NAME                    = "neondb"
+  KALEIDOSCOPE_DB_USER                    = "neondb_owner"
+  KALEIDOSCOPE_DB_PORT                    = "5432"
+  KALEIDOSCOPE_DB_SSL_MODE                = "require"
+
+  KALEIDOSCOPE_AUTH_TYPE                  = "keycloak"
+  KALEIDOSCOPE_AUTH_REALM                 = "andrewslai"
+  KALEIDOSCOPE_AUTH_URL                   = "https://keycloak.andrewslai.com/"
+  KALEIDOSCOPE_AUTH_CLIENT                = "andrewslai-backend"
+  KALEIDOSCOPE_AUTHORIZATION_TYPE         = "use-access-control-list"
+
+  KALEIDOSCOPE_STATIC_CONTENT_TYPE        = "s3"
+  KALEIDOSCOPE_BUCKET                     = "andrewslai"
+
+  KALEIDOSCOPE_WEDDING_AUTH_TYPE          = "keycloak"
+  KALEIDOSCOPE_WEDDING_AUTHORIZATION_TYPE = "use-access-control-list"
+  KALEIDOSCOPE_WEDDING_STATIC_CONTENT_TYPE = "s3"
+  KALEIDOSCOPE_WEDDING_BUCKET             = "andrewslai-wedding"
+
+  KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE    = "bugsnag"
+
+  # Set to "none" until SNS/image-resizer is migrated off AWS
+  KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE        = "none"
+
+  AWS_DEFAULT_REGION                      = "us-east-1"
+
+[http_service]
+  internal_port       = 5000
+  force_https         = true
+  auto_stop_machines  = false
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type       = "requests"
+    hard_limit = 200
+    soft_limit = 150
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval     = "30s"
+  timeout      = "10s"
+  method       = "GET"
+  path         = "/ping"
