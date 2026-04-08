@@ -40,23 +40,6 @@
   {:domain   (get env "KALEIDOSCOPE_AUTH_DOMAIN")
    :audience (get env "KALEIDOSCOPE_AUTH_AUDIENCE")})
 
-(defn env->keycloak
-  {:malli/schema [:=> [:cat :map]
-                  [:map
-                   [:realm [:string {:error/message "Missing Keycloak realm. Set via KALEIDOSCOPE_AUTH_REALM environment variable."}]]
-                   [:auth-server-url [:string {:error/message "Missing Keycloak auth server url. Set via KALEIDOSCOPE_AUTH_URL environment variable."}]]
-                   [:client-id [:string {:error/message "Missing Keycloak client id. Set via KALEIDOSCOPE_AUTH_CLIENT environment variable."}]]
-                   [:client-secret [:string {:error/message "Missing Keycloak secret. Set via KALEIDOSCOPE_AUTH_SECRET environment variable."}]]
-                   [:ssl-required [:string {:error/message "Missing Keycloak ssl requirement. Set in code. Should never happen."}]]
-                   [:confidential-port [:int {:error/message "Missing Keycloak confidential port. Set in code. Should never happen."}]]]]
-   :malli/scope  #{:output}}
-  [env]
-  {:realm             (get env "KALEIDOSCOPE_AUTH_REALM")
-   :auth-server-url   (get env "KALEIDOSCOPE_AUTH_URL")
-   :client-id         (get env "KALEIDOSCOPE_AUTH_CLIENT")
-   :client-secret     (get env "KALEIDOSCOPE_AUTH_SECRET")
-   :ssl-required      "external"
-   :confidential-port 0})
 
 (defn env->pg-conn
   {:malli/schema [:=> [:cat :map]
@@ -157,7 +140,6 @@
   {:name      :kaleidoscope-authentication
    :path      "KALEIDOSCOPE_AUTH_TYPE"
    :launchers {"auth0"                     (fn [env] (bb/auth0-backend (env->auth0 env)))
-               "keycloak"                  (fn [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
                "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
                                                                                  :sub          "my-user-id"

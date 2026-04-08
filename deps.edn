@@ -41,11 +41,7 @@
          com.auth0/java-jwt                                    {:mvn/version "4.4.0"}
          com.auth0/jwks-rsa                                    {:mvn/version "0.22.1"}
 
-         org.keycloak/keycloak-adapter-core                   {:mvn/version "21.0.1"}
-         org.keycloak/keycloak-adapter-spi                    {:mvn/version "21.0.1"}
-         org.keycloak/keycloak-admin-client                   {:mvn/version "21.0.1"}
-         org.keycloak/keycloak-common                         {:mvn/version "21.0.1"}
-         org.keycloak/keycloak-core                           {:mvn/version "21.0.1"}
+
          org.postgresql/postgresql                            {:mvn/version "42.5.1"}
          org.slf4j/log4j-over-slf4j                           {:mvn/version "1.7.30"}
          peridot/peridot                                      {:mvn/version "0.5.4"}

@@ -2,7 +2,6 @@
   (:require [buddy.auth.backends.token :as token]
             [clojure.string :as string]
             [kaleidoscope.http-api.auth.auth0 :as auth0]
-            [kaleidoscope.http-api.auth.keycloak :as keycloak]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
@@ -34,12 +33,6 @@
                                  (log/debugf "Overriding user identity with `%s`" new-identity)
                                  (assoc id-token :sub new-identity))
                                id-token))))))
-
-(defn keycloak-backend
-  [keycloak-config-map]
-  (-> keycloak-config-map
-      (keycloak/make-keycloak-authenticator)
-      (bearer-token-backend)))
 
 (defn auth0-backend
   [auth0-config-map]
