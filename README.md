@@ -65,11 +65,18 @@ If the environment has `KALEIDOSCOPE_DB_TYPE=postgres` then the app will use the
 
 `KALEIDOSCOPE_AUTH_TYPE` Determines how to authenticate users
 
-| Value                  | Description                                                                                                            |
-|------------------------|------------------------------------------------------------------------------------------------------------------------|
-| keycloak               | Connect to a Keycloak instance for Authentication. Makes a network request for Auth.                                   |
-| always-unauthenticated | Always return an unauthenticated user. Does not make a network request.                                                |
-| always-authenticated   | Always return an authenticated user with admin permissions on the supported `domains`. Does not make a network request |
+| Value                     | Description                                                                                                             |
+|---------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| auth0                     | Connect to Auth0 for authentication. Requires `KALEIDOSCOPE_AUTH_DOMAIN` and `KALEIDOSCOPE_AUTH_AUDIENCE`.              |
+| always-unauthenticated    | Always return an unauthenticated user. Does not make a network request.                                                 |
+| custom-authenticated-user | Always return an authenticated user with admin permissions on the supported `domains`. Does not make a network request. |
+
+When `KALEIDOSCOPE_AUTH_TYPE=auth0`, two additional variables are required:
+
+| Variable                     | Description                                          | Example                              |
+|------------------------------|------------------------------------------------------|--------------------------------------|
+| `KALEIDOSCOPE_AUTH_DOMAIN`   | Auth0 tenant domain                                  | `dev-xyz.us.auth0.com`               |
+| `KALEIDOSCOPE_AUTH_AUDIENCE` | Auth0 API identifier (used as JWT audience claim)    | `https://api.andrewslai.com`         |
 
 
 `KALEIDOSCOPE_AUTHORIZATION_TYPE` Determines how to authorize users
