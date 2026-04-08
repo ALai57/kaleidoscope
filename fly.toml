@@ -50,7 +50,7 @@ primary_region = "iad"
   cpus = 1
 
 [[http_service.checks]]
-  grace_period = "30s"
+  grace_period = "5m"
   interval     = "30s"
   timeout      = "10s"
   method       = "GET"

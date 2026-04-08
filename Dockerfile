@@ -19,10 +19,10 @@ COPY target/kaleidoscope.jar .
 #COPY resources/public/index.html assets/public/index.html
 #COPY resources/public/js assets/public/js
 
-# OpenTelemetry requires a javaagent. Javaagents are a class
-# that intercepts applications on a JVM and modify their bytecode
-RUN apt update && apt install libpsl5 publicsuffix wget
-RUN wget https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.2.0/opentelemetry-javaagent.jar
+# Slim OTEL agent built from opentelemetry-java-instrumentation v2.2.0 with only the
+# instrumentation modules used by this app (jdbc, hikaricp, jetty, aws-sdk-1.11,
+# apache-httpclient, okhttp). ~15MB vs ~200MB for the full agent.
+COPY opentelemetry-javaagent.jar .
 
 
 # Configuring max and min heap sizes to be identical is a
@@ -44,11 +44,8 @@ CMD exec java -Xms512m -Xmx512m \
     #-Dotel.javaagent.debug=true \
     -Dotel.metrics.exporter=none \
     -Dotel.traces.exporter=otlp \
-    # Disable auto instrumentation, so we can only enable the things we wwant
-    #-Dotel.instrumentation.jetty.enabled=true \
-    #-Dotel.instrumentation.aws-sdk.enabled=true \
-    #-Dotel.instrumentation.jdbc-datasource.enabled=true \
-    -Dotel.instrumentation.common.default-enabled=true \
+    # Slim agent only contains: jdbc, hikaricp, jetty, aws-sdk-1.11, apache-httpclient, okhttp.
+    # All included modules are enabled by default — no need to opt in individually.
     -Dotel.javaagent.exclude-classes=$TRACE_EXCLUDE_LIST \
     -jar kaleidoscope.jar
 
