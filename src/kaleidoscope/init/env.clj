@@ -35,6 +35,11 @@
 ;; Parse environment variables into a map of config values
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn env->auth0
+  [env]
+  {:domain   (get env "KALEIDOSCOPE_AUTH_DOMAIN")
+   :audience (get env "KALEIDOSCOPE_AUTH_AUDIENCE")})
+
 (defn env->keycloak
   {:malli/schema [:=> [:cat :map]
                   [:map
@@ -151,7 +156,8 @@
 (def kaleidoscope-authentication-boot-instructions
   {:name      :kaleidoscope-authentication
    :path      "KALEIDOSCOPE_AUTH_TYPE"
-   :launchers {"keycloak"                  (fn [env] (bb/keycloak-backend (env->keycloak env)))
+   :launchers {"auth0"                     (fn [env] (bb/auth0-backend (env->auth0 env)))
+               "keycloak"                  (fn [env] (bb/keycloak-backend (env->keycloak env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
                "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
                                                                                  :sub          "my-user-id"

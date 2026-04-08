@@ -58,11 +58,11 @@
       window.ui = ui
 
     ui.initOAuth({
-        clientId: "andrewslai-frontend",
-        realm: "andrewslai",
+        clientId: "HceSPL7WciEQU4N8zeAVtYCf0fVQizp3",
         appName: "andrewslai",
         scopeSeparator: " ",
-        scopes: "openid profile roles",
+        scopes: "openid profile",
+        additionalQueryStringParams: { audience: "https://api.andrewslai.com" },
         usePkceWithAuthorizationCodeGrant: true
     })
     }

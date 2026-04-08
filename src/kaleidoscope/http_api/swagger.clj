@@ -19,8 +19,8 @@
   See https://swagger.io/docs/open-source-tools/swagger-ui/usage/oauth2/"
   {:andrewslai-pkce
    {:type  "oauth2"
-    :flows {:authorizationCode {:authorizationUrl "https://keycloak.andrewslai.com/auth/realms/andrewslai/protocol/openid-connect/auth"
-                                :tokenUrl         "https://keycloak.andrewslai.com/auth/realms/andrewslai/protocol/openid-connect/token"
+    :flows {:authorizationCode {:authorizationUrl "https://dev-722l4eivlaenj2h1.us.auth0.com/authorize"
+                                :tokenUrl         "https://dev-722l4eivlaenj2h1.us.auth0.com/oauth/token"
                                 :scopes           {"profile" "A users profile"
                                                    "roles"   "View users roles"}}}}})
 #_{:type             "openIdConnect"
