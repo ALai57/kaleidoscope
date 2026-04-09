@@ -62,11 +62,12 @@
   "All served from a common bucket: the Kaleidoscope app bucket."
   ["" {:no-doc true}
    ["/index.html" {:get {:handler (partial found "/")}}]
-   ["/favicon.ico" {:get {:span-name "kaleidoscope.index.get"
+   ["/favicon.ico" {:get {:span-name "kaleidoscope.favicon.get"
                           :uri       "static/favicon.ico"
                           :handler   get-static-resource}}]
    ["/"           {:get {:span-name "kaleidoscope.index.get"
-                         :uri       "static/index.html"
+                         :uri       "index.html"
+                         :host      "kaleidoscope.client"
                          :handler   get-static-resource}}]
 
    ["/assets/*"
