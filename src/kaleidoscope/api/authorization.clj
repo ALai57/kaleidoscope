@@ -20,7 +20,7 @@
   example, when sending a request to andrewslai.com, requires
   `andrewslai.com-writer`"
   [{:keys [identity uri server-name] :as request}]
-  (log/debugf "Checking if user %s has access to endpoint %s" identity uri)
+  (log/debugf "Checking if user %s has access to endpoint %s %s" identity server-name uri)
   (let [role  (str server-name ":writer")
         admin (str server-name ":admin")]
     (if (or (contains? (oidc/get-realm-roles identity) role)

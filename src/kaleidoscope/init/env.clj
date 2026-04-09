@@ -150,7 +150,7 @@
                                                                                                         "sahiltalkingcents.com:admin"
                                                                                                         "caheriaguilar.com:admin"
                                                                                                         "caheriaguilar.and.andrewslai.com:admin"]}}))}
-   :default   "keycloak"})
+   :default   "auth0"})
 
 (def kaleidoscope-authorization-boot-instructions
   {:name      :kaleidoscope-authorization
