@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+## All of this nonsense is to be able to parse Bash option flags
+# https://stackoverflow.com/a/7680682
+while getopts ":-:" optchar; do
+    case "${optchar}" in
+        -)
+            case "${OPTARG}" in
+                environment=*)
+                    val=${OPTARG#*=}
+                    opt=${OPTARG%=$val}
+                    ENV_FILE=$val
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
+            ;;
+    esac
+done
+
+## Apply the environment variable file if necessary
+if [ -n $ENV_FILE ]; then
+    set -o allexport
+    PWD=$(pwd)
+    echo "Applying environment file: $PWD/$ENV_FILE"
+    source "$ENV_FILE"
+    set +o allexport
+fi
+
+echo "Dropping all tables, views, and sequences on ${KALEIDOSCOPE_DB_HOST}:${KALEIDOSCOPE_DB_PORT}/${KALEIDOSCOPE_DB_NAME}..."
+PGPASSWORD=$KALEIDOSCOPE_DB_PASSWORD psql \
+    -h "$KALEIDOSCOPE_DB_HOST" \
+    -p "$KALEIDOSCOPE_DB_PORT" \
+    -U "$KALEIDOSCOPE_DB_USER" \
+    -d "$KALEIDOSCOPE_DB_NAME" \
+    -c "DO \$\$ DECLARE r RECORD;
+        BEGIN
+            FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+            END LOOP;
+            FOR r IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public') LOOP
+                EXECUTE 'DROP SEQUENCE IF EXISTS ' || quote_ident(r.sequence_name) || ' CASCADE';
+            END LOOP;
+        END \$\$;"
+
+echo "Running migrations..."
+clojure -A:dev -M -m kaleidoscope.persistence.rdbms.migrations migrate
