@@ -50,7 +50,7 @@
                               (log/info "Creating theme!" parameters)
                               (let [theme    (merge (:request parameters)
                                                     {:hostname (hu/get-host request)
-                                                     :owner-id (oidc/get-user-id (:identity request))})
+                                                     :owner-id (oidc/get-verified-email (:identity request))})
                                     [result] (themes-api/create-theme! (:database components) theme)]
                                 (log/infof "Created theme %s" result)
                                 (ok result))
@@ -65,7 +65,7 @@
                            :handler    (fn [{:keys [components parameters] :as request}]
                                          (try
                                            (let [{:keys [theme-id]} (:path parameters)
-                                                 requester-id       (oidc/get-user-id (:identity request))]
+                                                 requester-id       (oidc/get-verified-email (:identity request))]
                                              (log/infof "User %s attempting to delete theme %s!" requester-id theme-id)
                                              (if-let [result (themes-api/delete-theme! (:database components) requester-id theme-id)]
                                                (no-content)
@@ -91,7 +91,7 @@
                                         (let [{:keys [theme-id]} (:path parameters)
                                               theme              (merge (:request parameters)
                                                                         {:hostname (hu/get-host request)
-                                                                         :owner-id (oidc/get-user-id (:identity request))
+                                                                         :owner-id (oidc/get-verified-email (:identity request))
                                                                          :id       (parse-uuid theme-id)})
                                               [result]           (themes-api/update-theme! (:database components) theme)]
                                           (log/infof "Updated theme %s" result)

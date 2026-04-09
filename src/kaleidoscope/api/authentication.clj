@@ -20,6 +20,19 @@
   [id-token]
   (:sub id-token))
 
+(defn get-email
+  [id-token]
+  (:email id-token))
+
+(defn email-verified?
+  [id-token]
+  (:email_verified id-token))
+
+(defn get-verified-email
+  [id-token]
+  (when (email-verified? id-token)
+    (get-email id-token)))
+
 (comment
   (def example-oidc-token
     {:acr                "1",

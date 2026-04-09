@@ -21,7 +21,7 @@
 
               :handler (fn [{:keys [components] :as request}]
                          (ok (groups-api/get-users-groups (:database components)
-                                                          (oidc/get-user-id (:identity request)))))}
+                                                          (oidc/get-verified-email (:identity request)))))}
         :post {:summary   "Create a group"
                :responses (merge hu/openapi-401
                                  {200 {:description "The group that was created"
@@ -31,7 +31,7 @@
                             (try
                               (log/info "Creating group!" body-params)
                               (let [group (assoc body-params
-                                                 :owner-id (oidc/get-user-id (:identity request)))]
+                                                 :owner-id (oidc/get-verified-email (:identity request)))]
                                 (ok (doto (groups-api/create-group! (:database components) group)
                                       log/info)))
                               (catch Exception e
@@ -49,7 +49,7 @@
                                               _                  (log/info "Creating group!" group-id body-params)
                                               group              (assoc body-params
                                                                         :id       group-id
-                                                                        :owner-id (oidc/get-user-id (:identity request)))]
+                                                                        :owner-id (oidc/get-verified-email (:identity request)))]
                                           (ok (doto (groups-api/create-group! (:database components) group)
                                                 log/info)))
                                         (catch Exception e
@@ -63,7 +63,7 @@
                            :handler    (fn [{:keys [components path-params] :as request}]
                                          (try
                                            (let [{:keys [group-id]} path-params
-                                                 requester-id       (oidc/get-user-id (:identity request))]
+                                                 requester-id       (oidc/get-verified-email (:identity request))]
                                              (log/infof "User %s attempting to delete group %s!" requester-id group-id)
                                              (if-let [result (groups-api/delete-group! (:database components) requester-id group-id)]
                                                (no-content)
@@ -80,7 +80,7 @@
                                                (try
                                                  (log/info "Adding member!" body-params)
                                                  (let [{:keys [group-id]} path-params
-                                                       requester-id       (oidc/get-user-id (:identity request))
+                                                       requester-id       (oidc/get-verified-email (:identity request))
                                                        member             body-params]
                                                    (ok (doto (groups-api/add-users-to-group! (:database components) requester-id group-id member)
                                                          log/info)))
@@ -96,7 +96,7 @@
                                                   :handler    (fn [{:keys [components path-params] :as request}]
                                                                 (try
                                                                   (let [{:keys [group-id membership-id]} path-params
-                                                                        requester-id                     (oidc/get-user-id (:identity request))]
+                                                                        requester-id                     (oidc/get-verified-email (:identity request))]
                                                                     (log/infof "User %s attempting to remove member %s from group %s!" requester-id membership-id group-id)
                                                                     (if-let [result (groups-api/remove-user-from-group! (:database components) requester-id group-id membership-id)]
                                                                       (no-content)
