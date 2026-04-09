@@ -69,14 +69,8 @@
                          :uri       "static/index.html"
                          :handler   get-static-resource}}]
 
-   ["/silent-check-sso.html"      {:get {:span-name "kaleidoscope.silent-check-sso.get"
-                                         :host      "kaleidoscope.pub"
-                                         :uri       "static/silent-check-sso.html"
-                                         :handler   get-static-resource}}]
-
-   ["/static/js/compiled/kaleidoscope.client*"
-    {:conflicting true
-     :get         {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
+   ["/assets/*"
+    {:get         {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
                    ;; Load all compiled JS assets from the kaleidoscope-client bucket
                    :host      "kaleidoscope.client"
                    :handler   get-static-resource}}]
