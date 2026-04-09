@@ -5,7 +5,6 @@
             [clojure.string :as string]
             [kaleidoscope.clients.session-tracker :as st]
             [kaleidoscope.http-api.http-utils :as http-utils]
-            [lambdaisland.deep-diff2 :as ddiff]
             [muuntaja.core :as m]
             [reitit.coercion.malli :as rcm]
             [reitit.openapi :as openapi]
@@ -22,43 +21,7 @@
             [ring.util.http-response :refer [unauthorized]]
             [ring.util.response :as resp]
             [steffan-westcott.clj-otel.api.trace.span :as span]
-            [taoensso.timbre :as log])
-  (:import
-   (lambdaisland.deep_diff2.diff_impl Deletion Insertion Mismatch)))
-
-;; https://gist.github.com/hsartoris-bard/856d79d3a13f6cafaaa6e5079c76cd97
-(def mismatch? (partial instance? Mismatch))
-(def deletion? (partial instance? Deletion))
-(def insertion? (partial instance? Insertion))
-
-(def diff? (some-fn mismatch? deletion? insertion?))
-
-(def non-empty-collection? (every-pred coll? not-empty))
-
-(defn remove-unchanged
-  [x]
-  (cond
-    (diff? x)      x
-    (map-entry? x) (let [[k v] x]
-                     (cond
-                       (diff? k)                 x
-                       (diff? v)                 x
-                       (non-empty-collection? v) (when-let [result (remove-unchanged v)]
-                                                   [k result])))
-    (coll? x) (when-let [result (->> x
-                                     (map remove-unchanged)
-                                     (filter not-empty)
-                                     (seq))]
-                (into (empty x) result))))
-
-(defn string-diff
-  [x y]
-  (with-out-str (ddiff/pretty-print (remove-unchanged (ddiff/diff x y))
-                                    (ddiff/printer {:print-color false}))))
-
-(comment
-  (string-diff {:a :b}
-               {:c :d}))
+            [taoensso.timbre :as log]))
 
 
 (def ^:dynamic *request-id*
@@ -89,7 +52,6 @@
       (let [request-id (str (java.util.UUID/randomUUID))]
         (binding [*request-id* request-id]
           (handler (let [modified-request (assoc request :request-id request-id)]
-                     ;;(ddiff/pretty-print (remove-unchanged (ddiff/diff request modified-request)))
                      (log/debugf "Adding request-id %s to ring request" request-id)
                      modified-request)))))))
 

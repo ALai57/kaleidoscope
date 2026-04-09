@@ -1,7 +1,6 @@
 (ns kaleidoscope.http-api.photo
   (:require [clojure.string :as str]
             [cheshire.core :as json]
-            [image-resizer.core :as rc]
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.persistence.filesystem :as fs]
@@ -24,10 +23,6 @@
   (and (map? x)
        (:filename x)
        (:tempfile x)))
-
-(defn my-resize [tempfile w h]
-  (span/with-span! {:name "kaleidoscope.api.photo.resize"}
-    (rc/resize ^java.io.File tempfile w h)))
 
 (defn process-photo-upload!
   [{:keys [components] :as req}

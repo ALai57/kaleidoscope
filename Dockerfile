@@ -10,7 +10,7 @@ FROM eclipse-temurin:21-jdk-jammy AS jre-builder
 #   jdk.unsupported    - sun.misc.Unsafe (required by byte-buddy, which the OTEL agent uses)
 #
 #   java.base          - core Java
-#   java.desktop       - java.awt / javax.imageio / javax.swing / java.beans (image-resizer + Clojure inspector)
+#   java.desktop       - java.beans (Introspector used by malli/reitit/Clojure reflection)
 #   java.instrument    - OTEL javaagent [runtime-only, not in jdeps output]
 #   java.logging       - java.util.logging (AWS SDK, Keycloak, many deps)
 #   java.management    - javax.management / JMX (HikariCP pool monitoring)
@@ -30,53 +30,41 @@ RUN jlink \
     --add-modules java.base,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.scripting,java.security.jgss,java.sql,java.xml,jdk.crypto.ec,jdk.unsupported \
     --output /custom-jre
 
-# Stage 2: Minimal Debian runtime — no JDK tooling, no package manager cruft.
-FROM debian:12-slim
-
-# java.desktop (used headlessly for ImageIO) requires fontconfig and freetype at the OS level.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libfreetype6 \
-    libfontconfig1 \
-    && rm -rf /var/lib/apt/lists/*
+# Stage 2: Minimal distroless runtime — no shell, no package manager, no root tools.
+# ~20MB compressed vs ~74MB for debian:12-slim.
+FROM gcr.io/distroless/base-debian12
 
 COPY --from=jre-builder /custom-jre /opt/jre
 ENV PATH="/opt/jre/bin:$PATH"
 ENV JAVA_HOME="/opt/jre"
 
-# This list excludes specific classes from instrumentation
-# To avoid a lot of Java instrumentation at start time,
-# we only instrument `kaleidoscope` namespaces, and exclude
-# all other Clojure namespaces from dependencies (reitit, etc)
-ARG exclude_list
-ENV TRACE_EXCLUDE_LIST=$exclude_list
+# OTEL configuration via standard environment variables.
+# The OTEL Java agent reads OTEL_* env vars natively — no shell expansion needed.
+# OTEL_EXPORTER_OTLP_ENDPOINT must be set as a Fly.io secret (previously, the shell
+# CMD injected the SUMOLOGIC_OTLP_URL secret via ${} expansion; set the same value
+# under this name: fly secrets set OTEL_EXPORTER_OTLP_ENDPOINT=<value>).
+ENV OTEL_SERVICE_NAME="kaleidoscope"
+ENV OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+ENV OTEL_METRICS_EXPORTER="none"
+ENV OTEL_TRACES_EXPORTER="otlp"
 
-RUN mkdir -p /kaleidoscope
+# Slim agent only contains: jdbc, hikaricp, jetty, aws-sdk-1.11, apache-httpclient, okhttp.
+# Baked in at build time from the compiled class list; excludes all non-kaleidoscope namespaces.
+# Uses the standard OTEL env var so no -D flag is needed in the CMD.
+ARG exclude_list
+ENV OTEL_JAVAAGENT_EXCLUDE_CLASSES=$exclude_list
+
 WORKDIR /kaleidoscope
 
 COPY target/kaleidoscope.jar .
 
 # Slim OTEL agent built from opentelemetry-java-instrumentation v2.2.0 with only the
-# instrumentation modules used by this app (jdbc, hikaricp, jetty, aws-sdk-1.11,
-# apache-httpclient, okhttp). ~15MB vs ~200MB for the full agent.
+# instrumentation modules used by this app. ~15MB vs ~200MB for the full agent.
 COPY opentelemetry-javaagent.jar .
 
-# CMD with a vector or exec starts a process and the process gets signals
-# instead of a /bin/sh process getting PID 1 and getting all signals.
-# https://vsupalov.com/docker-compose-stop-slow/
-CMD exec java -Xms512m -Xmx512m \
-    # Run ImageIO headlessly — no display required on the server.
-    -Djava.awt.headless=true \
-    # Opentelemetry support. This configures where the OTel agent
-    # sends the traces it collects.
-    -javaagent:opentelemetry-javaagent.jar \
-    -Dotel.resource.attributes=service.name=kaleidoscope \
-    -Dotel.exporter.otlp.protocol=http/protobuf \
-    -Dotel.exporter.otlp.endpoint=${SUMOLOGIC_OTLP_URL} \
-    -Dotel.metrics.exporter=none \
-    -Dotel.traces.exporter=otlp \
-    # Slim agent only contains: jdbc, hikaricp, jetty, aws-sdk-1.11, apache-httpclient, okhttp.
-    # All included modules are enabled by default — no need to opt in individually.
-    -Dotel.javaagent.exclude-classes=$TRACE_EXCLUDE_LIST \
-    -jar kaleidoscope.jar
+# Exec form — distroless has no shell, so exec form (JSON array) is required.
+# java receives PID 1 directly and handles signals cleanly.
+# All OTEL config is read from the OTEL_* env vars set above.
+CMD ["java", "-Xms512m", "-Xmx512m", "-Djava.awt.headless=true", "-javaagent:opentelemetry-javaagent.jar", "-jar", "kaleidoscope.jar"]
 
 EXPOSE 5000

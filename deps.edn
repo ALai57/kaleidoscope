@@ -22,15 +22,12 @@
          com.github.steffan-westcott/clj-otel-api             {:mvn/version "0.2.6"}
          com.stripe/stripe-java                               {:mvn/version "25.9.0"}
          com.taoensso/timbre                                  {:mvn/version "6.0.4"}
-         com.twelvemonkeys.servlet/servlet                    {:mvn/version "3.9.4"}
          com.zaxxer/HikariCP                                  {:mvn/version "3.3.1"}
          com.github.seancorfield/honeysql                     {:mvn/version "2.4.1066"}
-         image-resizer/image-resizer                          {:mvn/version "0.1.10"}
          io.grpc/grpc-netty-shaded                            {:mvn/version "1.49.0"}
          io.grpc/grpc-protobuf                                {:mvn/version "1.49.0"}
          io.grpc/grpc-stub                                    {:mvn/version "1.49.0"}
          javax.servlet/servlet-api                            {:mvn/version "2.5"}
-         lambdaisland/deep-diff2                              {:mvn/version "2.7.169"}
          less-awful-ssl/less-awful-ssl                        {:mvn/version "1.0.6"}
          metosin/compojure-api                                {:mvn/version "2.0.0-alpha31"}
          metosin/malli                                        {:mvn/version "0.12.0"}
@@ -44,7 +41,6 @@
 
          org.postgresql/postgresql                            {:mvn/version "42.5.1"}
          org.slf4j/log4j-over-slf4j                           {:mvn/version "1.7.30"}
-         peridot/peridot                                      {:mvn/version "0.5.4"}
          ring/ring                                            {:mvn/version "1.9.6"}
          ring/ring-json                                       {:mvn/version "0.5.1"}
          selmer/selmer                                        {:mvn/version "1.12.61"}
@@ -77,6 +73,8 @@
                                 com.h2database/h2               {:mvn/version "2.1.214"}
                                 io.zonky.test/embedded-postgres {:mvn/version "2.0.3"}
                                 migratus/migratus               {:mvn/version "1.4.9"}
+                                lambdaisland/deep-diff2         {:mvn/version "2.7.169"}
+                                peridot/peridot                 {:mvn/version "0.5.4"}
                                 }}
 
            :otel {:jvm-opts ["-javaagent:opentelemetry-javaagent.jar"

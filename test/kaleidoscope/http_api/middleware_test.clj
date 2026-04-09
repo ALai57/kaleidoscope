@@ -11,7 +11,31 @@
             [matcher-combinators.test :refer [match?]]
             [ring.mock.request :as mock]
             [taoensso.timbre :as log]
-            [kaleidoscope.http-api.middleware :as mw]))
+            [kaleidoscope.http-api.middleware :as mw])
+  (:import
+   (lambdaisland.deep_diff2.diff_impl Deletion Insertion Mismatch)))
+
+;; https://gist.github.com/hsartoris-bard/856d79d3a13f6cafaaa6e5079c76cd97
+(def ^:private mismatch? (partial instance? Mismatch))
+(def ^:private deletion?  (partial instance? Deletion))
+(def ^:private insertion? (partial instance? Insertion))
+(def ^:private diff?      (some-fn mismatch? deletion? insertion?))
+
+(defn- remove-unchanged
+  [x]
+  (cond
+    (diff? x)      x
+    (map-entry? x) (let [[k v] x]
+                     (cond
+                       (diff? k)                              x
+                       (diff? v)                              x
+                       ((every-pred coll? not-empty) v)       (when-let [result (remove-unchanged v)]
+                                                                [k result])))
+    (coll? x) (when-let [result (->> x
+                                     (map remove-unchanged)
+                                     (filter not-empty)
+                                     (seq))]
+                (into (empty x) result))))
 
 (use-fixtures :once
   (fn [f]
@@ -21,28 +45,28 @@
 (deftest remove-unchanged-basic-test
   (testing "Addition"
     (is (= {(map->Insertion {:+ :b}) 2}
-           (sut/remove-unchanged (ddiff/diff {}
+           (remove-unchanged (ddiff/diff {}
                                              {:b 2})))))
   (testing "Deletion"
     (is (= {(map->Deletion  {:- :a}) 1}
-           (sut/remove-unchanged (ddiff/diff {:a 1}
+           (remove-unchanged (ddiff/diff {:a 1}
                                              {})))))
 
   (testing "Mismatch"
     (is (= {:a (map->Mismatch {:- 1 :+ 2})}
-           (sut/remove-unchanged (ddiff/diff {:a 1}
+           (remove-unchanged (ddiff/diff {:a 1}
                                              {:a 2}))))))
 
 (deftest remove-unchanged-collections
   (is (= [(map->Deletion {:- 2}) (map->Insertion {:+ 4})]
-         (sut/remove-unchanged (ddiff/diff [1 2 3]
+         (remove-unchanged (ddiff/diff [1 2 3]
                                            [1 3 4])))))
 
 (deftest elements-are-not-changed
   (are [description duplicated-element]
     (testing description
       (is (nil?
-           (sut/remove-unchanged (ddiff/diff duplicated-element
+           (remove-unchanged (ddiff/diff duplicated-element
                                              duplicated-element)))))
 
     "Basic key-value pair is removed"
@@ -65,7 +89,7 @@
           (map->Deletion {:- :foo}) "bar"
           (map->Insertion {:+ :c})  3
           :d                        {:e (map->Mismatch {:- "f" :+ "g"})}}
-         (sut/remove-unchanged (ddiff/diff {:a   "1"
+         (remove-unchanged (ddiff/diff {:a   "1"
                                             :b   3
                                             :foo "bar"
                                             :d   {:e "f"}
