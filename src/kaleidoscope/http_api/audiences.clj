@@ -17,7 +17,7 @@
                                  {200 {:description "A collection of all audiences"
                                        :content     {"application/json"
                                                      {:schema [:any]}}}})
-              :parameters {:query [:map
+              :parameters {:query [:map {:closed true}
                                    [:article-id {:optional true} :int]]}
               :handler    (fn [{:keys [components parameters] :as request}]
                             (log/debugf "Received params %s" parameters)
@@ -33,13 +33,11 @@
                                 {200 {:description "The group that was created"
                                       :content     {"application/json"
                                                     {:schema [:any]}}}})
-              :request   {:description "A create audience requestj"
-                          :content     {"application/json"
-                                        {:schema [:map
-                                                  [:article-id :int]
-                                                  [:group-id :uuid]]}}}
+              :parameters {:body [:map
+                                   [:article-id :int]
+                                   [:group-id :uuid]]}
               :handler   (fn [{:keys [components parameters] :as request}]
-                           (let [{:keys [article-id group-id]} (:request parameters)]
+                           (let [{:keys [article-id group-id]} (:body parameters)]
                              (ok (articles-api/add-audience-to-article! (:database components)
                                                                         {:id       article-id
                                                                          :hostname (hu/get-host request)}
