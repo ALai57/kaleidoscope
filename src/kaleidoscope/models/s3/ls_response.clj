@@ -18,33 +18,37 @@
       :else       x)))
 
 (defn summary->file
-  [path {:keys [key] :as summary}]
+  "Maps a cognitect aws-api S3 object summary (PascalCase keys) to a filesystem
+  metadata map."
+  [path {:keys [Key] :as summary}]
   (assoc summary
-         :name (extract-name path key)
-         :path key
-         :type (if (folder? key)
+         :name (extract-name path Key)
+         :path Key
+         :type (if (folder? Key)
                  :directory
                  :file)))
 
 (defn prefix->file
-  [path prefix]
-  {:name (extract-name path prefix)
-   :path prefix
+  "Maps a cognitect aws-api CommonPrefixes entry {:Prefix \"...\"} to a
+  filesystem metadata map."
+  [path {:keys [Prefix]}]
+  {:name (extract-name path Prefix)
+   :path Prefix
    :type :directory})
 
-
 (comment
+  ;; Example cognitect aws-api ListObjectsV2 response shape:
   (def list-objects-response
-    {:object-summaries [{:key           "public/",
-                         :size          0,
-                         ;;:last-modified #clj-time/date-time "2021-05-27T18:30:07.000Z",
-                         :storage-class "STANDARD",
-                         :bucket-name   "andrewslai-wedding",
-                         :etag          "d41d8cd98f00b204e9800998ecf8427e"}],
-     :key-count       4,
-     :truncated?      false,
-     :delimiter       "/",
-     :bucket-name     "andrewslai-wedding",
-     :common-prefixes ["public/assets/" "public/css/" "public/images/"],
-     :max-keys        1000,
-     :prefix          "public/"}))
+    {:Contents       [{:Key          "public/"
+                       :Size         0
+                       :StorageClass "STANDARD"
+                       :ETag         "\"d41d8cd98f00b204e9800998ecf8427e\""}]
+     :KeyCount       4
+     :IsTruncated    false
+     :Delimiter      "/"
+     :Name           "andrewslai-wedding"
+     :CommonPrefixes [{:Prefix "public/assets/"}
+                      {:Prefix "public/css/"}
+                      {:Prefix "public/images/"}]
+     :MaxKeys        1000
+     :Prefix         "public/"}))

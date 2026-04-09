@@ -1,7 +1,7 @@
 (ns kaleidoscope.init.env
   "Parses environment variables into Clojure maps that are used to boot system
   components."
-  (:require [amazonica.aws.sns :as sns]
+  (:require [cognitect.aws.client.api :as aws]
             [kaleidoscope.clients.bugsnag :as bugsnag]
             [kaleidoscope.clients.error-reporter :as er]
             [kaleidoscope.clients.session-tracker :as st]
@@ -165,8 +165,19 @@
    :launchers {"none"    (fn [_env] identity)
                "println" (fn [_env] (fn [& args] (println "Arguments to image notifier" args)))
                "sns"     (fn [env]
-                           (let [{:keys [image-notifier-arn]} (env->kaleidoscope-image-notifier env)]
-                             (partial sns/publish :topic-arn image-notifier-arn)))}
+                           (let [{:keys [image-notifier-arn]} (env->kaleidoscope-image-notifier env)
+                                 client                        (aws/client {:api :sns})]
+                             (fn [& {:keys [subject message message-attributes]}]
+                               (aws/invoke client
+                                           {:op      :Publish
+                                            :request {:TopicArn          image-notifier-arn
+                                                      :Subject           subject
+                                                      :Message           message
+                                                      :MessageAttributes (into {}
+                                                                               (map (fn [[k v]]
+                                                                                      [k {:DataType    "String"
+                                                                                          :StringValue v}]))
+                                                                               message-attributes)}}))))}
    :default   "sns"})
 
 ;; TODO: Allow this to work using entire domain name. Otherwise, we could get collisions.

@@ -12,20 +12,12 @@
             [malli.instrument :as mi]
             [ring.adapter.jetty :as jetty]
             [signal.handler :as sig]
-            [signal.amazonica-aws-sso :as amazonica-aws-sso]
             [steffan-westcott.clj-otel.api.otel :as otel]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]
             )
   (:import (com.stripe Stripe)))
-
-(try
-  (when-let [aws-profile (System/getenv "AWS_PROFILE")]
-    (log/infof "Attempting to use AWS_PROFILE: %s" aws-profile)
-    (amazonica-aws-sso/init!))
-  (catch Exception e
-    (log/warn "Unable to set up SSO provider!")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Logging
@@ -167,17 +159,8 @@
   )
 
 (comment
-  ;; Play with AWS SSO
-  (require '[amazonica.aws.securitytoken :as sts])
-
-  ;; Use SSO credentials for a single call
-  (amazonica-aws-sso/with-sso-credential
-    (sts/get-caller-identity))
-
-  ;; Use SSO credentials for all subsequent calls
-  (amazonica-aws-sso/init!)
-  (sts/get-caller-identity)
-
-  ;; Reset amazonica to use it's default AWS credentials provider
-  (amazonica-aws-sso/reset!)
+  ;; Verify AWS credentials (cognitect aws-api reads the standard credential
+  ;; chain automatically — env vars, ~/.aws/credentials, SSO profiles, etc.)
+  (require '[cognitect.aws.client.api :as aws])
+  (aws/invoke (aws/client {:api :sts}) {:op :GetCallerIdentity})
   )
