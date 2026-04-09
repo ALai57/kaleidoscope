@@ -24,9 +24,6 @@
          com.taoensso/timbre                                  {:mvn/version "6.0.4"}
          com.zaxxer/HikariCP                                  {:mvn/version "3.3.1"}
          com.github.seancorfield/honeysql                     {:mvn/version "2.4.1066"}
-         io.grpc/grpc-netty-shaded                            {:mvn/version "1.49.0"}
-         io.grpc/grpc-protobuf                                {:mvn/version "1.49.0"}
-         io.grpc/grpc-stub                                    {:mvn/version "1.49.0"}
          javax.servlet/servlet-api                            {:mvn/version "2.5"}
          less-awful-ssl/less-awful-ssl                        {:mvn/version "1.0.6"}
          metosin/compojure-api                                {:mvn/version "2.0.0-alpha31"}
