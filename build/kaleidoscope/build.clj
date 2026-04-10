@@ -7,8 +7,9 @@
 
 (def LIB 'org.clojars.alai57/kaleidoscope)
 (def MAIN (symbol (format "%s.main" (name LIB))))
-(def VERSION (format "0.2.%s" (b/git-count-revs nil)))
-(def BASIS (b/create-basis {:project "deps.edn"}))
+
+(defn- version [] (format "0.2.%s" (b/git-count-revs nil)))
+(defn- basis []   (b/create-basis {:project "deps.edn"}))
 
 ;; Directory structure
 (def OUTPUT-DIR "target")
@@ -32,43 +33,51 @@
 (defn clean [_]
   (b/delete {:path OUTPUT-DIR}))
 
+(defn- write-version-properties!
+  [class-dir v]
+  (let [rev  (-> (shell/sh "git" "rev-parse" "--short" "HEAD") :out clojure.string/trim)
+        file (io/file class-dir "version.properties")]
+    (io/make-parents file)
+    (spit file (format "version=%s\nrevision=%s\n" v rev))))
+
 (defn compile [prod?]
   (println "PROD?" prod?)
-  (clean nil)
-  (b/write-pom {:class-dir CLASS-DIR
-                :lib       LIB
-                :version   VERSION
-                :basis     BASIS
-                :src-dirs  ["src" "resources"]})
-  (b/copy-dir (cond-> {:src-dirs   ["src" "resources"]
-                       :target-dir CLASS-DIR}
-                prod? (assoc :ignores #{
-                                        #".*migrations.clj$"
-                                        #".*embedded.*"
-                                        })))
-  (b/compile-clj {:basis     BASIS
-                  ;;:src-dirs  ["src"]
-                  :src-dirs  ["target/classes/kaleidoscope"]
-                  :class-dir CLASS-DIR}))
+  (let [b (basis)
+        v (version)]
+    (clean nil)
+    (b/write-pom {:class-dir CLASS-DIR
+                  :lib       LIB
+                  :version   v
+                  :basis     b
+                  :src-dirs  ["src" "resources"]})
+    (b/copy-dir (cond-> {:src-dirs   ["src" "resources"]
+                         :target-dir CLASS-DIR}
+                  prod? (assoc :ignores #{#".*migrations.clj$"
+                                          #".*embedded.*"})))
+    (write-version-properties! CLASS-DIR v)
+    (b/compile-clj {:basis     b
+                    ;;:src-dirs  ["src"]
+                    :src-dirs  ["target/classes/kaleidoscope"]
+                    :class-dir CLASS-DIR})))
 
 (defn uberjar [_]
   (compile true)
   (b/uber {:class-dir CLASS-DIR
            :uber-file UBER-FILE
-           :basis     BASIS
+           :basis     (basis)
            :main      MAIN
            :exclude   #{#"META-INF/license/LICENSE.aix-netbsd.txt"
                         #"kaleidoscope/persistence/rdbms/.*" ;; For embedded Databases
                         #"META-INF/license/LICENSE.boringssl.txt"
                         #"META-INF/license/LICENSE.mvn-wrapper.txt"
                         #"META-INF/license/LICENSE.tomcat-native.txt"
-                        #"META-INF/maven/.*"         ;; Maven metadata
                         #"META-INF/.*\.SF"           ;; JAR signature files
                         #"META-INF/.*\.DSA"
                         #"META-INF/.*\.RSA"
                         #".*\.proto$"                ;; Protobuf source files
                         #"META-INF/proguard/.*"
-                        #"META-INF/versions/.*"}}))  ;; Multi-release jar version duplicates
+                        #"META-INF/versions/.*"          ;; Multi-release jar version duplicates
+                        #"kaleidoscope/build.*"}}))      ;; Build tooling, not for runtime
 
 (def PWD (System/getProperty "user.dir"))
 
