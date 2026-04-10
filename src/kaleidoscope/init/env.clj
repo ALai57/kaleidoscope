@@ -21,7 +21,10 @@
             [next.jdbc.connection :as connection]
             [reitit.middleware :as middleware]
             [taoensso.timbre :as log])
-  (:import (com.zaxxer.hikari HikariDataSource)))
+  (:import (com.zaxxer.hikari HikariDataSource)
+           (io.opentelemetry.api GlobalOpenTelemetry)
+           (io.opentelemetry.instrumentation.hikaricp.v3_0 HikariTelemetry)
+           (io.opentelemetry.instrumentation.jdbc.datasource JdbcTelemetry)))
 
 (def domains
   "All the domains that the kaleidoscope application serves."
@@ -123,10 +126,13 @@
   {:name      :database-connection
    :path      "KALEIDOSCOPE_DB_TYPE"
    :launchers {"postgres"          (fn [env]
-                                     (let [ds (connection/->pool HikariDataSource
-                                                                 (env->pg-conn env))]
-                                       (initialize-connection-pool! ds)
-                                       ds))
+                                     (let [ds   (connection/->pool HikariDataSource
+                                                                   (env->pg-conn env))
+                                           _    (initialize-connection-pool! ds)
+                                           otel (GlobalOpenTelemetry/get)]
+                                       (->> ds
+                                            (.dataSource (HikariTelemetry/create otel))
+                                            (.wrap (JdbcTelemetry/create otel)))))
                "embedded-h2"       (fn [_env]
                                      (require (symbol "kaleidoscope.persistence.rdbms.embedded-h2-impl"))
                                      ((resolve 'kaleidoscope.persistence.rdbms.embedded-h2-impl/fresh-db!)))

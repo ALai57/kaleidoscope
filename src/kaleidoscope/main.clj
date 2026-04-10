@@ -14,6 +14,8 @@
             [signal.handler :as sig]
             [steffan-westcott.clj-otel.api.otel :as otel]
             [steffan-westcott.clj-otel.api.trace.span :as span]
+            [steffan-westcott.clj-otel.exporter.otlp.http.trace :as otlp-trace]
+            [steffan-westcott.clj-otel.sdk.otel-sdk :as sdk]
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]
             )
@@ -52,7 +54,21 @@
             :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}
      (disable-json-logging? env) (assoc :output-fn ul/clean-output-fn))))
 
-(defn init-otel! []
+(defn init-otel!
+  "Initialize the OpenTelemetry SDK from OTEL_* environment variables.
+  Must run before any span creation and before the datasource is wrapped
+  with library telemetry (HikariCP + JDBC)."
+  []
+  (let [service-name (or (System/getenv "OTEL_SERVICE_NAME") "kaleidoscope")
+        endpoint     (System/getenv "OTEL_EXPORTER_OTLP_ENDPOINT")]
+    (sdk/init-otel-sdk!
+     service-name
+     {:set-as-global true
+      :tracer-provider
+      {:span-processors
+       (when endpoint
+         [{:exporters [(otlp-trace/span-exporter
+                        {:endpoint (str endpoint "/v1/traces")})]}])}}))
   (println (bean (otel/get-global-otel!)))
   (span/with-span! {:name "kaleidoscope.initialization.otel"}
     (println "Initializing Open Telemetry")))
@@ -81,6 +97,10 @@
   "Kaleidoscope expects a Load balancer to use TLS termination so it receives HTTP requests.
   However, for testing, it can be useful to have HTTPS capabilities (especially for Cognito)"
   [env]
+  ;; Logging and OTEL SDK must be initialized before start-system! so that
+  ;; the datasource wrapper (HikariCP + JDBC telemetry) can pick up the SDK.
+  (initialize-logging! env)
+  (init-otel!)
   (let [system-components (env/start-system! env)
         http-port         5000
 
@@ -96,8 +116,6 @@
                                                             )})
                     (log/info "Skipping SSL startup"))]
     (log/infof "Starting kaleidoscope. Listening to HTTP on port %s" http-port)
-    (initialize-logging! env)
-    (init-otel!)
     (init-stripe! env)
     (initialize-schema-enforcement!)
     (-> system-components
