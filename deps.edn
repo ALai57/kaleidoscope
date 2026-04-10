@@ -9,7 +9,6 @@
          buddy/buddy-auth                                     {:mvn/version "3.0.323"}
          camel-snake-kebab/camel-snake-kebab                  {:mvn/version "0.4.3"}
          cheshire/cheshire                                    {:mvn/version "5.11.0"}
-         clj-http/clj-http                                    {:mvn/version "3.12.3"}
          clojure.java-time/clojure.java-time                  {:mvn/version "1.2.0"}
          com.bugsnag/bugsnag                                  {:mvn/version "3.6.4"}
          com.fzakaria/slf4j-timbre                            {:mvn/version "0.3.21"}
@@ -19,7 +18,6 @@
          com.taoensso/timbre                                  {:mvn/version "6.0.4"}
          com.zaxxer/HikariCP                                  {:mvn/version "3.3.1"}
          com.github.seancorfield/honeysql                     {:mvn/version "2.4.1066"}
-         javax.servlet/servlet-api                            {:mvn/version "2.5"}
          less-awful-ssl/less-awful-ssl                        {:mvn/version "1.0.6"}
          metosin/malli                                        {:mvn/version "0.12.0"}
          metosin/ring-http-response                           {:mvn/version "0.9.1"}
@@ -33,7 +31,6 @@
          org.postgresql/postgresql                            {:mvn/version "42.5.1"}
          org.slf4j/log4j-over-slf4j                           {:mvn/version "1.7.30"}
          ring/ring                                            {:mvn/version "1.9.6"}
-         ring/ring-json                                       {:mvn/version "0.5.1"}
          selmer/selmer                                        {:mvn/version "1.12.61"}
          slingshot/slingshot                                  {:mvn/version "0.12.2"}
          spootnik/signal                                      {:mvn/version "0.2.4"}}

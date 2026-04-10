@@ -15,7 +15,6 @@
             [reitit.swagger :as swagger]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.gzip :refer [wrap-gzip]]
-            [ring.middleware.json :as json-mw :refer [wrap-json-response]]
             [ring.middleware.multipart-params :as mp :refer [wrap-multipart-params]]
             [ring.middleware.params :as params :refer [wrap-params]]
             [ring.util.http-response :refer [unauthorized]]
