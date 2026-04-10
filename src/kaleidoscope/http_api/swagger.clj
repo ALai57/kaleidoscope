@@ -7,9 +7,7 @@
             [ring.swagger.swagger2 :as swagger2]
             [reitit.swagger :as reitit-swagger]
             [reitit.swagger-ui :as reitit-swagger-ui]
-            [ring.util.http-response :refer [ok found]]
-            [spec-tools.core :as st-core]
-            [spec-tools.swagger.core :as st]))
+            [ring.util.http-response :refer [ok found]]))
 
 (def security-schemes
   "This works in conjunction with the `/resources/swagger-ui/index.html` to

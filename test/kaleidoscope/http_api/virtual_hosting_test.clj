@@ -2,7 +2,6 @@
   (:require [clojure.test :refer [are deftest is use-fixtures] :as ct]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test.check.properties :as prop]
-            [compojure.api.sweet :refer [GET]]
             [kaleidoscope.generators.networking :as gen-net]
             [kaleidoscope.http-api.virtual-hosting :as vh]
             [kaleidoscope.test-main :as tm]
@@ -56,8 +55,9 @@
 
 (defn dummy-app
   [response]
-  (GET "/" []
-    {:status 200 :body response}))
+  (fn [{:keys [request-method]}]
+    (when (= :get request-method)
+      {:status 200 :body response})))
 
 (deftest routing-test
   (let [apps {#"foo.com"     {:priority 100 :app (dummy-app :foo)}

@@ -1,8 +1,6 @@
 (ns kaleidoscope.test-utils
   (:require [cheshire.core :as json]
             [clojure.string :as string]
-            [compojure.api.sweet :refer [GET routes]]
-            [compojure.route :as route]
             [kaleidoscope.api.authorization :as auth]
             [kaleidoscope.http-api.auth.jwt :as jwt]
             [malli.dev.pretty :as pretty]
@@ -46,10 +44,10 @@
 
 (defn dummy-app
   [response]
-  (routes
-    (GET "/" []
-      {:status 200 :body response})
-    (route/not-found "No matching route")))
+  (fn [{:keys [request-method uri]}]
+    (if (and (= :get request-method) (= "/" uri))
+      {:status 200 :body response}
+      {:status 404 :body "No matching route"})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Token-related things
