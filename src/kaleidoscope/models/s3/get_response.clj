@@ -22,4 +22,6 @@
      :ContentType   "image/svg"
      :ContentLength 1034
      :Metadata      {"something" "some-value"}
-     :Body          #object[java.io.InputStream]}))
+     :Body          nil ; InputStream in practice
+     }
+    ))

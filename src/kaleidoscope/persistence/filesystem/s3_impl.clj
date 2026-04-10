@@ -3,6 +3,7 @@
    [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
    [cognitect.aws.client.api :as aws]
+   [cognitect.aws.http.cognitect :as cognitect-http]
    [kaleidoscope.models.s3.get-response :as s3.get]
    [kaleidoscope.models.s3.ls-response :as s3.ls]
    [kaleidoscope.models.s3.put-response :as s3.put]
@@ -52,8 +53,32 @@
 
 ;; Lazily created — only instantiated when S3 is actually used.
 ;; Tests that use the in-memory filesystem never trigger client creation.
+;;
+;; cognitect.aws uses JDK HttpURLConnection with no timeout by default (unlike
+;; the AWS Java SDK v1 / amazonica which defaulted to 10s connect / 50s read).
+;; Set explicit timeouts so a hung connection surfaces as an error rather than
+;; blocking a thread forever.
 (defonce ^:private s3-client
-  (delay (aws/client {:api :s3})))
+  (delay (aws/client {:api         :s3
+                      :http-client (cognitect-http/create {:timeout 8000})})))
+
+(def ^:private S3-TIMEOUT-MS 10000)
+
+(defn- invoke-with-timeout
+  "Calls aws/invoke on a background thread and waits up to S3-TIMEOUT-MS.
+  Logs and throws ex-info if the deadline is exceeded."
+  [client op-map]
+  (let [fut    (future (aws/invoke client op-map))
+        result (deref fut S3-TIMEOUT-MS ::timeout)]
+    (if (= ::timeout result)
+      (do (future-cancel fut)
+          (log/errorf "S3 %s timed out after %dms — request: %s"
+                      (:op op-map) S3-TIMEOUT-MS (:request op-map))
+          (throw (ex-info "S3 operation timed out"
+                          {:op         (:op op-map)
+                           :request    (:request op-map)
+                           :timeout-ms S3-TIMEOUT-MS})))
+      result)))
 
 (defn prepare-metadata
   "Build the PutObject request fields for content-type, content-length, and
@@ -107,34 +132,35 @@
   (ls [_ path options]
     (log/infof "S3 List Objects `%s/%s` with options %s" bucket path options)
     (span/with-span! {:name "kaleidoscope.s3.ls"}
-      (let [result (aws/invoke @s3-client
-                               {:op      :ListObjectsV2
-                                :request {:Bucket    bucket
-                                          :Prefix    path
-                                          :Delimiter s3.ls/FOLDER-DELIMITER}})]
+      (let [result (invoke-with-timeout @s3-client
+                                        {:op      :ListObjectsV2
+                                         :request {:Bucket    bucket
+                                                   :Prefix    path
+                                                   :Delimiter s3.ls/FOLDER-DELIMITER}})]
         (ls-response->fs-metadata path result))))
 
   (get-file [_ path options]
     (log/infof "S3 Get Object `%s/%s` with options %s" bucket path options)
     (span/with-span! {:name "kaleidoscope.s3.get"}
-      (let [result (aws/invoke @s3-client
-                               {:op      :GetObject
-                                :request (cond-> {:Bucket bucket :Key path}
-                                           (:version options) (assoc :IfNoneMatch (:version options)))})]
+      (let [result (invoke-with-timeout @s3-client
+                                        {:op      :GetObject
+                                         :request (cond-> {:Bucket bucket :Key path}
+                                                    (:version options) (assoc :IfNoneMatch (:version options)))})]
         (cond
           (= 304 (:http-status result))          fs/not-modified-response
           (no-such-key? result)                  (do (log/warn "Object not found" result)
                                                      fs/does-not-exist-response)
-          (:cognitect.anomalies/category result) (throw (ex-info "S3 get-file error" result))
+          (:cognitect.anomalies/category result) (do (log/errorf "S3 get-file anomaly for `%s/%s`: %s" bucket path result)
+                                                     (throw (ex-info "S3 get-file error" result)))
           :else                                  (get-response->fs-object result)))))
 
   (put-file [this path input-stream metadata]
     (log/infof "S3 Put Object `%s/%s`" bucket path)
     (span/with-span! {:name "kaleidoscope.s3.put"}
-      (let [result (aws/invoke @s3-client
-                               {:op      :PutObject
-                                :request (merge {:Bucket bucket :Key path :Body input-stream}
-                                               (prepare-metadata metadata))})]
+      (let [result (invoke-with-timeout @s3-client
+                                        {:op      :PutObject
+                                         :request (merge {:Bucket bucket :Key path :Body input-stream}
+                                                         (prepare-metadata metadata))})]
         (if (:cognitect.anomalies/category result)
           (do (log/error "Could not put object" result)
               fs/does-not-exist-response)
