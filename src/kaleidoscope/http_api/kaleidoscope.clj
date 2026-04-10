@@ -156,10 +156,13 @@
                      (tap> {:req        request
                             :components components})
                      ;; May not have the middleware components!
-                     ;; Redirect to index.html for client-side routing
+                     ;; Redirect to index.html for client-side routing.
+                     ;; Must replicate wrap-force-host/wrap-force-uri manually since this
+                     ;; handler bypasses the reitit middleware stack.
                      (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
                        (get-static-resource (-> request
-                                                (assoc :uri "static/index.html")
+                                                (mw/set-host "kaleidoscope.client")
+                                                (assoc :uri "index.html")
                                                 ;; Components must be added here because this isn't
                                                 ;; wrapped with middleware the same way other routes are
                                                 (assoc :components components)))))}
