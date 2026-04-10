@@ -139,7 +139,7 @@
                                          :request (cond-> {:Bucket bucket :Key path}
                                                     (:version options) (assoc :IfNoneMatch (:version options)))})]
         (cond
-          (= 304 (:http-status result))          fs/not-modified-response
+          (= 304 (:cognitect.aws.http/status result)) fs/not-modified-response
           (no-such-key? result)                  (do (log/warn "Object not found" result)
                                                      fs/does-not-exist-response)
           (:cognitect.anomalies/category result) (do (log/errorf "S3 get-file anomaly for `%s/%s`: %s" bucket path result)
