@@ -129,10 +129,11 @@
                                      (let [ds   (connection/->pool HikariDataSource
                                                                    (env->pg-conn env))
                                            _    (initialize-connection-pool! ds)
-                                           otel (GlobalOpenTelemetry/get)]
-                                       (->> ds
-                                            (.dataSource (HikariTelemetry/create otel))
-                                            (.wrap (JdbcTelemetry/create otel)))))
+                                           otel (GlobalOpenTelemetry/get)
+                                           _    (.setMetricsTrackerFactory
+                                                  ds (.createMetricsTrackerFactory
+                                                       (HikariTelemetry/create otel)))]
+                                       (.wrap (JdbcTelemetry/create otel) ds)))
                "embedded-h2"       (fn [_env]
                                      (require (symbol "kaleidoscope.persistence.rdbms.embedded-h2-impl"))
                                      ((resolve 'kaleidoscope.persistence.rdbms.embedded-h2-impl/fresh-db!)))
