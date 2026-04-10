@@ -61,7 +61,14 @@
                         #"kaleidoscope/persistence/rdbms/.*" ;; For embedded Databases
                         #"META-INF/license/LICENSE.boringssl.txt"
                         #"META-INF/license/LICENSE.mvn-wrapper.txt"
-                        #"META-INF/license/LICENSE.tomcat-native.txt"}}))
+                        #"META-INF/license/LICENSE.tomcat-native.txt"
+                        #"META-INF/maven/.*"         ;; Maven metadata
+                        #"META-INF/.*\.SF"           ;; JAR signature files
+                        #"META-INF/.*\.DSA"
+                        #"META-INF/.*\.RSA"
+                        #".*\.proto$"                ;; Protobuf source files
+                        #"META-INF/proguard/.*"
+                        #"META-INF/versions/.*"}})   ;; Multi-release jar version duplicates
 
 (def PWD (System/getProperty "user.dir"))
 
