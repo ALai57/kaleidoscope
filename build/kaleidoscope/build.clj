@@ -68,7 +68,7 @@
                         #"META-INF/.*\.RSA"
                         #".*\.proto$"                ;; Protobuf source files
                         #"META-INF/proguard/.*"
-                        #"META-INF/versions/.*"}})   ;; Multi-release jar version duplicates
+                        #"META-INF/versions/.*"}}))  ;; Multi-release jar version duplicates
 
 (def PWD (System/getProperty "user.dir"))
 
