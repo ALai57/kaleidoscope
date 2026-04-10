@@ -3,6 +3,7 @@
    [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
    [cognitect.aws.client.api :as aws]
+   [cognitect.aws.credentials :as creds]
    [kaleidoscope.models.s3.get-response :as s3.get]
    [kaleidoscope.models.s3.ls-response :as s3.ls]
    [kaleidoscope.models.s3.put-response :as s3.put]
@@ -49,11 +50,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Lazily created — only instantiated when S3 is actually used.
-;; Tests that use the in-memory filesystem never trigger client creation.
-(defonce ^:private s3-client
-  (delay (aws/client {:api :s3})))
 
 (def ^:private S3-TIMEOUT-MS 10000)
 
@@ -120,12 +116,12 @@
 ;; S3 filesystem record
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defrecord S3 [bucket]
+(defrecord S3 [bucket client]
   fs/DistributedFileSystem
   (ls [_ path options]
     (log/infof "S3 List Objects `%s/%s` with options %s" bucket path options)
     (span/with-span! {:name "kaleidoscope.s3.ls"}
-      (let [result (invoke-with-timeout @s3-client
+      (let [result (invoke-with-timeout client
                                         {:op      :ListObjectsV2
                                          :request {:Bucket    bucket
                                                    :Prefix    path
@@ -135,7 +131,7 @@
   (get-file [_ path options]
     (log/infof "S3 Get Object `%s/%s` with options %s" bucket path options)
     (span/with-span! {:name "kaleidoscope.s3.get"}
-      (let [result (invoke-with-timeout @s3-client
+      (let [result (invoke-with-timeout client
                                         {:op      :GetObject
                                          :request (cond-> {:Bucket bucket :Key path}
                                                     (:version options) (assoc :IfNoneMatch (:version options)))})]
@@ -150,7 +146,7 @@
   (put-file [this path input-stream metadata]
     (log/infof "S3 Put Object `%s/%s`" bucket path)
     (span/with-span! {:name "kaleidoscope.s3.put"}
-      (let [result (invoke-with-timeout @s3-client
+      (let [result (invoke-with-timeout client
                                         {:op      :PutObject
                                          :request (merge {:Bucket bucket :Key path :Body input-stream}
                                                          (prepare-metadata metadata))})]
@@ -161,9 +157,11 @@
 
 (defn make-s3
   [{:keys [bucket] :as m}]
-  (assoc (map->S3 m)
-         :storage-driver "s3"
-         :storage-root   bucket))
+  (let [client (aws/client {:api                  :s3
+                             :credentials-provider (creds/env-var-credentials-provider)})]
+    (-> (map->S3 (assoc m :client client))
+        (assoc :storage-driver "s3"
+               :storage-root   bucket))))
 
 (comment ;; Playing with S3
   (require '[clojure.java.io :as io])
@@ -174,7 +172,9 @@
         slurp
         (.getBytes)))
 
-  (fs/put-file (make-s3 {:bucket "andrewslai"})
+  (def s3 (make-s3 {:bucket "andrewslai"}))
+
+  (fs/put-file s3
                "lock.svg"
                (java.io.ByteArrayInputStream. b)
                {:content-type   "image/svg"
@@ -182,16 +182,16 @@
                 :something      "some"})
 
   ;; List objects
-  (aws/invoke @s3-client {:op      :ListObjectsV2
-                          :request {:Bucket    "andrewslai-wedding"
-                                    :Prefix    "public/"
-                                    :Delimiter s3.ls/FOLDER-DELIMITER}})
+  (aws/invoke (:client s3) {:op      :ListObjectsV2
+                             :request {:Bucket    "andrewslai-wedding"
+                                       :Prefix    "public/"
+                                       :Delimiter s3.ls/FOLDER-DELIMITER}})
 
   ;; Get object
-  (aws/invoke @s3-client {:op      :GetObject
-                          :request {:Bucket "andrewslai.com"
-                                    :Key    "static/images/splash-logo.svg"}})
+  (aws/invoke (:client s3) {:op      :GetObject
+                             :request {:Bucket "andrewslai.com"
+                                       :Key    "static/images/splash-logo.svg"}})
 
   ;; List buckets (verify credentials)
-  (aws/invoke @s3-client {:op :ListBuckets})
+  (aws/invoke (:client s3) {:op :ListBuckets})
   )
