@@ -4,6 +4,7 @@
    [clojure.spec.alpha :as s]
    [cognitect.aws.client.api :as aws]
    [cognitect.aws.credentials :as creds]
+   [cognitect.aws.client.protocol :as client.protocol]
    [kaleidoscope.models.s3.get-response :as s3.get]
    [kaleidoscope.models.s3.ls-response :as s3.ls]
    [kaleidoscope.models.s3.put-response :as s3.put]
@@ -130,6 +131,8 @@
 
   (get-file [_ path options]
     (log/infof "S3 Get Object `%s/%s` with options %s" bucket path options)
+    ;;(log/infof "Trying to use AWS. Got credentials provider %s" (:credentials-provider (client.protocol/-get-info client)))
+    ;;(log/infof "Trying to use AWS. Got credentials %s" (creds/fetch (:credentials-provider (client.protocol/-get-info client))))
     (span/with-span! {:name "kaleidoscope.s3.get"}
       (let [result (invoke-with-timeout client
                                         {:op      :GetObject
@@ -156,9 +159,10 @@
           (fs/get this path {:etag (s3.put/etag result)}))))))
 
 (defn make-s3
-  [{:keys [bucket] :as m}]
+  [{:keys [bucket region] :as m}]
   (let [client (aws/client {:api                  :s3
-                             :credentials-provider (creds/env-var-credentials-provider)})]
+                            :region               (or region (System/getenv "AWS_REGION") "us-east-1")
+                            :credentials-provider (creds/environment-credentials-provider)})]
     (-> (map->S3 (assoc m :client client))
         (assoc :storage-driver "s3"
                :storage-root   bucket))))
@@ -172,7 +176,11 @@
         slurp
         (.getBytes)))
 
-  (def s3 (make-s3 {:bucket "andrewslai"}))
+  (creds/environment-credentials-provider)
+  (creds/fetch (creds/environment-credentials-provider))
+
+  (def s3 (make-s3 {:bucket "andrewslai.com"}))
+  (def s3-kc (make-s3 {:bucket "kaleidoscope.client"}))
 
   (fs/put-file s3
                "lock.svg"
@@ -181,16 +189,33 @@
                 :content-length (count b)
                 :something      "some"})
 
+  (invoke-with-timeout (:client s3) {:op      :ListObjectsV2
+                                     :request {:Bucket    "andrewslai.com"
+                                               :Prefix    "public/"
+                                               :Delimiter s3.ls/FOLDER-DELIMITER}})
+
+  (invoke-with-timeout (:client s3-kc) {:op      :ListObjectsV2
+                                        :request {:Bucket    "kaleidoscope.client"
+                                                  :Prefix    "assets/"
+                                                  :Delimiter s3.ls/FOLDER-DELIMITER}})
+
+  (require '[])
+  (fs/get-file s3-kc "index.html" {})
+
+  (require '[cognitect.aws.client.protocol :as client.protocol])
+  (creds/fetch (:credentials-provider (client.protocol/-get-info (:client s3-kc))))
+
+
   ;; List objects
   (aws/invoke (:client s3) {:op      :ListObjectsV2
-                             :request {:Bucket    "andrewslai-wedding"
-                                       :Prefix    "public/"
-                                       :Delimiter s3.ls/FOLDER-DELIMITER}})
+                            :request {:Bucket    "andrewslai-wedding"
+                                      :Prefix    "public/"
+                                      :Delimiter s3.ls/FOLDER-DELIMITER}})
 
   ;; Get object
   (aws/invoke (:client s3) {:op      :GetObject
-                             :request {:Bucket "andrewslai.com"
-                                       :Key    "static/images/splash-logo.svg"}})
+                            :request {:Bucket "andrewslai.com"
+                                      :Key    "static/images/splash-logo.svg"}})
 
   ;; List buckets (verify credentials)
   (aws/invoke (:client s3) {:op :ListBuckets})

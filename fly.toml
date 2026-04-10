@@ -30,7 +30,7 @@ primary_region = "iad"
   # Set to "none" until SNS/image-resizer is migrated off AWS
   KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE        = "none"
 
-  AWS_DEFAULT_REGION                      = "us-east-1"
+  AWS_REGION                              = "us-east-1"
 
 [http_service]
   internal_port       = 5000
