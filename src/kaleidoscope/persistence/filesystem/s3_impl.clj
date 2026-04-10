@@ -3,17 +3,13 @@
    [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
    [cognitect.aws.client.api :as aws]
-   [cognitect.aws.http :as aws-http]
-   [cognitect.aws.http.java :as java-http]
    [kaleidoscope.models.s3.get-response :as s3.get]
    [kaleidoscope.models.s3.ls-response :as s3.ls]
    [kaleidoscope.models.s3.put-response :as s3.put]
    [kaleidoscope.persistence.filesystem :as fs]
    [ring.util.mime-type :as mt]
    [steffan-westcott.clj-otel.api.trace.span :as span]
-   [taoensso.timbre :as log])
-  (:import [java.net.http HttpClient HttpClient$Redirect HttpClient$Version]
-           [java.time Duration]))
+   [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Specs
@@ -56,42 +52,8 @@
 
 ;; Lazily created — only instantiated when S3 is actually used.
 ;; Tests that use the in-memory filesystem never trigger client creation.
-;;
-;; cognitect.aws 0.8.741 switched the default HTTP client from
-;; cognitect.aws.http.cognitect (HttpURLConnection) to cognitect.aws.http.java
-;; (JDK 11+ java.net.http.HttpClient). The new client has a hardcoded 10-second
-;; TCP connect timeout but an *unbounded* response/body timeout.
-;;
-;; Both client create fns accept zero arguments; their timeout configuration is
-;; done per-request via :timeout-msec in the request map. We wrap the Java
-;; client to inject that on every request so stalled S3 responses surface as
-;; cognitect anomalies rather than hanging threads.
-(def ^:private S3-REQUEST-TIMEOUT-MS 8000)
-
-(defn- make-s3-http-client
-  "Creates a Java 11+ HttpClient locked to HTTP/1.1.
-  cognitect.aws 0.8.741 switched to java.net.http.HttpClient whose default
-  version is HTTP_2. HTTP/2 negotiates via ALPN during the TLS handshake,
-  which hangs on Fly.io. Pinning to HTTP_1_1 restores the behaviour of the
-  cognitect.http-client library used in 0.8.692.
-  Per-request :timeout-msec is injected so a stalled response surfaces as a
-  cognitect anomaly rather than a hung thread."
-  []
-  (let [java-client (-> (HttpClient/newBuilder)
-                        (.connectTimeout (Duration/ofMillis 10000))
-                        (.followRedirects HttpClient$Redirect/NEVER)
-                        (.version HttpClient$Version/HTTP_1_1)
-                        (.build))]
-    (reify aws-http/HttpClient
-      (-submit [_ request channel]
-        (java-http/submit java-client
-                          (assoc request :timeout-msec S3-REQUEST-TIMEOUT-MS)
-                          channel))
-      (-stop [_] nil))))
-
 (defonce ^:private s3-client
-  (delay (aws/client {:api         :s3
-                      :http-client (make-s3-http-client)})))
+  (delay (aws/client {:api :s3})))
 
 (def ^:private S3-TIMEOUT-MS 10000)
 

@@ -1,10 +1,10 @@
 {:paths ["src" "resources"]
- :deps  {com.cognitect.aws/api            {:mvn/version "0.8.741"}
-         com.cognitect.aws/endpoints      {:mvn/version "871.2.30.22"}
-         com.cognitect.aws/s3             {:mvn/version "871.2.30.22"}
-         com.cognitect.aws/sns            {:mvn/version "871.2.30.11"}
-         com.cognitect.aws/email          {:mvn/version "871.2.29.35"}
-         com.cognitect.aws/route53domains {:mvn/version "871.2.29.52"}
+ :deps  {com.cognitect.aws/api            {:mvn/version "0.8.692"}
+         com.cognitect.aws/endpoints      {:mvn/version "1.1.12.626"}
+         com.cognitect.aws/s3             {:mvn/version "848.2.1413.0"}
+         com.cognitect.aws/sns            {:mvn/version "848.2.1413.0"}
+         com.cognitect.aws/email          {:mvn/version "848.2.1413.0"}
+         com.cognitect.aws/route53domains {:mvn/version "848.2.1413.0"}
          software.amazon.awssdk/ssooidc {:mvn/version "2.20.50"} ;; SSO OIDC token refresh for local dev
          bk/ring-gzip                                         {:mvn/version "0.3.0"}
          buddy/buddy-auth                                     {:mvn/version "3.0.323"}
