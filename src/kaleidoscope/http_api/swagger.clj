@@ -1,13 +1,8 @@
 (ns kaleidoscope.http-api.swagger
   (:require [kaleidoscope.utils.versioning :as v]
             [reitit.openapi :as openapi]
-            [ring.swagger.common :as rsc]
-            [ring.swagger.middleware :as rsm]
-            [ring.swagger.swagger-ui :as swagger-ui]
-            [ring.swagger.swagger2 :as swagger2]
-            [reitit.swagger :as reitit-swagger]
             [reitit.swagger-ui :as reitit-swagger-ui]
-            [ring.util.http-response :refer [ok found]]))
+            [ring.util.http-response :refer [found]]))
 
 (def security-schemes
   "This works in conjunction with the `/resources/swagger-ui/index.html` to

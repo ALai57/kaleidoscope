@@ -22,6 +22,7 @@
          javax.servlet/servlet-api                            {:mvn/version "2.5"}
          less-awful-ssl/less-awful-ssl                        {:mvn/version "1.0.6"}
          metosin/malli                                        {:mvn/version "0.12.0"}
+         metosin/ring-http-response                           {:mvn/version "0.9.1"}
          fi.metosin/reitit                                    {:mvn/version "0.7.0-alpha6"}
          metosin/ring-swagger-ui                              {:mvn/version "5.0.0-alpha.0"} ;; To support OpenAPI 3.1.0
          org.clojure/clojure                                  {:mvn/version "1.12.0-beta1"} ;; For Java Process API
