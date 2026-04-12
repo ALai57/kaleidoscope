@@ -140,6 +140,7 @@
 (def reitit-configuration
   "Router data affecting all routes"
   {;;:reitit.middleware/transform dev/print-request-diffs
+   :conflicts nil ;; literals take precedence over wildcards in the trie; suppress conflict exception
 
    :data {:coercion   rcm/coercion
           :muuntaja   m/instance

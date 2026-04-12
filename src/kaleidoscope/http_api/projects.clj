@@ -230,7 +230,7 @@
                                            (.close writer)
                                            (projects-api/save-conversation-turn!
                                             db project-id user-id agent-type
-                                            user-msg reply))))))))))}}]]
+                                            user-msg reply)))))))))}}]]
 
     ;; --- Skills ---
     ["/skills"
