@@ -48,12 +48,21 @@
   [response]
   (-> response :content first :text))
 
+(defn- strip-markdown-fences
+  "Remove markdown code fences that Claude sometimes wraps JSON in."
+  [text]
+  (-> text
+      str/trim
+      (str/replace #"(?s)^```(?:json)?\s*" "")
+      (str/replace #"\s*```$" "")
+      str/trim))
+
 (defn- parse-score-response
   "Parse Claude's JSON score response into the expected shape.
    Dimensions from the API use :name/:value/:rationale keys."
   [text dimensions]
   (try
-    (let [parsed     (json/decode text true)
+    (let [parsed     (json/decode (strip-markdown-fences text) true)
           dim-names  (set (map :name dimensions))
           dim-results (mapv (fn [d]
                               {:dimension-name (or (:name d) (:dimension-name d))
@@ -157,7 +166,7 @@
                                                    :content user-prompt}]})
         text        (extract-text response)]
     (try
-      (json/decode text true)
+      (json/decode (strip-markdown-fences text) true)
       (catch Exception e
         (log/errorf "Failed to parse skill generation response: %s" e)
         []))))
