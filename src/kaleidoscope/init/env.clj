@@ -13,6 +13,8 @@
             [kaleidoscope.persistence.filesystem.local :as local-fs]
             [kaleidoscope.persistence.filesystem.s3-impl :as s3-storage]
             [kaleidoscope.http-api.auth.access-control :as ac]
+            [kaleidoscope.scoring.mock :as scoring-mock]
+            [kaleidoscope.scoring.llm-scorer :as llm-scorer]
             [kaleidoscope.utils.versioning :as vu]
             [malli.core :as m]
             [malli.dev.pretty :as pretty]
@@ -220,6 +222,15 @@
                                              "caheriaguilar.and.andrewslai.com" (local-fs/make-local-fs (env->kaleidoscope-local-fs env "caheriaguilar.and.andrewslai.com"))})}
    :default   "s3"})
 
+(def kaleidoscope-scorer-boot-instructions
+  {:name      :kaleidoscope-scorer
+   :path      "KALEIDOSCOPE_SCORER_TYPE"
+   :launchers {"mock" (fn [_env] (scoring-mock/make-mock-scorer))
+               "llm"  (fn [env]
+                        (llm-scorer/make-llm-scorer
+                         {:api-key (get env "ANTHROPIC_API_KEY")}))}
+   :default   "mock"})
+
 (def exception-reporter-boot-instructions
   {:name      :exception-reporter
    :path      "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"
@@ -242,7 +253,8 @@
    kaleidoscope-authentication-boot-instructions
    kaleidoscope-authorization-boot-instructions
    kaleidoscope-static-content-adapter-boot-instructions
-   kaleidoscope-notify-image-resizer-boot-instructions])
+   kaleidoscope-notify-image-resizer-boot-instructions
+   kaleidoscope-scorer-boot-instructions])
 
 (def BootInstruction
   [:map
@@ -284,7 +296,8 @@
            kaleidoscope-authentication
            kaleidoscope-authorization
            kaleidoscope-static-content-adapters
-           kaleidoscope-notify-image-resizer]
+           kaleidoscope-notify-image-resizer
+           kaleidoscope-scorer]
     :as   system}]
   {:database                database-connection
    :exception-reporter      (partial er/report! exception-reporter)
@@ -294,7 +307,8 @@
                              :wrap (apply comp (mw/auth-stack kaleidoscope-authentication
                                                               kaleidoscope-authorization))}
    :static-content-adapters kaleidoscope-static-content-adapters
-   :notify-image-resizer!   kaleidoscope-notify-image-resizer})
+   :notify-image-resizer!   kaleidoscope-notify-image-resizer
+   :scorer                  kaleidoscope-scorer})
 
 (defn make-http-handler
   [system]
