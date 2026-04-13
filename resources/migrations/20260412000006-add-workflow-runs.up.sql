@@ -10,6 +10,8 @@ CREATE TABLE project_workflow_runs (
   created_at   TIMESTAMP DEFAULT now()
 );
 
+--;;
+
 CREATE TABLE project_workflow_step_runs (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workflow_run_id UUID NOT NULL REFERENCES project_workflow_runs(id) ON DELETE CASCADE,

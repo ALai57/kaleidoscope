@@ -9,6 +9,8 @@ CREATE TABLE workflows (
   updated_at  TIMESTAMP DEFAULT now()
 );
 
+--;;
+
 CREATE TABLE workflow_steps (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
