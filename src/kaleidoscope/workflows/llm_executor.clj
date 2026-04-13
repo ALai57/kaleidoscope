@@ -2,8 +2,10 @@
   (:require [cheshire.core :as json]
             [clojure.string :as str]
             [kaleidoscope.api.agents :as agents-api]
+            [kaleidoscope.api.tasks :as tasks-api]
             [kaleidoscope.persistence.workflows :as persistence]
             [kaleidoscope.scoring.agents :as agents]
+            [kaleidoscope.tasks.planner :as task-planner]
             [kaleidoscope.utils.core :as utils]
             [kaleidoscope.workflows.protocol :as protocol]
             [taoensso.timbre :as log])
@@ -163,34 +165,73 @@ Rank these workflows by how well they match the project."
         []))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Step execution dispatch (by output-kind)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmulti execute-step-by-kind!
+  "Dispatch step execution based on :output-kind in the step-run.
+   Each method receives [executor db project step-run output-stream]."
+  (fn [_executor _db _project step-run _output-stream]
+    (keyword (or (:output-kind step-run) "text"))))
+
+(defmethod execute-step-by-kind! :text
+  [executor db project step-run output-stream]
+  (let [user-id       (:user-id project)
+        custom-prompt (agents-api/get-custom-system-prompt
+                       db user-id (:agent-type step-run))
+        system-prompt (build-step-system-prompt step-run project custom-prompt)
+        user-message  (:description step-run)
+        full-output   (stream-step-to-output! (:api-key executor)
+                                              system-prompt
+                                              [{:role "user" :content user-message}]
+                                              output-stream)
+        completed     (persistence/update-step-run! db (:id step-run)
+                                                    {:status       "completed"
+                                                     :output       full-output
+                                                     :completed-at (utils/now)})]
+    (write-sse-event! output-stream {:event "step_complete" :data completed})
+    full-output))
+
+(defmethod execute-step-by-kind! :clarify
+  [executor db project step-run output-stream]
+  (let [planner (task-planner/make-llm-planner (:api-key executor))]
+    (tasks-api/clarify-description-step! db planner project step-run output-stream)))
+
+(defmethod execute-step-by-kind! :tasks
+  [executor db project step-run output-stream]
+  (let [planner  (task-planner/make-llm-planner (:api-key executor))
+        user-id  (:user-id project)
+        tasks    (tasks-api/run-task-generation! db planner project user-id output-stream
+                                                 {:step-run-id (:id step-run)})
+        summary  (format "Generated %d tasks." (count tasks))
+        completed (persistence/update-step-run! db (:id step-run)
+                                                {:status       "completed"
+                                                 :output       summary
+                                                 :completed-at (utils/now)})]
+    (write-sse-event! output-stream {:event "step_complete" :data completed})
+    summary))
+
+(defmethod execute-step-by-kind! :default
+  [executor db project step-run output-stream]
+  (log/warnf "Unknown output-kind '%s' for step '%s'; falling back to :text"
+             (:output-kind step-run) (:name step-run))
+  (execute-step-by-kind! executor db project (assoc step-run :output-kind "text") output-stream))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LLMExecutor record
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defrecord LLMExecutor [api-key]
   protocol/IWorkflowExecutor
 
-  (execute-step! [_this db project step-run output-stream]
-    (log/infof "LLMExecutor: executing step '%s' (agent=%s)"
-               (:name step-run) (:agent-type step-run))
+  (execute-step! [this db project step-run output-stream]
+    (log/infof "LLMExecutor: executing step '%s' (agent=%s output-kind=%s)"
+               (:name step-run) (:agent-type step-run) (:output-kind step-run))
     (persistence/update-step-run! db (:id step-run)
                                   {:status     "running"
                                    :started-at (utils/now)})
     (try
-      (let [user-id       (:user-id project)
-            custom-prompt (agents-api/get-custom-system-prompt
-                           db user-id (:agent-type step-run))
-            system-prompt (build-step-system-prompt step-run project custom-prompt)
-            user-message  (:description step-run)
-            full-output   (stream-step-to-output! api-key
-                                                   system-prompt
-                                                   [{:role "user" :content user-message}]
-                                                   output-stream)
-            completed     (persistence/update-step-run! db (:id step-run)
-                                                        {:status       "completed"
-                                                         :output       full-output
-                                                         :completed-at (utils/now)})]
-        (write-sse-event! output-stream {:event "step_complete" :data completed})
-        full-output)
+      (execute-step-by-kind! this db project step-run output-stream)
       (catch Exception e
         (log/errorf "Step execution failed for step-run %s: %s" (:id step-run) e)
         (persistence/update-step-run! db (:id step-run)

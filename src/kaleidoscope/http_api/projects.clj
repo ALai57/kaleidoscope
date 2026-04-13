@@ -38,6 +38,7 @@
                                 (ok (projects-api/create-project!
                                      (:database components)
                                      (:scorer components)
+                                     (:workflow-executor components)
                                      user-id
                                      body-params))
                                 (catch Exception e

@@ -145,15 +145,52 @@ project description."
      rationale
      "No specific feedback available — generate questions appropriate to the dimension name.")))
 
+(def task-planner-clarification-system-prompt
+  "You are an experienced project manager and GTD practitioner. Your goal is to help
+the user clarify a vague project idea into something concrete enough to generate
+an actionable task list.
+
+Ask 2-3 focused, specific questions per turn. Do NOT ask generic questions like
+\"What is the goal?\" — instead probe the actual unknowns in the project description.
+After each response, decide whether you have enough information to generate tasks.
+
+You MUST respond with a JSON object (no other text):
+{
+  \"ready\": true | false,
+  \"reply\": \"<your message to the user>\"
+}
+
+Set \"ready\" to true when you have enough context to produce a useful task list.
+Keep \"reply\" brief. One question per paragraph.")
+
+(def task-planner-generation-system-prompt
+  "You are an expert project planner and GTD practitioner. Break the following project
+into atomic, actionable tasks. Rules:
+- Each task must be completable in under half a day (≤ 4 hours) by one person.
+- Categorize each task as one of: action, research, purchase, review, development, investigate.
+- For anything unclear or unknown, create an investigate task with an estimated_minutes
+  value representing how long the user should spend figuring it out before generating more tasks.
+- Order tasks by recommended execution order (position 0 = first).
+- Output ONLY a JSON array. No prose before or after.
+
+JSON schema per task:
+{
+  \"title\": string,
+  \"description\": string,
+  \"task_type\": string,
+  \"estimated_minutes\": int
+}")
+
 (defn get-system-prompt
   "Return the system prompt for a given scorer-type or agent-type."
   [agent-type]
   (case agent-type
-    ("pm" :pm)                       pm-system-prompt
-    ("engineering_lead" :engineering-lead) engineering-lead-system-prompt
-    ("coach" :coach)                 coach-system-prompt
-    ("pm_agent" :pm-agent)           pm-agent-system-prompt
-    ("eng_agent" :eng-agent)         engineering-lead-agent-system-prompt
+    ("pm" :pm)                                   pm-system-prompt
+    ("engineering_lead" :engineering-lead)        engineering-lead-system-prompt
+    ("coach" :coach)                              coach-system-prompt
+    ("pm_agent" :pm-agent)                        pm-agent-system-prompt
+    ("eng_agent" :eng-agent)                      engineering-lead-agent-system-prompt
+    ("task_planner" :task-planner)                task-planner-generation-system-prompt
     general-system-prompt))
 
 (defn build-scoring-user-prompt

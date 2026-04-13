@@ -165,6 +165,23 @@
                                (ok run)
                                (not-found {:reason "Run or step not found"}))))}}]
 
+       ;; --- Respond to awaiting_input step ---
+       ["/steps/:step-run-id/respond"
+        {:parameters {:path {:step-run-id string?}}
+         :post {:summary "Submit answers for an awaiting_input step; appends answers to project.description and resumes the workflow"
+                :handler (fn [{:keys [components body-params path-params] :as request}]
+                           (let [user-id     (oidc/get-verified-email (:identity request))
+                                 project-id  (parse-uuid (:project-id path-params))
+                                 run-id      (parse-uuid (:run-id path-params))
+                                 step-run-id (parse-uuid (:step-run-id path-params))
+                                 answers     (or (:answers body-params) [])]
+                             (if-let [run (workflows-api/respond-to-step!
+                                           (:database components)
+                                           (:workflow-executor components)
+                                           project-id user-id run-id step-run-id answers)]
+                               (ok run)
+                               (not-found {:reason "Run or step not found, or step not awaiting input"}))))}}]
+
        ;; --- Custom step (SSE) ---
        ["/custom-step"
         {:post {:summary "Inject and execute a custom ad-hoc step (SSE). Returns step_complete + recommendation events."

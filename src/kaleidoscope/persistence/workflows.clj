@@ -34,6 +34,19 @@
                                {:builder-fn rs/as-unqualified-kebab-maps})]
       (assoc wf :steps (vec steps)))))
 
+(defn get-default-workflow
+  "Return the first live default workflow for a user, or nil."
+  [db user-id]
+  (first (next/execute! db
+                        (hsql/format {:select   :*
+                                      :from     :workflows
+                                      :where    [:and
+                                                 [:= :user-id user-id]
+                                                 [:= :is-default true]
+                                                 [:= :status "live"]]
+                                      :limit    1})
+                        {:builder-fn rs/as-unqualified-kebab-maps})))
+
 (defn get-live-workflows
   "Return all live workflows for a user."
   [db user-id]
@@ -74,13 +87,14 @@
         (rdbms/insert! tx
                        :workflow-steps
                        (vec (map-indexed
-                              (fn [i {:keys [name description position agent-type]}]
+                              (fn [i {:keys [name description position agent-type output-kind]}]
                                 {:id          (utils/uuid)
                                  :workflow-id (:id wf)
                                  :position    (or position i)
                                  :name        name
                                  :description description
                                  :agent-type  (or agent-type "coach")
+                                 :output-kind (or output-kind "text")
                                  :created-at  now
                                  :updated-at  now})
                               steps))
@@ -110,13 +124,14 @@
           (rdbms/insert! tx
                          :workflow-steps
                          (vec (map-indexed
-                                (fn [i {:keys [name description position agent-type]}]
+                                (fn [i {:keys [name description position agent-type output-kind]}]
                                   {:id          (utils/uuid)
                                    :workflow-id workflow-id
                                    :position    (or position i)
                                    :name        name
                                    :description description
                                    :agent-type  (or agent-type "coach")
+                                   :output-kind (or output-kind "text")
                                    :created-at  now
                                    :updated-at  now})
                                 steps))
@@ -211,6 +226,7 @@
                                      :name            (:name step)
                                      :description     (:description step)
                                      :agent-type      (or (:agent-type step) "coach")
+                                     :output-kind     (or (:output-kind step) "text")
                                      :is-custom       false
                                      :status          "pending"})
                                   steps))

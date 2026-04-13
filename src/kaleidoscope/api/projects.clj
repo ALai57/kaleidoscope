@@ -1,5 +1,6 @@
 (ns kaleidoscope.api.projects
   (:require [kaleidoscope.api.score-definitions :as score-defs-api]
+            [kaleidoscope.api.workflows :as workflows-api]
             [kaleidoscope.persistence.projects :as persistence]
             [kaleidoscope.scoring.protocol :as scoring]
             [taoensso.timbre :as log]))
@@ -25,14 +26,16 @@
     (assoc project :scores (or (persistence/get-latest-score-runs db project-id) []))))
 
 (defn create-project!
-  "Create a project and immediately trigger scoring against all default definitions."
-  [db scorer user-id {:keys [title description] :as body}]
+  "Create a project, trigger scoring, and start the default workflow automatically."
+  [db scorer executor user-id {:keys [title description] :as body}]
   ;; Ensure default definitions exist for this user
   (score-defs-api/seed-default-definitions! db user-id)
   (let [project (persistence/create-project! db {:user-id     user-id
                                                   :title       title
                                                   :description description})]
     (score-project! db scorer (:id project) user-id nil)
+    (when executor
+      (workflows-api/start-default-workflow! db executor (:id project) user-id))
     (get-project db (:id project) user-id)))
 
 (defn update-project!

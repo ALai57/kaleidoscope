@@ -11,7 +11,7 @@
   [:enum "pending" "in_progress" "completed" "failed"])
 
 (def StepRunStatus
-  [:enum "pending" "running" "completed" "skipped" "failed"])
+  [:enum "pending" "running" "awaiting_input" "completed" "skipped" "failed"])
 
 (def RunMode
   [:enum "manual" "autonomous"])

@@ -22,6 +22,11 @@
     :display-name  "Engineering Lead"
     :avatar        "🦉"
     :system-prompt agents/engineering-lead-agent-system-prompt
+    :is-default    true}
+   {:agent-type    "task_planner"
+    :display-name  "Task Planner"
+    :avatar        "📋"
+    :system-prompt agents/task-planner-generation-system-prompt
     :is-default    true}])
 
 (defn seed-default-agent-definitions!

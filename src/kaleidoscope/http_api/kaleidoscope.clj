@@ -12,6 +12,7 @@
    [kaleidoscope.http-api.projects :refer [reitit-projects-routes]]
    [kaleidoscope.http-api.score-definitions :refer [reitit-score-definition-routes]]
    [kaleidoscope.http-api.agents :refer [reitit-agent-routes]]
+   [kaleidoscope.http-api.tasks :refer [reitit-task-routes]]
    [kaleidoscope.http-api.workflows :refer [reitit-workflow-routes reitit-project-workflow-routes]]
    [kaleidoscope.http-api.http-utils :as http-utils]
    [kaleidoscope.http-api.middleware :as mw]
@@ -156,6 +157,7 @@
         reitit-projects-routes
         reitit-score-definition-routes
         reitit-agent-routes
+        reitit-task-routes
         reitit-workflow-routes
         reitit-project-workflow-routes
         reitit-portfolio-routes
