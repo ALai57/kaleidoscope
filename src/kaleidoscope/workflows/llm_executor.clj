@@ -93,20 +93,20 @@
         client   (HttpClient/newHttpClient)
         response (.send client request (HttpResponse$BodyHandlers/ofLines))
         sb       (StringBuilder.)]
-    (-> (.body response)
-        (.forEach
-         (reify java.util.function.Consumer
-           (accept [_ line]
-             (when (str/starts-with? line "data: ")
-               (let [data (subs line 6)]
-                 (when (not= data "[DONE]")
-                   (try
-                     (let [parsed (json/decode data true)
-                           delta  (get-in parsed [:delta :text])]
-                       (when delta
-                         (.append sb delta)
-                         (write-sse-event! output-stream {:event "token" :data delta})))
-                     (catch Exception _)))))))))
+    (let [^java.util.stream.Stream lines (.body response)]
+      (.forEach lines
+                (reify java.util.function.Consumer
+                  (accept [_ line]
+                    (when (str/starts-with? line "data: ")
+                      (let [data (subs line 6)]
+                        (when (not= data "[DONE]")
+                          (try
+                            (let [parsed (json/decode data true)
+                                  delta  (get-in parsed [:delta :text])]
+                              (when delta
+                                (.append sb delta)
+                                (write-sse-event! output-stream {:event "token" :data delta})))
+                            (catch Exception _)))))))))
     (str sb)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
