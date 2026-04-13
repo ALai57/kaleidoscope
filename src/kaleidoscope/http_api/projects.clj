@@ -171,7 +171,26 @@
                                            project-id (parse-uuid (:project-id path-params))]
                                        (ok (or (projects-api/get-score-history
                                                 (:database components) project-id user-id)
-                                               []))))}}]]
+                                               []))))}}]
+
+     ["/section-questions"
+      {:post {:summary   "Generate guiding questions for a score dimension"
+              :handler   (fn [{:keys [components body-params path-params] :as request}]
+                           (let [user-id    (oidc/get-verified-email (:identity request))
+                                 project-id (parse-uuid (:project-id path-params))
+                                 db         (:database components)
+                                 scorer     (:scorer components)
+                                 params     {:dimension-name      (:dimension-name body-params)
+                                             :rationale           (:rationale body-params)
+                                             :score-definition-name (:score-definition-name body-params)}]
+                             (if-let [result (projects-api/get-section-questions
+                                              db project-id user-id
+                                              (fn []
+                                                (if-let [api-key (:api-key scorer)]
+                                                  (llm-scorer/generate-section-questions api-key params)
+                                                  {:questions []})))]
+                               (ok result)
+                               (not-found {:reason "Project not found"}))))}}]]
 
     ;; --- Conversations (SSE) ---
     ["/conversations/:agent"

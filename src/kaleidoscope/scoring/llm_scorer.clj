@@ -171,6 +171,25 @@
         (log/errorf "Failed to parse skill generation response: %s" e)
         []))))
 
+(defn generate-section-questions
+  "Call Claude to generate guiding questions for a score dimension.
+   Returns {:questions [\"Q1\" \"Q2\" ...]}."
+  [api-key params]
+  (let [user-prompt (agents/section-questions-prompt params)
+        response    (post-anthropic api-key
+                                    {:model      default-model
+                                     :max_tokens 512
+                                     :system     agents/section-questions-system-prompt
+                                     :messages   [{:role    "user"
+                                                   :content user-prompt}]})
+        text        (extract-text response)]
+    (try
+      (let [parsed (json/decode (strip-markdown-fences text) true)]
+        {:questions (or (:questions parsed) [])})
+      (catch Exception e
+        (log/errorf "Failed to parse section questions response: %s\nText: %s" e text)
+        {:questions []}))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LLM Scorer implementation
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

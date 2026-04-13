@@ -113,6 +113,38 @@ key technical and domain areas needed for this project."
    title
    (or description "No description provided")))
 
+(def section-questions-system-prompt
+  "You are a project clarity coach. A builder's project was scored on a specific
+dimension, and you need to generate focused questions to help them improve that
+aspect of their project description.
+
+Your questions should:
+- Be directly answerable by adding or expanding content in the project description
+- Address the specific gaps identified in the scoring rationale
+- Progress from foundational to more detailed
+- Be concise and specific, not vague
+
+Return ONLY a JSON object with this structure:
+{\"questions\": [\"Question 1?\", \"Question 2?\", \"Question 3?\", \"Question 4?\"]}
+
+Generate exactly 4 questions. No additional text.")
+
+(defn section-questions-prompt
+  "Build the user prompt for generating guiding questions for a score dimension."
+  [{:keys [dimension-name rationale score-definition-name]}]
+  (format
+   "Dimension being scored: %s
+Scoring framework: %s
+Feedback from the scorer: %s
+
+Generate 4 focused questions to help the builder improve this dimension of their
+project description."
+   dimension-name
+   (or score-definition-name "General")
+   (if (and rationale (not (str/blank? rationale)))
+     rationale
+     "No specific feedback available — generate questions appropriate to the dimension name.")))
+
 (defn get-system-prompt
   "Return the system prompt for a given scorer-type or agent-type."
   [agent-type]

@@ -144,3 +144,21 @@
   (when (persistence/get-project db project-id user-id)
     (persistence/update-skill! db project-id skill-id updates)
     (persistence/get-skill-tree db project-id)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Section questions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-section-questions
+  "Generate guiding questions for a score dimension using generate-fn.
+
+   generate-fn is a zero-arg fn that returns {:questions [\"Q1\" \"Q2\" ...]}.
+   Pass `(fn [] (llm-scorer/generate-section-questions api-key params))` from
+   the handler, or a stub fn for non-LLM scorers."
+  [db project-id user-id generate-fn]
+  (when (persistence/get-project db project-id user-id)
+    (try
+      (generate-fn)
+      (catch Exception e
+        (log/errorf "Section questions generation failed: %s" e)
+        {:questions []}))))
