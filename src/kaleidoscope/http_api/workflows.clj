@@ -54,7 +54,7 @@
                                                    :cannot-delete-default
                                                    (conflict {:reason "Cannot delete a default workflow"})
                                                    (not-found {:reason "Workflow not found"}))
-                                 :else           {:status 204}))))}]]])
+                                 :else           {:status 204}))))}]]]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; /projects/:project-id/workflow-*  — nested under projects
