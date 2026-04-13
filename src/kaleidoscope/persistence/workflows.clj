@@ -74,12 +74,13 @@
         (rdbms/insert! tx
                        :workflow-steps
                        (vec (map-indexed
-                              (fn [i {:keys [name description position]}]
+                              (fn [i {:keys [name description position agent-type]}]
                                 {:id          (utils/uuid)
                                  :workflow-id (:id wf)
                                  :position    (or position i)
                                  :name        name
                                  :description description
+                                 :agent-type  (or agent-type "coach")
                                  :created-at  now
                                  :updated-at  now})
                               steps))
@@ -109,12 +110,13 @@
           (rdbms/insert! tx
                          :workflow-steps
                          (vec (map-indexed
-                                (fn [i {:keys [name description position]}]
+                                (fn [i {:keys [name description position agent-type]}]
                                   {:id          (utils/uuid)
                                    :workflow-id workflow-id
                                    :position    (or position i)
                                    :name        name
                                    :description description
+                                   :agent-type  (or agent-type "coach")
                                    :created-at  now
                                    :updated-at  now})
                                 steps))
@@ -208,7 +210,7 @@
                                      :position        i
                                      :name            (:name step)
                                      :description     (:description step)
-                                     :agent-type      "coach"
+                                     :agent-type      (or (:agent-type step) "coach")
                                      :is-custom       false
                                      :status          "pending"})
                                   steps))

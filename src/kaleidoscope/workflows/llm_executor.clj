@@ -1,6 +1,7 @@
 (ns kaleidoscope.workflows.llm-executor
   (:require [cheshire.core :as json]
             [clojure.string :as str]
+            [kaleidoscope.api.agents :as agents-api]
             [kaleidoscope.persistence.workflows :as persistence]
             [kaleidoscope.scoring.agents :as agents]
             [kaleidoscope.utils.core :as utils]
@@ -65,9 +66,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- build-step-system-prompt
-  "Return the system prompt for a step's agent-type, augmented with project context."
-  [step-run project]
-  (let [base-prompt (agents/get-system-prompt (:agent-type step-run))
+  "Return the system prompt for a step's agent-type, augmented with project context.
+   Uses custom-prompt if provided, otherwise falls back to the built-in agent prompt."
+  [step-run project custom-prompt]
+  (let [base-prompt (or custom-prompt
+                        (agents/get-system-prompt (:agent-type step-run)))
         project-ctx (format "\n\n---\nProject context:\nTitle: %s\nDescription: %s"
                             (:title project)
                             (or (:description project) "No description provided"))]
@@ -173,7 +176,10 @@ Rank these workflows by how well they match the project."
                                   {:status     "running"
                                    :started-at (utils/now)})
     (try
-      (let [system-prompt (build-step-system-prompt step-run project)
+      (let [user-id       (:user-id project)
+            custom-prompt (agents-api/get-custom-system-prompt
+                           db user-id (:agent-type step-run))
+            system-prompt (build-step-system-prompt step-run project custom-prompt)
             user-message  (:description step-run)
             full-output   (stream-step-to-output! api-key
                                                    system-prompt
