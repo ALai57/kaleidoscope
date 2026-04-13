@@ -213,7 +213,7 @@
                                      :status          "pending"})
                                   steps))
                            :ex-subtype :UnableToCreateStepRun))))
-      (enrich-run tx (:id run)))))
+      (enrich-run tx run))))
 
 (defn update-workflow-run!
   "Update run fields (status, mode, current-step, completed-at)."
