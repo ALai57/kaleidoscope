@@ -15,6 +15,8 @@
             [kaleidoscope.http-api.auth.access-control :as ac]
             [kaleidoscope.scoring.mock :as scoring-mock]
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
+            [kaleidoscope.workflows.mock :as workflow-mock]
+            [kaleidoscope.workflows.llm-executor :as llm-executor]
             [kaleidoscope.utils.versioning :as vu]
             [malli.core :as m]
             [malli.dev.pretty :as pretty]
@@ -231,6 +233,15 @@
                          {:api-key (get env "ANTHROPIC_API_KEY")}))}
    :default   "mock"})
 
+(def kaleidoscope-workflow-executor-boot-instructions
+  {:name      :kaleidoscope-workflow-executor
+   :path      "KALEIDOSCOPE_WORKFLOW_EXECUTOR_TYPE"
+   :launchers {"mock" (fn [_env] (workflow-mock/make-mock-executor))
+               "llm"  (fn [env]
+                        (llm-executor/make-llm-executor
+                         {:api-key (get env "ANTHROPIC_API_KEY")}))}
+   :default   "mock"})
+
 (def exception-reporter-boot-instructions
   {:name      :exception-reporter
    :path      "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"
@@ -254,7 +265,8 @@
    kaleidoscope-authorization-boot-instructions
    kaleidoscope-static-content-adapter-boot-instructions
    kaleidoscope-notify-image-resizer-boot-instructions
-   kaleidoscope-scorer-boot-instructions])
+   kaleidoscope-scorer-boot-instructions
+   kaleidoscope-workflow-executor-boot-instructions])
 
 (def BootInstruction
   [:map
@@ -297,7 +309,8 @@
            kaleidoscope-authorization
            kaleidoscope-static-content-adapters
            kaleidoscope-notify-image-resizer
-           kaleidoscope-scorer]
+           kaleidoscope-scorer
+           kaleidoscope-workflow-executor]
     :as   system}]
   {:database                database-connection
    :exception-reporter      (partial er/report! exception-reporter)
@@ -308,7 +321,8 @@
                                                               kaleidoscope-authorization))}
    :static-content-adapters kaleidoscope-static-content-adapters
    :notify-image-resizer!   kaleidoscope-notify-image-resizer
-   :scorer                  kaleidoscope-scorer})
+   :scorer                  kaleidoscope-scorer
+   :workflow-executor       kaleidoscope-workflow-executor})
 
 (defn make-http-handler
   [system]

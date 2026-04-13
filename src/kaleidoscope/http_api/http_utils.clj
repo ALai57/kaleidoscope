@@ -1,10 +1,12 @@
 (ns kaleidoscope.http-api.http-utils
   (:require
+   [cheshire.core :as json]
    [clojure.string :as str]
    [camel-snake-kebab.core :as csk]
    [camel-snake-kebab.extras :as cske]
    [kaleidoscope.http-api.cache-control :as cc]
    [kaleidoscope.persistence.filesystem :as fs]
+   [ring.core.protocols :as ring-protocols]
    [ring.util.http-response :refer [not-found not-modified]]
    [taoensso.timbre :as log]))
 
@@ -89,3 +91,28 @@
   {500 {:description "Error response"
         :content     {"application/json"
                       {:schema ErrorResponse}}}})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Server-Sent Events (SSE)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn sse-response
+  "Build a Ring SSE response. body-fn receives an OutputStream and writes events."
+  [body-fn]
+  {:status  200
+   :headers {"Content-Type"      "text/event-stream"
+             "Cache-Control"     "no-cache"
+             "X-Accel-Buffering" "no"
+             "Connection"        "keep-alive"}
+   :body    (reify ring-protocols/StreamableResponseBody
+              (write-body-to-stream [_ _ output-stream]
+                (try
+                  (body-fn output-stream)
+                  (catch Exception e
+                    (log/errorf "SSE stream error: %s" e)))))})
+
+(defn write-sse-event!
+  "Write a single SSE data event to an OutputStreamWriter."
+  [^java.io.OutputStreamWriter writer data]
+  (.write writer (str "data: " (json/encode data) "\n\n"))
+  (.flush writer))

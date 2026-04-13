@@ -1,39 +1,12 @@
 (ns kaleidoscope.http-api.projects
-  (:require [cheshire.core :as json]
-            [kaleidoscope.api.authentication :as oidc]
+  (:require [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.api.projects :as projects-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.persistence.projects :as persistence]
             [kaleidoscope.scoring.agents :as agents]
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
-            [ring.core.protocols :as ring-protocols]
             [ring.util.http-response :refer [bad-request not-found ok]]
             [taoensso.timbre :as log]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SSE helpers
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn sse-response
-  "Build a Ring SSE response. body-fn receives an OutputStream and writes events."
-  [body-fn]
-  {:status  200
-   :headers {"Content-Type"      "text/event-stream"
-             "Cache-Control"     "no-cache"
-             "X-Accel-Buffering" "no"
-             "Connection"        "keep-alive"}
-   :body    (reify ring-protocols/StreamableResponseBody
-              (write-body-to-stream [_ _ output-stream]
-                (try
-                  (body-fn output-stream)
-                  (catch Exception e
-                    (log/errorf "SSE stream error: %s" e)))))})
-
-(defn write-sse-event!
-  "Write a single SSE data event to an OutputStreamWriter."
-  [^java.io.OutputStreamWriter writer data]
-  (.write writer (str "data: " (json/encode data) "\n\n"))
-  (.flush writer))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Projects routes
@@ -227,7 +200,7 @@
                                         system-prompt (agents/get-system-prompt agent-type)]
                                     (if-let [api-key (:api-key scorer)]
                                       ;; LLM scorer — stream tokens via SSE
-                                      (sse-response
+                                      (hu/sse-response
                                        (fn [output-stream]
                                          (let [full-response (llm-scorer/stream-conversation!
                                                                api-key
@@ -239,11 +212,11 @@
                                             db project-id user-id agent-type
                                             user-msg full-response))))
                                       ;; Mock scorer — return stub response as single SSE event
-                                      (sse-response
+                                      (hu/sse-response
                                        (fn [output-stream]
                                          (let [writer (java.io.OutputStreamWriter. output-stream "UTF-8")
                                                reply  "I'm a mock assistant. Configure KALEIDOSCOPE_SCORER_TYPE=llm and ANTHROPIC_API_KEY to enable real responses."]
-                                           (write-sse-event! writer {:token reply})
+                                           (hu/write-sse-event! writer {:token reply})
                                            (.write writer "data: [DONE]\n\n")
                                            (.flush writer)
                                            (.close writer)
