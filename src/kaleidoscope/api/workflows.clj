@@ -192,18 +192,19 @@
               :awaiting-input (persistence/get-workflow-run db run-id))))))))
 
 (defn skip-step!
-  "Mark the current pending step as skipped, advance current-step counter.
+  "Mark the current pending or awaiting_input step as skipped, advance current-step counter.
    Returns the updated run."
   [db project-id user-id run-id step-run-id]
   (when (projects-persistence/get-project db project-id user-id)
     (let [run      (persistence/get-workflow-run db run-id)
           step-run (persistence/get-step-run db step-run-id)]
-      (when (and run step-run (= "pending" (:status step-run)))
+      (when (and run step-run (#{"pending" "awaiting_input"} (:status step-run)))
         (persistence/update-step-run! db step-run-id
                                       {:status       "skipped"
                                        :completed-at (utils/now)})
         (persistence/update-workflow-run! db run-id
-                                         {:current-step (inc (:current-step run))})
+                                         {:status       "in_progress"
+                                          :current-step (inc (:current-step run))})
         (when (all-steps-done? (persistence/get-workflow-run db run-id))
           (persistence/update-workflow-run! db run-id
                                            {:status       "completed"

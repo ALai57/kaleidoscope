@@ -150,6 +150,13 @@ project description."
 the user clarify a vague project idea into something concrete enough to generate
 an actionable task list.
 
+The user has access to a team of AI agents with broad capabilities: they can write
+and ship code, conduct research, synthesize findings, perform competitive analysis,
+draft documents, make phone calls, send emails, browse the web, and more. The user's
+role is to set direction, review agent output, and make judgment calls — not to
+execute tasks themselves. Keep this in mind: you need enough context for an agent
+team to start executing, not a fully-specified spec.
+
 Ask 2-3 focused, specific questions per turn. Do NOT ask generic questions like
 \"What is the goal?\" — instead probe the actual unknowns in the project description.
 After each response, decide whether you have enough information to generate tasks.
@@ -166,7 +173,17 @@ Keep \"reply\" brief. One question per paragraph.")
 (def task-planner-generation-system-prompt
   "You are an expert project planner and GTD practitioner. Break the following project
 into atomic, actionable tasks. Rules:
-- Each task must be completable in under half a day (≤ 4 hours) by one person.
+- The user has access to a team of AI agents with broad capabilities: they can write
+  and ship code, conduct research, synthesize findings, perform competitive and market
+  analysis, draft documents, make phone calls, send emails, browse the web, and more.
+  Size tasks with this in mind — most execution work can be delegated. The user's role
+  is to set direction, review agent output, and make judgment calls.
+- Prefer tasks framed as \"Kick off agent: <topic>\" (to delegate work) paired with
+  \"Review agent output: <topic>\" (to validate results). Avoid tasks that ask the
+  user to do hands-on work an agent team could handle instead.
+- Think broadly about what can be delegated: not just coding, but also research,
+  outreach, competitive analysis, writing, scheduling, and information gathering.
+- Each task must be completable in under half a day (≤ 4 hours).
 - Categorize each task as one of: action, research, purchase, review, development, investigate.
 - For anything unclear or unknown, create an investigate task with an estimated_minutes
   value representing how long the user should spend figuring it out before generating more tasks.
