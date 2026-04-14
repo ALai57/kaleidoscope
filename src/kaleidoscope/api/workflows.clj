@@ -416,7 +416,7 @@
                           (do (log/warnf "Unexpected judge action '%s' — treating as proceed"
                                          (:action decision))
                               (persistence/complete-round! db (:id round))
-                              (run-sequential-tail! db executor project run-id output-stream))))))))))))))
+                              (run-sequential-tail! db executor project run-id output-stream)))))))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public: advance step
