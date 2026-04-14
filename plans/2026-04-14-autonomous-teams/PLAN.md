@@ -25,7 +25,7 @@ A question (or short list of questions) is shown with a text input. The user
 answers and the review continues.
 
 **Done** — The team is satisfied. Task generation ran automatically and the task
-list is ready.
+list is ready. Any gaps the team could not resolve appear as investigation tasks.
 
 There is no round counter, no numeric score, no mention of iterations, no
 confirmation button. The system tracks that information internally.
@@ -42,8 +42,9 @@ confirmation button. The system tracks that information internally.
                                    │
                                    ▼
                     ┌──────────────────────────────┐
-                    │  Team lead reads all feedback │
-                    │  and decides what to do next  │
+                    │  Team lead reads all feedback,│
+                    │  score trajectory, and deltas │
+                    │  then decides what to do next │
                     └──────────────┬───────────────┘
                                    │
            ┌───────────────────────┼───────────────────────┐
@@ -85,7 +86,7 @@ idea needs:
 
 | Level | When to use | Internal behaviour |
 |---|---|---|
-| **Quick check** | Experiments, throwaway prototypes | Lower score thresholds, max 1 round |
+| **Quick check** | Experiments, throwaway prototypes | Lower thresholds, max 1 round |
 | **Standard review** | Most features | Default thresholds, max 2 rounds |
 | **Rigorous review** | High-stakes or hard-to-reverse decisions | Higher thresholds, max 3 rounds |
 
@@ -113,8 +114,6 @@ Each advisor's result is shown as a status card, not a score sheet:
 
 Statuses: **Clear** / **Needs work** / **Blocked**.
 
-The overall status drives the team lead's decision. The per-dimension rationale
-tells the user (and the advisor doing the refinement) exactly what to address.
 Numeric scores exist in the data but are not shown in the primary UI.
 
 ---
@@ -124,25 +123,24 @@ Numeric scores exist in the data but are not shown in the primary UI.
 The team lead's output is the most prominent element in the review. It shows what
 the team found, what action was taken, and why.
 
-When the action is **proceed**, task generation starts immediately and the team lead
-card summarises the outcome:
+When the action is **proceed**, task generation starts immediately:
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │ Team Lead                                           │
 ├─────────────────────────────────────────────────────┤
-│ PM feedback is strong. The scalability gap in the  │
-│ engineering review has been addressed by the Eng   │
-│ Lead. Remaining gaps (API interface detail) are    │
-│ minor enough to handle during execution.           │
+│ PM feedback is strong. The scalability gap has been │
+│ addressed by the Engineering Lead. Remaining gaps   │
+│ (API interface detail) are minor and will appear as │
+│ investigation tasks.                                │
 │                                                     │
 │ Generating task list…                               │
 └─────────────────────────────────────────────────────┘
 ```
 
-When the action is **refine**, the card shows what the advisor is fixing and why,
-and the review continues automatically. When the action is **needs your input**, the
-card shows the questions and an answer form (existing awaiting_input mechanism).
+When the action is **refine**, the card shows what the advisor is fixing and why.
+When the action is **needs your input**, the card shows the questions and an answer
+form.
 
 ---
 
@@ -153,7 +151,7 @@ preserved exactly as written — it is a fact, not subject to change.
 
 The advisors work from a **brief** — a living document that starts as a copy of the
 description. Advisor refinements update the brief. User answers are appended to it.
-All scoring is computed against the current brief, not the original description.
+All scoring is computed against the current brief.
 
 The user sees one thing: their idea, as it currently stands. When an advisor has
 added or changed something, it is shown with clear attribution:
@@ -165,7 +163,7 @@ A diff view shows exactly what changed. This is not optional — silent autonomo
 edits to a document the user owns create distrust.
 
 The brief is versioned internally. Every score record links to the brief version it
-evaluated, so the history is fully reproducible.
+evaluated.
 
 ---
 
@@ -185,9 +183,30 @@ CREATE TABLE workflow_rounds (
 );
 ```
 
-The round's outcome (refine / clarify / proceed) is derived by reading the
-`output_kind: decision` step result that belongs to this round. It is not
-denormalised onto the round row.
+The round's outcome is derived by reading the `output_kind: decision` step result
+that belongs to this round. It is not denormalised onto the round row.
+
+### New table: `workflow_judge_records`
+
+```sql
+CREATE TABLE workflow_judge_records (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  step_run_id    UUID  NOT NULL REFERENCES project_workflow_step_runs(id),
+  round_id       UUID  NOT NULL REFERENCES workflow_rounds(id),
+  -- Complete input snapshot at decision time
+  brief_version  INT   NOT NULL,
+  score_snapshot JSONB NOT NULL,  -- all scores + rationale for this round
+  trajectory     JSONB NOT NULL,  -- per-dimension scores across all prior rounds
+  delta_table    JSONB NOT NULL,  -- per-dimension delta vs previous round + regression flags
+  policy         JSONB NOT NULL,  -- thresholds, deadband, max_rounds, current_round
+  -- Output
+  decision       JSONB NOT NULL,  -- full judge output
+  created_at     TIMESTAMP NOT NULL DEFAULT now()
+);
+```
+
+Every judge decision is fully reconstructable from this record. No external context
+is required to understand why a decision was made. This table is append-only.
 
 ### Modified table: `project_workflow_step_runs`
 
@@ -197,9 +216,8 @@ ALTER TABLE project_workflow_step_runs
   ADD COLUMN score_run_id  UUID REFERENCES score_runs(id);
 ```
 
-`round_id` places the step result inside its round. `score_run_id` is set on score
-steps and is the single authoritative reference to the score record. Score data is
-not duplicated in the step result output field.
+`score_run_id` is the single authoritative reference to the score record for score
+steps. Score data is not duplicated in the step result output field.
 
 ### New table: `project_briefs`
 
@@ -217,12 +235,8 @@ CREATE TABLE project_briefs (
 );
 ```
 
-`workflow_round_id` replaces a bare integer. A brief version produced in round 2 of
-run A is distinct from a brief version produced in round 2 of run B. The FK makes
-that provenance unambiguous.
-
-On project creation a version-1 brief is inserted with `source = 'initial'` and
-`content = description`. The description column on `projects` is not modified again.
+`workflow_round_id` is a FK, not a bare integer. A brief version from round 2 of
+run A is distinct from round 2 of run B.
 
 ### Modified table: `project_workflow_runs`
 
@@ -231,15 +245,25 @@ ALTER TABLE project_workflow_runs
   ADD COLUMN config JSONB NOT NULL DEFAULT '{}';
 ```
 
-The `config` column carries the policy block derived from the scrutiny level:
+The `config` column carries the full policy block:
 
 ```json
 {
   "scrutiny": "standard",
   "max_rounds": 2,
-  "thresholds": { "pm": 6.5, "engineering_lead": 6.0, "default": 6.0 }
+  "thresholds": { "pm": 6.5, "engineering_lead": 6.0, "default": 6.0 },
+  "deadband": 0.5,
+  "timeouts": {
+    "score_step_seconds": 60,
+    "refine_step_seconds": 120,
+    "fan_in_seconds": 90
+  }
 }
 ```
+
+`deadband` widens each threshold by ±0.5 to prevent threshold chatter on noisy
+measurements near the boundary. `timeouts` caps the wall-clock duration of each
+LLM call and of the fan-in wait.
 
 ### Modified table: `score_runs`
 
@@ -247,8 +271,6 @@ The `config` column carries the policy block derived from the scrutiny level:
 ALTER TABLE score_runs
   ADD COLUMN brief_version INT;
 ```
-
-Records which brief version was scored, closing the provenance loop.
 
 ### Modified table: `workflow_steps`
 
@@ -258,26 +280,22 @@ ALTER TABLE workflow_steps
   ADD COLUMN loop_until     TEXT;
 ```
 
-`execution_mode` separates execution behaviour from output shape (see below).
-`loop_until` carries the action value that terminates the loop; null means no loop.
-
 ### `output_kind` and `execution_mode` values
 
 `output_kind` describes the **shape** of a step's output. `execution_mode` describes
-**how the executor runs the step** relative to its neighbours. These are independent
-dimensions and are stored in separate columns.
+**how the executor runs the step**. These are independent dimensions.
 
-**`output_kind` values:**
+**`output_kind`:**
 
 | value | output shape |
 |---|---|
 | `text` | Markdown prose |
 | `clarify` | JSON `{ready, reply}` |
 | `tasks` | JSON array of task objects |
-| `score` | References a `score_run`; numeric dimensions stored in `project_score_dimensions` |
+| `score` | References a `score_run` via `score_run_id` |
 | `decision` | JSON routing decision `{action, summary, rationale, …}` |
 
-**`execution_mode` values:**
+**`execution_mode`:**
 
 | value | behaviour |
 |---|---|
@@ -297,16 +315,9 @@ position 2  output_kind: decision  execution_mode: fan_in      agent: judge     
 position 3  output_kind: tasks     execution_mode: sequential  agent: task_planner      name: "Generate tasks"
 ```
 
-The `loop_until: proceed` field on the judge step makes the loop contract explicit
-in the definition. The executor does not need special knowledge about `decision`
-steps — it reads `loop_until`, checks whether the step's output action matches, and
-either creates a new round or continues to position 3. A workflow with no
-`loop_until` on any step is purely linear. A workflow with `loop_until` on a
-non-judge step is equally valid.
-
-Positions 0–2 form the loop body by virtue of the judge step's position and its
-`loop_until` value. Position 3 is outside the loop because no step at or after it
-carries `loop_until`.
+`loop_until: proceed` on the judge step makes the loop contract explicit in the
+definition. The executor reads this field and either creates a new round or advances
+to position 3 — it does not hard-code knowledge about `decision` steps.
 
 ---
 
@@ -317,50 +328,100 @@ carries `loop_until`.
 When a run begins, the executor creates round 1. Each round:
 
 1. **Score (parallel)**: all `execution_mode: parallel` steps launch as concurrent
-   futures. Each scores the current brief version and writes a `score_run` and
-   dimension rows, then creates a step result with `score_run_id` set.
+   futures, each subject to `config.timeouts.score_step_seconds`. Each scores the
+   current brief version, writes a `score_run` and dimension rows, then creates a
+   step result with `score_run_id` set.
 
-2. **Fan-in**: once all score futures reach a terminal state (completed or failed),
-   the `execution_mode: fan_in` step runs. Partial failure is handled here — see
-   below.
+2. **Fan-in**: once all score futures reach a terminal state (completed, failed, or
+   timed-out), or once `config.timeouts.fan_in_seconds` elapses, the fan-in step
+   runs. A timed-out score step is treated as failed. Partial failure is handled as
+   described below.
 
-3. **Routing**: the judge reads its `loop_until` value from the step template and
-   compares it against the `action` field in its output. If they match, execution
-   advances to position 3. If not, a new round is created and execution returns to
-   position 0.
+3. **Pre-judge computation**: before the judge LLM is called, the executor derives:
+   - **Trajectory table**: per-dimension scores across all previous rounds, pulled
+     from `score_runs` linked to this run
+   - **Delta table**: per-dimension difference between this round and the previous
+     round; dimensions with a negative delta are flagged as regressions
+   - These are computed from existing data — no LLM call required
+
+4. **Judge**: receives the current brief, all score results for this round
+   (including failure sentinels), the trajectory table, the delta table, and the
+   full policy config including `current_round` and `max_rounds`.
+   A `workflow_judge_record` is written capturing the complete input and output.
+
+5. **Routing**: the judge's `action` field is compared against `loop_until`. If
+   they match, execution advances to position 3. If not, a new round is created.
 
 ### Partial score failure
 
-If a score step fails, its step result is marked `failed`. The fan-in step still
-runs once all steps have reached a terminal state. The judge receives:
+If a score step fails or times out, its step result is marked `failed`. The judge
+still runs and receives a failure sentinel for that advisor:
 
-- Completed scores: full structured data as normal
-- Failed scores: a sentinel entry `{"failed": true, "agent": "engineering_lead"}`
+```json
+{ "failed": true, "agent": "engineering_lead", "reason": "timeout" }
+```
 
-The judge's system prompt instructs it to handle missing scores explicitly: note
-the failure in the summary, bias toward `clarify` if a failed advisor's domain is
-critical to the decision, and avoid proceeding when key evidence is absent. The
-judge does not pretend missing scores are satisfactory; it accounts for them.
-
-### Partial failure at the round level
-
-A round is marked `completed` when the fan-in step finishes, regardless of whether
-any score steps failed. A round is only marked `failed` if the judge step itself
-fails. This keeps the failure semantics narrow: a round represents a complete
-deliberation attempt, and partial evidence is still deliberation.
+The judge's system prompt instructs it to treat missing scores as evidence of
+uncertainty, not satisfaction. If the failed advisor's domain is relevant to the
+decision, prefer `clarify` over `proceed`.
 
 ### Judge input
 
-The judge step receives:
+The judge receives a single structured context block:
 
-- The current brief (latest version)
-- All score step results for this round (including any failure sentinels)
-- The policy config: `{scrutiny, max_rounds, thresholds, current_round}`
+```json
+{
+  "brief": "<current brief content>",
+  "current_round": 2,
+  "max_rounds": 2,
+  "thresholds": { "pm": 6.5, "engineering_lead": 6.0 },
+  "deadband": 0.5,
+  "scores": {
+    "pm":               { "overall": 7.1, "dimensions": [...] },
+    "engineering_lead": { "overall": 4.3, "dimensions": [...] }
+  },
+  "trajectory": {
+    "pm / Problem clarity":       [5.2, 6.8, 7.1],
+    "eng / Scalability":          [3.1, 3.4, 3.2],
+    "eng / API design":           [4.0, 4.5, 4.3]
+  },
+  "deltas": {
+    "pm / Problem clarity":       { "delta": +0.3,  "regressed": false },
+    "eng / Scalability":          { "delta": -0.2,  "regressed": true  },
+    "eng / API design":           { "delta": -0.2,  "regressed": true  }
+  }
+}
+```
 
-`current_round` and `max_rounds` are passed as data. The judge's system prompt
-instructs it to read these values and not choose `refine` when
-`current_round >= max_rounds`. The prompt is static; behaviour varies because
-the data varies.
+The trajectory and delta table allow the judge to reason about whether the loop is
+converging, saturating, or regressing — without the executor needing to encode any
+of that logic as rules.
+
+### Judge system prompt instructions
+
+The judge's system prompt instructs it to apply the following reasoning to the data
+it receives. These are guidelines encoded in the prompt, not hard rules in the
+executor:
+
+- **Deadband**: a score within `deadband` of its threshold is satisfactory unless
+  the dimension is explicitly Blocked. Do not choose `refine` to chase a score of
+  6.3 against a 6.5 threshold.
+
+- **Saturation**: if the trajectory shows a dimension has been targeted for
+  refinement across multiple rounds with little or no improvement, further
+  refinement is unlikely to help. Prefer `clarify` — the information needed is
+  probably not in the brief.
+
+- **Regression**: if the delta table shows dimensions that regressed this round, the
+  refinement process may be making the brief worse, not better. A human is probably
+  needed. Strongly prefer `clarify` and surface the regression in the rationale.
+
+- **Max rounds**: if `current_round == max_rounds`, do not choose `refine`.
+  Choose `proceed` if gaps are minor, `clarify` if any dimension is Blocked or
+  regressing.
+
+- **Partial failure**: if any advisor failed to score, treat their domain as
+  uncertain. Do not proceed if the failed domain is critical to the decision.
 
 ### Judge output
 
@@ -370,10 +431,10 @@ the data varies.
   "agent_to_refine": "engineering_lead",
   "refinement_prompt": "The scalability section is absent. Propose a data volume
                         estimate and identify the two highest-concurrency paths.",
-  "summary": "PM feedback is strong. Engineering flagged a critical scalability gap
-              that can be filled from existing context.",
-  "rationale": "Eng score is below threshold and the gap is addressable without
-                user input."
+  "summary": "PM feedback is strong. Engineering flagged a scalability gap that
+              can be filled from existing context.",
+  "rationale": "Eng score is below threshold. No regression detected. One round
+                remaining — targeted refinement is appropriate."
 }
 ```
 
@@ -384,30 +445,33 @@ the data varies.
     "How many concurrent users are expected at launch?",
     "Does this need to integrate with the existing billing system?"
   ],
-  "summary": "PM feedback is strong. Engineering cannot assess scalability without
-              knowing expected load.",
-  "rationale": "Scale requirements are absent and cannot be inferred."
+  "summary": "Engineering scores are regressing. Scalability and API design both
+              dropped this round despite a refinement attempt.",
+  "rationale": "Regression across two engineering dimensions suggests the brief
+                lacks information the advisor needs. A human is likely required."
 }
 ```
 
 ```json
 {
   "action": "proceed",
-  "summary": "Both advisors are satisfied. The remaining API design gap is minor
-              and appropriate to address during execution.",
-  "rationale": "Scores meet standard-review thresholds. No blockers remain."
+  "unresolved": ["eng / Scalability", "eng / API design"],
+  "summary": "PM feedback is strong. Engineering gaps remain but are below Blocked
+              and within deadband. Both will appear as investigation tasks.",
+  "rationale": "Scores meet standard-review thresholds within deadband. Remaining
+                gaps are appropriate to investigate during execution."
 }
 ```
 
 ### Refine path
 
-1. The named advisor receives the current brief and the `refinement_prompt`.
-2. It produces updated content.
+1. The named advisor receives the current brief and `refinement_prompt`.
+2. It produces updated content, subject to `config.timeouts.refine_step_seconds`.
 3. A new brief version is written (`source = 'advisor_refinement'`,
    `workflow_round_id = current round`).
 4. The current round is marked `completed`.
-5. The executor reads `loop_until` on the judge step, sees the action was `refine`
-   (not `proceed`), creates a new round, and returns to position 0.
+5. The executor reads `loop_until`, sees the action was not `proceed`, creates a
+   new round, and returns to position 0.
 
 ### Clarify path
 
@@ -423,10 +487,16 @@ the data varies.
 ### Proceed path
 
 1. The current round is marked `completed`.
-2. The executor reads `loop_until`, sees the action matches (`proceed`), and
-   advances to position 3.
-3. Task generation runs immediately against the latest brief version.
-4. No user confirmation is required.
+2. The executor reads `loop_until`, sees the action matches `proceed`, and advances
+   to position 3.
+3. The task planner receives the latest brief **plus** the list of `unresolved`
+   dimensions from the judge's decision. For each unresolved dimension it generates
+   a targeted investigation task, e.g.:
+
+   > *"Clarify expected user concurrency — Engineering scored scalability as unclear
+   > and this must be resolved before infrastructure decisions are made."*
+
+4. Task generation runs immediately. No user confirmation is required.
 
 ---
 
@@ -437,40 +507,33 @@ the data varies.
 The step list renders as a narrative feed:
 
 - **Advisor review cards** (`output_kind: score`): show the advisor's name, overall
-  status (Clear / Needs work / Blocked), and a per-dimension breakdown with rationale
-  text. If a score step failed, the card shows "Could not complete review" with the
-  failure reason. Numeric scores are not shown in the primary view.
+  status (Clear / Needs work / Blocked), and per-dimension breakdown with rationale
+  text. If a score step failed or timed out, the card shows "Could not complete
+  review" with the reason. Numeric scores are not shown in the primary view.
 
-- **Team lead cards** (`output_kind: decision`): shown most prominently. Display the
-  summary, the action taken, and why. For clarify actions, the answer form is inline
-  on this card (existing awaiting_input mechanism). For proceed actions, the card
-  transitions to show task generation progress inline — no separate button or
-  confirmation step.
+- **Team lead cards** (`output_kind: decision`): shown most prominently. Display
+  the summary, action taken, and why. For clarify actions the answer form is inline.
+  For proceed actions the card transitions to show task generation progress. If
+  `unresolved` dimensions are present, the card notes they will appear as
+  investigation tasks.
 
 - **Brief change indicators**: when an advisor has updated the brief, a labelled
-  callout shows what changed and who changed it, with a link to the full diff. This
-  appears inline in the feed at the point where the change was made.
+  callout shows what changed and who changed it, with a link to the full diff.
 
-Round numbers are stored in the data but not shown in the UI. If a second or third
-review cycle occurs, the feed simply continues.
+Round numbers are stored in the data but not shown in the UI.
 
 ### Brief diff view
 
-A "See what changed" link appears after each advisor refinement. It opens a diff of
-the brief before and after that edit, with the advisor and their rationale alongside.
-This is a required feature — it is the only way the user can verify that autonomous
-edits match their intent.
+A "See what changed" link appears after each advisor refinement. It opens a diff
+of the brief before and after that edit, with the advisor and their rationale
+alongside. Required, not optional.
 
 ### Scrutiny selector
-
-When starting a run (or as part of project creation), the user sees:
 
 > **How much scrutiny does this idea need?**
 > ○ Quick check — experiments and prototypes
 > ● Standard review — most features
 > ○ Rigorous review — high-stakes or hard-to-reverse decisions
-
-Their choice sets `config.scrutiny` and the derived thresholds and round limit.
 
 ---
 
@@ -481,6 +544,5 @@ workflow type.
 
 New columns (`round_id`, `score_run_id`, `execution_mode`, `loop_until`) are
 nullable or have defaults so existing rows remain valid. New tables
-(`workflow_rounds`, `project_briefs`) are additive. The existing `score-project!`
-code path is reused by score steps — they produce the same `score_run` rows; the
-workflow executor is the only new consumer.
+(`workflow_rounds`, `workflow_judge_records`, `project_briefs`) are additive. The
+existing `score-project!` code path is reused by score steps.
