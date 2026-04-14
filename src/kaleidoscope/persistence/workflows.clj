@@ -106,7 +106,7 @@
 
 (defn update-workflow!
   "Update a workflow's metadata and optionally replace all steps."
-  [db workflow-id {:keys [name description status steps]}]
+  [db workflow-id {:keys [name description status is-default steps]}]
   (next/with-transaction [tx db]
     (let [now (utils/now)]
       (first (rdbms/update! tx
@@ -115,7 +115,8 @@
                                      :updated-at now}
                               name        (assoc :name name)
                               description (assoc :description description)
-                              status      (assoc :status status)))))
+                              status      (assoc :status status)
+                              (some? is-default) (assoc :is-default (boolean is-default))))))
     (when (some? steps)
       ;; Full replace of steps
       (next/execute! tx
@@ -171,7 +172,7 @@
                                  (hsql/format {:select   :*
                                                :from     :project-workflow-step-runs
                                                :where    [:= :workflow-run-id (:id run)]
-                                               :order-by [[:position :asc]]})
+                                               :order-by [[:position :asc] [:created-at :asc]]})
                                  {:builder-fn rs/as-unqualified-kebab-maps})
         wf-name   (when (:workflow-id run)
                     (:name (first (get-workflows-raw db {:id (:workflow-id run)}))))]

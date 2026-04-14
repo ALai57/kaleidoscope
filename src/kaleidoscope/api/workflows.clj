@@ -15,7 +15,7 @@
 (def feature-development-workflow
   {:name        "Feature Development"
    :description "A structured workflow for evaluating and developing new software features."
-   :is-default  true
+   :is-default  false
    :steps       [{:name        "Clarify Description"
                   :description (str "If the project description is too brief to generate useful "
                                     "tasks, ask targeted questions to enrich it. Answers are "
@@ -50,7 +50,7 @@
    :description (str "Advisors review the brief in parallel, the team lead synthesizes feedback "
                      "and refines or clarifies autonomously. Task generation begins when the team "
                      "is satisfied.")
-   :is-default  false
+   :is-default  true
    :steps       [{:name           "PM Review"
                   :description    "Evaluate the product idea for clarity, market fit, and user value."
                   :position       0
@@ -111,12 +111,19 @@
     (doseq [wf-def [feature-development-workflow autonomous-team-review-workflow]]
       (let [wf-name (:name wf-def)]
         (if-let [existing-wf (get existing-map wf-name)]
-          ;; Workflow exists — update steps if the count changed
-          (let [current (persistence/get-workflow db (:id existing-wf))
-                want-n  (count (:steps wf-def))]
-            (when (not= (count (:steps current)) want-n)
-              (log/infof "Updating steps for workflow '%s' for user %s" wf-name user-id)
-              (persistence/update-workflow! db (:id existing-wf) {:steps (:steps wf-def)})))
+          ;; Workflow exists — update steps and/or is-default if changed
+          (let [current   (persistence/get-workflow db (:id existing-wf))
+                want-n    (count (:steps wf-def))
+                step-diff (not= (count (:steps current)) want-n)
+                flag-diff (not= (boolean (:is-default existing-wf))
+                                (boolean (:is-default wf-def)))]
+            (when (or step-diff flag-diff)
+              (log/infof "Updating workflow '%s' for user %s (steps=%s is-default=%s)"
+                         wf-name user-id step-diff flag-diff)
+              (persistence/update-workflow! db (:id existing-wf)
+                                            (cond-> {}
+                                              step-diff (assoc :steps (:steps wf-def))
+                                              flag-diff (assoc :is-default (:is-default wf-def))))))
           ;; Workflow doesn't exist — create it
           (do (log/infof "Seeding workflow '%s' for user %s" wf-name user-id)
               (persistence/create-workflow! db

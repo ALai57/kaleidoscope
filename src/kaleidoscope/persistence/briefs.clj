@@ -5,6 +5,16 @@
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]))
 
+(defn get-all-briefs
+  "Return all brief versions for a project, newest first."
+  [db project-id]
+  (next/execute! db
+                 (hsql/format {:select   :*
+                               :from     :project-briefs
+                               :where    [:= :project-id project-id]
+                               :order-by [[:version :desc]]})
+                 {:builder-fn rs/as-unqualified-kebab-maps}))
+
 (defn get-latest-brief
   "Return the highest-version brief for a project, or nil if none exists."
   [db project-id]

@@ -2,6 +2,7 @@
   (:require [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.api.projects :as projects-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.briefs :as briefs-persistence]
             [kaleidoscope.persistence.projects :as persistence]
             [kaleidoscope.scoring.agents :as agents]
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
@@ -261,4 +262,32 @@
                                                (:database components)
                                                project-id user-id skill-id body-params)]
                                   (ok tree)
-                                  (not-found {:reason "Project or skill not found"}))))}}]]]]])
+                                  (not-found {:reason "Project or skill not found"}))))}}]]]
+
+    ;; --- Briefs ---
+    ["/briefs"
+     ["" {:get {:summary "List all brief versions for a project"
+                :handler (fn [{:keys [components path-params] :as request}]
+                           (let [project-id (parse-uuid (:project-id path-params))]
+                             (ok (briefs-persistence/get-all-briefs
+                                  (:database components) project-id))))}}]
+
+     ["/latest"
+      {:get {:summary "Get the latest brief version for a project"
+             :handler (fn [{:keys [components path-params] :as request}]
+                        (let [project-id (parse-uuid (:project-id path-params))]
+                          (if-let [brief (briefs-persistence/get-latest-brief
+                                          (:database components) project-id)]
+                            (ok brief)
+                            (not-found {:reason "No brief found for this project"}))))}}]
+
+     ["/:version"
+      {:parameters {:path {:version string?}}
+       :get {:summary "Get a specific brief version"
+             :handler (fn [{:keys [components path-params] :as request}]
+                        (let [project-id (parse-uuid (:project-id path-params))
+                              version    (parse-long (:version path-params))]
+                          (if-let [brief (briefs-persistence/get-brief-by-version
+                                          (:database components) project-id version)]
+                            (ok brief)
+                            (not-found {:reason "Brief version not found"}))))}}]]]])
