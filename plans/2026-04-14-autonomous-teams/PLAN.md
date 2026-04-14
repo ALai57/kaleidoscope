@@ -5,7 +5,8 @@
 The user describes an idea. A team of advisors reviews it independently, each
 from their own angle. The team lead reads all the feedback, fixes what can be fixed
 without involving the user, and asks the user when something genuinely requires their
-input. Once the team is satisfied — or satisfied enough — they produce a task list.
+input. Once the team is satisfied — or satisfied enough — task generation begins
+automatically.
 
 The user's job is to describe their idea and answer questions when asked. Everything
 else happens on their behalf.
@@ -23,11 +24,11 @@ advisor found, in plain language. No action is required.
 A question (or short list of questions) is shown with a text input. The user
 answers and the review continues.
 
-**Ready** — The team is satisfied. The user sees a summary of what was found and
-confirmed, and a task list is ready. A "Continue" button lets them proceed.
+**Done** — The team is satisfied. Task generation ran automatically and the task
+list is ready.
 
-There is no round counter, no numeric score, no mention of iterations. The system
-tracks that information internally; the user does not need it.
+There is no round counter, no numeric score, no mention of iterations, no
+confirmation button. The system tracks that information internally.
 
 ---
 
@@ -35,7 +36,7 @@ tracks that information internally; the user does not need it.
 
 ```
                     ┌──────────────────────────────┐
-                    │  Advisors review the idea     │
+                    │  Advisors review the brief    │
                     │  (independently, in parallel) │
                     └──────────────┬───────────────┘
                                    │
@@ -48,16 +49,16 @@ tracks that information internally; the user does not need it.
            ┌───────────────────────┼───────────────────────┐
            ▼                       ▼                       ▼
     Advisor can fix it       Need user input          Good enough
-    autonomously             (pause for answer)       (proceed)
-           │                       │                       │
-    Advisor updates          User answers               Task list
-    the brief. Loop          appended to brief.         generated.
+    autonomously             (pause for answer)       → task generation
+           │                       │                   starts immediately
+    Advisor updates          User answers
+    the brief. Loop          appended to brief.
     repeats.                 Loop repeats.
 ```
 
 The loop runs until the team lead decides to proceed, or until the iteration limit
-is reached. At the limit the team lead must choose between proceeding despite gaps
-or asking the user — no further autonomous refinement is permitted.
+is reached. At the limit the team lead must choose between proceeding or asking the
+user — no further autonomous refinement is permitted.
 
 ---
 
@@ -120,15 +121,11 @@ Numeric scores exist in the data but are not shown in the primary UI.
 
 ## The team lead card
 
-The team lead's output is the most prominent element in the review. It shows:
+The team lead's output is the most prominent element in the review. It shows what
+the team found, what action was taken, and why.
 
-- What the team found (summary across advisors)
-- What action was taken or is being taken
-- Why
-
-When the action is **proceed**, the user sees a recommendation card and a
-"Continue to tasks" button. The user is always the one who clicks Continue — the
-team lead recommends, it does not decide unilaterally.
+When the action is **proceed**, task generation starts immediately and the team lead
+card summarises the outcome:
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -139,9 +136,7 @@ team lead recommends, it does not decide unilaterally.
 │ Lead. Remaining gaps (API interface detail) are    │
 │ minor enough to handle during execution.           │
 │                                                     │
-│ Recommendation: proceed.                            │
-│                                                     │
-│                        [ Continue to tasks ]        │
+│ Generating task list…                               │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -163,7 +158,7 @@ All scoring is computed against the current brief, not the original description.
 The user sees one thing: their idea, as it currently stands. When an advisor has
 added or changed something, it is shown with clear attribution:
 
-> *Engineering Lead added context on scalability (Round 2)*
+> *Engineering Lead added context on scalability*
 > *You added context on expected user volume*
 
 A diff view shows exactly what changed. This is not optional — silent autonomous
@@ -184,15 +179,15 @@ CREATE TABLE workflow_rounds (
   workflow_run_id UUID NOT NULL REFERENCES project_workflow_runs(id) ON DELETE CASCADE,
   round_number    INT  NOT NULL,
   status          TEXT NOT NULL DEFAULT 'in_progress', -- in_progress | completed
-  judge_action    TEXT,           -- refine | clarify | proceed (null until judge completes)
   started_at      TIMESTAMP NOT NULL DEFAULT now(),
   completed_at    TIMESTAMP,
   UNIQUE (workflow_run_id, round_number)
 );
 ```
 
-Rounds are a data model concept used for provenance and history. They are not
-surfaced as a UI concept.
+The round's outcome (refine / clarify / proceed) is derived by reading the
+`output_kind: decision` step result that belongs to this round. It is not
+denormalised onto the round row.
 
 ### Modified table: `project_workflow_step_runs`
 
@@ -203,24 +198,28 @@ ALTER TABLE project_workflow_step_runs
 ```
 
 `round_id` places the step result inside its round. `score_run_id` is set on score
-steps and is the reference to the authoritative score record. The step result does
-not duplicate score data.
+steps and is the single authoritative reference to the score record. Score data is
+not duplicated in the step result output field.
 
 ### New table: `project_briefs`
 
 ```sql
 CREATE TABLE project_briefs (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id   UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  version      INT  NOT NULL,
-  content      TEXT NOT NULL,
-  source       TEXT NOT NULL, -- 'initial' | 'advisor_refinement' | 'user_clarification'
-  agent_type   TEXT,          -- set when source = 'advisor_refinement'
-  round_number INT,           -- set when source != 'initial'
-  created_at   TIMESTAMP NOT NULL DEFAULT now(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id        UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  version           INT  NOT NULL,
+  content           TEXT NOT NULL,
+  source            TEXT NOT NULL, -- 'initial' | 'advisor_refinement' | 'user_clarification'
+  agent_type        TEXT,          -- set when source = 'advisor_refinement'
+  workflow_round_id UUID REFERENCES workflow_rounds(id), -- null for initial version
+  created_at        TIMESTAMP NOT NULL DEFAULT now(),
   UNIQUE (project_id, version)
 );
 ```
+
+`workflow_round_id` replaces a bare integer. A brief version produced in round 2 of
+run A is distinct from a brief version produced in round 2 of run B. The FK makes
+that provenance unambiguous.
 
 On project creation a version-1 brief is inserted with `source = 'initial'` and
 `content = description`. The description column on `projects` is not modified again.
@@ -246,31 +245,68 @@ The `config` column carries the policy block derived from the scrutiny level:
 
 ```sql
 ALTER TABLE score_runs
-  ADD COLUMN brief_version INT;  -- which brief version was scored
+  ADD COLUMN brief_version INT;
 ```
 
-### `output_kind` values
+Records which brief version was scored, closing the provenance loop.
 
-Two new values join the existing set (`text`, `clarify`, `tasks`):
+### Modified table: `workflow_steps`
 
-| value | meaning |
+```sql
+ALTER TABLE workflow_steps
+  ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'sequential',
+  ADD COLUMN loop_until     TEXT;
+```
+
+`execution_mode` separates execution behaviour from output shape (see below).
+`loop_until` carries the action value that terminates the loop; null means no loop.
+
+### `output_kind` and `execution_mode` values
+
+`output_kind` describes the **shape** of a step's output. `execution_mode` describes
+**how the executor runs the step** relative to its neighbours. These are independent
+dimensions and are stored in separate columns.
+
+**`output_kind` values:**
+
+| value | output shape |
 |---|---|
-| `score` | Step produces a score run; `score_run_id` is set on the step result |
-| `judge` | Step produces a routing decision; `judge_action` is set on the round |
+| `text` | Markdown prose |
+| `clarify` | JSON `{ready, reply}` |
+| `tasks` | JSON array of task objects |
+| `score` | References a `score_run`; numeric dimensions stored in `project_score_dimensions` |
+| `decision` | JSON routing decision `{action, summary, rationale, …}` |
+
+**`execution_mode` values:**
+
+| value | behaviour |
+|---|---|
+| `sequential` | Runs after the preceding step completes (default) |
+| `parallel` | Launches concurrently with other `parallel` steps in the same contiguous group |
+| `fan_in` | Waits for all preceding `parallel` steps to reach a terminal state before running |
 
 ---
 
 ## Workflow definition
 
 ```
-position 0  output_kind: score   agent: pm                name: "PM review"
-position 1  output_kind: score   agent: engineering_lead   name: "Engineering review"
-position 2  output_kind: judge   agent: judge              name: "Team Lead"
-position 3  output_kind: tasks   agent: task_planner       name: "Generate tasks"
+position 0  output_kind: score     execution_mode: parallel    agent: pm               name: "PM review"
+position 1  output_kind: score     execution_mode: parallel    agent: engineering_lead  name: "Engineering review"
+position 2  output_kind: decision  execution_mode: fan_in      agent: judge             name: "Team Lead"
+            loop_until: proceed
+position 3  output_kind: tasks     execution_mode: sequential  agent: task_planner      name: "Generate tasks"
 ```
 
-Positions 0–2 are the loop body. Position 3 runs exactly once after a proceed
-decision.
+The `loop_until: proceed` field on the judge step makes the loop contract explicit
+in the definition. The executor does not need special knowledge about `decision`
+steps — it reads `loop_until`, checks whether the step's output action matches, and
+either creates a new round or continues to position 3. A workflow with no
+`loop_until` on any step is purely linear. A workflow with `loop_until` on a
+non-judge step is equally valid.
+
+Positions 0–2 form the loop body by virtue of the judge step's position and its
+`loop_until` value. Position 3 is outside the loop because no step at or after it
+carries `loop_until`.
 
 ---
 
@@ -280,15 +316,51 @@ decision.
 
 When a run begins, the executor creates round 1. Each round:
 
-1. **Score (parallel)**: all `score` steps launch as concurrent futures. Each scores
-   the current brief version, writes a `score_run` and dimension rows, then creates
-   a step result with `score_run_id` set. No score step waits for another.
+1. **Score (parallel)**: all `execution_mode: parallel` steps launch as concurrent
+   futures. Each scores the current brief version and writes a `score_run` and
+   dimension rows, then creates a step result with `score_run_id` set.
 
-2. **Judge (serial)**: once all score futures complete, the judge step runs. It
-   receives the current brief, all score results for this round, and the policy
-   config from `workflow_run.config`.
+2. **Fan-in**: once all score futures reach a terminal state (completed or failed),
+   the `execution_mode: fan_in` step runs. Partial failure is handled here — see
+   below.
 
-3. **Routing**: the judge's structured output determines the next action.
+3. **Routing**: the judge reads its `loop_until` value from the step template and
+   compares it against the `action` field in its output. If they match, execution
+   advances to position 3. If not, a new round is created and execution returns to
+   position 0.
+
+### Partial score failure
+
+If a score step fails, its step result is marked `failed`. The fan-in step still
+runs once all steps have reached a terminal state. The judge receives:
+
+- Completed scores: full structured data as normal
+- Failed scores: a sentinel entry `{"failed": true, "agent": "engineering_lead"}`
+
+The judge's system prompt instructs it to handle missing scores explicitly: note
+the failure in the summary, bias toward `clarify` if a failed advisor's domain is
+critical to the decision, and avoid proceeding when key evidence is absent. The
+judge does not pretend missing scores are satisfactory; it accounts for them.
+
+### Partial failure at the round level
+
+A round is marked `completed` when the fan-in step finishes, regardless of whether
+any score steps failed. A round is only marked `failed` if the judge step itself
+fails. This keeps the failure semantics narrow: a round represents a complete
+deliberation attempt, and partial evidence is still deliberation.
+
+### Judge input
+
+The judge step receives:
+
+- The current brief (latest version)
+- All score step results for this round (including any failure sentinels)
+- The policy config: `{scrutiny, max_rounds, thresholds, current_round}`
+
+`current_round` and `max_rounds` are passed as data. The judge's system prompt
+instructs it to read these values and not choose `refine` when
+`current_round >= max_rounds`. The prompt is static; behaviour varies because
+the data varies.
 
 ### Judge output
 
@@ -312,10 +384,9 @@ When a run begins, the executor creates round 1. Each round:
     "How many concurrent users are expected at launch?",
     "Does this need to integrate with the existing billing system?"
   ],
-  "summary": "PM feedback is strong. Engineering cannot score scalability without
+  "summary": "PM feedback is strong. Engineering cannot assess scalability without
               knowing expected load.",
-  "rationale": "Scale requirements are absent and cannot be inferred. User input
-                is required before engineering can assess feasibility."
+  "rationale": "Scale requirements are absent and cannot be inferred."
 }
 ```
 
@@ -332,9 +403,11 @@ When a run begins, the executor creates round 1. Each round:
 
 1. The named advisor receives the current brief and the `refinement_prompt`.
 2. It produces updated content.
-3. A new brief version is written (`source = 'advisor_refinement'`).
-4. The current round is marked completed (`judge_action = 'refine'`).
-5. A new round is created. Execution returns to the score phase.
+3. A new brief version is written (`source = 'advisor_refinement'`,
+   `workflow_round_id = current round`).
+4. The current round is marked `completed`.
+5. The executor reads `loop_until` on the judge step, sees the action was `refine`
+   (not `proceed`), creates a new round, and returns to position 0.
 
 ### Clarify path
 
@@ -342,22 +415,18 @@ When a run begins, the executor creates round 1. Each round:
 2. The run is set to `awaiting_input` (existing mechanism).
 3. The UI surfaces the team lead card with the questions and answer form.
 4. When the user submits answers:
-   - A new brief version is written (`source = 'user_clarification'`).
-   - The current round is marked completed (`judge_action = 'clarify'`).
-   - A new round is created. Execution resumes from the score phase.
+   - A new brief version is written (`source = 'user_clarification'`,
+     `workflow_round_id = current round`).
+   - The current round is marked `completed`.
+   - A new round is created. Execution resumes from position 0.
 
 ### Proceed path
 
-1. The current round is marked completed (`judge_action = 'proceed'`).
-2. The team lead card is shown with a "Continue to tasks" button.
-3. When the user clicks Continue, the execute step runs: task generation against
-   the latest brief version.
-
-### Max-round guard
-
-Before creating a new round, check `round_number >= config.max_rounds`. If at the
-limit, the judge prompt is amended: *"This is the final round. No further refinement
-is permitted. Choose proceed or clarify."*
+1. The current round is marked `completed`.
+2. The executor reads `loop_until`, sees the action matches (`proceed`), and
+   advances to position 3.
+3. Task generation runs immediately against the latest brief version.
+4. No user confirmation is required.
 
 ---
 
@@ -365,31 +434,32 @@ is permitted. Choose proceed or clarify."*
 
 ### WorkflowStepper
 
-The step list renders as a narrative feed, not a ledger of rounds:
+The step list renders as a narrative feed:
 
 - **Advisor review cards** (`output_kind: score`): show the advisor's name, overall
   status (Clear / Needs work / Blocked), and a per-dimension breakdown with rationale
-  text. Numeric scores are not shown in the primary view.
+  text. If a score step failed, the card shows "Could not complete review" with the
+  failure reason. Numeric scores are not shown in the primary view.
 
-- **Team lead cards** (`output_kind: judge`): shown most prominently. Display the
-  summary, the action taken, and (for proceed) the "Continue to tasks" button. For
-  clarify actions, the answer form is inline on this card (existing awaiting_input
-  mechanism, re-skinned to match).
+- **Team lead cards** (`output_kind: decision`): shown most prominently. Display the
+  summary, the action taken, and why. For clarify actions, the answer form is inline
+  on this card (existing awaiting_input mechanism). For proceed actions, the card
+  transitions to show task generation progress inline — no separate button or
+  confirmation step.
 
 - **Brief change indicators**: when an advisor has updated the brief, a labelled
   callout shows what changed and who changed it, with a link to the full diff. This
-  appears inline in the narrative feed at the point where the change was made.
+  appears inline in the feed at the point where the change was made.
 
-Round numbers are stored in the data but not shown as headers or labels in the UI.
-If a second or third review cycle occurs, the feed simply continues — the user sees
-advisors reviewing again, not "Round 2 begins."
+Round numbers are stored in the data but not shown in the UI. If a second or third
+review cycle occurs, the feed simply continues.
 
 ### Brief diff view
 
 A "See what changed" link appears after each advisor refinement. It opens a diff of
-the brief before and after the advisor's edit, with the advisor and their rationale
-shown alongside. This is a required feature, not optional — it is the only way the
-user can verify that autonomous edits match their intent.
+the brief before and after that edit, with the advisor and their rationale alongside.
+This is a required feature — it is the only way the user can verify that autonomous
+edits match their intent.
 
 ### Scrutiny selector
 
@@ -397,7 +467,7 @@ When starting a run (or as part of project creation), the user sees:
 
 > **How much scrutiny does this idea need?**
 > ○ Quick check — experiments and prototypes
-> ● Standard review — most features  
+> ● Standard review — most features
 > ○ Rigorous review — high-stakes or hard-to-reverse decisions
 
 Their choice sets `config.scrutiny` and the derived thresholds and round limit.
@@ -409,7 +479,8 @@ Their choice sets `config.scrutiny` and the derived thresholds and round limit.
 The current four-step linear workflow continues to work unchanged. This is a new
 workflow type.
 
-New columns (`round_id`, `score_run_id`) are nullable so existing step result rows
-remain valid. New tables (`workflow_rounds`, `project_briefs`) are additive. The
-existing `score-project!` code path is reused by score steps — they produce the
-same `score_run` rows; the workflow executor is the only new consumer.
+New columns (`round_id`, `score_run_id`, `execution_mode`, `loop_until`) are
+nullable or have defaults so existing rows remain valid. New tables
+(`workflow_rounds`, `project_briefs`) are additive. The existing `score-project!`
+code path is reused by score steps — they produce the same `score_run` rows; the
+workflow executor is the only new consumer.
