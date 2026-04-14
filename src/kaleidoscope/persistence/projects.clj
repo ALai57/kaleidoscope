@@ -74,6 +74,21 @@
     (let [dims (get-score-dimension-definitions-raw db {:score-definition-id definition-id})]
       (assoc defn :dimensions (vec (sort-by :position dims))))))
 
+(defn get-default-score-definition-by-scorer-type
+  "Return the first is_default=true score definition matching a scorer type, with dimensions."
+  [db user-id scorer-type]
+  (when-let [defn (first (next/execute! db
+                                        (hsql/format {:select :*
+                                                      :from   :score-definitions
+                                                      :where  [:and
+                                                               [:= :user-id user-id]
+                                                               [:= :scorer-type scorer-type]
+                                                               [:= :is-default true]]
+                                                      :limit  1})
+                                        {:builder-fn rs/as-unqualified-kebab-maps}))]
+    (let [dims (get-score-dimension-definitions-raw db {:score-definition-id (:id defn)})]
+      (assoc defn :dimensions (vec (sort-by :position dims))))))
+
 (defn get-default-score-definitions
   "Return all is_default=true score definitions with their dimensions."
   [db user-id]
@@ -178,21 +193,38 @@
                                      {:builder-fn rs/as-unqualified-kebab-maps}))]
     (inc (:max-version result 0))))
 
+(defn get-score-run
+  "Return a score run with its dimension results."
+  [db score-run-id]
+  (when-let [run (first (next/execute! db
+                                       (hsql/format {:select :*
+                                                     :from   :project-score-runs
+                                                     :where  [:= :id score-run-id]})
+                                       {:builder-fn rs/as-unqualified-kebab-maps}))]
+    (let [dims (next/execute! db
+                              (hsql/format {:select :*
+                                            :from   :project-score-dimensions
+                                            :where  [:= :score-run-id score-run-id]})
+                              {:builder-fn rs/as-unqualified-kebab-maps})]
+      (assoc run :dimensions (vec dims)))))
+
 (defn insert-score-run!
-  "Insert a versioned score run and its dimension results within a transaction."
-  [db project-id definition-id {:keys [overall dimensions]}]
+  "Insert a versioned score run and its dimension results within a transaction.
+   brief-version (optional) links the score to a specific project brief version."
+  [db project-id definition-id {:keys [overall dimensions brief-version]}]
   (next/with-transaction [tx db]
     (let [now      (utils/now)
           version  (next-version! tx project-id definition-id)
           run-id   (utils/uuid)
           run      (first (rdbms/insert! tx
                                          :project-score-runs
-                                         {:id                  run-id
-                                          :project-id          project-id
-                                          :score-definition-id definition-id
-                                          :version             version
-                                          :overall             overall
-                                          :scored-at           now}
+                                         (cond-> {:id                  run-id
+                                                  :project-id          project-id
+                                                  :score-definition-id definition-id
+                                                  :version             version
+                                                  :overall             overall
+                                                  :scored-at           now}
+                                           brief-version (assoc :brief-version brief-version))
                                          :ex-subtype :UnableToCreateScoreRun))
           dim-rows (vec (map (fn [{:keys [dimension-name value rationale]}]
                                {:id             (utils/uuid)

@@ -87,16 +87,19 @@
         (rdbms/insert! tx
                        :workflow-steps
                        (vec (map-indexed
-                              (fn [i {:keys [name description position agent-type output-kind]}]
-                                {:id          (utils/uuid)
-                                 :workflow-id (:id wf)
-                                 :position    (or position i)
-                                 :name        name
-                                 :description description
-                                 :agent-type  (or agent-type "coach")
-                                 :output-kind (or output-kind "text")
-                                 :created-at  now
-                                 :updated-at  now})
+                              (fn [i {:keys [name description position agent-type output-kind
+                                            execution-mode loop-until]}]
+                                {:id             (utils/uuid)
+                                 :workflow-id    (:id wf)
+                                 :position       (or position i)
+                                 :name           name
+                                 :description    description
+                                 :agent-type     (or agent-type "coach")
+                                 :output-kind    (or output-kind "text")
+                                 :execution-mode (or execution-mode "sequential")
+                                 :loop-until     loop-until
+                                 :created-at     now
+                                 :updated-at     now})
                               steps))
                        :ex-subtype :UnableToCreateWorkflowStep))
       (get-workflow tx (:id wf)))))
@@ -124,16 +127,19 @@
           (rdbms/insert! tx
                          :workflow-steps
                          (vec (map-indexed
-                                (fn [i {:keys [name description position agent-type output-kind]}]
-                                  {:id          (utils/uuid)
-                                   :workflow-id workflow-id
-                                   :position    (or position i)
-                                   :name        name
-                                   :description description
-                                   :agent-type  (or agent-type "coach")
-                                   :output-kind (or output-kind "text")
-                                   :created-at  now
-                                   :updated-at  now})
+                                (fn [i {:keys [name description position agent-type output-kind
+                                               execution-mode loop-until]}]
+                                  {:id             (utils/uuid)
+                                   :workflow-id    workflow-id
+                                   :position       (or position i)
+                                   :name           name
+                                   :description    description
+                                   :agent-type     (or agent-type "coach")
+                                   :output-kind    (or output-kind "text")
+                                   :execution-mode (or execution-mode "sequential")
+                                   :loop-until     loop-until
+                                   :created-at     now
+                                   :updated-at     now})
                                 steps))
                          :ex-subtype :UnableToUpdateWorkflowStep))))
     (get-workflow tx workflow-id)))
@@ -191,21 +197,24 @@
     (enrich-run db run)))
 
 (defn create-workflow-run!
-  "Create a run for a project. If workflow-id is provided, also creates
-   a pending step_run for each workflow step."
-  [db project-id workflow-id mode]
+  "Create a run for a project. If workflow-id is provided, creates a pending
+   step_run for each sequential step. Parallel and fan_in steps are created
+   per-round when the loop executor starts — not upfront.
+   config carries the policy block (scrutiny level, thresholds, etc.)."
+  [db project-id workflow-id mode config]
   (next/with-transaction [tx db]
     (let [now (utils/now)
           run (first (rdbms/insert! tx
                                     :project-workflow-runs
-                                    {:id          (utils/uuid)
-                                     :project-id  project-id
-                                     :workflow-id workflow-id
-                                     :status      "in_progress"
+                                    {:id           (utils/uuid)
+                                     :project-id   project-id
+                                     :workflow-id  workflow-id
+                                     :status       "in_progress"
                                      :current-step 0
-                                     :mode        (or mode "manual")
-                                     :started-at  now
-                                     :created-at  now}
+                                     :mode         (or mode "manual")
+                                     :config       (or config {})
+                                     :started-at   now
+                                     :created-at   now}
                                     :ex-subtype :UnableToCreateWorkflowRun))]
       (when workflow-id
         (let [steps (next/execute! tx
@@ -213,23 +222,26 @@
                                                  :from     :workflow-steps
                                                  :where    [:= :workflow-id workflow-id]
                                                  :order-by [[:position :asc]]})
-                                   {:builder-fn rs/as-unqualified-kebab-maps})]
-          (when (seq steps)
+                                   {:builder-fn rs/as-unqualified-kebab-maps})
+              ;; Only create step runs for sequential steps upfront.
+              ;; Parallel and fan_in steps are created fresh per round.
+              sequential-steps (filter #(= "sequential" (or (:execution-mode %) "sequential")) steps)]
+          (when (seq sequential-steps)
             (rdbms/insert! tx
                            :project-workflow-step-runs
-                           (vec (map-indexed
-                                  (fn [i step]
-                                    {:id              (utils/uuid)
-                                     :workflow-run-id (:id run)
-                                     :step-id         (:id step)
-                                     :position        i
-                                     :name            (:name step)
-                                     :description     (:description step)
-                                     :agent-type      (or (:agent-type step) "coach")
-                                     :output-kind     (or (:output-kind step) "text")
-                                     :is-custom       false
-                                     :status          "pending"})
-                                  steps))
+                           (mapv (fn [step]
+                                   {:id              (utils/uuid)
+                                    :workflow-run-id (:id run)
+                                    :step-id         (:id step)
+                                    :position        (:position step)
+                                    :name            (:name step)
+                                    :description     (:description step)
+                                    :agent-type      (or (:agent-type step) "coach")
+                                    :output-kind     (or (:output-kind step) "text")
+                                    :execution-mode  "sequential"
+                                    :is-custom       false
+                                    :status          "pending"})
+                                 sequential-steps)
                            :ex-subtype :UnableToCreateStepRun))))
       (enrich-run tx run))))
 
@@ -268,6 +280,25 @@
                          :status          "pending"}
                         :ex-subtype :UnableToCreateStepRun)))
 
+(defn create-refinement-step-run!
+  "Insert an ad-hoc refine step_run associated with a round."
+  [db workflow-run-id {:keys [name description agent-type round-id position]}]
+  (first (rdbms/insert! db
+                        :project-workflow-step-runs
+                        {:id              (utils/uuid)
+                         :workflow-run-id workflow-run-id
+                         :step-id         nil
+                         :round-id        round-id
+                         :position        (or position 99)
+                         :name            (or name "Advisor refinement")
+                         :description     description
+                         :agent-type      (or agent-type "coach")
+                         :output-kind     "refine"
+                         :execution-mode  "sequential"
+                         :is-custom       true
+                         :status          "pending"}
+                        :ex-subtype :UnableToCreateStepRun)))
+
 (defn next-custom-step-position
   "Return the next available position for a step_run in a run."
   [db workflow-run-id]
@@ -277,3 +308,162 @@
                                                    :where  [:= :workflow-run-id workflow-run-id]})
                                      {:builder-fn rs/as-unqualified-kebab-maps}))]
     (inc (:max-pos result -1))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Workflow rounds
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn create-round!
+  "Create a new in_progress round for a workflow run."
+  [db workflow-run-id round-number]
+  (first (rdbms/insert! db
+                        :workflow-rounds
+                        {:id              (utils/uuid)
+                         :workflow-run-id workflow-run-id
+                         :round-number    round-number
+                         :status          "in_progress"
+                         :started-at      (utils/now)}
+                        :ex-subtype :UnableToCreateRound)))
+
+(defn complete-round!
+  "Mark a round as completed."
+  [db round-id]
+  (first (rdbms/update! db
+                        :workflow-rounds
+                        {:id           round-id
+                         :status       "completed"
+                         :completed-at (utils/now)})))
+
+(defn get-round
+  "Return a single round by its ID."
+  [db round-id]
+  (first (next/execute! db
+                        (hsql/format {:select :*
+                                      :from   :workflow-rounds
+                                      :where  [:= :id round-id]})
+                        {:builder-fn rs/as-unqualified-kebab-maps})))
+
+(defn get-current-round
+  "Return the in_progress round for a workflow run, or nil if none."
+  [db workflow-run-id]
+  (first (next/execute! db
+                        (hsql/format {:select   :*
+                                      :from     :workflow-rounds
+                                      :where    [:and
+                                                 [:= :workflow-run-id workflow-run-id]
+                                                 [:= :status "in_progress"]]
+                                      :order-by [[:round-number :desc]]
+                                      :limit    1})
+                        {:builder-fn rs/as-unqualified-kebab-maps})))
+
+(defn get-all-rounds
+  "Return all rounds for a run, ordered by round_number."
+  [db workflow-run-id]
+  (next/execute! db
+                 (hsql/format {:select   :*
+                                :from     :workflow-rounds
+                                :where    [:= :workflow-run-id workflow-run-id]
+                                :order-by [[:round-number :asc]]})
+                 {:builder-fn rs/as-unqualified-kebab-maps}))
+
+(defn create-round-step-runs!
+  "Create pending step runs for all parallel and fan_in steps in a workflow for a given round.
+   These are the steps that execute within each loop iteration."
+  [db workflow-run-id workflow-id round-id]
+  (let [loop-steps (next/execute! db
+                                  (hsql/format {:select   :*
+                                                :from     :workflow-steps
+                                                :where    [:and
+                                                           [:= :workflow-id workflow-id]
+                                                           [:in :execution-mode ["parallel" "fan_in"]]]
+                                                :order-by [[:position :asc]]})
+                                  {:builder-fn rs/as-unqualified-kebab-maps})]
+    (when (seq loop-steps)
+      (rdbms/insert! db
+                     :project-workflow-step-runs
+                     (mapv (fn [step]
+                             {:id              (utils/uuid)
+                              :workflow-run-id workflow-run-id
+                              :step-id         (:id step)
+                              :round-id        round-id
+                              :position        (:position step)
+                              :name            (:name step)
+                              :description     (:description step)
+                              :agent-type      (or (:agent-type step) "coach")
+                              :output-kind     (or (:output-kind step) "text")
+                              :execution-mode  (or (:execution-mode step) "sequential")
+                              :loop-until      (:loop-until step)
+                              :is-custom       false
+                              :status          "pending"})
+                           loop-steps)
+                     :ex-subtype :UnableToCreateStepRun))))
+
+(defn get-step-runs-by-round-and-mode
+  "Return step runs for a given round filtered by execution_mode and status.
+   statuses defaults to #{\"pending\"} to avoid re-running completed steps.
+   Pass nil to return all statuses."
+  ([db workflow-run-id round-id execution-mode]
+   (get-step-runs-by-round-and-mode db workflow-run-id round-id execution-mode #{"pending"}))
+  ([db workflow-run-id round-id execution-mode statuses]
+   (next/execute! db
+                  (hsql/format {:select   :*
+                                 :from     :project-workflow-step-runs
+                                 :where    (cond-> [:and
+                                                    [:= :workflow-run-id workflow-run-id]
+                                                    [:= :round-id round-id]
+                                                    [:= :execution-mode execution-mode]]
+                                             statuses (conj [:in :status (vec statuses)]))
+                                 :order-by [[:position :asc]]})
+                  {:builder-fn rs/as-unqualified-kebab-maps})))
+
+(defn workflow-has-loop-steps?
+  "Returns true if the workflow has any parallel or fan_in steps."
+  [db workflow-id]
+  (boolean (seq (next/execute! db
+                               (hsql/format {:select   :*
+                                             :from     :workflow-steps
+                                             :where    [:and
+                                                        [:= :workflow-id workflow-id]
+                                                        [:in :execution-mode ["parallel" "fan_in"]]]
+                                             :limit    1})
+                               {:builder-fn rs/as-unqualified-kebab-maps}))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Judge records
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn create-judge-record!
+  "Persist the complete input snapshot and output for a team-lead decision.
+   This table is append-only — every decision is fully reconstructable from it."
+  [db {:keys [step-run-id round-id brief-version score-snapshot trajectory
+              delta-table policy decision]}]
+  (first (rdbms/insert! db
+                        :workflow-judge-records
+                        {:id             (utils/uuid)
+                         :step-run-id    step-run-id
+                         :round-id       round-id
+                         :brief-version  brief-version
+                         :score-snapshot score-snapshot
+                         :trajectory     trajectory
+                         :delta-table    delta-table
+                         :policy         policy
+                         :decision       decision
+                         :created-at     (utils/now)}
+                        :ex-subtype :UnableToCreateJudgeRecord)))
+
+(defn get-latest-judge-record
+  "Return the most recent judge record for a workflow run, or nil.
+   Joins through workflow_rounds to filter by run."
+  [db workflow-run-id]
+  (first (next/execute! db
+                        (hsql/format {:select   [[:wjr/id :id]
+                                                 [:wjr/round-id :round-id]
+                                                 [:wjr/brief-version :brief-version]
+                                                 [:wjr/decision :decision]
+                                                 [:wjr/created-at :created-at]]
+                                      :from     [[:workflow-judge-records :wjr]]
+                                      :join     [[:workflow-rounds :wr] [:= :wr/id :wjr/round-id]]
+                                      :where    [:= :wr/workflow-run-id workflow-run-id]
+                                      :order-by [[:wjr/created-at :desc]]
+                                      :limit    1})
+                        {:builder-fn rs/as-unqualified-kebab-maps})))

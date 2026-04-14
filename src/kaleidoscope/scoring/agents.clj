@@ -198,16 +198,88 @@ JSON schema per task:
   \"estimated_minutes\": int
 }")
 
+(def team-lead-system-prompt
+  "You are the team lead synthesizing advisor feedback for a project idea review.
+You have received structured scores from all advisors, the trajectory of those scores
+across rounds, and a delta table showing improvement or regression this round.
+
+Your job is to decide the next action:
+
+- \"proceed\": The brief is ready for task generation. Scores meet thresholds
+  (with deadband tolerance), or remaining gaps are minor and can become investigation tasks.
+- \"refine\": A specific advisor should enrich the brief autonomously. Use this only when
+  a concrete gap can be filled from information already in the brief or easily inferred.
+- \"clarify\": The user needs to answer questions. Use this when information is genuinely
+  missing, when scores are regressing, or when the same dimension has been targeted for
+  multiple rounds without improvement (saturation).
+
+DECISION RULES (apply these in order):
+1. Max rounds: If current_round == max_rounds, do not choose refine. Choose proceed if
+   all gaps are within deadband, clarify if any dimension is Blocked or regressing.
+2. Regression: If the delta table shows dimensions that regressed this round, strongly
+   prefer clarify and surface the regression in the rationale.
+3. Saturation: If a dimension has been targeted across multiple rounds with little or no
+   improvement, prefer clarify — the information is probably not in the brief.
+4. Deadband: A score within deadband of its threshold is satisfactory unless Blocked.
+   Do not choose refine to chase a marginally below-threshold score.
+5. Partial failure: If an advisor failed to score, treat their domain as uncertain.
+   Do not proceed if the failed domain is critical.
+
+Return ONLY a JSON object.
+
+For proceed:
+{
+  \"action\": \"proceed\",
+  \"unresolved\": [\"<advisor_type> / <dimension_name>\", ...],
+  \"summary\": \"<1-3 sentence summary visible to the user>\",
+  \"rationale\": \"<internal reasoning explaining the decision>\"
+}
+
+For refine:
+{
+  \"action\": \"refine\",
+  \"agent_to_refine\": \"<agent_type>\",
+  \"refinement_prompt\": \"<specific, actionable instruction for the advisor>\",
+  \"summary\": \"<1-3 sentence summary visible to the user>\",
+  \"rationale\": \"<internal reasoning explaining the decision>\"
+}
+
+For clarify:
+{
+  \"action\": \"clarify\",
+  \"questions\": [\"<question 1>\", \"<question 2>\"],
+  \"summary\": \"<1-3 sentence summary visible to the user>\",
+  \"rationale\": \"<internal reasoning explaining the decision>\"
+}
+
+Return ONLY the JSON object. No preamble, no markdown, no additional text.")
+
+(def advisor-refinement-system-prompt
+  "You are an expert advisor being asked to enrich a project brief with specific context.
+You have received the current brief and a targeted gap identified by the team lead.
+
+Your job is to produce additional content that fills the identified gap, based on what
+can reasonably be inferred from the brief, the project title, and general domain knowledge.
+
+Rules:
+- Do NOT contradict or remove any existing content.
+- Do NOT invent specific metrics, names, or commitments that aren't implied by the brief.
+- Write 2-4 focused paragraphs that directly address the stated gap.
+- Write in a neutral, descriptive tone as if documenting a design discussion.
+
+Return ONLY the additional content to append to the brief. No preamble, no JSON.")
+
 (defn get-system-prompt
   "Return the system prompt for a given scorer-type or agent-type."
   [agent-type]
   (case agent-type
-    ("pm" :pm)                                   pm-system-prompt
+    ("pm" :pm)                                    pm-system-prompt
     ("engineering_lead" :engineering-lead)        engineering-lead-system-prompt
     ("coach" :coach)                              coach-system-prompt
     ("pm_agent" :pm-agent)                        pm-agent-system-prompt
     ("eng_agent" :eng-agent)                      engineering-lead-agent-system-prompt
     ("task_planner" :task-planner)                task-planner-generation-system-prompt
+    ("judge" :judge)                              team-lead-system-prompt
     general-system-prompt))
 
 (defn build-scoring-user-prompt

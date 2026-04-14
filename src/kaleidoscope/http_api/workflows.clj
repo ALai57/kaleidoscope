@@ -90,17 +90,20 @@
                                 (ok runs)
                                 (not-found {:reason "Project not found"}))))}
 
-           :post {:summary "Start a new workflow run (body: {workflow_id?, mode})"
+           :post {:summary "Start a new workflow run (body: {workflow_id?, mode, scrutiny?})"
                   :handler (fn [{:keys [components body-params path-params] :as request}]
                              (let [user-id     (oidc/get-verified-email (:identity request))
                                    project-id  (parse-uuid (:project-id path-params))
                                    workflow-id (when-let [id (:workflow-id body-params)]
                                                  (parse-uuid id))
-                                   mode        (:mode body-params "manual")]
+                                   mode        (:mode body-params "manual")
+                                   scrutiny    (:scrutiny body-params)]
                                (if-let [run (workflows-api/create-run!
                                              (:database components)
                                              project-id user-id
-                                             {:workflow-id workflow-id :mode mode})]
+                                             {:workflow-id workflow-id
+                                              :mode        mode
+                                              :scrutiny    scrutiny})]
                                  (ok run)
                                  (not-found {:reason "Project not found"}))))}}]
 
