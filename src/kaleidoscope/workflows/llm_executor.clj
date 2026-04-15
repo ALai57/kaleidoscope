@@ -430,8 +430,17 @@ Rank these workflows by how well they match the project."
                         (:api-key executor) system-prompt user-prompt definition)
         score-run     (projects-persistence/insert-score-run! db (:id project) (:id definition)
                                                               (assoc score-result :brief-version brief-version))
-        output-data   (cond-> {:score-run-id (str (:id score-run))}
-                        code-path (assoc :context-path code-path))
+        ;; Normalize to the shape the frontend AdvisorScoreOutput type expects:
+        ;; dimensions use "name" (not "dimension-name"); context path uses underscore key.
+        ;; The output field is a raw JSON string — the API client's kebab→snake transform
+        ;; does not apply to string values, so keys must already be in the right format.
+        norm-dims     (mapv (fn [{:keys [dimension-name value rationale]}]
+                              {"name" dimension-name "value" value "rationale" rationale})
+                            (:dimensions score-result))
+        output-data   (cond-> {"overall"      (:overall score-result)
+                                "dimensions"   norm-dims
+                                "score_run_id" (str (:id score-run))}
+                        code-path (assoc "context_path" code-path))
         completed     (persistence/update-step-run! db (:id step-run)
                                                     {:status       "completed"
                                                      :output       (json/encode output-data)

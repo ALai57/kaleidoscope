@@ -174,7 +174,7 @@
                                  (hsql/format {:select   :*
                                                :from     :project-workflow-step-runs
                                                :where    [:= :workflow-run-id (:id run)]
-                                               :order-by [[:position :asc] [:created-at :asc]]})
+                                               :order-by [[:position :asc]]})
                                  {:builder-fn rs/as-unqualified-kebab-maps})
         wf-name   (when (:workflow-id run)
                     (:name (first (get-workflows-raw db {:id (:workflow-id run)}))))]
