@@ -8,10 +8,17 @@
    {:tags     ["agents"]
     :security [{:andrewslai-pkce ["roles" "profile"]}]}
 
-   ["" {:get {:summary "List agent definitions for the authenticated user (seeds defaults on first access)"
-              :handler (fn [{:keys [components] :as request}]
-                         (let [user-id (oidc/get-verified-email (:identity request))]
-                           (ok (agents-api/get-agent-definitions (:database components) user-id))))}}]
+   ["" {:get  {:summary "List agent definitions for the authenticated user (seeds defaults on first access)"
+               :handler (fn [{:keys [components] :as request}]
+                          (let [user-id (oidc/get-verified-email (:identity request))]
+                            (ok (agents-api/get-agent-definitions (:database components) user-id))))}
+         :post {:summary "Create a new custom agent definition"
+                :handler (fn [{:keys [components body-params] :as request}]
+                           (let [user-id (oidc/get-verified-email (:identity request))]
+                             (ok (agents-api/create-agent-definition!
+                                  (:database components)
+                                  user-id
+                                  body-params))))}}]
 
    ["/:definition-id"
     {:parameters {:path {:definition-id string?}}}
