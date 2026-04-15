@@ -104,6 +104,18 @@
 ;; Seeding
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn- step-signature
+  "Extract the fields that define a step's behaviour (excludes DB bookkeeping)."
+  [step]
+  (select-keys step [:name :position :agent-type :output-kind :execution-mode :loop-until :requires]))
+
+(defn- steps-changed?
+  "True if the desired step definitions differ from the current DB rows in any
+   field that affects execution (not just count)."
+  [current-steps want-steps]
+  (not= (mapv step-signature (sort-by :position current-steps))
+        (mapv step-signature (sort-by :position want-steps))))
+
 (defn seed-default-workflows!
   "Seed the default workflows for a user. Creates or updates steps as needed."
   [db user-id]
@@ -112,10 +124,9 @@
     (doseq [wf-def [feature-development-workflow autonomous-team-review-workflow]]
       (let [wf-name (:name wf-def)]
         (if-let [existing-wf (get existing-map wf-name)]
-          ;; Workflow exists — update steps and/or is-default if changed
+          ;; Workflow exists — update steps and/or is-default if anything changed
           (let [current   (persistence/get-workflow db (:id existing-wf))
-                want-n    (count (:steps wf-def))
-                step-diff (not= (count (:steps current)) want-n)
+                step-diff (steps-changed? (:steps current) (:steps wf-def))
                 flag-diff (not= (boolean (:is-default existing-wf))
                                 (boolean (:is-default wf-def)))]
             (when (or step-diff flag-diff)
