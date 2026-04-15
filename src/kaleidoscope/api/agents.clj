@@ -9,28 +9,36 @@
 
 (def default-agent-definitions
   [{:agent-type    "coach"
-    :display-name  "Project Coach"
+    :name          "Project Coach"
+    :short-name    "Coach"
     :avatar        "🐬"
+    :color         "#0891b2"
     :system-prompt agents/coach-system-prompt
     :is-default    true}
    {:agent-type    "pm"
-    :display-name  "Product Manager"
+    :name          "Product Manager"
+    :short-name    "Product"
     :avatar        "🦊"
+    :color         "#7c3aed"
     :system-prompt agents/pm-agent-system-prompt
     :is-default    true}
    {:agent-type    "engineering_lead"
-    :display-name  "Engineering Lead"
+    :name          "Engineering Lead"
+    :short-name    "Architect"
     :avatar        "🦉"
+    :color         "#0369a1"
     :system-prompt agents/engineering-lead-agent-system-prompt
     :is-default    true}
    {:agent-type    "task_planner"
-    :display-name  "Task Planner"
+    :name          "Task Planner"
+    :short-name    "Planner"
     :avatar        "📋"
+    :color         "#059669"
     :system-prompt agents/task-planner-generation-system-prompt
     :is-default    true}])
 
 (defn seed-default-agent-definitions!
-  "Idempotently seed the three pre-defined agent definitions for a user.
+  "Idempotently seed the pre-defined agent definitions for a user.
    Uses INSERT ... ON CONFLICT DO NOTHING for race safety."
   [db user-id]
   (doseq [defn default-agent-definitions]
@@ -51,6 +59,11 @@
   [db user-id]
   (seed-default-agent-definitions! db user-id)
   (persistence/get-agent-definitions db user-id))
+
+(defn create-agent-definition!
+  "Create a new (custom) agent definition for a user."
+  [db user-id body]
+  (persistence/create-agent-definition! db (assoc body :user-id user-id :is-default false)))
 
 (defn update-agent-definition!
   "Update a single agent definition. Verifies ownership. Returns nil if not found."

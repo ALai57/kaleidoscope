@@ -200,9 +200,12 @@
     (enrich-run db run)))
 
 (defn create-workflow-run!
-  "Create a run for a project. If workflow-id is provided, creates a pending
-   step_run for each sequential step. Parallel and fan_in steps are created
-   per-round when the loop executor starts — not upfront.
+  "Create a run for a project. If workflow-id is provided:
+   - Creates pending step_runs for sequential steps.
+   - For workflows with parallel/fan_in steps, pre-creates round 1 and its
+     step_runs so the full step structure is immediately visible in the UI.
+     run-loop-workflow! detects the existing round via get-current-round and
+     skips re-creating it.
    config carries the policy block (scrutiny level, thresholds, etc.)."
   [db project-id workflow-id mode config]
   (next/with-transaction [tx db]
@@ -226,9 +229,8 @@
                                                  :where    [:= :workflow-id workflow-id]
                                                  :order-by [[:position :asc]]})
                                    {:builder-fn rs/as-unqualified-kebab-maps})
-              ;; Only create step runs for sequential steps upfront.
-              ;; Parallel and fan_in steps are created fresh per round.
-              sequential-steps (filter #(= "sequential" (or (:execution-mode %) "sequential")) steps)]
+              sequential-steps (filter #(= "sequential" (or (:execution-mode %) "sequential")) steps)
+              loop-steps       (filter #(#{"parallel" "fan_in"} (:execution-mode %)) steps)]
           (when (seq sequential-steps)
             (rdbms/insert! tx
                            :project-workflow-step-runs
@@ -245,7 +247,38 @@
                                     :is-custom       false
                                     :status          "pending"})
                                  sequential-steps)
-                           :ex-subtype :UnableToCreateStepRun))))
+                           :ex-subtype :UnableToCreateStepRun))
+          ;; Pre-create round 1 and its step_runs so the full workflow structure
+          ;; is visible immediately. run-loop-workflow! uses get-current-round
+          ;; to find this round and will not create a duplicate.
+          (when (seq loop-steps)
+            (let [round (first (rdbms/insert! tx
+                                              :workflow-rounds
+                                              {:id              (utils/uuid)
+                                               :workflow-run-id (:id run)
+                                               :round-number    1
+                                               :status          "in_progress"
+                                               :started-at      now}
+                                              :ex-subtype :UnableToCreateRound))]
+              (rdbms/insert! tx
+                             :project-workflow-step-runs
+                             (mapv (fn [step]
+                                     {:id              (utils/uuid)
+                                      :workflow-run-id (:id run)
+                                      :step-id         (:id step)
+                                      :round-id        (:id round)
+                                      :position        (:position step)
+                                      :name            (:name step)
+                                      :description     (:description step)
+                                      :agent-type      (or (:agent-type step) "coach")
+                                      :output-kind     (or (:output-kind step) "text")
+                                      :execution-mode  (:execution-mode step)
+                                      :loop-until      (:loop-until step)
+                                      :requires        (vec (or (:requires step) []))
+                                      :is-custom       false
+                                      :status          "pending"})
+                                   loop-steps)
+                             :ex-subtype :UnableToCreateStepRun)))))
       (enrich-run tx run))))
 
 (defn update-workflow-run!
@@ -396,7 +429,7 @@
                               :output-kind     (or (:output-kind step) "text")
                               :execution-mode  (or (:execution-mode step) "sequential")
                               :loop-until      (:loop-until step)
-                              :requires        (or (:requires step) [])
+                              :requires        (vec (or (:requires step) []))
                               :is-custom       false
                               :status          "pending"})
                            loop-steps)
