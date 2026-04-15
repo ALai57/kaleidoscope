@@ -185,10 +185,13 @@
 
 (defn create-run!
   "Create a workflow run for a project.
-   scrutiny controls the review policy (quick | standard | rigorous) for loop workflows."
-  [db project-id user-id {:keys [workflow-id mode scrutiny]}]
+   scrutiny controls the review policy (quick | standard | rigorous) for loop workflows.
+   target-score (optional, 0–10) sets a score threshold: when the average advisor score
+   reaches or exceeds this value the loop skips the judge and proceeds to task generation."
+  [db project-id user-id {:keys [workflow-id mode scrutiny target-score]}]
   (when (projects-persistence/get-project db project-id user-id)
-    (let [config (scrutiny-config scrutiny)]
+    (let [config (cond-> (scrutiny-config scrutiny)
+                   target-score (assoc :target-score (double target-score)))]
       (persistence/create-workflow-run! db project-id workflow-id (or mode "manual") config))))
 
 (defn update-run-mode!
@@ -197,6 +200,13 @@
   (when (projects-persistence/get-project db project-id user-id)
     (persistence/update-workflow-run! db run-id {:mode mode})
     (persistence/get-workflow-run db run-id)))
+
+(defn get-run-rounds
+  "Return the rounds timeline for a loop workflow run.
+   Returns [] when the run has no rounds yet, nil when the project/user check fails."
+  [db run-id project-id user-id]
+  (when (projects-persistence/get-project db project-id user-id)
+    (persistence/get-workflow-run-rounds db run-id)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Sequential step execution helpers
@@ -297,11 +307,28 @@
                                           :source     "initial"})))
 
 (defn- loop-steps-complete?
-  "Returns true if the most recent judge decision was 'proceed', meaning the loop
-   has finished and we should run the sequential tail."
+  "Returns true if the loop should skip straight to the sequential tail:
+   either a judge record with action=proceed exists, or the run was force-proceeded
+   by the user (config flag set by force-proceed!)."
   [db run-id]
-  (when-let [record (persistence/get-latest-judge-record db run-id)]
-    (= "proceed" (get-in record [:decision :action]))))
+  (or (boolean (get-in (persistence/get-workflow-run db run-id) [:config :force-proceeded]))
+      (when-let [record (persistence/get-latest-judge-record db run-id)]
+        (= "proceed" (get-in record [:decision :action])))))
+
+(defn- target-score-met?
+  "Returns true if the run config specifies a :target-score threshold and the
+   current round's average overall score across all parallel steps meets or exceeds it.
+   Returns false/nil when no target is set or scores are not yet available."
+  [db run-id round-id run]
+  (when-let [target (get-in run [:config :target-score])]
+    (let [par-steps (persistence/get-step-runs-by-round-and-mode
+                      db run-id round-id "parallel" nil)
+          scores    (keep (fn [sr]
+                            (when-let [sid (:score-run-id sr)]
+                              (:overall (projects-persistence/get-score-run db sid))))
+                          par-steps)]
+      (and (seq scores)
+           (>= (/ (reduce + scores) (count scores)) (double target))))))
 
 (defn- run-sequential-tail!
   "Execute sequential step runs that follow the loop (e.g. task generation).
@@ -369,74 +396,102 @@
               (when (seq par-steps)
                 (run-parallel-steps! executor db project par-steps output-stream)))
 
-            ;; If any parallel step is awaiting input, pause the run before fan_in
-            (if (some #(= "awaiting_input" (:status %))
-                      (persistence/get-step-runs-by-round-and-mode
-                        db run-id (:id round) "parallel" nil))
-              (do (persistence/update-workflow-run! db run-id {:status "awaiting_input"})
-                  (persistence/get-workflow-run db run-id))
+            ;; Check if the user's target score has been met — if so, bypass the judge
+            ;; and proceed directly to task generation without another LLM call.
+            (if (target-score-met? db run-id (:id round) run)
+              (do
+                (doseq [s (persistence/get-step-runs-by-round-and-mode
+                            db run-id (:id round) "fan_in" #{"pending"})]
+                  (persistence/update-step-run! db (:id s)
+                                                {:status       "skipped"
+                                                 :completed-at (utils/now)}))
+                (persistence/complete-round! db (:id round))
+                (write-sse-event! output-stream {:type         "round_complete"
+                                                 :round-number (:round-number round)
+                                                 :decision     "proceed"
+                                                 :reason       "target-score-met"})
+                (run-sequential-tail! db executor project run-id output-stream))
 
-              ;; Run the fan_in (judge) step — find pending or running (re-entry recovery)
-              (let [fan-steps (persistence/get-step-runs-by-round-and-mode
-                                db run-id (:id round) "fan_in" #{"pending" "running" "awaiting_input"})
-                    fan-step  (first fan-steps)]
+              ;; If any parallel step is awaiting input, pause the run before fan_in
+              (if (some #(= "awaiting_input" (:status %))
+                        (persistence/get-step-runs-by-round-and-mode
+                          db run-id (:id round) "parallel" nil))
+                (do (persistence/update-workflow-run! db run-id {:status "awaiting_input"})
+                    (persistence/get-workflow-run db run-id))
 
-              (if (nil? fan-step)
-                ;; No fan_in step — treat as proceed (shouldn't happen in a well-formed workflow)
-                (do (log/warnf "No fan_in step found for round %s — treating as proceed" (:id round))
-                    (persistence/complete-round! db (:id round))
-                    (run-sequential-tail! db executor project run-id output-stream))
+                ;; Run the fan_in (judge) step — find pending or running (re-entry recovery)
+                (let [fan-steps (persistence/get-step-runs-by-round-and-mode
+                                  db run-id (:id round) "fan_in" #{"pending" "running" "awaiting_input"})
+                      fan-step  (first fan-steps)]
 
-                (do
-                  ;; Execute judge — updates step run status and output
-                  (try
-                    (wf-protocol/execute-step! executor db project fan-step output-stream)
-                    (catch Exception e
-                      (log/errorf "Fan-in step failed for round %s: %s" (:id round) e)
-                      (persistence/update-workflow-run! db run-id {:status "failed"})
-                      (throw e)))
+                  (if (nil? fan-step)
+                    ;; No fan_in step — treat as proceed (shouldn't happen in a well-formed workflow)
+                    (do (log/warnf "No fan_in step found for round %s — treating as proceed" (:id round))
+                        (persistence/complete-round! db (:id round))
+                        (write-sse-event! output-stream {:type         "round_complete"
+                                                         :round-number (:round-number round)
+                                                         :decision     "proceed"})
+                        (run-sequential-tail! db executor project run-id output-stream))
 
-                  ;; Read the result
-                  (let [updated-fan (persistence/get-step-run db (:id fan-step))]
-                    (cond
-                      ;; Judge asked for user clarification
-                      (= "awaiting_input" (:status updated-fan))
-                      (do (persistence/update-workflow-run! db run-id {:status "awaiting_input"})
-                          (persistence/get-workflow-run db run-id))
+                    (do
+                      ;; Execute judge — updates step run status and output
+                      (try
+                        (wf-protocol/execute-step! executor db project fan-step output-stream)
+                        (catch Exception e
+                          (log/errorf "Fan-in step failed for round %s: %s" (:id round) e)
+                          (persistence/update-workflow-run! db run-id {:status "failed"})
+                          (throw e)))
 
-                      ;; Judge decision was written as output
-                      :else
-                      (let [decision (try
-                                       (json/decode (:output updated-fan) true)
-                                       (catch Exception _
-                                         {:action "proceed" :unresolved []}))]
-                        (case (:action decision)
+                      ;; Read the result
+                      (let [updated-fan (persistence/get-step-run db (:id fan-step))]
+                        (cond
+                          ;; Judge asked for user clarification
+                          (= "awaiting_input" (:status updated-fan))
+                          (do (persistence/update-workflow-run! db run-id {:status "awaiting_input"})
+                              (persistence/get-workflow-run db run-id))
 
-                          "proceed"
-                          (do (persistence/complete-round! db (:id round))
-                              (run-sequential-tail! db executor project run-id output-stream))
+                          ;; Judge decision was written as output
+                          :else
+                          (let [decision (try
+                                           (json/decode (:output updated-fan) true)
+                                           (catch Exception _
+                                             {:action "proceed" :unresolved []}))]
+                            (case (:action decision)
 
-                          "refine"
-                          (let [agent-type (:agent_to_refine decision)
-                                prompt     (:refinement_prompt decision)
-                                ref-step   (persistence/create-refinement-step-run!
-                                             db run-id
-                                             {:name        (str agent-type " refinement")
-                                              :description prompt
-                                              :agent-type  agent-type
-                                              :round-id    (:id round)})]
-                            (try
-                              (wf-protocol/execute-step! executor db project ref-step output-stream)
-                              (catch Exception e
-                                (log/errorf "Refinement step failed: %s" e)))
-                            (persistence/complete-round! db (:id round))
-                            (recur))
+                              "proceed"
+                              (do (persistence/complete-round! db (:id round))
+                                  (write-sse-event! output-stream {:type         "round_complete"
+                                                                   :round-number (:round-number round)
+                                                                   :decision     "proceed"})
+                                  (run-sequential-tail! db executor project run-id output-stream))
 
-                          ;; Unknown action — proceed defensively
-                          (do (log/warnf "Unexpected judge action '%s' — treating as proceed"
-                                         (:action decision))
-                              (persistence/complete-round! db (:id round))
-                              (run-sequential-tail! db executor project run-id output-stream))))))))))))))))
+                              "refine"
+                              (let [agent-type (:agent_to_refine decision)
+                                    prompt     (:refinement_prompt decision)
+                                    ref-step   (persistence/create-refinement-step-run!
+                                                 db run-id
+                                                 {:name        (str agent-type " refinement")
+                                                  :description prompt
+                                                  :agent-type  agent-type
+                                                  :round-id    (:id round)})]
+                                (try
+                                  (wf-protocol/execute-step! executor db project ref-step output-stream)
+                                  (catch Exception e
+                                    (log/errorf "Refinement step failed: %s" e)))
+                                (persistence/complete-round! db (:id round))
+                                (write-sse-event! output-stream {:type         "round_complete"
+                                                                 :round-number (:round-number round)
+                                                                 :decision     "refine"})
+                                (recur))
+
+                              ;; Unknown action — proceed defensively
+                              (do (log/warnf "Unexpected judge action '%s' — treating as proceed"
+                                             (:action decision))
+                                  (persistence/complete-round! db (:id round))
+                                  (write-sse-event! output-stream {:type         "round_complete"
+                                                                   :round-number (:round-number round)
+                                                                   :decision     "proceed"})
+                                  (run-sequential-tail! db executor project run-id output-stream)))))))))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public: advance step
@@ -479,6 +534,50 @@
                                            {:status       "completed"
                                             :completed-at (utils/now)}))
         (persistence/get-workflow-run db run-id)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Force proceed
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn force-proceed!
+  "Immediately advance a run to the task-generation phase, bypassing any remaining
+   advisor rounds.
+
+   Effect:
+     - Skips all pending/running parallel and fan_in step_runs in the current round.
+     - Completes the current round (if any).
+     - Sets config.force-proceeded = true so loop-steps-complete? returns true on resume.
+     - Resumes the workflow in a background thread — run-loop-workflow! detects the flag
+       and runs the sequential tail (task generation) immediately.
+
+   Returns the updated run map."
+  [db executor project-id user-id run-id]
+  (when (projects-persistence/get-project db project-id user-id)
+    (let [run           (persistence/get-workflow-run db run-id)
+          current-round (persistence/get-current-round db run-id)]
+      ;; Skip all pending loop step_runs in the current round
+      (when current-round
+        (doseq [step (concat
+                       (persistence/get-step-runs-by-round-and-mode
+                         db run-id (:id current-round) "parallel" #{"pending" "running"})
+                       (persistence/get-step-runs-by-round-and-mode
+                         db run-id (:id current-round) "fan_in"   #{"pending" "running" "awaiting_input"}))]
+          (persistence/update-step-run! db (:id step)
+                                        {:status       "skipped"
+                                         :completed-at (utils/now)}))
+        (persistence/complete-round! db (:id current-round)))
+      ;; Set force-proceeded flag and resume workflow in background.
+      ;; loop-steps-complete? checks this flag and routes straight to run-sequential-tail!.
+      (persistence/update-workflow-run! db run-id
+                                        {:status "in_progress"
+                                         :config (assoc (or (:config run) {}) :force-proceeded true)})
+      (let [null-os (java.io.ByteArrayOutputStream.)]
+        (future
+          (try
+            (advance-step! db executor project-id user-id run-id null-os)
+            (catch Exception e
+              (log/errorf "Background force-proceed failed for run %s: %s" run-id e)))))
+      (persistence/get-workflow-run db run-id))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom steps

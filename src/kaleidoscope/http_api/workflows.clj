@@ -90,20 +90,22 @@
                                 (ok runs)
                                 (not-found {:reason "Project not found"}))))}
 
-           :post {:summary "Start a new workflow run (body: {workflow_id?, mode, scrutiny?})"
+           :post {:summary "Start a new workflow run (body: {workflow_id?, mode, scrutiny?, target_score?})"
                   :handler (fn [{:keys [components body-params path-params] :as request}]
-                             (let [user-id     (oidc/get-verified-email (:identity request))
-                                   project-id  (parse-uuid (:project-id path-params))
-                                   workflow-id (when-let [id (:workflow-id body-params)]
-                                                 (parse-uuid id))
-                                   mode        (:mode body-params "manual")
-                                   scrutiny    (:scrutiny body-params)]
+                             (let [user-id      (oidc/get-verified-email (:identity request))
+                                   project-id   (parse-uuid (:project-id path-params))
+                                   workflow-id  (when-let [id (:workflow-id body-params)]
+                                                  (parse-uuid id))
+                                   mode         (:mode body-params "manual")
+                                   scrutiny     (:scrutiny body-params)
+                                   target-score (:target-score body-params)]
                                (if-let [run (workflows-api/create-run!
                                              (:database components)
                                              project-id user-id
-                                             {:workflow-id workflow-id
-                                              :mode        mode
-                                              :scrutiny    scrutiny})]
+                                             {:workflow-id  workflow-id
+                                              :mode         mode
+                                              :scrutiny     scrutiny
+                                              :target-score target-score})]
                                  (ok run)
                                  (not-found {:reason "Project not found"}))))}}]
 
@@ -132,6 +134,32 @@
                                              run-id project-id user-id mode)]
                                  (ok run)
                                  (not-found {:reason "Run not found"}))))}}]
+
+       ;; --- Rounds timeline ---
+       ["/rounds"
+        {:get {:summary "Get the rounds timeline for a loop workflow run"
+               :handler (fn [{:keys [components path-params] :as request}]
+                          (let [user-id    (oidc/get-verified-email (:identity request))
+                                project-id (parse-uuid (:project-id path-params))
+                                run-id     (parse-uuid (:run-id path-params))]
+                            (if-let [rounds (workflows-api/get-run-rounds
+                                             (:database components) run-id project-id user-id)]
+                              (ok rounds)
+                              (not-found {:reason "Run not found"}))))}}]
+
+       ;; --- Force proceed ---
+       ["/force-proceed"
+        {:post {:summary "Skip remaining advisor rounds and immediately generate tasks"
+                :handler (fn [{:keys [components path-params] :as request}]
+                           (let [user-id    (oidc/get-verified-email (:identity request))
+                                 project-id (parse-uuid (:project-id path-params))
+                                 run-id     (parse-uuid (:run-id path-params))
+                                 db         (:database components)
+                                 executor   (:workflow-executor components)]
+                             (if-let [run (workflows-api/force-proceed!
+                                           db executor project-id user-id run-id)]
+                               (ok run)
+                               (not-found {:reason "Run not found"}))))}}]
 
        ;; --- Advance (SSE) ---
        ["/advance"

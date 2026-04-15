@@ -504,3 +504,73 @@
                                       :order-by [[:wjr/created-at :desc]]
                                       :limit    1})
                         {:builder-fn rs/as-unqualified-kebab-maps})))
+
+(defn get-workflow-run-rounds
+  "Return all rounds for a run enriched with judge decision and the latest brief
+   produced by that round. Each entry has the shape:
+     {:id :round-number :status :started-at :completed-at
+      :brief {:version :content :source :agent-type}   ; nil if no brief yet
+      :judge {:decision :summary :rationale             ; nil if round still running
+              :delta-table :score-snapshot :trajectory
+              :policy :brief-version}}
+   Rounds are ordered by round_number ascending."
+  [db run-id]
+  (let [rounds (next/execute! db
+                               (hsql/format {:select   :*
+                                             :from     :workflow-rounds
+                                             :where    [:= :workflow-run-id run-id]
+                                             :order-by [[:round-number :asc]]})
+                               {:builder-fn rs/as-unqualified-kebab-maps})]
+    (if (empty? rounds)
+      []
+      (let [round-ids (mapv :id rounds)
+
+            ;; One judge record per round (keep the latest in case of re-entry)
+            judge-records (next/execute! db
+                                         (hsql/format {:select   :*
+                                                       :from     :workflow-judge-records
+                                                       :where    [:in :round-id round-ids]
+                                                       :order-by [[:created-at :desc]]})
+                                         {:builder-fn rs/as-unqualified-kebab-maps})
+            ;; Keep only the most recent record per round
+            judge-by-round (reduce (fn [acc jr]
+                                     (if (get acc (:round-id jr))
+                                       acc
+                                       (assoc acc (:round-id jr) jr)))
+                                   {} judge-records)
+
+            ;; Latest brief per round (briefs linked via workflow_round_id)
+            briefs (next/execute! db
+                                   (hsql/format {:select   :*
+                                                 :from     :project-briefs
+                                                 :where    [:in :workflow-round-id round-ids]
+                                                 :order-by [[:workflow-round-id :asc]
+                                                            [:version :desc]]})
+                                   {:builder-fn rs/as-unqualified-kebab-maps})
+            ;; group-by preserves order; first in each group is highest version
+            briefs-by-round (into {} (map (fn [[round-id bs]] [round-id (first bs)])
+                                          (group-by :workflow-round-id briefs)))]
+
+        (mapv (fn [round]
+                (let [jr (get judge-by-round (:id round))
+                      b  (get briefs-by-round (:id round))]
+                  {:id           (:id round)
+                   :round-number (:round-number round)
+                   :status       (:status round)
+                   :started-at   (:started-at round)
+                   :completed-at (:completed-at round)
+                   :brief        (when b
+                                   {:version    (:version b)
+                                    :content    (:content b)
+                                    :source     (:source b)
+                                    :agent-type (:agent-type b)})
+                   :judge        (when jr
+                                   {:decision       (:decision jr)
+                                    :summary        (get (:decision jr) :summary)
+                                    :rationale      (get (:decision jr) :rationale)
+                                    :delta-table    (:delta-table jr)
+                                    :score-snapshot (:score-snapshot jr)
+                                    :trajectory     (:trajectory jr)
+                                    :policy         (:policy jr)
+                                    :brief-version  (:brief-version jr)})}))
+              rounds)))))
