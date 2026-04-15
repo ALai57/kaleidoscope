@@ -5,12 +5,14 @@
             [kaleidoscope.api.tasks :as tasks-api]
             [kaleidoscope.persistence.briefs :as briefs-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
+            [kaleidoscope.persistence.workspace-roots :as workspace-roots-persistence]
             [kaleidoscope.persistence.workflows :as persistence]
             [kaleidoscope.scoring.agents :as agents]
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
-            [kaleidoscope.scoring.protocol :as scoring-protocol]
             [kaleidoscope.tasks.planner :as task-planner]
             [kaleidoscope.utils.core :as utils]
+            [kaleidoscope.utils.local-files :as local-files]
+            [kaleidoscope.utils.path-matching :as path-matching]
             [kaleidoscope.workflows.protocol :as protocol]
             [taoensso.timbre :as log])
   (:import [java.net URI]
@@ -180,6 +182,71 @@ Rank these workflows by how well they match the project."
     project))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Requirement resolution
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn resolve-code-context-path
+  "Pure function. Returns {:path \"...\"} if path can be resolved automatically,
+   or {:needs-input true :question \"...\" :candidates [...]} if user input is needed."
+  [project workspace-roots]
+  (cond
+    (seq (:local-paths project))
+    {:path (first (:local-paths project))}
+
+    (seq workspace-roots)
+    (let [candidates (path-matching/scan-workspace-roots (map :path workspace-roots))
+          {:keys [best ranked]} (path-matching/find-best-match candidates project)]
+      (if best
+        {:path (:path best)}
+        {:needs-input true
+         :question    "Which codebase should I review?"
+         :candidates  ranked}))
+
+    :else
+    {:needs-input true
+     :question    "Which codebase should I review?"
+     :candidates  []}))
+
+(def ^:private requirement-resolvers
+  {"code_context_path"
+   (fn [db _step-run project]
+     (let [user-id         (:user-id project)
+           workspace-roots (workspace-roots-persistence/get-workspace-roots db user-id)]
+       (resolve-code-context-path project workspace-roots)))})
+
+(defn- resolve-requirements!
+  "For each requirement declared on the step run, call the registered resolver.
+   If any resolver needs user input: writes pending_inputs onto the step run,
+   sets status to awaiting_input, emits a step_complete SSE event, and returns
+   :needs-user-input. Otherwise returns a map of resolved inputs."
+  [db step-run project output-stream]
+  (let [requires (get step-run :requires [])]
+    (if (empty? requires)
+      {}
+      (loop [remaining requires resolved {}]
+        (if (empty? remaining)
+          resolved
+          (let [req      (first remaining)
+                kind     (:kind req)
+                resolver (get requirement-resolvers kind)]
+            (if-not resolver
+              (do (log/warnf "No resolver for requirement kind '%s' — skipping" kind)
+                  (recur (rest remaining) resolved))
+              (let [result (resolver db step-run project)]
+                (if (:needs-input result)
+                  (do (persistence/update-step-run! db (:id step-run)
+                                                    {:status         "awaiting_input"
+                                                     :pending-inputs {:kind       kind
+                                                                       :question   (:question result)
+                                                                       :candidates (:candidates result)}})
+                      (write-sse-event! output-stream
+                                        {:event "step_complete"
+                                         :data  (persistence/get-step-run db (:id step-run))})
+                      :needs-user-input)
+                  (recur (rest remaining)
+                         (assoc resolved (keyword kind) result)))))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Decision step helpers (trajectory + delta computation)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -270,12 +337,12 @@ Rank these workflows by how well they match the project."
 
 (defmulti execute-step-by-kind!
   "Dispatch step execution based on :output-kind in the step-run.
-   Each method receives [executor db project step-run output-stream]."
-  (fn [_executor _db _project step-run _output-stream]
+   Each method receives [executor db project step-run resolved-inputs output-stream]."
+  (fn [_executor _db _project step-run _resolved-inputs _output-stream]
     (keyword (or (:output-kind step-run) "text"))))
 
 (defmethod execute-step-by-kind! :text
-  [executor db project step-run output-stream]
+  [executor db project step-run _resolved-inputs output-stream]
   (let [user-id       (:user-id project)
         custom-prompt (agents-api/get-custom-system-prompt
                        db user-id (:agent-type step-run))
@@ -293,12 +360,12 @@ Rank these workflows by how well they match the project."
     full-output))
 
 (defmethod execute-step-by-kind! :clarify
-  [executor db project step-run output-stream]
+  [executor db project step-run _resolved-inputs output-stream]
   (let [planner (task-planner/make-llm-planner (:api-key executor))]
     (tasks-api/clarify-description-step! db planner project step-run output-stream)))
 
 (defmethod execute-step-by-kind! :tasks
-  [executor db project step-run output-stream]
+  [executor db project step-run _resolved-inputs output-stream]
   (let [planner       (task-planner/make-llm-planner (:api-key executor))
         user-id       (:user-id project)
         ;; Use latest brief content if available
@@ -326,34 +393,58 @@ Rank these workflows by how well they match the project."
     summary))
 
 (defmethod execute-step-by-kind! :score
-  [executor db project step-run output-stream]
-  (let [user-id      (:user-id project)
-        agent-type   (:agent-type step-run)
-        definition   (projects-persistence/get-default-score-definition-by-scorer-type db user-id agent-type)
-        _            (when-not definition
-                       (throw (ex-info "No score definition found for agent type"
-                                       {:agent-type agent-type :user-id user-id})))
+  [executor db project step-run resolved-inputs output-stream]
+  (let [user-id       (:user-id project)
+        agent-type    (:agent-type step-run)
+        definition    (projects-persistence/get-default-score-definition-by-scorer-type db user-id agent-type)
+        _             (when-not definition
+                        (throw (ex-info "No score definition found for agent type"
+                                        {:agent-type agent-type :user-id user-id})))
         ;; Score using the current brief if available, else fall back to project description
-        eff-project  (build-effective-project db project)
+        eff-project   (build-effective-project db project)
         brief-version (:brief-version eff-project)
-        scorer        (llm-scorer/->LLMScorer (:api-key executor))
-        score-result  (scoring-protocol/score scorer
-                                              (select-keys eff-project [:title :description])
-                                              definition)
+        ;; Check if a code context path was resolved for this step
+        code-path     (get-in resolved-inputs [:code_context_path :path])
+        ;; Read and format code context when a path is available
+        code-context  (when code-path
+                        (let [result (local-files/read-local-paths [code-path])]
+                          (local-files/format-code-context
+                            {:root     code-path
+                             :files    (:files result)
+                             :not-read (:not-read result)
+                             :skipped  (:skipped result)
+                             :strategy (if (.isDirectory (java.io.File. code-path))
+                                         "recursive"
+                                         "direct")})))
+        ;; Build scoring prompt — with or without code context
+        system-prompt (agents/get-system-prompt (:scorer-type definition))
+        user-prompt   (if code-context
+                        (agents/build-scoring-user-prompt-with-code
+                          (select-keys eff-project [:title :description])
+                          definition
+                          code-context)
+                        (agents/build-scoring-user-prompt
+                          (select-keys eff-project [:title :description])
+                          definition))
+        score-result  (llm-scorer/score-with-user-prompt
+                        (:api-key executor) system-prompt user-prompt definition)
         score-run     (projects-persistence/insert-score-run! db (:id project) (:id definition)
                                                               (assoc score-result :brief-version brief-version))
+        output-data   (cond-> {:score-run-id (str (:id score-run))}
+                        code-path (assoc :context-path code-path))
         completed     (persistence/update-step-run! db (:id step-run)
                                                     {:status       "completed"
-                                                     :output       (format "Score: %.1f" (double (:overall score-result)))
+                                                     :output       (json/encode output-data)
                                                      :score-run-id (:id score-run)
                                                      :completed-at (utils/now)})]
-    (log/infof "Score step completed for agent=%s run=%s overall=%.2f"
-               agent-type (:workflow-run-id step-run) (double (:overall score-result)))
+    (log/infof "Score step completed for agent=%s run=%s overall=%.2f%s"
+               agent-type (:workflow-run-id step-run) (double (:overall score-result))
+               (if code-path (str " context-path=" code-path) ""))
     (write-sse-event! output-stream {:event "step_complete" :data completed})
     score-result))
 
 (defmethod execute-step-by-kind! :decision
-  [executor db project step-run output-stream]
+  [executor db project step-run _resolved-inputs output-stream]
   (let [run-id       (:workflow-run-id step-run)
         round-id     (:round-id step-run)
         run          (persistence/get-workflow-run db run-id)
@@ -437,7 +528,7 @@ Rank these workflows by how well they match the project."
     decision))
 
 (defmethod execute-step-by-kind! :refine
-  [executor db project step-run output-stream]
+  [executor db project step-run _resolved-inputs output-stream]
   (let [round-id          (:round-id step-run)
         refinement-prompt (:description step-run)
         ;; Get current brief
@@ -476,10 +567,10 @@ Rank these workflows by how well they match the project."
     new-brief))
 
 (defmethod execute-step-by-kind! :default
-  [executor db project step-run output-stream]
+  [executor db project step-run resolved-inputs output-stream]
   (log/warnf "Unknown output-kind '%s' for step '%s'; falling back to :text"
              (:output-kind step-run) (:name step-run))
-  (execute-step-by-kind! executor db project (assoc step-run :output-kind "text") output-stream))
+  (execute-step-by-kind! executor db project (assoc step-run :output-kind "text") resolved-inputs output-stream))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LLMExecutor record
@@ -495,7 +586,9 @@ Rank these workflows by how well they match the project."
                                   {:status     "running"
                                    :started-at (utils/now)})
     (try
-      (execute-step-by-kind! this db project step-run output-stream)
+      (let [resolved (resolve-requirements! db step-run project output-stream)]
+        (when-not (= :needs-user-input resolved)
+          (execute-step-by-kind! this db project step-run resolved output-stream)))
       (catch Exception e
         (log/errorf "Step execution failed for step-run %s: %s" (:id step-run) e)
         (persistence/update-step-run! db (:id step-run)

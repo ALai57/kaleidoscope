@@ -13,6 +13,7 @@
    [kaleidoscope.http-api.score-definitions :refer [reitit-score-definition-routes]]
    [kaleidoscope.http-api.agents :refer [reitit-agent-routes]]
    [kaleidoscope.http-api.tasks :refer [reitit-task-routes]]
+   [kaleidoscope.http-api.workspace-roots :refer [reitit-workspace-roots-routes]]
    [kaleidoscope.http-api.workflows :refer [reitit-workflow-routes reitit-project-workflow-routes]]
    [kaleidoscope.http-api.http-utils :as http-utils]
    [kaleidoscope.http-api.middleware :as mw]
@@ -42,6 +43,7 @@
    {:pattern #"^/score-definitions.*" :handler auth/require-*-writer}
    {:pattern #"^/agents.*"             :handler auth/require-*-writer}
    {:pattern #"^/workflows.*"         :handler auth/require-*-writer}
+   {:pattern #"^/workspace-roots.*"   :handler auth/require-*-writer}
 
    {:pattern #"^/media.*" :request-method :post :handler auth/require-*-writer}
    {:pattern #"^/media.*" :request-method :get  :handler auth/public-access}
@@ -160,6 +162,7 @@
         reitit-task-routes
         reitit-workflow-routes
         reitit-project-workflow-routes
+        reitit-workspace-roots-routes
         reitit-portfolio-routes
         reitit-themes-routes
         reitit-stripe-routes

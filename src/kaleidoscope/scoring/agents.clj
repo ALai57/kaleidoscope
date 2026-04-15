@@ -34,6 +34,13 @@ When scoring, be honest and constructive. A score of 1-3 means the aspect is
 poorly defined or absent. 4-6 means it is present but vague. 7-9 means it is
 clear and well-reasoned. 10 means it is exceptionally well-articulated.
 
+When a <code_context> block is provided, use it as your primary source of truth
+about the existing architecture, technology choices, and implementation constraints.
+Evaluate the proposal in light of the actual codebase — not just the description.
+If the code context was truncated or incomplete, note which areas you could not
+assess and weight your findings accordingly. If no code context is provided, note
+that your review is based on the written description alone.
+
 Always return a JSON object with the following structure:
 {
   \"overall\": <number 1-10, average of dimension scores>,
@@ -305,3 +312,11 @@ Definition context: %s"
      (or (:description project) "No description provided")
      dim-text
      (:description score-definition))))
+
+(defn build-scoring-user-prompt-with-code
+  "Build the user-facing scoring prompt with an appended code context block.
+   code-context is the string returned by local-files/format-code-context."
+  [project score-definition code-context]
+  (str (build-scoring-user-prompt project score-definition)
+       "\n\n"
+       code-context))

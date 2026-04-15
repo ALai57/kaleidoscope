@@ -88,7 +88,7 @@
                        :workflow-steps
                        (vec (map-indexed
                               (fn [i {:keys [name description position agent-type output-kind
-                                            execution-mode loop-until]}]
+                                            execution-mode loop-until requires]}]
                                 {:id             (utils/uuid)
                                  :workflow-id    (:id wf)
                                  :position       (or position i)
@@ -98,6 +98,7 @@
                                  :output-kind    (or output-kind "text")
                                  :execution-mode (or execution-mode "sequential")
                                  :loop-until     loop-until
+                                 :requires       (or requires [])
                                  :created-at     now
                                  :updated-at     now})
                               steps))
@@ -129,7 +130,7 @@
                          :workflow-steps
                          (vec (map-indexed
                                 (fn [i {:keys [name description position agent-type output-kind
-                                               execution-mode loop-until]}]
+                                               execution-mode loop-until requires]}]
                                   {:id             (utils/uuid)
                                    :workflow-id    workflow-id
                                    :position       (or position i)
@@ -139,6 +140,7 @@
                                    :output-kind    (or output-kind "text")
                                    :execution-mode (or execution-mode "sequential")
                                    :loop-until     loop-until
+                                   :requires       (or requires [])
                                    :created-at     now
                                    :updated-at     now})
                                 steps))
@@ -394,6 +396,7 @@
                               :output-kind     (or (:output-kind step) "text")
                               :execution-mode  (or (:execution-mode step) "sequential")
                               :loop-until      (:loop-until step)
+                              :requires        (or (:requires step) [])
                               :is-custom       false
                               :status          "pending"})
                            loop-steps)

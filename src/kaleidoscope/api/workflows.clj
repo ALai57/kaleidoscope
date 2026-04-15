@@ -62,7 +62,8 @@
                   :position       1
                   :agent-type     "engineering_lead"
                   :output-kind    "score"
-                  :execution-mode "parallel"}
+                  :execution-mode "parallel"
+                  :requires       [{:kind "code_context_path"}]}
                  {:name           "Team Lead"
                   :description    "Synthesize advisor feedback, compute trajectory and deltas, then decide the next action."
                   :position       2
@@ -201,6 +202,11 @@
 ;; Sequential step execution helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def ^:private terminal-statuses
+  "Step run statuses from which no further execution occurs.
+   awaiting_input is deliberately excluded — a paused step is not done."
+  #{"completed" "skipped" "failed" "timed_out"})
+
 (defn- find-current-step-run
   "Return the first pending sequential step_run in the run, or nil if none."
   [run]
@@ -210,9 +216,9 @@
        first))
 
 (defn- all-steps-done?
-  "True if every step_run is in a terminal state (completed/skipped/failed)."
+  "True if every step_run is in a terminal state."
   [run]
-  (every? #(#{"completed" "skipped" "failed"} (:status %)) (:steps run)))
+  (every? #(terminal-statuses (:status %)) (:steps run)))
 
 (defn- run-sequential-workflow!
   "Execute sequential steps one at a time until done, awaiting_input, or failed.
@@ -363,10 +369,17 @@
               (when (seq par-steps)
                 (run-parallel-steps! executor db project par-steps output-stream)))
 
-            ;; Run the fan_in (judge) step — find pending or running (re-entry recovery)
-            (let [fan-steps (persistence/get-step-runs-by-round-and-mode
-                              db run-id (:id round) "fan_in" #{"pending" "running" "awaiting_input"})
-                  fan-step  (first fan-steps)]
+            ;; If any parallel step is awaiting input, pause the run before fan_in
+            (if (some #(= "awaiting_input" (:status %))
+                      (persistence/get-step-runs-by-round-and-mode
+                        db run-id (:id round) "parallel" nil))
+              (do (persistence/update-workflow-run! db run-id {:status "awaiting_input"})
+                  (persistence/get-workflow-run db run-id))
+
+              ;; Run the fan_in (judge) step — find pending or running (re-entry recovery)
+              (let [fan-steps (persistence/get-step-runs-by-round-and-mode
+                                db run-id (:id round) "fan_in" #{"pending" "running" "awaiting_input"})
+                    fan-step  (first fan-steps)]
 
               (if (nil? fan-step)
                 ;; No fan_in step — treat as proceed (shouldn't happen in a well-formed workflow)
@@ -423,7 +436,7 @@
                           (do (log/warnf "Unexpected judge action '%s' — treating as proceed"
                                          (:action decision))
                               (persistence/complete-round! db (:id round))
-                              (run-sequential-tail! db executor project run-id output-stream)))))))))))))))
+                              (run-sequential-tail! db executor project run-id output-stream))))))))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public: advance step
@@ -505,6 +518,11 @@
 (defn respond-to-step!
   "Handle a user's answers for an awaiting_input step.
 
+   For code-context path selection steps (pending_inputs.kind = 'code_context_path'):
+     - Saves paths to projects.local_paths.
+     - Resets step status to 'pending', clears pending_inputs.
+     - Resumes the loop in the background (step re-runs with path available).
+
    For team-review clarify steps (output_kind = 'decision'):
      - Appends answers to the project brief as a new version.
      - Marks the step completed and completes the current round.
@@ -517,8 +535,27 @@
   (when-let [project (projects-persistence/get-project db project-id user-id)]
     (let [step-run (persistence/get-step-run db step-run-id)]
       (when (and step-run (= "awaiting_input" (:status step-run)))
-        (if (= "decision" (:output-kind step-run))
-          ;; ── Team-review clarify path ──────────────────────────────────────────
+        (cond
+          ;; ── Code context path selection ──────────────────────────────────────
+          (= "code_context_path" (get-in step-run [:pending-inputs :kind]))
+          (let [paths (vec (filter (complement str/blank?)
+                                   (map str/trim answers)))]
+            (projects-persistence/update-project! db project-id user-id {:local-paths paths})
+            (persistence/update-step-run! db step-run-id
+                                          {:status         "pending"
+                                           :pending-inputs nil})
+            (persistence/update-workflow-run! db run-id {:status "in_progress"})
+            (let [null-os (java.io.ByteArrayOutputStream.)]
+              (future
+                (try
+                  (advance-step! db executor project-id user-id run-id null-os)
+                  (catch Exception e
+                    (log/errorf "Background resume after code context failed for run %s: %s"
+                                run-id e)))))
+            (persistence/get-workflow-run db run-id))
+
+          ;; ── Team-review clarify path ────────────────────────────────────────────
+          (= "decision" (:output-kind step-run))
           (let [round-id      (:round-id step-run)
                 latest-brief  (briefs-persistence/get-latest-brief db project-id)
                 current-text  (or (:content latest-brief) (:description project) "")
@@ -542,7 +579,8 @@
                     (log/errorf "Background loop resume failed for run %s: %s" run-id e)))))
             (persistence/get-workflow-run db run-id))
 
-          ;; ── Sequential clarify path (original behaviour) ─────────────────────
+          ;; ── Sequential clarify path (original behaviour) ────────────────────
+          :else
           (let [current-desc (or (:description project) "")
                 answers-text (str "\n\nAdditional context from user:\n" (str/join "\n" answers))
                 new-desc     (str current-desc answers-text)]

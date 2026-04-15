@@ -88,6 +88,19 @@
                             :rationale      "Score unavailable (parse error)"})
                          dimensions)})))
 
+(defn score-with-user-prompt
+  "Score using a pre-built user prompt. Use when additional context (e.g. code context)
+   needs to be injected before calling the LLM.
+   Returns the same map shape as LLMScorer.score: {:overall n :dimensions [{...}]}."
+  [api-key system-prompt user-prompt score-definition]
+  (let [response (post-anthropic api-key
+                                  {:model      default-model
+                                   :max_tokens 2048
+                                   :system     system-prompt
+                                   :messages   [{:role "user" :content user-prompt}]})
+        text     (extract-text response)]
+    (parse-score-response text (:dimensions score-definition))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Streaming support for conversation endpoints
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

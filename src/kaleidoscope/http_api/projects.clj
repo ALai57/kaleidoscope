@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.projects
-  (:require [kaleidoscope.api.authentication :as oidc]
+  (:require [clojure.string :as str]
+            [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.api.projects :as projects-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.persistence.briefs :as briefs-persistence]
@@ -263,6 +264,26 @@
                                                project-id user-id skill-id body-params)]
                                   (ok tree)
                                   (not-found {:reason "Project or skill not found"}))))}}]]]
+
+    ;; --- Local paths (code context override) ---
+    ["/local-paths"
+     ["" {:put {:summary   "Set explicit local paths for Engineering Reviewer code context"
+                :responses (merge hu/openapi-401
+                                   hu/openapi-404
+                                   {200 {:description "The updated project"
+                                         :content     {"application/json" {:schema [:any]}}}})
+                :handler   (fn [{:keys [components body-params path-params] :as request}]
+                             (let [user-id    (oidc/get-verified-email (:identity request))
+                                   project-id (parse-uuid (:project-id path-params))
+                                   paths      (vec (filter (complement str/blank?)
+                                                           (map str/trim
+                                                                (or (:local-paths body-params) []))))]
+                               (if-let [project (projects-api/update-project!
+                                                  (:database components)
+                                                  project-id user-id
+                                                  {:local-paths paths})]
+                                 (ok project)
+                                 (not-found {:reason "Project not found"}))))}}]]
 
     ;; --- Briefs ---
     ["/briefs"
