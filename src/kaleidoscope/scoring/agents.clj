@@ -265,7 +265,8 @@ suggest the user consider. Each item has:
 
 ═══ OUTPUT FORMAT ═════════════════════════════════════════════════════════════════
 
-Return ONLY a JSON object. No preamble, no markdown, no additional text.
+Your entire response must be a single JSON object starting with `{`.
+No reasoning, no markdown fences, no explanation before or after the JSON.
 
 For proceed:
 {
@@ -307,7 +308,7 @@ For clarify:
   \"recommendations\": [...]
 }
 
-Return ONLY the JSON object.")
+Respond with ONLY the JSON object, starting with `{`. No preamble, no fences.")
 
 (def advisor-refinement-system-prompt
   "You are an expert advisor being asked to enrich a project brief with specific context.

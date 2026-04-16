@@ -55,12 +55,42 @@
 (defn- extract-text [response]
   (-> response :content first :text))
 
-(defn- strip-fences [text]
-  (-> text
-      str/trim
-      (str/replace #"(?s)^```(?:json)?\s*" "")
-      (str/replace #"\s*```$" "")
-      str/trim))
+(defn- extract-json
+  "Extract the first complete JSON object from text.
+   Handles three common LLM output patterns:
+     1. Raw JSON (ideal)
+     2. Markdown-fenced JSON (```json … ```)
+     3. Prose preamble followed by a JSON block or fence
+   Returns the extracted JSON string, or the original text if nothing better found."
+  [text]
+  (let [trimmed (str/trim text)]
+    (cond
+      ;; Already starts with { — use as-is
+      (str/starts-with? trimmed "{")
+      trimmed
+
+      ;; Find a ```json fence and extract just that block
+      (str/includes? trimmed "```")
+      (let [inner (-> trimmed
+                      (str/replace #"(?s)^.*?```(?:json)?\s*" "")
+                      (str/replace #"(?s)\s*```.*$" "")
+                      str/trim)]
+        (if (str/starts-with? inner "{")
+          inner
+          ;; Last resort: grab from first { to last }
+          (let [start (.indexOf trimmed "{")
+                end   (.lastIndexOf trimmed "}")]
+            (if (and (>= start 0) (> end start))
+              (subs trimmed start (inc end))
+              trimmed))))
+
+      ;; No fence — scan for { … } span
+      :else
+      (let [start (.indexOf trimmed "{")
+            end   (.lastIndexOf trimmed "}")]
+        (if (and (>= start 0) (> end start))
+          (subs trimmed start (inc end))
+          trimmed)))))
 
 (defn- write-sse-event!
   "Write a single SSE data event to the output-stream."
@@ -157,7 +187,7 @@ Rank these workflows by how well they match the project."
   [text workflows]
   (let [wf-by-id (into {} (map (fn [wf] [(str (:id wf)) wf]) workflows))]
     (try
-      (->> (json/decode (strip-fences text) true)
+      (->> (json/decode (extract-json text) true)
            (keep (fn [{:keys [workflow_id confidence rationale]}]
                    (when-let [wf (get wf-by-id workflow_id)]
                      {:workflow-id (parse-uuid workflow_id)
@@ -505,7 +535,7 @@ Rank these workflows by how well they match the project."
                                                          :content (json/encode judge-input)}]})
         raw-text     (extract-text response)
         decision     (try
-                       (json/decode (strip-fences raw-text) true)
+                       (json/decode (extract-json raw-text) true)
                        (catch Exception e
                          (log/errorf "Failed to parse judge decision: %s\nText: %s" e raw-text)
                          {:action "proceed" :unresolved [] :summary "Parse error — proceeding."
