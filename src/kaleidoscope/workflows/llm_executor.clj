@@ -186,25 +186,27 @@ Rank these workflows by how well they match the project."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn resolve-code-context-path
-  "Pure function. Returns {:path \"...\"} if path can be resolved automatically,
+  "Pure function. Returns {:paths [\"...\" ...]} if paths can be resolved automatically,
    or {:needs-input true :question \"...\" :candidates [...]} if user input is needed."
   [project workspace-roots]
   (cond
+    ;; Use all explicitly saved paths (user made an active choice previously)
     (seq (:local-paths project))
-    {:path (first (:local-paths project))}
+    {:paths (vec (:local-paths project))}
 
+    ;; Auto-detect from workspace roots — each root is a direct candidate
     (seq workspace-roots)
     (let [candidates (path-matching/scan-workspace-roots (map :path workspace-roots))
           {:keys [best ranked]} (path-matching/find-best-match candidates project)]
       (if best
-        {:path (:path best)}
+        {:paths [(:path best)]}
         {:needs-input true
-         :question    "Which codebase should I review?"
+         :question    "Which repositories should I review?"
          :candidates  ranked}))
 
     :else
     {:needs-input true
-     :question    "Which codebase should I review?"
+     :question    "Which repositories should I review?"
      :candidates  []}))
 
 (def ^:private requirement-resolvers
@@ -403,19 +405,17 @@ Rank these workflows by how well they match the project."
         ;; Score using the current brief if available, else fall back to project description
         eff-project   (build-effective-project db project)
         brief-version (:brief-version eff-project)
-        ;; Check if a code context path was resolved for this step
-        code-path     (get-in resolved-inputs [:code_context_path :path])
-        ;; Read and format code context when a path is available
-        code-context  (when code-path
-                        (let [result (local-files/read-local-paths [code-path])]
+        ;; Check if code context paths were resolved for this step (may be multiple repos)
+        code-paths    (get-in resolved-inputs [:code_context_path :paths])
+        ;; Read all paths in one pass and format a single combined context block
+        code-context  (when (seq code-paths)
+                        (let [result (local-files/read-local-paths code-paths)]
                           (local-files/format-code-context
-                            {:root     code-path
+                            {:root     (str/join ", " code-paths)
                              :files    (:files result)
                              :not-read (:not-read result)
                              :skipped  (:skipped result)
-                             :strategy (if (.isDirectory (java.io.File. code-path))
-                                         "recursive"
-                                         "direct")})))
+                             :strategy "recursive"})))
         ;; Build scoring prompt — with or without code context
         system-prompt (agents/get-system-prompt (:scorer-type definition))
         user-prompt   (if code-context
@@ -440,7 +440,7 @@ Rank these workflows by how well they match the project."
         output-data   (cond-> {"overall"      (:overall score-result)
                                 "dimensions"   norm-dims
                                 "score_run_id" (str (:id score-run))}
-                        code-path (assoc "context_path" code-path))
+                        (seq code-paths) (assoc "context_path" (first code-paths)))
         completed     (persistence/update-step-run! db (:id step-run)
                                                     {:status       "completed"
                                                      :output       (json/encode output-data)
@@ -448,7 +448,7 @@ Rank these workflows by how well they match the project."
                                                      :completed-at (utils/now)})]
     (log/infof "Score step completed for agent=%s run=%s overall=%.2f%s"
                agent-type (:workflow-run-id step-run) (double (:overall score-result))
-               (if code-path (str " context-path=" code-path) ""))
+               (if (seq code-paths) (str " context-paths=" (str/join "," code-paths)) ""))
     (write-sse-event! output-stream {:event "step_complete" :data completed})
     score-result))
 
@@ -499,7 +499,7 @@ Rank these workflows by how well they match the project."
         ;; Call judge LLM
         response     (post-anthropic-sync (:api-key executor)
                                           {:model      default-model
-                                           :max_tokens 2048
+                                           :max_tokens 3000
                                            :system     agents/team-lead-system-prompt
                                            :messages   [{:role "user"
                                                          :content (json/encode judge-input)}]})

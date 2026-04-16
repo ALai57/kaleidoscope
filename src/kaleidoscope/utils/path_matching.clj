@@ -95,22 +95,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn scan-workspace-roots
-  "List immediate subdirectories of all provided root paths.
+  "Return registered workspace roots as candidates for code context selection.
+   Each root is offered directly — no subdirectory enumeration.
    Skips roots that don't exist or aren't directories.
    Returns [{:path \"...\" :basename \"...\"}]."
   [root-paths]
   (->> root-paths
-       (mapcat (fn [root-path]
-                 (let [root (File. ^String root-path)]
-                   (if (and (.exists root) (.isDirectory root))
-                     (let [children (.listFiles root)]
-                       (if children
-                         (->> children
-                              (filter #(.isDirectory %))
-                              (map (fn [^File f]
-                                     {:path     (.getAbsolutePath f)
-                                      :basename (.getName f)})))
-                         []))
-                     (do (log/warnf "Workspace root does not exist: %s" root-path)
-                         [])))))
+       (keep (fn [root-path]
+               (let [f (File. ^String root-path)]
+                 (if (and (.exists f) (.isDirectory f))
+                   {:path     (.getAbsolutePath f)
+                    :basename (.getName f)}
+                   (do (log/warnf "Workspace root does not exist or is not a directory: %s" root-path)
+                       nil)))))
        vec))
