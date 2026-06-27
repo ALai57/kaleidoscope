@@ -1,0 +1,14 @@
+app = "kaleidoscope-log-shipper"
+primary_region = "iad"
+
+[build]
+  image = "flyio/log-shipper:latest"
+
+[env]
+  # Filter logs to just the main app; remove to ship all org logs
+  APP_NAME = "kaleidoscope-publishing"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
