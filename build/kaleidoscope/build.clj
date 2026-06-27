@@ -102,14 +102,6 @@
 (def sh
   (comp with-real-time-output process/start log-command))
 
-(defn release [_]
-  ;; Add logging/verbose output
-  (assert-committed nil)
-  (uberjar nil)
-  (and (success? (sh (format "%s/bin/docker-login" PWD)))
-       (success? (sh (format "%s/bin/docker-build" PWD)))
-       (success? (sh (format "%s/bin/docker-push" PWD)))))
-
 (comment
   (uberjar nil)
   )

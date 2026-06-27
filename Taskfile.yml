@@ -41,8 +41,9 @@ tasks:
     cmd: ./bin/docker-build
 
   deploy:
-    desc: Build the uberjar and deploy to Fly.io
+    desc: Run tests, build the uberjar, and deploy to Fly.io
     cmds:
+      - task: test
       - task: build:uberjar
       - ./bin/deploy-image
 
