@@ -17,6 +17,7 @@ resources/public/js/test/
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+.DS_Store
 
 # Artifact
 *.zip
