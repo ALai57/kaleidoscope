@@ -33,7 +33,7 @@ Tasks are run via [Taskfile](https://taskfile.dev) (`brew install go-task`). Run
 | `task db:connect` | Open a psql shell to the database |
 | `task build:uberjar` | Compile and package the standalone JAR |
 | `task build:docker` | Build the Docker image (run `build:uberjar` first) |
-| `task deploy` | Login to ECR, push image, trigger ECS deployment |
+| `task deploy` | Build the uberjar and deploy to Fly.io |
 | `task clean` | Remove build artifacts |
 
 Tasks that talk to a database accept an `ENV` variable to select the env file (default: `.env.local`):

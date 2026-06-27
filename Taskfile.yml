@@ -41,10 +41,9 @@ tasks:
     cmd: ./bin/docker-build
 
   deploy:
-    desc: Login to ECR, push image, and trigger ECS deployment
+    desc: Build the uberjar and deploy to Fly.io
     cmds:
-      - ./bin/docker-login
-      - ./bin/docker-push
+      - task: build:uberjar
       - ./bin/deploy-image
 
   clean:
