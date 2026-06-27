@@ -1,5 +1,5 @@
 ALTER TABLE project_workflow_step_runs
-  DROP CONSTRAINT project_workflow_step_runs_step_id_fkey;
+  DROP CONSTRAINT IF EXISTS project_workflow_step_runs_step_id_fkey;
 
 --;;
 

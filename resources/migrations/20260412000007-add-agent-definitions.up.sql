@@ -1,5 +1,5 @@
 CREATE TABLE agent_definitions (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id       TEXT NOT NULL,
   agent_type    TEXT NOT NULL,
   display_name  TEXT NOT NULL,

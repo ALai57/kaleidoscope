@@ -1,5 +1,5 @@
 CREATE TABLE project_workflow_runs (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   project_id   UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   workflow_id  UUID REFERENCES workflows(id),
   status       TEXT NOT NULL DEFAULT 'pending',
@@ -13,7 +13,7 @@ CREATE TABLE project_workflow_runs (
 --;;
 
 CREATE TABLE project_workflow_step_runs (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   workflow_run_id UUID NOT NULL REFERENCES project_workflow_runs(id) ON DELETE CASCADE,
   step_id         UUID REFERENCES workflow_steps(id),
   position        INT NOT NULL,

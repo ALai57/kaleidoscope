@@ -1,5 +1,5 @@
 CREATE TABLE projects (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id     TEXT NOT NULL,
   title       TEXT NOT NULL,
   description TEXT,

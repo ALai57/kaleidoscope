@@ -1,0 +1,52 @@
+version: '3'
+
+vars:
+  ENV: .env.local
+
+tasks:
+  run:
+    desc: Start the development server (default ENV=.env.local)
+    summary: |
+      Starts the Jetty server on port 5001.
+      Override the env file: task run ENV=.env.aws
+    cmd: ./bin/run --environment={{.ENV}}
+
+  test:
+    desc: Run the full test suite
+    cmd: ./bin/test
+
+  db:migrate:
+    desc: Run pending database migrations (default ENV=.env.local)
+    cmd: ./bin/db-migrate --environment={{.ENV}}
+
+  db:reset:
+    desc: Drop all tables and re-run migrations — DESTRUCTIVE (default ENV=.env.local)
+    prompt: This will drop all tables on the target database. Continue?
+    cmd: ./bin/db-reset --environment={{.ENV}}
+
+  db:connect:
+    desc: Open a psql shell to the target database (default ENV=.env.local)
+    cmd: ./bin/psql-connect --environment={{.ENV}}
+
+  build:uberjar:
+    desc: Compile and package the standalone JAR
+    cmd: ./bin/uberjar
+
+  build:docker:
+    desc: Build the Docker image (requires build:uberjar to have run first)
+    cmd: ./bin/docker-build
+
+  deploy:
+    desc: Login to ECR, push image, and trigger ECS deployment
+    cmds:
+      - ./bin/docker-login
+      - ./bin/docker-push
+      - ./bin/deploy-image
+
+  clean:
+    desc: Remove build artifacts
+    cmd: ./bin/clean
+
+  keycloak:
+    desc: Start a local Keycloak instance for auth development
+    cmd: ./bin/start-keycloak

@@ -1,16 +1,32 @@
 -- Extend workflow step definitions with execution model fields
 ALTER TABLE workflow_steps
-  ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'sequential',
-  ADD COLUMN loop_until     TEXT;
+  ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'sequential';
+
+--;;
+
+ALTER TABLE workflow_steps
+  ADD COLUMN loop_until TEXT;
 
 --;;
 
 -- Extend step runs with execution model + round/score linkage
 ALTER TABLE project_workflow_step_runs
-  ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'sequential',
-  ADD COLUMN loop_until     TEXT,
-  ADD COLUMN round_id       UUID,
-  ADD COLUMN score_run_id   UUID;
+  ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'sequential';
+
+--;;
+
+ALTER TABLE project_workflow_step_runs
+  ADD COLUMN loop_until TEXT;
+
+--;;
+
+ALTER TABLE project_workflow_step_runs
+  ADD COLUMN round_id UUID;
+
+--;;
+
+ALTER TABLE project_workflow_step_runs
+  ADD COLUMN score_run_id UUID;
 
 --;;
 
@@ -28,7 +44,7 @@ ALTER TABLE project_score_runs
 
 -- Rounds: each pass through the parallel-score + judge loop
 CREATE TABLE workflow_rounds (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   workflow_run_id UUID NOT NULL REFERENCES project_workflow_runs(id) ON DELETE CASCADE,
   round_number    INT  NOT NULL,
   status          TEXT NOT NULL DEFAULT 'in_progress',
@@ -55,7 +71,7 @@ ALTER TABLE project_workflow_step_runs
 
 -- Judge records: complete audit trail of every team-lead decision
 CREATE TABLE workflow_judge_records (
-  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   step_run_id    UUID  NOT NULL REFERENCES project_workflow_step_runs(id),
   round_id       UUID  NOT NULL REFERENCES workflow_rounds(id),
   brief_version  INT   NOT NULL,
@@ -71,7 +87,7 @@ CREATE TABLE workflow_judge_records (
 
 -- Versioned project briefs (living document scored each round)
 CREATE TABLE project_briefs (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   project_id        UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   version           INT  NOT NULL,
   content           TEXT NOT NULL,

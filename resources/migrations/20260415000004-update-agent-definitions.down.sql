@@ -1,5 +1,9 @@
 ALTER TABLE agent_definitions
-  DROP COLUMN IF EXISTS short_name,
+  DROP COLUMN IF EXISTS short_name;
+
+--;;
+
+ALTER TABLE agent_definitions
   DROP COLUMN IF EXISTS color;
 
 --;;

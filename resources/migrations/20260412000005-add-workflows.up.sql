@@ -1,5 +1,5 @@
 CREATE TABLE workflows (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id     TEXT NOT NULL,
   name        TEXT NOT NULL,
   description TEXT,
@@ -12,7 +12,7 @@ CREATE TABLE workflows (
 --;;
 
 CREATE TABLE workflow_steps (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
   position    INT NOT NULL DEFAULT 0,
   name        TEXT NOT NULL,

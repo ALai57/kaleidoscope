@@ -6,5 +6,9 @@ ALTER TABLE agent_definitions
 
 -- Add short_name (abbreviated label shown on cards) and color (avatar background)
 ALTER TABLE agent_definitions
-  ADD COLUMN short_name TEXT NOT NULL DEFAULT '',
-  ADD COLUMN color      TEXT NOT NULL DEFAULT '';
+  ADD COLUMN short_name TEXT NOT NULL DEFAULT '';
+
+--;;
+
+ALTER TABLE agent_definitions
+  ADD COLUMN color TEXT NOT NULL DEFAULT '';

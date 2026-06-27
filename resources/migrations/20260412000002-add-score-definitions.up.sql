@@ -1,5 +1,5 @@
 CREATE TABLE score_definitions (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id     TEXT NOT NULL,
   name        TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE score_definitions (
 --;;
 
 CREATE TABLE score_dimension_definitions (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                  UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   score_definition_id UUID NOT NULL REFERENCES score_definitions(id) ON DELETE CASCADE,
   name                TEXT NOT NULL,
   criteria            TEXT NOT NULL,

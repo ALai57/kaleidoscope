@@ -20,10 +20,38 @@ All backends are pluggable via protocols: DB, storage, auth, scoring, and workfl
 
 ---
 
+## Commands
+
+Tasks are run via [Taskfile](https://taskfile.dev) (`brew install go-task`). Run `task --list` to see all available tasks.
+
+| Task | Description |
+|---|---|
+| `task run` | Start the development server on port 5001 |
+| `task test` | Run the full test suite |
+| `task db:migrate` | Run pending migrations |
+| `task db:reset` | Drop all tables and re-run migrations (**destructive** — prompts for confirmation) |
+| `task db:connect` | Open a psql shell to the database |
+| `task build:uberjar` | Compile and package the standalone JAR |
+| `task build:docker` | Build the Docker image (run `build:uberjar` first) |
+| `task deploy` | Login to ECR, push image, trigger ECS deployment |
+| `task clean` | Remove build artifacts |
+| `task keycloak` | Start a local Keycloak instance for auth development |
+
+Tasks that talk to a database accept an `ENV` variable to select the env file (default: `.env.local`):
+```bash
+task db:migrate                        # uses .env.local
+task db:migrate ENV=.env.aws           # targets cloud DB
+task db:connect ENV=.env.aws
+```
+
+The underlying implementations live in `bin/` — the Taskfile is the interface, the scripts are canonical. Keep `Taskfile.yml` in sync when `bin/` scripts change.
+
+---
+
 ## Running locally
 
 ```bash
-./bin/run --environment=.env.local
+task run
 ```
 
 Copy `env.local.example` to `.env.local`. Default local config:
@@ -44,7 +72,7 @@ Server runs on port 5001 by default.
 ## Testing
 
 ```bash
-./bin/test
+task test
 ```
 
 Framework: **Kaocha** + **matcher-combinators** + **ring-mock** / **peridot**.
@@ -64,9 +92,9 @@ Test files mirror the source structure under `test/kaleidoscope/`. Common helper
 Migrations live in `resources/migrations/` and are managed by **Migratus**.
 
 ```bash
-./bin/db-migrate       # run pending migrations
-./bin/db-reset         # reset to clean state
-./bin/psql-connect --environment=.env.aws  # connect to cloud DB
+task db:migrate                   # run pending migrations
+task db:reset                     # drop all tables + re-migrate (prompts first)
+task db:connect ENV=.env.aws      # connect to cloud DB
 ```
 
 **Never change the DB schema without a migration file.** Always create a new numbered `.up.sql` / `.down.sql` pair.
@@ -127,6 +155,7 @@ Migrations live in `resources/migrations/` and are managed by **Migratus**.
 2. **All schema changes require a migration file.** Never alter tables directly.
 3. **Don't refactor legacy CMS code** (articles, albums, portfolio) unless it's explicitly the task.
 4. **Every feature needs automated tests.** Unit or end-to-end — discuss the right layer, but "no tests" is not acceptable.
+5. **Keep `Taskfile.yml` in sync with `bin/`.** If a bin script is added, renamed, or changes its interface, update the Taskfile.
 
 ---
 

@@ -6,13 +6,6 @@ DROP INDEX IF EXISTS project_tasks_project_id_status_idx;
 
 --;;
 
-DROP TRIGGER IF EXISTS project_tasks_updated_at ON project_tasks;
-
---;;
-
-DROP FUNCTION IF EXISTS set_updated_at();
-
---;;
 
 DROP TABLE IF EXISTS project_tasks;
 

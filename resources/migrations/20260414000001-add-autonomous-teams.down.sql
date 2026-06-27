@@ -21,9 +21,21 @@ DROP TABLE IF EXISTS workflow_rounds;
 --;;
 
 ALTER TABLE project_workflow_step_runs
-  DROP COLUMN IF EXISTS score_run_id,
-  DROP COLUMN IF EXISTS round_id,
-  DROP COLUMN IF EXISTS loop_until,
+  DROP COLUMN IF EXISTS score_run_id;
+
+--;;
+
+ALTER TABLE project_workflow_step_runs
+  DROP COLUMN IF EXISTS round_id;
+
+--;;
+
+ALTER TABLE project_workflow_step_runs
+  DROP COLUMN IF EXISTS loop_until;
+
+--;;
+
+ALTER TABLE project_workflow_step_runs
   DROP COLUMN IF EXISTS execution_mode;
 
 --;;
@@ -39,5 +51,9 @@ ALTER TABLE project_workflow_runs
 --;;
 
 ALTER TABLE workflow_steps
-  DROP COLUMN IF EXISTS loop_until,
+  DROP COLUMN IF EXISTS loop_until;
+
+--;;
+
+ALTER TABLE workflow_steps
   DROP COLUMN IF EXISTS execution_mode;

@@ -1,6 +1,6 @@
 -- Workspace roots: user-registered directories where codebases live
 CREATE TABLE user_workspace_roots (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id    TEXT NOT NULL,
   path       TEXT NOT NULL,
   label      TEXT,

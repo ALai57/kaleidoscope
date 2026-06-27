@@ -77,7 +77,7 @@
 (defn update-task!
   "Partial update on a task row. Returns the updated task."
   [db task-id updates]
-  (first (rdbms/update! db :project-tasks (assoc updates :id task-id))))
+  (first (rdbms/update! db :project-tasks (assoc updates :id task-id :updated-at (utils/now)))))
 
 (defn delete-task!
   "Hard delete a task by id."
@@ -88,9 +88,10 @@
   "Update positions for multiple tasks in a single transaction.
    positions is a seq of {:id uuid :position int}."
   [db positions]
-  (next/with-transaction [tx db]
-    (doseq [{:keys [id position]} positions]
-      (rdbms/update! tx :project-tasks {:id id :position position}))))
+  (let [now (utils/now)]
+    (next/with-transaction [tx db]
+      (doseq [{:keys [id position]} positions]
+        (rdbms/update! tx :project-tasks {:id id :position position :updated-at now})))))
 
 (defn bulk-create-tasks!
   "Insert multiple tasks in a transaction, assigning sequential positions

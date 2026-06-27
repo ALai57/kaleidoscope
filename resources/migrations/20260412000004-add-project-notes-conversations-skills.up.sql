@@ -1,5 +1,5 @@
 CREATE TABLE project_notes (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   content    TEXT NOT NULL,
   source     TEXT NOT NULL DEFAULT 'text',
@@ -9,7 +9,7 @@ CREATE TABLE project_notes (
 --;;
 
 CREATE TABLE project_conversations (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   agent_type TEXT NOT NULL,
   role       TEXT NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE project_conversations (
 --;;
 
 CREATE TABLE project_skills (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   parent_id   UUID REFERENCES project_skills(id),
   name        TEXT NOT NULL,
