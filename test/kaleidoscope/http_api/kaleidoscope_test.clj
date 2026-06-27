@@ -570,26 +570,27 @@
                      :body   [{:id string?}]}
                     result)))
 
-      (testing "A different user ID creates a second group"
-        (is (match? {:status 200
-                     :body   [{:id "other-users-group"}]}
-                    (app (-> (mock/request :put "https://andrewslai.com/groups/other-users-group")
-                             (mock/header "Authorization" "Bearer user second-user")
-                             (mock/json-body {:display-name "my-display-name"}))))))
-
-      (testing "I can retrieve groups I own"
-        (let [response (app (-> (mock/request :get "https://andrewslai.com/groups")
-                                (mock/header "Authorization" "Bearer user first-user")))]
+      (let [second-user-group-id "22222222-2222-2222-2222-222222222222"]
+        (testing "A different user ID creates a second group"
           (is (match? {:status 200
-                       :body   [{:group-id id}]}
-                      response))
-          (is (= 1 (count (:body response))))))
+                       :body   [{:id string?}]}
+                      (app (-> (mock/request :put (format "https://andrewslai.com/groups/%s" second-user-group-id))
+                               (mock/header "Authorization" "Bearer user second-user")
+                               (mock/json-body {:display-name "my-display-name"}))))))
 
-      (testing "I cannot delete groups I do not own"
-        (log/with-min-level :error
-          (is (match? {:status 401}
-                      (app (-> (mock/request :delete "https://andrewslai.com/groups/other-users-group")
-                               (mock/header "Authorization" "Bearer user first-user")))))))
+        (testing "I can retrieve groups I own"
+          (let [response (app (-> (mock/request :get "https://andrewslai.com/groups")
+                                  (mock/header "Authorization" "Bearer user first-user")))]
+            (is (match? {:status 200
+                         :body   [{:group-id id}]}
+                        response))
+            (is (= 1 (count (:body response))))))
+
+        (testing "I cannot delete groups I do not own"
+          (log/with-min-level :error
+            (is (match? {:status 401}
+                        (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s" second-user-group-id))
+                                 (mock/header "Authorization" "Bearer user first-user"))))))))
 
       (testing "Deleted group doesn't exist"
         (is (match? {:status 204}

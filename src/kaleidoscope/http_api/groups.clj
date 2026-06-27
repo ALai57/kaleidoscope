@@ -48,7 +48,7 @@
                                         (let [{:keys [group-id]} path-params
                                               _                  (log/info "Creating group!" group-id body-params)
                                               group              (assoc body-params
-                                                                        :id       group-id
+                                                                        :id       (parse-uuid group-id)
                                                                         :owner-id (oidc/get-verified-email (:identity request)))]
                                           (ok (doto (groups-api/create-group! (:database components) group)
                                                 log/info)))
@@ -65,7 +65,7 @@
                                            (let [{:keys [group-id]} path-params
                                                  requester-id       (oidc/get-verified-email (:identity request))]
                                              (log/infof "User %s attempting to delete group %s!" requester-id group-id)
-                                             (if-let [result (groups-api/delete-group! (:database components) requester-id group-id)]
+                                             (if-let [result (groups-api/delete-group! (:database components) requester-id (parse-uuid group-id))]
                                                (no-content)
                                                (unauthorized)))
                                            (catch Exception e
@@ -82,7 +82,7 @@
                                                  (let [{:keys [group-id]} path-params
                                                        requester-id       (oidc/get-verified-email (:identity request))
                                                        member             body-params]
-                                                   (ok (doto (groups-api/add-users-to-group! (:database components) requester-id group-id member)
+                                                   (ok (doto (groups-api/add-users-to-group! (:database components) requester-id (parse-uuid group-id) member)
                                                          log/info)))
                                                  (catch Exception e
                                                    (log/error "Caught exception " e))))}}]
@@ -98,7 +98,7 @@
                                                                   (let [{:keys [group-id membership-id]} path-params
                                                                         requester-id                     (oidc/get-verified-email (:identity request))]
                                                                     (log/infof "User %s attempting to remove member %s from group %s!" requester-id membership-id group-id)
-                                                                    (if-let [result (groups-api/remove-user-from-group! (:database components) requester-id group-id membership-id)]
+                                                                    (if-let [result (groups-api/remove-user-from-group! (:database components) requester-id (parse-uuid group-id) (parse-uuid membership-id))]
                                                                       (no-content)
                                                                       (unauthorized)))
                                                                   (catch Exception e
