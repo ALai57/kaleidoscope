@@ -31,7 +31,10 @@
                              (if (string/starts-with? bearer-token "user ")
                                (let [new-identity (second (string/split bearer-token #" "))]
                                  (log/debugf "Overriding user identity with `%s`" new-identity)
-                                 (assoc id-token :sub new-identity))
+                                 (assoc id-token
+                                        :sub            new-identity
+                                        :email          (str new-identity "@test.com")
+                                        :email_verified true))
                                id-token))))))
 
 (defn auth0-backend

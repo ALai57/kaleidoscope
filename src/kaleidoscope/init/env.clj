@@ -152,15 +152,16 @@
    :path      "KALEIDOSCOPE_AUTH_TYPE"
    :launchers {"auth0"                     (fn [env] (bb/auth0-backend (env->auth0 env)))
                "always-unauthenticated"    (fn [_env] bb/unauthenticated-backend)
-               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name         "Test User"
-                                                                                 :sub          "my-user-id"
-                                                                                 :email        "test@test.com" ;; Critical for identity-based access
-                                                                                 :realm_access {:roles ["andrewslai.com:admin"
-                                                                                                        "andrewslai.test:admin"
-                                                                                                        "andrewslai.localhost:admin"
-                                                                                                        "sahiltalkingcents.com:admin"
-                                                                                                        "caheriaguilar.com:admin"
-                                                                                                        "caheriaguilar.and.andrewslai.com:admin"]}}))}
+               "custom-authenticated-user" (fn [_env] (bb/authenticated-backend {:name           "Test User"
+                                                                                 :sub            "my-user-id"
+                                                                                 :email          "test@test.com" ;; Critical for identity-based access
+                                                                                 :email_verified true
+                                                                                 :realm_access   {:roles ["andrewslai.com:admin"
+                                                                                                          "andrewslai.test:admin"
+                                                                                                          "andrewslai.localhost:admin"
+                                                                                                          "sahiltalkingcents.com:admin"
+                                                                                                          "caheriaguilar.com:admin"
+                                                                                                          "caheriaguilar.and.andrewslai.com:admin"]}}))}
    :default   "auth0"})
 
 (def kaleidoscope-authorization-boot-instructions

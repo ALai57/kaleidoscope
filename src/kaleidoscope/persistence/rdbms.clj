@@ -43,7 +43,10 @@
 
 (defmethod handle-map :default
   [m ^PreparedStatement s i]
-  (.setObject s i (->pgobject m)))
+  ;; H2 doesn't accept PGobject; pass JSON as a plain string instead
+  (if (str/starts-with? (.getName (class s)) "org.h2.")
+    (.setString s i (json/encode m))
+    (.setObject s i (->pgobject m))))
 
 (extend-protocol prepare/SettableParameter
   clojure.lang.IPersistentMap

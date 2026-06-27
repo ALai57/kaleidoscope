@@ -349,7 +349,7 @@
             article-id (get-in create-response [:body 0 :article-id])]
         (app (-> (mock/request :post (format "https://andrewslai.com/groups/%s/members" group-id))
                  (mock/header "Authorization" "Bearer user first-user")
-                 (mock/json-body {:email "test@test.com"
+                 (mock/json-body {:email "first-user@test.com"
                                   :alias "Androo"})))
         (is (match? {:status 200
                      :body   [{:group-id   group-id

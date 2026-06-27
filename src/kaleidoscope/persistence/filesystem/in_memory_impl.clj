@@ -74,7 +74,10 @@
 
 (def example-fs
   "An in-memory filesystem used for testing"
-  {"media"  {"afile" (file {:name     "afile"
+  {"index.html" (file {:name    "index.html"
+                       :content "<div>Hello</div>"
+                       :version "3.4"})
+   "media"  {"afile" (file {:name     "afile"
                             :content  {:qux :quz}
                             :version  "1.2"
                             :metadata {}})

@@ -18,18 +18,21 @@
 
 (defmethod rdbms/insert-impl! org.h2.jdbc.JdbcConnection
   [database table m & {:keys [ex-subtype]}]
-  (let [new-ids (next.sql/insert-multi! database table
-                                        (if (map? m)
-                                          [m]
-                                          m)
+  (let [rows    (if (map? m) [m] m)
+        new-ids (next.sql/insert-multi! database table
+                                        rows
                                         (merge next/snake-kebab-opts
                                                {:return-keys           true
                                                 :return-generated-keys true
-                                                :builder-fn            rs/as-unqualified-kebab-maps}))]
+                                                :builder-fn            rs/as-unqualified-kebab-maps}))
+        ;; H2 doesn't return application-provided UUIDs via RETURN_GENERATED_KEYS.
+        ;; Prefer the app-supplied :id (UUID PKs); fall back to H2's generated key
+        ;; (BIGINT sequence PKs on articles/branches/versions).
+        ids     (mapv (fn [row generated] (or (:id row) (:id generated))) rows new-ids)]
     (next.sql/query database (concat [(format "SELECT * FROM %s WHERE id in (%s)"
                                               (csk/->snake_case_string table)
-                                              (str/join ", " (repeat (count new-ids) "?")))]
-                                     (mapv :id new-ids))
+                                              (str/join ", " (repeat (count ids) "?")))]
+                                     ids)
                     (merge next/snake-kebab-opts
                            {:builder-fn rs/as-unqualified-kebab-maps}))))
 

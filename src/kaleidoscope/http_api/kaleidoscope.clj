@@ -39,6 +39,7 @@
    {:pattern #"^/ping"           :handler auth/public-access}
 
    {:pattern #"^/groups.*"            :handler auth/require-*-writer}
+   {:pattern #"^/projects-portfolio"  :handler auth/public-access}
    {:pattern #"^/projects.*"          :handler auth/require-*-writer}
    {:pattern #"^/score-definitions.*" :handler auth/require-*-writer}
    {:pattern #"^/agents.*"             :handler auth/require-*-writer}
