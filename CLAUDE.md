@@ -149,6 +149,24 @@ task db:connect ENV=.env.aws      # connect to cloud DB
 
 ---
 
+## Debugging tests
+
+When debugging test failures, never pipe full test output directly into the conversation — stack traces are expensive and rarely useful. Instead:
+
+1. Use `task test:summary` to get failure names and assertions with no stack traces. For DB migration errors, fall back to saving output to the scratchpad and grepping selectively:
+   ```bash
+   ./bin/test 2>&1 > $SCRATCHPAD/test.log
+   grep -E "^(FAIL|ERROR) in" $SCRATCHPAD/test.log        # list failures
+   grep -A4 "^FAIL" $SCRATCHPAD/test.log                   # assertions only
+   grep "failed to execute\|Syntax error\|Exception:" $SCRATCHPAD/test.log  # DB errors
+   ```
+2. Use `--focus` to run one test at a time — never read the full suite output to diagnose a single failure.
+3. Only escalate to reading more output when the targeted grep doesn't have enough signal.
+
+`$SCRATCHPAD` is `/private/tmp/claude-501/-Users-alai-code-kaleidoscope/8c87afcf-5e99-4f43-89ce-c2a7171dd6ac/scratchpad`.
+
+---
+
 ## Sharp edges
 
 1. **Never bypass the 3-layer separation.** No persistence calls from `http_api/`; no HTTP concerns in `api/`.

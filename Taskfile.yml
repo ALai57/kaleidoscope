@@ -15,6 +15,10 @@ tasks:
     desc: Run the full test suite
     cmd: ./bin/test
 
+  test:summary:
+    desc: Run tests and print only failures (names + assertions, no stack traces)
+    cmd: ./bin/test 2>&1 | grep -E "^(FAIL|ERROR) in|expected:|  actual:"
+
   db:migrate:
     desc: Run pending database migrations (default ENV=.env.local)
     cmd: ./bin/db-migrate --environment={{.ENV}}

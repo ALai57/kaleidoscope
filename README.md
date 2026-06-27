@@ -104,19 +104,21 @@ properly.
 ## Installation/setup
 Clone the repo
 
+Tasks are run via [Taskfile](https://taskfile.dev) (`brew install go-task`).
+
 #### Build: Uberjar
 ```bash
-./bin/uberjar
+task build:uberjar
 ```
 
 #### Build: Docker
 ```bash
-./bin/uberjar && ./bin/docker-build
+task build:uberjar && task build:docker
 ```
 
 #### Run without Docker
 ``` bash
-./bin/run --environment=.env.local
+task run
 ```
 
 #### Run with Docker
@@ -141,13 +143,13 @@ docker run --env-file=.env.docker.local \
 
 #### Tests
 ```bash
-./bin/test
+task test
 ```
 
 #### Database access
 
 ``` bash
-./bin/psql-connect --environment=.env.aws
+task db:connect ENV=.env.aws
 ```
 
 ## Development
