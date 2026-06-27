@@ -35,7 +35,6 @@ Tasks are run via [Taskfile](https://taskfile.dev) (`brew install go-task`). Run
 | `task build:docker` | Build the Docker image (run `build:uberjar` first) |
 | `task deploy` | Login to ECR, push image, trigger ECS deployment |
 | `task clean` | Remove build artifacts |
-| `task keycloak` | Start a local Keycloak instance for auth development |
 
 Tasks that talk to a database accept an `ENV` variable to select the env file (default: `.env.local`):
 ```bash

@@ -50,7 +50,3 @@ tasks:
   clean:
     desc: Remove build artifacts
     cmd: ./bin/clean
-
-  keycloak:
-    desc: Start a local Keycloak instance for auth development
-    cmd: ./bin/start-keycloak
