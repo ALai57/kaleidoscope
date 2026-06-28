@@ -28,8 +28,8 @@
          fi.metosin/reitit                                    {:mvn/version "0.7.0-alpha6"}
          metosin/ring-swagger-ui                              {:mvn/version "5.0.0-alpha.0"} ;; To support OpenAPI 3.1.0
          org.clojure/clojure                                  {:mvn/version "1.12.5"}
-         com.auth0/java-jwt                                    {:mvn/version "4.4.0"}
-         com.auth0/jwks-rsa                                    {:mvn/version "0.22.1"}
+         com.auth0/java-jwt                                    {:mvn/version "4.5.2"}
+         com.auth0/jwks-rsa                                    {:mvn/version "0.24.1"}
 
 
          org.postgresql/postgresql                            {:mvn/version "42.5.1"}
