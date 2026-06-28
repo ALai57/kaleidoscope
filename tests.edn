@@ -1,7 +1,6 @@
 #kaocha/v1
 {:tests [{:id          :unit
-          :test-paths  ["test"]
-          :ns-patterns ["^(?!kaleidoscope\\.persistence\\.filesystem\\.s3-impl-test$).*"]}]
+          :test-paths  ["test"]}]
           :reporter    kaocha.report.progress/report
           :plugins     [:kaocha.plugin/profiling :kaocha.plugin/notifier]
  }

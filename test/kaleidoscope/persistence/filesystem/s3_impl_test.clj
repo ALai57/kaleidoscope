@@ -1,16 +1,7 @@
 (ns kaleidoscope.persistence.filesystem.s3-impl-test
-  (:require [amazonica.aws.s3 :as s3]
-            [kaleidoscope.persistence.filesystem :as fs]
-            [kaleidoscope.persistence.filesystem.s3-impl :as sut]
-            [kaleidoscope.generators.files :as gen-file]
-            [kaleidoscope.generators.s3 :as gen-s3]
+  (:require [kaleidoscope.persistence.filesystem.s3-impl :as sut]
             [kaleidoscope.test-main :as tm]
-            [biiwide.sandboxica.alpha :as sandbox]
-            [clojure.test :refer [is use-fixtures]]
-            [clojure.test.check.clojure-test :refer [defspec]]
-            [clojure.test.check.generators :as gen]
-            [clojure.test.check.properties :as prop]
-            [matcher-combinators.test :refer [match?]]
+            [clojure.test :refer [is use-fixtures deftest testing]]
             [taoensso.timbre :as log]))
 
 (use-fixtures :once
@@ -18,6 +9,15 @@
     (log/with-min-level tm/*test-log-level*
       (f))))
 
+(clojure.test/deftest no-such-key-test
+  (clojure.test/testing "matches the cognitect AWS SDK error code for missing S3 keys"
+    (is (true? (sut/no-such-key? {:cognitect.aws.error/code               "NoSuchKey"
+                                  :cognitect.anomalies/category           :cognitect.anomalies/not-found
+                                  :cognitect.aws.http/status              404})))
+    (is (false? (sut/no-such-key? {:cognitect.aws.error/code              "AccessDenied"
+                                   :cognitect.anomalies/category          :cognitect.anomalies/forbidden
+                                   :cognitect.aws.http/status             403})))
+    (is (false? (sut/no-such-key? {})))))
 
 #_:clj-kondo/ignore
 (comment

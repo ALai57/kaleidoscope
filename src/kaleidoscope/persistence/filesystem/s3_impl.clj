@@ -84,7 +84,7 @@
 
 (defn no-such-key?
   [result]
-  (= "NoSuchKey" (:__type result)))
+  (= "NoSuchKey" (:cognitect.aws.error/code result)))
 
 (defn copy-input-stream
   "Copy the S3 response stream into a byte array so the HTTP connection can
