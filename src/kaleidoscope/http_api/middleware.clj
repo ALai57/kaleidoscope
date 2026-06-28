@@ -66,6 +66,20 @@
 
 
 
+(defn wrap-exception-reporter
+  [report-fn]
+  (fn [handler]
+    (fn [request]
+      (try
+        (handler request)
+        (catch Exception e
+          (log/errorf "Unhandled exception on %s %s: %s"
+                      (:request-method request) (:uri request) e)
+          (when report-fn (report-fn e))
+          {:status  500
+           :headers {"Content-Type" "application/json"}
+           :body    "{\"error\":\"Internal server error\"}"})))))
+
 (defn session-tracking-stack
   [session-tracker]
   (fn wrap-session-tracking [handler]

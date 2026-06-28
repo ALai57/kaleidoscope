@@ -137,7 +137,8 @@
    (let [reitit-config (update-in mw/reitit-configuration
                                   [:data :middleware]
                                   (fn [mw]
-                                    (concat mw [(inject-components components)
+                                    (concat mw [(mw/wrap-exception-reporter (:exception-reporter components))
+                                                (inject-components components)
                                                 (:session-tracking components)
                                                 (:auth-stack components)])))]
      (ring/ring-handler

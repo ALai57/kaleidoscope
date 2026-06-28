@@ -142,6 +142,19 @@
                          (mock/header "Authorization" "Bearer x")))))
     (is (nil? (:identity @captured-request)))))
 
+(deftest wrap-exception-reporter-test
+  (let [reported         (atom [])
+        report-fn        (fn [e] (swap! reported conj e))
+        throwing-handler (fn [_] (throw (Exception. "test error")))
+        app              ((mw/wrap-exception-reporter report-fn) throwing-handler)]
+    (testing "Returns 500 on unhandled exception"
+      (is (match? {:status 500}
+                  (log/with-min-level :fatal
+                    (app (mock/request :get "/test"))))))
+    (testing "Calls the report function with the exception"
+      (is (= 1 (count @reported)))
+      (is (= "test error" (.getMessage (first @reported)))))))
+
 ;;
 ;; Reitit tests
 ;;
