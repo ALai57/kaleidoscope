@@ -27,7 +27,7 @@
          metosin/ring-http-response                           {:mvn/version "0.9.1"}
          fi.metosin/reitit                                    {:mvn/version "0.7.0-alpha6"}
          metosin/ring-swagger-ui                              {:mvn/version "5.0.0-alpha.0"} ;; To support OpenAPI 3.1.0
-         org.clojure/clojure                                  {:mvn/version "1.12.0-beta1"} ;; For Java Process API
+         org.clojure/clojure                                  {:mvn/version "1.12.5"}
          com.auth0/java-jwt                                    {:mvn/version "4.4.0"}
          com.auth0/jwks-rsa                                    {:mvn/version "0.22.1"}
 
@@ -44,7 +44,7 @@
  :aliases {:dev {:classpath-overrides {org.clojure/clojure nil}
                  :extra-deps          {software.amazon.awssdk/ssooidc        {:mvn/version "2.20.50"}
                                        djblue/portal                        {:mvn/version "0.37.1"}
-                                       com.github.flow-storm/clojure        {:mvn/version "1.12.0-beta1"}
+                                       com.github.flow-storm/clojure        {:mvn/version "1.12.5-1"}
                                        com.github.flow-storm/flow-storm-dbg {:mvn/version "3.16.0"}
                                        com.h2database/h2                    {:mvn/version "2.2.224"}
                                        io.zonky.test/embedded-postgres      {:mvn/version "2.0.3"}
