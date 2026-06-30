@@ -2,11 +2,6 @@ extensions:
   health_check:
     endpoint: 0.0.0.0:13133
 
-  basicauth/grafana:
-    client_auth:
-      username: "${GRAFANA_INSTANCE_ID}"
-      password: "${GRAFANA_API_KEY}"
-
 
 receivers:
   otlp:
@@ -29,8 +24,8 @@ exporters:
   # Grafana Tempo — basic auth, same endpoint the app sent to directly before
   otlp_http/grafana:
     endpoint: "${GRAFANA_TEMPO_ENDPOINT}"
-    auth:
-      authenticator: basicauth/grafana
+    headers:
+      Authorization: "${GRAFANA_AUTH_HEADER}"
 
   # Bugsnag Performance — org-level API key is a subdomain, not a header
   # Uses traces_endpoint (full path) per Bugsnag docs — not endpoint (base URL)
@@ -43,7 +38,7 @@ exporters:
     endpoint: "${SUMOLOGIC_OTLP_ENDPOINT}"
 
 service:
-  extensions: [health_check, basicauth/grafana]
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]

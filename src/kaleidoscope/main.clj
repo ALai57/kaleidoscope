@@ -71,6 +71,7 @@
                         {:endpoint (str endpoint "/v1/traces")})]}])}}))
   (println (bean (otel/get-global-otel!)))
   (span/with-span! {:name "kaleidoscope.initialization.otel"}
+                   (println "Testing")
     (println "Initializing Open Telemetry")))
 
 (defn init-stripe! [env]

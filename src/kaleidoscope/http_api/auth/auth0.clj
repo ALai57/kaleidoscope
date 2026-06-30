@@ -27,8 +27,7 @@
         algorithm    (Algorithm/RSA256 (rsa-key-provider jwk-provider))
         verifier     (-> (JWT/require algorithm)
                          (.withIssuer (into-array String [(str "https://" domain "/")]))
-                         (.withAudience (into-array String [audience
-                                                            (str "https://" domain "/userinfo")]))
+                         (.withAudience (into-array String [audience]))
                          (.build))]
     (fn authfn [{:keys [request-id] :as _request} token]
       (span/with-span! {:name "kaleidoscope.authentication.auth0.verifier"}
