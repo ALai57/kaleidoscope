@@ -47,6 +47,11 @@ tasks:
       - task: build:uberjar
       - ./bin/deploy-image
 
+  deploy:otel-collector:
+    desc: Deploy the OTEL collector to Fly.io
+    dir: iac/otel-collector
+    cmd: fly deploy
+
   clean:
     desc: Remove build artifacts
     cmd: ./bin/clean

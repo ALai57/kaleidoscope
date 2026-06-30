@@ -16,7 +16,7 @@ fly apps create kaleidoscope-otel-collector --org personal
 fly secrets set \
   GRAFANA_INSTANCE_ID=<numeric-id> \
   GRAFANA_API_KEY=<api-token> \
-  BUGSNAG_ORG_API_KEY=<organization-api-key> \
+  BUGSNAG_API_KEY=<organization-api-key> \
   SUMOLOGIC_OTLP_ENDPOINT=<presigned-url> \
   --app kaleidoscope-otel-collector
 fly deploy --config iac/otel-collector/fly.toml
@@ -36,7 +36,7 @@ fly deploy --config fly.toml
 |---|---|
 | `GRAFANA_INSTANCE_ID` | Grafana numeric instance/user ID (shown in Grafana Cloud → My Account → Stack Details → Tempo → User) |
 | `GRAFANA_API_KEY` | Grafana Cloud API token with **traces:write** scope |
-| `BUGSNAG_ORG_API_KEY` | Bugsnag **organization-level** API key — used as a subdomain in the OTLP endpoint. Found under Organization settings, not project settings. |
+| `BUGSNAG_API_KEY` | Bugsnag **organization-level** API key — used as a subdomain in the OTLP endpoint. Found under Organization settings, not project settings. |
 | `SUMOLOGIC_OTLP_ENDPOINT` | Sumo Logic presigned OTLP URL — auth is embedded in the URL, no separate credentials needed. See below. |
 
 ### Finding the Sumo Logic presigned OTLP URL
