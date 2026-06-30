@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "outDir": ".checkly"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", ".checkly"]
+}

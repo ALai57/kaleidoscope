@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Test the Auth0 M2M token and verify it works against sahiltalkingcents.com.
+#
+# Usage:
+#   AUTH0_CLIENT_ID=xxx AUTH0_CLIENT_SECRET=yyy ./scripts/test-m2m-token
+#
+# Or set AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET in your .env.local and source it first:
+#   source .env.local && ./scripts/test-m2m-token
+
+: "${AUTH0_CLIENT_ID:?AUTH0_CLIENT_ID is required}"
+: "${AUTH0_CLIENT_SECRET:?AUTH0_CLIENT_SECRET is required}"
+
+AUTH0_DOMAIN="dev-722l4eivlaenj2h1.us.auth0.com"
+AUDIENCE="https://api.andrewslai.com"
+BASE_URL="https://sahiltalkingcents.com"
+
+echo "==> Fetching M2M token..."
+TOKEN=$(curl -s -X POST "https://${AUTH0_DOMAIN}/oauth/token" \
+  -H 'Content-Type: application/json' \
+  -d "{
+    \"grant_type\": \"client_credentials\",
+    \"client_id\": \"${AUTH0_CLIENT_ID}\",
+    \"client_secret\": \"${AUTH0_CLIENT_SECRET}\",
+    \"audience\": \"${AUDIENCE}\"
+  }" | jq -r '.access_token')
+
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+  echo "ERROR: Failed to get token — check CLIENT_ID, CLIENT_SECRET, and that the M2M app is authorized for the API"
+  exit 1
+fi
+
+echo "==> Token claims (realm_access, email, email_verified):"
+# JWT uses base64url: swap -/_ back to +// and add padding before decoding
+echo "$TOKEN" \
+  | cut -d. -f2 \
+  | sed 's/-/+/g; s/_/\//g' \
+  | awk '{print $0"==="}' \
+  | base64 -d 2>/dev/null \
+  | jq '{realm_access, email, email_verified}'
+
+echo ""
+echo "==> GET /ping (no auth — baseline health check):"
+curl -s "${BASE_URL}/ping" | jq .
+
+echo ""
+echo "==> GET /projects (with token — should return 200):"
+PROJECTS_STATUS=$(curl -s -o /tmp/projects_body.json -w "%{http_code}" "${BASE_URL}/projects" \
+  -H "Authorization: Bearer ${TOKEN}")
+echo "HTTP status: ${PROJECTS_STATUS}"
+echo "Response body:"
+cat /tmp/projects_body.json | jq . 2>/dev/null || cat /tmp/projects_body.json
+
+echo ""
+echo "==> GET /projects (no token — should return 401):"
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/projects")
+echo "HTTP status: ${STATUS}"
+if [ "$STATUS" = "401" ]; then
+  echo "PASS: auth wall is enforced"
+else
+  echo "FAIL: expected 401, got ${STATUS}"
+fi
