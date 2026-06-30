@@ -21,13 +21,11 @@ done
 
 ## Apply the environment variable file if necessary
 if [ -n $ENV_FILE ]; then
-    set -o allexport
     ## `source` is only implemented in `bash` (not in `sh`)
     PWD=$(pwd)
     echo "Applying environment file: $PWD/$ENV_FILE"
     source "$ENV_FILE"
     #echo "KALEIDOSCOPE_LOG_LEVEL: $KALEIDOSCOPE_LOG_LEVEL"
-    set +o allexport
 fi
 
 #echo "Options: $OPTS"

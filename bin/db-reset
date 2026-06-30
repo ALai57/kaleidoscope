@@ -21,11 +21,9 @@ done
 
 ## Apply the environment variable file if necessary
 if [ -n $ENV_FILE ]; then
-    set -o allexport
     PWD=$(pwd)
     echo "Applying environment file: $PWD/$ENV_FILE"
     source "$ENV_FILE"
-    set +o allexport
 fi
 
 echo "Dropping all tables, views, and sequences on ${KALEIDOSCOPE_DB_HOST}:${KALEIDOSCOPE_DB_PORT}/${KALEIDOSCOPE_DB_NAME}..."
