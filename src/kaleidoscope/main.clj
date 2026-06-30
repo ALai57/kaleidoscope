@@ -19,7 +19,10 @@
             [taoensso.timbre :as log]
             [taoensso.timbre.appenders.core :as appenders]
             )
-  (:import (com.stripe Stripe)))
+  (:import (com.stripe Stripe)
+           (java.util.logging Logger Level)
+           (java.net Socket InetSocketAddress URI)
+           (org.slf4j.bridge SLF4JBridgeHandler)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Logging
@@ -59,8 +62,17 @@
   Must run before any span creation and before the datasource is wrapped
   with library telemetry (HikariCP + JDBC)."
   []
+  ;; The OTel Java SDK logs export failures via java.util.logging (JUL), not SLF4J.
+  ;; Without this bridge, those errors are written to stderr in raw JUL format and
+  ;; never routed through Timbre — making silent export failures impossible to detect.
+  ;; We cap the JUL root logger at WARNING first so the bridge doesn't funnel verbose
+  ;; JVM INFO chatter (class loading, GC, etc.) through Timbre's structured pipeline.
+  (.. (Logger/getLogger "") (setLevel Level/WARNING))
+  (SLF4JBridgeHandler/removeHandlersForRootLogger)
+  (SLF4JBridgeHandler/install)
   (let [service-name (or (System/getenv "OTEL_SERVICE_NAME") "kaleidoscope")
         endpoint     (System/getenv "OTEL_EXPORTER_OTLP_ENDPOINT")]
+    (println "OTEL init: service=" service-name "endpoint=" endpoint)
     (sdk/init-otel-sdk!
      service-name
      {:set-as-global true
@@ -68,10 +80,20 @@
       {:span-processors
        (when endpoint
          [{:exporters [(otlp-trace/span-exporter
-                        {:endpoint (str endpoint "/v1/traces")})]}])}}))
+                        {:endpoint (str endpoint "/v1/traces")})]}])}})
+    ;; Explicit TCP probe to surface 6PN connectivity failures before the async
+    ;; BatchSpanProcessor would silently drop spans on its first failed export.
+    (when endpoint
+      (let [uri (URI. endpoint)]
+        (try
+          (doto (Socket.)
+            (.connect (InetSocketAddress. (.getHost uri) (.getPort uri)) 5000)
+            .close)
+          (println "OTEL connectivity test PASS:" endpoint)
+          (catch Exception e
+            (println "OTEL connectivity test FAIL:" endpoint (.getMessage e)))))))
   (println (bean (otel/get-global-otel!)))
   (span/with-span! {:name "kaleidoscope.initialization.otel"}
-                   (println "Testing")
     (println "Initializing Open Telemetry")))
 
 (defn init-stripe! [env]
