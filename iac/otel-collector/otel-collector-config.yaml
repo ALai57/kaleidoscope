@@ -12,9 +12,9 @@ receivers:
   otlp:
     protocols:
       http:
-        endpoint: 0.0.0.0:4318
+        endpoint: "[::]:4318"
       grpc:
-        endpoint: 0.0.0.0:4317
+        endpoint: "[::]:4317"
 
 processors:
   batch:
@@ -22,6 +22,10 @@ processors:
     send_batch_size: 1024
 
 exporters:
+  # Temporary: logs every received span to stdout for debugging; remove once confirmed working
+  debug:
+    verbosity: detailed
+
   # Grafana Tempo — basic auth, same endpoint the app sent to directly before
   otlp_http/grafana:
     endpoint: "${GRAFANA_TEMPO_ENDPOINT}"
@@ -44,4 +48,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp_http/grafana, otlp_http/bugsnag, otlp_http/sumologic]
+      exporters: [debug, otlp_http/grafana, otlp_http/bugsnag, otlp_http/sumologic]

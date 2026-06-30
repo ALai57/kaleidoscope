@@ -5,8 +5,9 @@ primary_region = "iad"
   dockerfile = "Dockerfile"
 
 [env]
-  # Non-secret: the Grafana Tempo base URL (collector appends /v1/traces)
-  GRAFANA_TEMPO_ENDPOINT = "https://tempo-us-central1.grafana.net/tempo"
+  # Non-secret: Grafana Cloud OTLP gateway (collector appends /v1/traces)
+  # Find the exact URL: Grafana Cloud → Stack → OpenTelemetry → Configure → OTEL_EXPORTER_OTLP_ENDPOINT
+  GRAFANA_TEMPO_ENDPOINT = "https://otlp-gateway-prod-us-central-0.grafana.net/otlp"
   # Sumo Logic OTLP base URL — format: https://open-in-<deployment>.sumologic.com/receiver/v1/otlp
   # Find your deployment at: app.sumologic.com → Preferences → My Profile → Sumo Logic Endpoint
   # Example: https://open-in-us1.sumologic.com/receiver/v1/otlp
