@@ -1,0 +1,48 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  basicauth/grafana:
+    client_auth:
+      username: "${GRAFANA_INSTANCE_ID}"
+      password: "${GRAFANA_API_KEY}"
+
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+
+exporters:
+  # Grafana Tempo — basic auth, same endpoint the app sent to directly before
+  otlphttp/grafana:
+    endpoint: "${GRAFANA_TEMPO_ENDPOINT}"
+    auth:
+      authenticator: basicauth/grafana
+
+  # Bugsnag Performance — org-level API key is a subdomain, not a header
+  # Use an organization API key (Organization settings), not a project API key
+  # Uses traces_endpoint (full path) per Bugsnag docs — not endpoint (base URL)
+  otlphttp/bugsnag:
+    traces_endpoint: "https://${BUGSNAG_ORG_API_KEY}.otlp.bugsnag.com:4318/v1/traces"
+
+  # Sumo Logic — presigned URL with auth embedded; no separate credentials needed
+  # Collector appends /v1/traces, so set base OTLP path only
+  otlphttp/sumologic:
+    endpoint: "${SUMOLOGIC_OTLP_ENDPOINT}"
+
+service:
+  extensions: [health_check, basicauth/grafana]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/grafana, otlphttp/bugsnag, otlphttp/sumologic]

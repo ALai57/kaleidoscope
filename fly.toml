@@ -33,9 +33,9 @@ primary_region = "iad"
   AWS_REGION                              = "us-east-1"
 
   OTEL_SERVICE_NAME                       = "kaleidoscope-publishing"
-  # Code appends /v1/traces to this — set base URL only (no path)
-  # Verify the exact endpoint in Grafana Cloud: My Account → Stack → Tempo
-  OTEL_EXPORTER_OTLP_ENDPOINT            = "https://tempo-us-central1.grafana.net/tempo"
+  # SDK appends /v1/traces — set base URL only (no path)
+  # Routes to kaleidoscope-otel-collector, which fans out to Grafana Tempo, Bugsnag, and Sumo Logic
+  OTEL_EXPORTER_OTLP_ENDPOINT            = "http://kaleidoscope-otel-collector.internal:4318"
 
 [http_service]
   internal_port       = 5000

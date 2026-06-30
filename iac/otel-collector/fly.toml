@@ -1,0 +1,17 @@
+app = "kaleidoscope-otel-collector"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Non-secret: the Grafana Tempo base URL (collector appends /v1/traces)
+  GRAFANA_TEMPO_ENDPOINT = "https://tempo-us-central1.grafana.net/tempo"
+  # Sumo Logic OTLP base URL — format: https://open-in-<deployment>.sumologic.com/receiver/v1/otlp
+  # Find your deployment at: app.sumologic.com → Preferences → My Profile → Sumo Logic Endpoint
+  # Example: https://open-in-us1.sumologic.com/receiver/v1/otlp
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
