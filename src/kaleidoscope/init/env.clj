@@ -73,6 +73,10 @@
    ;; low, because the app uses db.t4g.micro and we don't want to eat up CPU.
    :minimumIdle 3
    :idleTimeout 120000                                      ;; Shut down connections after 2 mins
+   ;; Neon closes idle connections after ~5 min. maxLifetime forces HikariCP to
+   ;; retire and replace connections before Neon kills them, avoiding the
+   ;; "Failed to validate connection (This connection has been closed.)" warnings.
+   :maxLifetime 240000                                      ;; Retire connections after 4 mins
    })
 
 (defn env->kaleidoscope-image-notifier
