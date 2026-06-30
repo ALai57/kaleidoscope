@@ -81,13 +81,15 @@
        (when endpoint
          [{:exporters [(otlp-trace/span-exporter
                         {:endpoint (str endpoint "/v1/traces")})]}])}})
-    ;; Explicit TCP probe to surface 6PN connectivity failures before the async
+    ;; Explicit TCP probe to surface connectivity failures before the async
     ;; BatchSpanProcessor would silently drop spans on its first failed export.
     (when endpoint
-      (let [uri (URI. endpoint)]
+      (let [uri  (URI. endpoint)
+            port (let [p (.getPort uri)]
+                   (if (pos? p) p (if (= "https" (.getScheme uri)) 443 80)))]
         (try
           (doto (Socket.)
-            (.connect (InetSocketAddress. (.getHost uri) (.getPort uri)) 5000)
+            (.connect (InetSocketAddress. (.getHost uri) port) 5000)
             .close)
           (println "OTEL connectivity test PASS:" endpoint)
           (catch Exception e
