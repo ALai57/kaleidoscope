@@ -23,19 +23,19 @@ processors:
 
 exporters:
   # Grafana Tempo — basic auth, same endpoint the app sent to directly before
-  otlphttp/grafana:
+  otlp_http/grafana:
     endpoint: "${GRAFANA_TEMPO_ENDPOINT}"
     auth:
       authenticator: basicauth/grafana
 
   # Bugsnag Performance — org-level API key is a subdomain, not a header
   # Uses traces_endpoint (full path) per Bugsnag docs — not endpoint (base URL)
-  otlphttp/bugsnag:
+  otlp_http/bugsnag:
     traces_endpoint: "https://${BUGSNAG_API_KEY}.otlp.bugsnag.com:4318/v1/traces"
 
   # Sumo Logic — presigned URL with auth embedded; no separate credentials needed
   # Collector appends /v1/traces, so set base OTLP path only
-  otlphttp/sumologic:
+  otlp_http/sumologic:
     endpoint: "${SUMOLOGIC_OTLP_ENDPOINT}"
 
 service:
@@ -44,4 +44,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlphttp/grafana, otlphttp/bugsnag, otlphttp/sumologic]
+      exporters: [otlp_http/grafana, otlp_http/bugsnag, otlp_http/sumologic]
