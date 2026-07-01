@@ -20,18 +20,46 @@
   [id-token]
   (:sub id-token))
 
+(def ^:private namespaced-email-claim
+  (keyword "https://kaleidoscope.pub/email"))
+
+(def ^:private namespaced-email-verified-claim
+  (keyword "https://kaleidoscope.pub/email_verified"))
+
 (defn get-email
   [id-token]
-  (:email id-token))
+  (or (:email id-token)
+      (get id-token namespaced-email-claim)))
 
 (defn email-verified?
   [id-token]
-  (:email_verified id-token))
+  (if (contains? id-token :email_verified)
+    (:email_verified id-token)
+    (get id-token namespaced-email-verified-claim)))
 
 (defn get-verified-email
   [id-token]
   (when (email-verified? id-token)
     (get-email id-token)))
+
+(defn classify-identity
+  "Classifies a raw JWT claims map into a typed identity.
+
+  Two kinds of credentials exist:
+  - Human sessions (email_verified=true) produce :verified-user with :user-id set to their email.
+  - M2M/service tokens (email_verified=false or absent) produce :service-account with :user-id
+    set to the :sub claim.
+
+  The distinction is made once at the authentication boundary; downstream code reads :type and
+  :user-id directly rather than re-deriving them from raw JWT fields."
+  [id-token]
+  (if (email-verified? id-token)
+    {:type    :verified-user
+     :user-id (get-email id-token)
+     :roles   (get-realm-roles id-token)}
+    {:type    :service-account
+     :user-id (:sub id-token)
+     :roles   (get-realm-roles id-token)}))
 
 (comment
   (def example-oidc-token

@@ -126,7 +126,7 @@
                  :body   {:foo "bar"}}
                 (app (-> (mock/request :get "/")
                          (mock/header "Authorization" "Bearer x")))))
-    (is (match? {:identity {:realm_access {:roles ["myrole"]}}}
+    (is (match? {:identity {:type :service-account :roles #{"myrole"}}}
                 @captured-request))))
 
 (deftest auth-stack-wrong-role-test

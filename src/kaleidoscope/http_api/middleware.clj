@@ -3,6 +3,7 @@
             [buddy.auth.middleware :as ba]
             [clojure.pprint :as pprint]
             [clojure.string :as string]
+            [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.clients.session-tracker :as st]
             [kaleidoscope.http-api.http-utils :as http-utils]
             [muuntaja.core :as m]
@@ -92,10 +93,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn wrap-classify-identity
+  "Merges classified identity fields (:type, :user-id, :roles) into the raw JWT
+  claims map in :identity. Running after wrap-authentication and before
+  wrap-access-rules means authorization functions receive :type/:user-id/:roles
+  while legacy handlers that read :email or :realm_access still find those fields."
+  [handler]
+  (fn [request]
+    (handler (cond-> request
+               (:identity request) (update :identity #(merge % (oidc/classify-identity %)))))))
+
 (defn auth-stack
   "Stack is applied from top down"
   [authentication-backend access-rules]
   [#(ba/wrap-authentication % authentication-backend)
+   wrap-classify-identity
    #(ar/wrap-access-rules % {:rules          access-rules
                              :reject-handler (fn [& args]
                                                (-> "Not authorized"

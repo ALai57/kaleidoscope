@@ -38,7 +38,7 @@ echo "$TOKEN" \
   | sed 's/-/+/g; s/_/\//g' \
   | awk '{print $0"==="}' \
   | base64 -d 2>/dev/null \
-  | jq '{realm_access, email, email_verified}'
+  | jq
 
 echo ""
 echo "==> GET /ping (no auth — baseline health check):"

@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.score-definitions
-  (:require [kaleidoscope.api.authentication :as oidc]
-            [kaleidoscope.api.score-definitions :as score-defs-api]
+  (:require [kaleidoscope.api.score-definitions :as score-defs-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [ring.util.http-response :refer [bad-request no-content not-found ok]]
             [taoensso.timbre :as log]))
@@ -16,7 +15,7 @@
                                       :content     {"application/json"
                                                     {:schema [:any]}}}})
               :handler   (fn [{:keys [components] :as request}]
-                           (let [user-id (oidc/get-verified-email (:identity request))]
+                           (let [user-id (:user-id (:identity request))]
                              (ok (score-defs-api/get-score-definitions (:database components) user-id))))}
 
         :post {:summary   "Create a score definition"
@@ -25,7 +24,7 @@
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
                :handler   (fn [{:keys [components body-params] :as request}]
-                            (let [user-id (oidc/get-verified-email (:identity request))]
+                            (let [user-id (:user-id (:identity request))]
                               (try
                                 (ok (score-defs-api/create-score-definition!
                                      (:database components) user-id body-params))

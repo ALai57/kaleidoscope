@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.themes
-  (:require [kaleidoscope.api.authentication :as oidc]
-            [kaleidoscope.api.themes :as themes-api]
+  (:require [kaleidoscope.api.themes :as themes-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [ring.util.http-response :refer [no-content ok unauthorized not-found]]
             [taoensso.timbre :as log]))
@@ -50,7 +49,7 @@
                               (log/info "Creating theme!" parameters)
                               (let [theme    (merge (:request parameters)
                                                     {:hostname (hu/get-host request)
-                                                     :owner-id (oidc/get-verified-email (:identity request))})
+                                                     :owner-id (:user-id (:identity request))})
                                     [result] (themes-api/create-theme! (:database components) theme)]
                                 (log/infof "Created theme %s" result)
                                 (ok result))
@@ -65,7 +64,7 @@
                            :handler    (fn [{:keys [components parameters] :as request}]
                                          (try
                                            (let [{:keys [theme-id]} (:path parameters)
-                                                 requester-id       (oidc/get-verified-email (:identity request))]
+                                                 requester-id       (:user-id (:identity request))]
                                              (log/infof "User %s attempting to delete theme %s!" requester-id theme-id)
                                              (if-let [result (themes-api/delete-theme! (:database components) requester-id theme-id)]
                                                (no-content)
@@ -91,7 +90,7 @@
                                         (let [{:keys [theme-id]} (:path parameters)
                                               theme              (merge (:request parameters)
                                                                         {:hostname (hu/get-host request)
-                                                                         :owner-id (oidc/get-verified-email (:identity request))
+                                                                         :owner-id (:user-id (:identity request))
                                                                          :id       (parse-uuid theme-id)})
                                               [result]           (themes-api/update-theme! (:database components) theme)]
                                           (log/infof "Updated theme %s" result)

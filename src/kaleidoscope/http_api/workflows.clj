@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.workflows
-  (:require [kaleidoscope.api.authentication :as oidc]
-            [kaleidoscope.api.workflows :as workflows-api]
+  (:require [kaleidoscope.api.workflows :as workflows-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [ring.util.http-response :refer [conflict not-found ok]]
             [taoensso.timbre :as log]))
@@ -16,14 +15,15 @@
 
    ["" {:get {:summary "List workflows for the authenticated user"
               :handler (fn [{:keys [components] :as request}]
-                         (let [user-id (oidc/get-verified-email (:identity request))]
-                           (ok (workflows-api/get-workflows (:database components) user-id))))}
+                         (ok (workflows-api/get-workflows (:database components)
+                                                          (:user-id (:identity request)))))}
 
         :post {:summary "Create a workflow"
                :handler (fn [{:keys [components body-params] :as request}]
-                          (let [user-id (oidc/get-verified-email (:identity request))]
-                            (ok (workflows-api/create-workflow!
-                                 (:database components) user-id body-params))))}}]
+                          (ok (workflows-api/create-workflow!
+                               (:database components)
+                               (:user-id (:identity request))
+                               body-params)))}}]
 
    ["/:workflow-id"
     {:parameters {:path {:workflow-id string?}}}
@@ -57,182 +57,182 @@
                                  :else           {:status 204})))}}]]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;; /projects/:project-id/workflow-*  — nested under projects
+;; /projects/:project-id/workflow-*  — nested under projects
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (def reitit-project-workflow-routes
-    ["/projects/:project-id"
-     {:tags     ["workflows"]
-      :security [{:andrewslai-pkce ["roles" "profile"]}]
-      :parameters {:path {:project-id string?}}}
+(def reitit-project-workflow-routes
+  ["/projects/:project-id"
+   {:tags     ["workflows"]
+    :security [{:andrewslai-pkce ["roles" "profile"]}]
+    :parameters {:path {:project-id string?}}}
 
-     ;; --- Recommendation ---
-     ["/workflow-recommendation"
-      {:post {:summary "Rank live workflows against this project"
-              :handler (fn [{:keys [components path-params] :as request}]
-                         (let [user-id    (oidc/get-verified-email (:identity request))
-                               project-id (parse-uuid (:project-id path-params))
-                               db         (:database components)
-                               executor   (:workflow-executor components)]
-                           (if-let [recs (workflows-api/get-workflow-recommendation
-                                          db executor project-id user-id)]
-                             (ok recs)
-                             (not-found {:reason "Project not found"}))))}}]
+   ;; --- Recommendation ---
+   ["/workflow-recommendation"
+    {:post {:summary "Rank live workflows against this project"
+            :handler (fn [{:keys [components path-params] :as request}]
+                       (let [user-id    (:user-id (:identity request))
+                             project-id (parse-uuid (:project-id path-params))
+                             db         (:database components)
+                             executor   (:workflow-executor components)]
+                         (if-let [recs (workflows-api/get-workflow-recommendation
+                                        db executor project-id user-id)]
+                           (ok recs)
+                           (not-found {:reason "Project not found"}))))}}]
 
-     ;; --- Runs collection ---
-     ["/workflow-runs"
-      ["" {:get {:summary "List workflow runs for a project"
-                 :handler (fn [{:keys [components path-params] :as request}]
-                            (let [user-id    (oidc/get-verified-email (:identity request))
-                                  project-id (parse-uuid (:project-id path-params))]
-                              (if-let [runs (workflows-api/get-workflow-runs
-                                             (:database components) project-id user-id)]
-                                (ok runs)
-                                (not-found {:reason "Project not found"}))))}
-
-           :post {:summary "Start a new workflow run (body: {workflow_id?, mode, scrutiny?, target_score?})"
-                  :handler (fn [{:keys [components body-params path-params] :as request}]
-                             (let [user-id      (oidc/get-verified-email (:identity request))
-                                   project-id   (parse-uuid (:project-id path-params))
-                                   workflow-id  (when-let [id (:workflow-id body-params)]
-                                                  (parse-uuid id))
-                                   mode         (:mode body-params "manual")
-                                   scrutiny     (:scrutiny body-params)
-                                   target-score (:target-score body-params)]
-                               (if-let [run (workflows-api/create-run!
-                                             (:database components)
-                                             project-id user-id
-                                             {:workflow-id  workflow-id
-                                              :mode         mode
-                                              :scrutiny     scrutiny
-                                              :target-score target-score})]
-                                 (ok run)
-                                 (not-found {:reason "Project not found"}))))}}]
-
-      ;; --- Individual run ---
-      ["/:run-id"
-       {:parameters {:path {:run-id string?}}}
-
-       ["" {:get {:summary "Get a workflow run with all step runs"
-                  :handler (fn [{:keys [components path-params] :as request}]
-                             (let [user-id    (oidc/get-verified-email (:identity request))
-                                   project-id (parse-uuid (:project-id path-params))
-                                   run-id     (parse-uuid (:run-id path-params))]
-                               (if-let [run (workflows-api/get-workflow-run
-                                             (:database components) run-id project-id user-id)]
-                                 (ok run)
-                                 (not-found {:reason "Run not found"}))))}
-
-            :put {:summary "Update run mode (manual | autonomous)"
-                  :handler (fn [{:keys [components body-params path-params] :as request}]
-                             (let [user-id    (oidc/get-verified-email (:identity request))
-                                   project-id (parse-uuid (:project-id path-params))
-                                   run-id     (parse-uuid (:run-id path-params))
-                                   mode       (:mode body-params)]
-                               (if-let [run (workflows-api/update-run-mode!
-                                             (:database components)
-                                             run-id project-id user-id mode)]
-                                 (ok run)
-                                 (not-found {:reason "Run not found"}))))}}]
-
-       ;; --- Rounds timeline ---
-       ["/rounds"
-        {:get {:summary "Get the rounds timeline for a loop workflow run"
+   ;; --- Runs collection ---
+   ["/workflow-runs"
+    ["" {:get {:summary "List workflow runs for a project"
                :handler (fn [{:keys [components path-params] :as request}]
-                          (let [user-id    (oidc/get-verified-email (:identity request))
-                                project-id (parse-uuid (:project-id path-params))
-                                run-id     (parse-uuid (:run-id path-params))]
-                            (if-let [rounds (workflows-api/get-run-rounds
-                                             (:database components) run-id project-id user-id)]
-                              (ok rounds)
-                              (not-found {:reason "Run not found"}))))}}]
+                          (let [user-id    (:user-id (:identity request))
+                                project-id (parse-uuid (:project-id path-params))]
+                            (if-let [runs (workflows-api/get-workflow-runs
+                                           (:database components) project-id user-id)]
+                              (ok runs)
+                              (not-found {:reason "Project not found"}))))}
 
-       ;; --- Force proceed ---
-       ["/force-proceed"
-        {:post {:summary "Skip remaining advisor rounds and immediately generate tasks"
+         :post {:summary "Start a new workflow run (body: {workflow_id?, mode, scrutiny?, target_score?})"
+                :handler (fn [{:keys [components body-params path-params] :as request}]
+                           (let [user-id      (:user-id (:identity request))
+                                 project-id   (parse-uuid (:project-id path-params))
+                                 workflow-id  (when-let [id (:workflow-id body-params)]
+                                                (parse-uuid id))
+                                 mode         (:mode body-params "manual")
+                                 scrutiny     (:scrutiny body-params)
+                                 target-score (:target-score body-params)]
+                             (if-let [run (workflows-api/create-run!
+                                           (:database components)
+                                           project-id user-id
+                                           {:workflow-id  workflow-id
+                                            :mode         mode
+                                            :scrutiny     scrutiny
+                                            :target-score target-score})]
+                               (ok run)
+                               (not-found {:reason "Project not found"}))))}}]
+
+    ;; --- Individual run ---
+    ["/:run-id"
+     {:parameters {:path {:run-id string?}}}
+
+     ["" {:get {:summary "Get a workflow run with all step runs"
                 :handler (fn [{:keys [components path-params] :as request}]
-                           (let [user-id    (oidc/get-verified-email (:identity request))
+                           (let [user-id    (:user-id (:identity request))
+                                 project-id (parse-uuid (:project-id path-params))
+                                 run-id     (parse-uuid (:run-id path-params))]
+                             (if-let [run (workflows-api/get-workflow-run
+                                           (:database components) run-id project-id user-id)]
+                               (ok run)
+                               (not-found {:reason "Run not found"}))))}
+
+          :put {:summary "Update run mode (manual | autonomous)"
+                :handler (fn [{:keys [components body-params path-params] :as request}]
+                           (let [user-id    (:user-id (:identity request))
                                  project-id (parse-uuid (:project-id path-params))
                                  run-id     (parse-uuid (:run-id path-params))
-                                 db         (:database components)
-                                 executor   (:workflow-executor components)]
-                             (if-let [run (workflows-api/force-proceed!
-                                           db executor project-id user-id run-id)]
+                                 mode       (:mode body-params)]
+                             (if-let [run (workflows-api/update-run-mode!
+                                           (:database components)
+                                           run-id project-id user-id mode)]
                                (ok run)
                                (not-found {:reason "Run not found"}))))}}]
 
-       ;; --- Advance (SSE) ---
-       ["/advance"
-        {:post {:summary "Execute the current pending step (SSE). In autonomous mode, continues until all steps are done."
-                :handler (fn [{:keys [components path-params] :as request}]
-                           (let [user-id    (oidc/get-verified-email (:identity request))
-                                 project-id (parse-uuid (:project-id path-params))
-                                 run-id     (parse-uuid (:run-id path-params))
-                                 db         (:database components)
-                                 executor   (:workflow-executor components)]
-                             (hu/sse-response
-                              (fn [output-stream]
-                                (try
-                                  (workflows-api/advance-step!
-                                   db executor project-id user-id run-id output-stream)
-                                  (let [writer (java.io.OutputStreamWriter. output-stream "UTF-8")]
-                                    (.write writer "data: [DONE]\n\n")
-                                    (.flush writer))
-                                  (catch Exception e
-                                    (log/errorf "advance-step! error: %s" e)))))))}}]
+     ;; --- Rounds timeline ---
+     ["/rounds"
+      {:get {:summary "Get the rounds timeline for a loop workflow run"
+             :handler (fn [{:keys [components path-params] :as request}]
+                        (let [user-id    (:user-id (:identity request))
+                              project-id (parse-uuid (:project-id path-params))
+                              run-id     (parse-uuid (:run-id path-params))]
+                          (if-let [rounds (workflows-api/get-run-rounds
+                                           (:database components) run-id project-id user-id)]
+                            (ok rounds)
+                            (not-found {:reason "Run not found"}))))}}]
 
-       ;; --- Skip step ---
-       ["/steps/:step-run-id/skip"
-        {:parameters {:path {:step-run-id string?}}
-         :post {:summary "Skip a pending step"
-                :handler (fn [{:keys [components path-params] :as request}]
-                           (let [user-id     (oidc/get-verified-email (:identity request))
-                                 project-id  (parse-uuid (:project-id path-params))
-                                 run-id      (parse-uuid (:run-id path-params))
-                                 step-run-id (parse-uuid (:step-run-id path-params))]
-                             (if-let [run (workflows-api/skip-step!
-                                           (:database components)
-                                           project-id user-id run-id step-run-id)]
-                               (ok run)
-                               (not-found {:reason "Run or step not found"}))))}}]
+     ;; --- Force proceed ---
+     ["/force-proceed"
+      {:post {:summary "Skip remaining advisor rounds and immediately generate tasks"
+              :handler (fn [{:keys [components path-params] :as request}]
+                         (let [user-id    (:user-id (:identity request))
+                               project-id (parse-uuid (:project-id path-params))
+                               run-id     (parse-uuid (:run-id path-params))
+                               db         (:database components)
+                               executor   (:workflow-executor components)]
+                           (if-let [run (workflows-api/force-proceed!
+                                         db executor project-id user-id run-id)]
+                             (ok run)
+                             (not-found {:reason "Run not found"}))))}}]
 
-       ;; --- Respond to awaiting_input step ---
-       ["/steps/:step-run-id/respond"
-        {:parameters {:path {:step-run-id string?}}
-         :post {:summary "Submit answers for an awaiting_input step; appends answers to project.description and resumes the workflow"
-                :handler (fn [{:keys [components body-params path-params] :as request}]
-                           (let [user-id     (oidc/get-verified-email (:identity request))
-                                 project-id  (parse-uuid (:project-id path-params))
-                                 run-id      (parse-uuid (:run-id path-params))
-                                 step-run-id (parse-uuid (:step-run-id path-params))
-                                 answers     (or (:answers body-params) [])]
-                             (if-let [run (workflows-api/respond-to-step!
-                                           (:database components)
-                                           (:workflow-executor components)
-                                           project-id user-id run-id step-run-id answers)]
-                               (ok run)
-                               (not-found {:reason "Run or step not found, or step not awaiting input"}))))}}]
+     ;; --- Advance (SSE) ---
+     ["/advance"
+      {:post {:summary "Execute the current pending step (SSE). In autonomous mode, continues until all steps are done."
+              :handler (fn [{:keys [components path-params] :as request}]
+                         (let [user-id    (:user-id (:identity request))
+                               project-id (parse-uuid (:project-id path-params))
+                               run-id     (parse-uuid (:run-id path-params))
+                               db         (:database components)
+                               executor   (:workflow-executor components)]
+                           (hu/sse-response
+                            (fn [output-stream]
+                              (try
+                                (workflows-api/advance-step!
+                                 db executor project-id user-id run-id output-stream)
+                                (let [writer (java.io.OutputStreamWriter. output-stream "UTF-8")]
+                                  (.write writer "data: [DONE]\n\n")
+                                  (.flush writer))
+                                (catch Exception e
+                                  (log/errorf "advance-step! error: %s" e)))))))}}]
 
-       ;; --- Custom step (SSE) ---
-       ["/custom-step"
-        {:post {:summary "Inject and execute a custom ad-hoc step (SSE). Returns step_complete + recommendation events."
-                :handler (fn [{:keys [components body-params path-params] :as request}]
-                           (let [user-id    (oidc/get-verified-email (:identity request))
-                                 project-id (parse-uuid (:project-id path-params))
-                                 run-id     (parse-uuid (:run-id path-params))
-                                 db         (:database components)
-                                 executor   (:workflow-executor components)]
-                             (hu/sse-response
-                              (fn [output-stream]
-                                (try
-                                  (let [result (workflows-api/run-custom-step!
-                                                db executor project-id user-id run-id
-                                                body-params
-                                                output-stream)
-                                        writer (java.io.OutputStreamWriter. output-stream "UTF-8")]
-                                    (hu/write-sse-event! writer {:event "recommendation"
-                                                                 :data  (:recommendation result)})
-                                    (.write writer "data: [DONE]\n\n")
-                                    (.flush writer))
-                                  (catch Exception e
-                                    (log/errorf "custom-step! error: %s" e)))))))}}]]]])
+     ;; --- Skip step ---
+     ["/steps/:step-run-id/skip"
+      {:parameters {:path {:step-run-id string?}}
+       :post {:summary "Skip a pending step"
+              :handler (fn [{:keys [components path-params] :as request}]
+                         (let [user-id     (:user-id (:identity request))
+                               project-id  (parse-uuid (:project-id path-params))
+                               run-id      (parse-uuid (:run-id path-params))
+                               step-run-id (parse-uuid (:step-run-id path-params))]
+                           (if-let [run (workflows-api/skip-step!
+                                         (:database components)
+                                         project-id user-id run-id step-run-id)]
+                             (ok run)
+                             (not-found {:reason "Run or step not found"}))))}}]
+
+     ;; --- Respond to awaiting_input step ---
+     ["/steps/:step-run-id/respond"
+      {:parameters {:path {:step-run-id string?}}
+       :post {:summary "Submit answers for an awaiting_input step; appends answers to project.description and resumes the workflow"
+              :handler (fn [{:keys [components body-params path-params] :as request}]
+                         (let [user-id     (:user-id (:identity request))
+                               project-id  (parse-uuid (:project-id path-params))
+                               run-id      (parse-uuid (:run-id path-params))
+                               step-run-id (parse-uuid (:step-run-id path-params))
+                               answers     (or (:answers body-params) [])]
+                           (if-let [run (workflows-api/respond-to-step!
+                                         (:database components)
+                                         (:workflow-executor components)
+                                         project-id user-id run-id step-run-id answers)]
+                             (ok run)
+                             (not-found {:reason "Run or step not found, or step not awaiting input"}))))}}]
+
+     ;; --- Custom step (SSE) ---
+     ["/custom-step"
+      {:post {:summary "Inject and execute a custom ad-hoc step (SSE). Returns step_complete + recommendation events."
+              :handler (fn [{:keys [components body-params path-params] :as request}]
+                         (let [user-id    (:user-id (:identity request))
+                               project-id (parse-uuid (:project-id path-params))
+                               run-id     (parse-uuid (:run-id path-params))
+                               db         (:database components)
+                               executor   (:workflow-executor components)]
+                           (hu/sse-response
+                            (fn [output-stream]
+                              (try
+                                (let [result (workflows-api/run-custom-step!
+                                              db executor project-id user-id run-id
+                                              body-params
+                                              output-stream)
+                                      writer (java.io.OutputStreamWriter. output-stream "UTF-8")]
+                                  (hu/write-sse-event! writer {:event "recommendation"
+                                                               :data  (:recommendation result)})
+                                  (.write writer "data: [DONE]\n\n")
+                                  (.flush writer))
+                                (catch Exception e
+                                  (log/errorf "custom-step! error: %s" e)))))))}}]]]])

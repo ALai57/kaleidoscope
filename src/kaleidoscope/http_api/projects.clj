@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.projects
   (:require [clojure.string :as str]
-            [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.api.projects :as projects-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.persistence.briefs :as briefs-persistence]
@@ -26,8 +25,8 @@
                                       :content     {"application/json"
                                                     {:schema [:any]}}}})
               :handler   (fn [{:keys [components] :as request}]
-                           (let [user-id (oidc/get-verified-email (:identity request))]
-                             (ok (projects-api/get-projects (:database components) user-id))))}
+                           (ok (projects-api/get-projects (:database components)
+                                                          (:user-id (:identity request)))))}
 
         :post {:summary   "Create a project (triggers scoring against default definitions)"
                :responses (merge hu/openapi-401
@@ -35,17 +34,16 @@
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
                :handler   (fn [{:keys [components body-params] :as request}]
-                            (let [user-id (oidc/get-verified-email (:identity request))]
-                              (try
-                                (ok (projects-api/create-project!
-                                     (:database components)
-                                     (:scorer components)
-                                     (:workflow-executor components)
-                                     user-id
-                                     body-params))
-                                (catch Exception e
-                                  (log/errorf "Error creating project: %s" e)
-                                  (bad-request {:error (.getMessage e)})))))}}]
+                            (try
+                              (ok (projects-api/create-project!
+                                   (:database components)
+                                   (:scorer components)
+                                   (:workflow-executor components)
+                                   (:user-id (:identity request))
+                                   body-params))
+                              (catch Exception e
+                                (log/errorf "Error creating project: %s" e)
+                                (bad-request {:error (.getMessage e)}))))}}]
 
    ;; --- Individual project endpoints ---
    ["/:project-id"
@@ -58,10 +56,10 @@
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
                :handler   (fn [{:keys [components path-params] :as request}]
-                            (let [user-id    (oidc/get-verified-email (:identity request))
-                                  project-id (parse-uuid (:project-id path-params))]
+                            (let [project-id (parse-uuid (:project-id path-params))]
                               (if-let [project (projects-api/get-project
-                                                (:database components) project-id user-id)]
+                                                (:database components) project-id
+                                                (:user-id (:identity request)))]
                                 (ok project)
                                 (not-found {:reason "Project not found"}))))}
 
@@ -72,10 +70,10 @@
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
                :handler   (fn [{:keys [components body-params path-params] :as request}]
-                            (let [user-id    (oidc/get-verified-email (:identity request))
-                                  project-id (parse-uuid (:project-id path-params))]
+                            (let [project-id (parse-uuid (:project-id path-params))]
                               (if-let [project (projects-api/update-project!
-                                                (:database components) project-id user-id body-params)]
+                                                (:database components) project-id
+                                                (:user-id (:identity request)) body-params)]
                                 (ok project)
                                 (not-found {:reason "Project not found"}))))}
 
@@ -84,10 +82,10 @@
                                      hu/openapi-404
                                      {204 {:description "Deleted"}})
                   :handler   (fn [{:keys [components path-params] :as request}]
-                               (let [user-id    (oidc/get-verified-email (:identity request))
-                                     project-id (parse-uuid (:project-id path-params))]
+                               (let [project-id (parse-uuid (:project-id path-params))]
                                  (if (projects-api/delete-project!
-                                      (:database components) project-id user-id)
+                                      (:database components) project-id
+                                      (:user-id (:identity request)))
                                    {:status 204}
                                    (not-found {:reason "Project not found"}))))}}]
 
@@ -95,24 +93,23 @@
     ["/notes"
      ["" {:get {:summary   "List notes for a project"
                 :handler   (fn [{:keys [components path-params] :as request}]
-                             (let [user-id    (oidc/get-verified-email (:identity request))
-                                   project-id (parse-uuid (:project-id path-params))]
+                             (let [project-id (parse-uuid (:project-id path-params))]
                                (if-let [notes (projects-api/get-notes
-                                               (:database components) project-id user-id)]
+                                               (:database components) project-id
+                                               (:user-id (:identity request)))]
                                  (ok notes)
                                  (not-found {:reason "Project not found"}))))}
 
           :post {:summary   "Add a note (text or voice)"
                  :handler   (fn [{:keys [components body-params path-params] :as request}]
-                              (let [user-id    (oidc/get-verified-email (:identity request))
-                                    project-id (parse-uuid (:project-id path-params))
+                              (let [project-id (parse-uuid (:project-id path-params))
                                     source     (get body-params :source "text")]
                                 ;; Voice source: body-params should contain pre-transcribed content.
                                 ;; Whisper integration can be added here by replacing :content
                                 ;; with the transcription result before persisting.
                                 (if-let [note (projects-api/create-note!
                                                (:database components)
-                                               project-id user-id
+                                               project-id (:user-id (:identity request))
                                                {:content (get body-params :content "")
                                                 :source  source})]
                                   (ok note)
@@ -122,45 +119,42 @@
     ["/scores"
      ["" {:get {:summary   "Get latest score run per definition"
                 :handler   (fn [{:keys [components path-params] :as request}]
-                             (let [user-id    (oidc/get-verified-email (:identity request))
-                                   project-id (parse-uuid (:project-id path-params))]
+                             (let [project-id (parse-uuid (:project-id path-params))]
                                (ok (or (persistence/get-latest-score-runs
                                         (:database components) project-id)
                                        []))))}
 
           :post {:summary   "Trigger scoring (pass definition_ids to score specific definitions)"
                  :handler   (fn [{:keys [components body-params path-params] :as request}]
-                              (let [user-id        (oidc/get-verified-email (:identity request))
-                                    project-id     (parse-uuid (:project-id path-params))
+                              (let [project-id     (parse-uuid (:project-id path-params))
                                     definition-ids (when-let [ids (:definition-ids body-params)]
                                                      (mapv parse-uuid ids))]
                                 (if-let [project (projects-api/score-project!
                                                   (:database components)
                                                   (:scorer components)
-                                                  project-id user-id definition-ids)]
+                                                  project-id (:user-id (:identity request)) definition-ids)]
                                   (ok project)
                                   (not-found {:reason "Project not found"}))))}}]
 
      ["/history" {:get {:summary   "Get all score runs for all versions and definitions"
                         :handler   (fn [{:keys [components path-params] :as request}]
-                                     (let [user-id    (oidc/get-verified-email (:identity request))
-                                           project-id (parse-uuid (:project-id path-params))]
+                                     (let [project-id (parse-uuid (:project-id path-params))]
                                        (ok (or (projects-api/get-score-history
-                                                (:database components) project-id user-id)
+                                                (:database components) project-id
+                                                (:user-id (:identity request)))
                                                []))))}}]
 
      ["/section-questions"
       {:post {:summary   "Generate guiding questions for a score dimension"
               :handler   (fn [{:keys [components body-params path-params] :as request}]
-                           (let [user-id    (oidc/get-verified-email (:identity request))
-                                 project-id (parse-uuid (:project-id path-params))
+                           (let [project-id (parse-uuid (:project-id path-params))
                                  db         (:database components)
                                  scorer     (:scorer components)
-                                 params     {:dimension-name      (:dimension-name body-params)
-                                             :rationale           (:rationale body-params)
+                                 params     {:dimension-name        (:dimension-name body-params)
+                                             :rationale             (:rationale body-params)
                                              :score-definition-name (:score-definition-name body-params)}]
                              (if-let [result (projects-api/get-section-questions
-                                              db project-id user-id
+                                              db project-id (:user-id (:identity request))
                                               (fn []
                                                 (if-let [api-key (:api-key scorer)]
                                                   (llm-scorer/generate-section-questions api-key params)
@@ -174,17 +168,16 @@
 
      ["" {:get {:summary   "Get conversation history"
                 :handler   (fn [{:keys [components path-params] :as request}]
-                             (let [user-id    (oidc/get-verified-email (:identity request))
-                                   project-id (parse-uuid (:project-id path-params))
+                             (let [project-id (parse-uuid (:project-id path-params))
                                    agent-type (:agent path-params)]
                                (ok (or (projects-api/get-conversation
                                         (:database components)
-                                        project-id user-id agent-type)
+                                        project-id (:user-id (:identity request)) agent-type)
                                        []))))}
 
           :post {:summary   "Send a message — returns SSE stream of tokens"
                  :handler   (fn [{:keys [components body-params path-params] :as request}]
-                              (let [user-id    (oidc/get-verified-email (:identity request))
+                              (let [user-id    (:user-id (:identity request))
                                     project-id (parse-uuid (:project-id path-params))
                                     agent-type (:agent path-params)
                                     user-msg   (get body-params :message "")
@@ -231,21 +224,21 @@
     ["/skills"
      ["" {:get {:summary   "Get the skill tree for a project"
                 :handler   (fn [{:keys [components path-params] :as request}]
-                             (let [user-id    (oidc/get-verified-email (:identity request))
-                                   project-id (parse-uuid (:project-id path-params))]
+                             (let [project-id (parse-uuid (:project-id path-params))]
                                (ok (or (projects-api/get-skill-tree
-                                        (:database components) project-id user-id)
+                                        (:database components) project-id
+                                        (:user-id (:identity request)))
                                        []))))}}]
 
      ["/generate" {:post {:summary   "Generate a skill tree using the Eng Lead agent"
                           :handler   (fn [{:keys [components path-params] :as request}]
-                                       (let [user-id    (oidc/get-verified-email (:identity request))
-                                             project-id (parse-uuid (:project-id path-params))
+                                       (let [project-id (parse-uuid (:project-id path-params))
                                              db         (:database components)
                                              scorer     (:scorer components)]
-                                         (if-let [project (persistence/get-project db project-id user-id)]
+                                         (if-let [project (persistence/get-project db project-id
+                                                                                    (:user-id (:identity request)))]
                                            (ok (projects-api/generate-skills!
-                                                db project-id user-id
+                                                db project-id (:user-id (:identity request))
                                                 (fn []
                                                   (if-let [api-key (:api-key scorer)]
                                                     (llm-scorer/generate-skills api-key project)
@@ -256,12 +249,11 @@
       {:parameters {:path {:skill-id string?}}}
       ["" {:put {:summary   "Update skill mastery status"
                  :handler   (fn [{:keys [components body-params path-params] :as request}]
-                              (let [user-id    (oidc/get-verified-email (:identity request))
-                                    project-id (parse-uuid (:project-id path-params))
+                              (let [project-id (parse-uuid (:project-id path-params))
                                     skill-id   (parse-uuid (:skill-id path-params))]
                                 (if-let [tree (projects-api/update-skill!
                                                (:database components)
-                                               project-id user-id skill-id body-params)]
+                                               project-id (:user-id (:identity request)) skill-id body-params)]
                                   (ok tree)
                                   (not-found {:reason "Project or skill not found"}))))}}]]]
 
@@ -273,14 +265,13 @@
                                    {200 {:description "The updated project"
                                          :content     {"application/json" {:schema [:any]}}}})
                 :handler   (fn [{:keys [components body-params path-params] :as request}]
-                             (let [user-id    (oidc/get-verified-email (:identity request))
-                                   project-id (parse-uuid (:project-id path-params))
+                             (let [project-id (parse-uuid (:project-id path-params))
                                    paths      (vec (filter (complement str/blank?)
                                                            (map str/trim
                                                                 (or (:local-paths body-params) []))))]
                                (if-let [project (projects-api/update-project!
                                                   (:database components)
-                                                  project-id user-id
+                                                  project-id (:user-id (:identity request))
                                                   {:local-paths paths})]
                                  (ok project)
                                  (not-found {:reason "Project not found"}))))}}]]
