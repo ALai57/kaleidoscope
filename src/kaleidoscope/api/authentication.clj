@@ -1,5 +1,6 @@
 (ns kaleidoscope.api.authentication
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string]
+            [kaleidoscope.api.auth0-claims :as auth0]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; OIDC Identity tokens as authentication
@@ -20,41 +21,28 @@
   [id-token]
   (:sub id-token))
 
-(def ^:private namespaced-email-claim
-  (keyword "https://kaleidoscope.pub/email"))
-
-(def ^:private namespaced-email-verified-claim
-  (keyword "https://kaleidoscope.pub/email_verified"))
-
 (defn get-email
   [id-token]
   (or (:email id-token)
-      (get id-token namespaced-email-claim)))
+      (auth0/namespaced-email id-token)))
 
 (defn email-verified?
   [id-token]
   (if (contains? id-token :email_verified)
     (:email_verified id-token)
-    (get id-token namespaced-email-verified-claim)))
+    (auth0/namespaced-email-verified id-token)))
 
 (defn get-verified-email
   [id-token]
   (when (email-verified? id-token)
     (get-email id-token)))
 
-(defn machine-token?
-  "True for Auth0 client_credentials (M2M) tokens. Auth0 stamps these with a `gty`
-  (grant type) claim; it's the authoritative signal for machine vs. human credentials
-  and is independent of email verification, which is a separate, human-only concern."
-  [id-token]
-  (= "client-credentials" (:gty id-token)))
-
 (defn classify-identity
   "Classifies a raw JWT claims map into a typed identity.
 
   Three kinds of credentials exist:
-  - M2M/service tokens (`gty`=client-credentials) produce :service-account with :user-id
-    set to the :sub claim.
+  - M2M/service tokens (Auth0 `gty`=client-credentials — see `auth0-claims`) produce
+    :service-account with :user-id set to the :sub claim.
   - Human sessions with a verified email produce :verified-user with :user-id set to
     their email.
   - Human sessions without a verified email produce :unverified-user with :user-id set
@@ -64,7 +52,7 @@
   and :user-id directly rather than re-deriving them from raw JWT fields."
   [id-token]
   (cond
-    (machine-token? id-token)
+    (auth0/m2m-token? id-token)
     {:type    :service-account
      :user-id (:sub id-token)
      :roles   (get-realm-roles id-token)}
