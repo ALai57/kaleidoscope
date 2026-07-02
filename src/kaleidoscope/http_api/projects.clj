@@ -47,7 +47,7 @@
 
    ;; --- Individual project endpoints ---
    ["/:project-id"
-    {:parameters {:path {:project-id string?}}}
+    {:parameters {:path {:project-id :uuid}}}
 
     ["" {:get {:summary   "Get a project with all latest score runs"
                :responses (merge hu/openapi-401
@@ -55,8 +55,8 @@
                                   {200 {:description "The project"
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
-               :handler   (fn [{:keys [components path-params] :as request}]
-                            (let [project-id (parse-uuid (:project-id path-params))]
+               :handler   (fn [{:keys [components parameters] :as request}]
+                            (let [project-id (:project-id (:path parameters))]
                               (if-let [project (projects-api/get-project
                                                 (:database components) project-id
                                                 (:user-id (:identity request)))]
@@ -69,8 +69,8 @@
                                   {200 {:description "The updated project"
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
-               :handler   (fn [{:keys [components body-params path-params] :as request}]
-                            (let [project-id (parse-uuid (:project-id path-params))]
+               :handler   (fn [{:keys [components body-params parameters] :as request}]
+                            (let [project-id (:project-id (:path parameters))]
                               (if-let [project (projects-api/update-project!
                                                 (:database components) project-id
                                                 (:user-id (:identity request)) body-params)]
@@ -81,8 +81,8 @@
                   :responses (merge hu/openapi-401
                                      hu/openapi-404
                                      {204 {:description "Deleted"}})
-                  :handler   (fn [{:keys [components path-params] :as request}]
-                               (let [project-id (parse-uuid (:project-id path-params))]
+                  :handler   (fn [{:keys [components parameters] :as request}]
+                               (let [project-id (:project-id (:path parameters))]
                                  (if (projects-api/delete-project!
                                       (:database components) project-id
                                       (:user-id (:identity request)))
@@ -92,8 +92,8 @@
     ;; --- Notes ---
     ["/notes"
      ["" {:get {:summary   "List notes for a project"
-                :handler   (fn [{:keys [components path-params] :as request}]
-                             (let [project-id (parse-uuid (:project-id path-params))]
+                :handler   (fn [{:keys [components parameters] :as request}]
+                             (let [project-id (:project-id (:path parameters))]
                                (if-let [notes (projects-api/get-notes
                                                (:database components) project-id
                                                (:user-id (:identity request)))]
@@ -101,8 +101,8 @@
                                  (not-found {:reason "Project not found"}))))}
 
           :post {:summary   "Add a note (text or voice)"
-                 :handler   (fn [{:keys [components body-params path-params] :as request}]
-                              (let [project-id (parse-uuid (:project-id path-params))
+                 :handler   (fn [{:keys [components body-params parameters] :as request}]
+                              (let [project-id (:project-id (:path parameters))
                                     source     (get body-params :source "text")]
                                 ;; Voice source: body-params should contain pre-transcribed content.
                                 ;; Whisper integration can be added here by replacing :content
@@ -118,15 +118,15 @@
     ;; --- Scoring ---
     ["/scores"
      ["" {:get {:summary   "Get latest score run per definition"
-                :handler   (fn [{:keys [components path-params] :as request}]
-                             (let [project-id (parse-uuid (:project-id path-params))]
+                :handler   (fn [{:keys [components parameters] :as request}]
+                             (let [project-id (:project-id (:path parameters))]
                                (ok (or (persistence/get-latest-score-runs
                                         (:database components) project-id)
                                        []))))}
 
           :post {:summary   "Trigger scoring (pass definition_ids to score specific definitions)"
-                 :handler   (fn [{:keys [components body-params path-params] :as request}]
-                              (let [project-id     (parse-uuid (:project-id path-params))
+                 :handler   (fn [{:keys [components body-params parameters] :as request}]
+                              (let [project-id     (:project-id (:path parameters))
                                     definition-ids (when-let [ids (:definition-ids body-params)]
                                                      (mapv parse-uuid ids))]
                                 (if-let [project (projects-api/score-project!
@@ -137,8 +137,8 @@
                                   (not-found {:reason "Project not found"}))))}}]
 
      ["/history" {:get {:summary   "Get all score runs for all versions and definitions"
-                        :handler   (fn [{:keys [components path-params] :as request}]
-                                     (let [project-id (parse-uuid (:project-id path-params))]
+                        :handler   (fn [{:keys [components parameters] :as request}]
+                                     (let [project-id (:project-id (:path parameters))]
                                        (ok (or (projects-api/get-score-history
                                                 (:database components) project-id
                                                 (:user-id (:identity request)))
@@ -146,8 +146,8 @@
 
      ["/section-questions"
       {:post {:summary   "Generate guiding questions for a score dimension"
-              :handler   (fn [{:keys [components body-params path-params] :as request}]
-                           (let [project-id (parse-uuid (:project-id path-params))
+              :handler   (fn [{:keys [components body-params parameters] :as request}]
+                           (let [project-id (:project-id (:path parameters))
                                  db         (:database components)
                                  scorer     (:scorer components)
                                  params     {:dimension-name        (:dimension-name body-params)
@@ -164,22 +164,22 @@
 
     ;; --- Conversations (SSE) ---
     ["/conversations/:agent"
-     {:parameters {:path {:project-id string? :agent string?}}}
+     {:parameters {:path {:project-id :uuid :agent string?}}}
 
      ["" {:get {:summary   "Get conversation history"
-                :handler   (fn [{:keys [components path-params] :as request}]
-                             (let [project-id (parse-uuid (:project-id path-params))
-                                   agent-type (:agent path-params)]
+                :handler   (fn [{:keys [components parameters] :as request}]
+                             (let [project-id (:project-id (:path parameters))
+                                   agent-type (:agent (:path parameters))]
                                (ok (or (projects-api/get-conversation
                                         (:database components)
                                         project-id (:user-id (:identity request)) agent-type)
                                        []))))}
 
           :post {:summary   "Send a message — returns SSE stream of tokens"
-                 :handler   (fn [{:keys [components body-params path-params] :as request}]
+                 :handler   (fn [{:keys [components body-params parameters] :as request}]
                               (let [user-id    (:user-id (:identity request))
-                                    project-id (parse-uuid (:project-id path-params))
-                                    agent-type (:agent path-params)
+                                    project-id (:project-id (:path parameters))
+                                    agent-type (:agent (:path parameters))
                                     user-msg   (get body-params :message "")
                                     db         (:database components)
                                     scorer     (:scorer components)]
@@ -223,16 +223,16 @@
     ;; --- Skills ---
     ["/skills"
      ["" {:get {:summary   "Get the skill tree for a project"
-                :handler   (fn [{:keys [components path-params] :as request}]
-                             (let [project-id (parse-uuid (:project-id path-params))]
+                :handler   (fn [{:keys [components parameters] :as request}]
+                             (let [project-id (:project-id (:path parameters))]
                                (ok (or (projects-api/get-skill-tree
                                         (:database components) project-id
                                         (:user-id (:identity request)))
                                        []))))}}]
 
      ["/generate" {:post {:summary   "Generate a skill tree using the Eng Lead agent"
-                          :handler   (fn [{:keys [components path-params] :as request}]
-                                       (let [project-id (parse-uuid (:project-id path-params))
+                          :handler   (fn [{:keys [components parameters] :as request}]
+                                       (let [project-id (:project-id (:path parameters))
                                              db         (:database components)
                                              scorer     (:scorer components)]
                                          (if-let [project (persistence/get-project db project-id
@@ -246,11 +246,11 @@
                                            (not-found {:reason "Project not found"}))))}}]
 
      ["/:skill-id"
-      {:parameters {:path {:skill-id string?}}}
+      {:parameters {:path {:project-id :uuid :skill-id :uuid}}}
       ["" {:put {:summary   "Update skill mastery status"
-                 :handler   (fn [{:keys [components body-params path-params] :as request}]
-                              (let [project-id (parse-uuid (:project-id path-params))
-                                    skill-id   (parse-uuid (:skill-id path-params))]
+                 :handler   (fn [{:keys [components body-params parameters] :as request}]
+                              (let [project-id (:project-id (:path parameters))
+                                    skill-id   (:skill-id (:path parameters))]
                                 (if-let [tree (projects-api/update-skill!
                                                (:database components)
                                                project-id (:user-id (:identity request)) skill-id body-params)]
@@ -264,8 +264,8 @@
                                    hu/openapi-404
                                    {200 {:description "The updated project"
                                          :content     {"application/json" {:schema [:any]}}}})
-                :handler   (fn [{:keys [components body-params path-params] :as request}]
-                             (let [project-id (parse-uuid (:project-id path-params))
+                :handler   (fn [{:keys [components body-params parameters] :as request}]
+                             (let [project-id (:project-id (:path parameters))
                                    paths      (vec (filter (complement str/blank?)
                                                            (map str/trim
                                                                 (or (:local-paths body-params) []))))]
@@ -279,26 +279,26 @@
     ;; --- Briefs ---
     ["/briefs"
      ["" {:get {:summary "List all brief versions for a project"
-                :handler (fn [{:keys [components path-params] :as request}]
-                           (let [project-id (parse-uuid (:project-id path-params))]
+                :handler (fn [{:keys [components parameters] :as request}]
+                           (let [project-id (:project-id (:path parameters))]
                              (ok (briefs-persistence/get-all-briefs
                                   (:database components) project-id))))}}]
 
      ["/latest"
       {:get {:summary "Get the latest brief version for a project"
-             :handler (fn [{:keys [components path-params] :as request}]
-                        (let [project-id (parse-uuid (:project-id path-params))]
+             :handler (fn [{:keys [components parameters] :as request}]
+                        (let [project-id (:project-id (:path parameters))]
                           (if-let [brief (briefs-persistence/get-latest-brief
                                           (:database components) project-id)]
                             (ok brief)
                             (not-found {:reason "No brief found for this project"}))))}}]
 
      ["/:version"
-      {:parameters {:path {:version string?}}
+      {:parameters {:path {:project-id :uuid :version string?}}
        :get {:summary "Get a specific brief version"
-             :handler (fn [{:keys [components path-params] :as request}]
-                        (let [project-id (parse-uuid (:project-id path-params))
-                              version    (parse-long (:version path-params))]
+             :handler (fn [{:keys [components parameters] :as request}]
+                        (let [project-id (:project-id (:path parameters))
+                              version    (parse-long (:version (:path parameters)))]
                           (if-let [brief (briefs-persistence/get-brief-by-version
                                           (:database components) project-id version)]
                             (ok brief)

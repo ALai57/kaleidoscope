@@ -134,7 +134,7 @@
                                      :content     {"application/json"
                                                    {:schema   [:map
                                                                [:title {:optional true} :string]
-                                                               [:description {:optional true} :string]]
+                                                                [:sedescription {:optional true} :string]]
                                                     :examples {"example-update" {:summary "Example update"
                                                                                  :value   {:title       "My title"
                                                                                            :description "My photo taken somewhere"}}}}}}
