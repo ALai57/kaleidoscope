@@ -42,23 +42,41 @@
   (when (email-verified? id-token)
     (get-email id-token)))
 
+(defn machine-token?
+  "True for Auth0 client_credentials (M2M) tokens. Auth0 stamps these with a `gty`
+  (grant type) claim; it's the authoritative signal for machine vs. human credentials
+  and is independent of email verification, which is a separate, human-only concern."
+  [id-token]
+  (= "client-credentials" (:gty id-token)))
+
 (defn classify-identity
   "Classifies a raw JWT claims map into a typed identity.
 
-  Two kinds of credentials exist:
-  - Human sessions (email_verified=true) produce :verified-user with :user-id set to their email.
-  - M2M/service tokens (email_verified=false or absent) produce :service-account with :user-id
+  Three kinds of credentials exist:
+  - M2M/service tokens (`gty`=client-credentials) produce :service-account with :user-id
     set to the :sub claim.
+  - Human sessions with a verified email produce :verified-user with :user-id set to
+    their email.
+  - Human sessions without a verified email produce :unverified-user with :user-id set
+    to their email.
 
-  The distinction is made once at the authentication boundary; downstream code reads :type and
-  :user-id directly rather than re-deriving them from raw JWT fields."
+  The distinction is made once at the authentication boundary; downstream code reads :type
+  and :user-id directly rather than re-deriving them from raw JWT fields."
   [id-token]
-  (if (email-verified? id-token)
+  (cond
+    (machine-token? id-token)
+    {:type    :service-account
+     :user-id (:sub id-token)
+     :roles   (get-realm-roles id-token)}
+
+    (email-verified? id-token)
     {:type    :verified-user
      :user-id (get-email id-token)
      :roles   (get-realm-roles id-token)}
-    {:type    :service-account
-     :user-id (:sub id-token)
+
+    :else
+    {:type    :unverified-user
+     :user-id (get-email id-token)
      :roles   (get-realm-roles id-token)}))
 
 (comment

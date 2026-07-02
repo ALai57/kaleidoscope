@@ -18,7 +18,7 @@
   "Require the user to have the *-writer role, where * is the server-name. For
   example, when sending a request to andrewslai.com, requires
   `andrewslai.com-writer`. Also requires a :verified-user identity — M2M/service
-  tokens are rejected regardless of roles."
+  tokens and unverified human sessions are rejected regardless of roles."
   [{:keys [identity uri server-name] :as request}]
   (log/debugf "Checking if user %s has access to endpoint %s %s" identity server-name uri)
   (let [role  (str server-name ":writer")

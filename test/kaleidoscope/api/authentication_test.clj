@@ -52,17 +52,33 @@
                                     :email_verified true
                                     :realm_access   {:roles ["admin"]}}))))
 
-  (testing "Unverified email produces :service-account with :sub as :user-id"
+  (testing "gty=client-credentials produces :service-account with :sub as :user-id, regardless of email_verified"
     (is (= {:type    :service-account
             :user-id "client-id-123"
             :roles   #{"andrewslai.com:writer"}}
            (oidc/classify-identity {:sub            "client-id-123"
+                                    :gty            "client-credentials"
                                     :email_verified false
                                     :realm_access   {:roles ["andrewslai.com:writer"]}}))))
 
-  (testing "Missing email_verified produces :service-account"
-    (is (= :service-account
-           (:type (oidc/classify-identity {:sub "svc" :realm_access {:roles []}})))))
+  (testing "Missing gty produces a human classification, not :service-account"
+    (is (not= :service-account
+              (:type (oidc/classify-identity {:sub "svc" :realm_access {:roles []}})))))
+
+  (testing "Unverified email with no gty produces :unverified-user with email as :user-id"
+    (is (= {:type    :unverified-user
+            :user-id "a@a.com"
+            :roles   #{}}
+           (oidc/classify-identity {:email          "a@a.com"
+                                    :email_verified false
+                                    :realm_access   {:roles []}}))))
+
+  (testing "A gty other than client-credentials does not produce :service-account"
+    (is (= :verified-user
+           (:type (oidc/classify-identity {:email          "a@a.com"
+                                           :email_verified true
+                                           :gty            "refresh-token"
+                                           :realm_access   {:roles []}})))))
 
   (testing "Namespaced email_verified claim is respected"
     (is (= :verified-user
