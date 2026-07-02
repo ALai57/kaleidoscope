@@ -60,7 +60,7 @@
                                               {200 {:description "Success deleting the theme"
                                                     :content     {"application/json"
                                                                   {:schema [:any]}}}})
-                           :parameters {:path {:theme-id string?}}
+                           :parameters {:path {:theme-id :uuid}}
                            :handler    (fn [{:keys [components parameters] :as request}]
                                          (try
                                            (let [{:keys [theme-id]} (:path parameters)
@@ -83,7 +83,7 @@
                                                    {:schema   [:any]
                                                     :examples {"example-theme-1" {:summary "Example theme 1"
                                                                                   :value   example-theme-request}}}}}
-                        :parameters {:path {:theme-id string?}}
+                        :parameters {:path {:theme-id :uuid}}
                         :handler    (fn [{:keys [components parameters] :as request}]
                                       (try
                                         (log/info "Updating theme!" parameters)
@@ -91,7 +91,7 @@
                                               theme              (merge (:request parameters)
                                                                         {:hostname (hu/get-host request)
                                                                          :owner-id (:user-id (:identity request))
-                                                                         :id       (parse-uuid theme-id)})
+                                                                         :id       theme-id})
                                               [result]           (themes-api/update-theme! (:database components) theme)]
                                           (log/infof "Updated theme %s" result)
                                           (ok result))

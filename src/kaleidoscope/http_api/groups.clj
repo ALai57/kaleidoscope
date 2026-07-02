@@ -39,13 +39,13 @@
                                            {200 {:description "The group that was created"
                                                  :content     {"application/json"
                                                                {:schema [:any]}}}})
-                        :parameters {:path {:group-id string?}}
-                        :handler    (fn [{:keys [components body-params path-params] :as request}]
+                        :parameters {:path {:group-id :uuid}}
+                        :handler    (fn [{:keys [components body-params parameters] :as request}]
                                       (try
-                                        (let [{:keys [group-id]} path-params
+                                        (let [{:keys [group-id]} (:path parameters)
                                               _                  (log/info "Creating group!" group-id body-params)
                                               group              (assoc body-params
-                                                                        :id       (parse-uuid group-id)
+                                                                        :id       group-id
                                                                         :owner-id (:user-id (:identity request)))]
                                           (ok (doto (groups-api/create-group! (:database components) group)
                                                 log/info)))
@@ -56,13 +56,13 @@
                                               {200 {:description "Success deleting the group"
                                                     :content     {"application/json"
                                                                   {:schema [:any]}}}})
-                           :parameters {:path {:group-id string?}}
-                           :handler    (fn [{:keys [components path-params] :as request}]
+                           :parameters {:path {:group-id :uuid}}
+                           :handler    (fn [{:keys [components parameters] :as request}]
                                          (try
-                                           (let [{:keys [group-id]} path-params
+                                           (let [{:keys [group-id]} (:path parameters)
                                                  requester-id       (:user-id (:identity request))]
                                              (log/infof "User %s attempting to delete group %s!" requester-id group-id)
-                                             (if-let [result (groups-api/delete-group! (:database components) requester-id (parse-uuid group-id))]
+                                             (if-let [result (groups-api/delete-group! (:database components) requester-id group-id)]
                                                (no-content)
                                                (unauthorized)))
                                            (catch Exception e
@@ -72,14 +72,14 @@
                                                     {200 {:description "The member that was added"
                                                           :content     {"application/json"
                                                                         {:schema [:any]}}}})
-                                 :parameters {:path {:group-id string?}}
-                                 :handler    (fn [{:keys [components body-params path-params] :as request}]
+                                 :parameters {:path {:group-id :uuid}}
+                                 :handler    (fn [{:keys [components body-params parameters] :as request}]
                                                (try
                                                  (log/info "Adding member!" body-params)
-                                                 (let [{:keys [group-id]} path-params
+                                                 (let [{:keys [group-id]} (:path parameters)
                                                        requester-id       (:user-id (:identity request))
                                                        member             body-params]
-                                                   (ok (doto (groups-api/add-users-to-group! (:database components) requester-id (parse-uuid group-id) member)
+                                                   (ok (doto (groups-api/add-users-to-group! (:database components) requester-id group-id member)
                                                          log/info)))
                                                  (catch Exception e
                                                    (log/error "Caught exception " e))))}}]
@@ -88,14 +88,14 @@
                                                                      {204 {:description "Success deleting the member"
                                                                            :content     {"application/json"
                                                                                          {:schema [:any]}}}})
-                                                  :parameters {:path {:group-id      string?
-                                                                      :membership-id string?}}
-                                                  :handler    (fn [{:keys [components path-params] :as request}]
+                                                  :parameters {:path {:group-id      :uuid
+                                                                      :membership-id :uuid}}
+                                                  :handler    (fn [{:keys [components parameters] :as request}]
                                                                 (try
-                                                                  (let [{:keys [group-id membership-id]} path-params
+                                                                  (let [{:keys [group-id membership-id]} (:path parameters)
                                                                         requester-id                     (:user-id (:identity request))]
                                                                     (log/infof "User %s attempting to remove member %s from group %s!" requester-id membership-id group-id)
-                                                                    (if-let [result (groups-api/remove-user-from-group! (:database components) requester-id (parse-uuid group-id) (parse-uuid membership-id))]
+                                                                    (if-let [result (groups-api/remove-user-from-group! (:database components) requester-id group-id membership-id)]
                                                                       (no-content)
                                                                       (unauthorized)))
                                                                   (catch Exception e

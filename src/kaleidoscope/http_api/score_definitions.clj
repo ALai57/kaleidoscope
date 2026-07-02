@@ -33,7 +33,7 @@
                                   (bad-request {:error (.getMessage e)})))))}}]
 
    ["/:definition-id"
-    {:parameters {:path {:definition-id string?}}}
+    {:parameters {:path {:definition-id :uuid}}}
 
     ["" {:get {:summary   "Get a score definition with its dimensions"
                :responses (merge hu/openapi-401
@@ -41,10 +41,10 @@
                                   {200 {:description "The score definition"
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
-               :handler   (fn [{:keys [components path-params] :as _request}]
+               :handler   (fn [{:keys [components parameters] :as _request}]
                             (if-let [defn (score-defs-api/get-score-definition
                                            (:database components)
-                                           (parse-uuid (:definition-id path-params)))]
+                                           (:definition-id (:path parameters)))]
                               (ok defn)
                               (not-found {:reason "Score definition not found"})))}
 
@@ -54,8 +54,8 @@
                                   {200 {:description "The updated score definition"
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
-               :handler   (fn [{:keys [components body-params path-params] :as _request}]
-                            (let [def-id (parse-uuid (:definition-id path-params))]
+               :handler   (fn [{:keys [components body-params parameters] :as _request}]
+                            (let [def-id (:definition-id (:path parameters))]
                               (if-let [result (score-defs-api/update-score-definition!
                                                (:database components) def-id body-params)]
                                 (ok result)
@@ -66,8 +66,8 @@
                                      hu/openapi-404
                                      {204 {:description "Deleted successfully"}
                                       400 {:description "Cannot delete default definition"}})
-                  :handler   (fn [{:keys [components path-params] :as _request}]
-                               (let [def-id (parse-uuid (:definition-id path-params))
+                  :handler   (fn [{:keys [components parameters] :as _request}]
+                               (let [def-id (:definition-id (:path parameters))
                                      result (score-defs-api/delete-score-definition!
                                              (:database components) def-id)]
                                  (cond

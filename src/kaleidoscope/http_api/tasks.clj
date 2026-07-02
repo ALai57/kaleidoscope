@@ -19,13 +19,13 @@
   ["/projects/:project-id/tasks"
    {:tags     ["tasks"]
     :security [{:andrewslai-pkce ["roles" "profile"]}]
-    :parameters {:path {:project-id string?}}}
+    :parameters {:path {:project-id :uuid}}}
 
    ;; --- Task collection ---
    ["" {:get  {:summary "List tasks for a project (ordered by position)"
-               :handler (fn [{:keys [components path-params query-params] :as request}]
+               :handler (fn [{:keys [components parameters query-params] :as request}]
                           (let [user-id    (oidc/get-verified-email (:identity request))
-                                project-id (parse-uuid (:project-id path-params))
+                                project-id (:project-id (:path parameters))
                                 status     (:status query-params)]
                             (if-let [tasks (tasks-api/list-tasks
                                             (:database components) project-id user-id
@@ -34,9 +34,9 @@
                               (not-found {:reason "Project not found"}))))}
 
         :post {:summary "Create a task"
-               :handler (fn [{:keys [components body-params path-params] :as request}]
+               :handler (fn [{:keys [components body-params parameters] :as request}]
                           (let [user-id    (oidc/get-verified-email (:identity request))
-                                project-id (parse-uuid (:project-id path-params))]
+                                project-id (:project-id (:path parameters))]
                             (if-let [task (tasks-api/create-task!
                                            (:database components) project-id user-id body-params)]
                               (ok task)
@@ -45,9 +45,9 @@
    ;; --- Task status summary (for low-task nudge) ---
    ["/status"
     {:get {:summary "Return pending and total task counts for a project"
-           :handler (fn [{:keys [components path-params] :as request}]
+           :handler (fn [{:keys [components parameters] :as request}]
                       (let [user-id    (oidc/get-verified-email (:identity request))
-                            project-id (parse-uuid (:project-id path-params))]
+                            project-id (:project-id (:path parameters))]
                         (if-let [status (tasks-api/get-task-status
                                          (:database components) project-id user-id)]
                           (ok status)
@@ -56,9 +56,9 @@
    ;; --- Reorder (must be before /:task-id to avoid route collision) ---
    ["/reorder"
     {:put {:summary "Replace the full position sequence for a project's tasks"
-           :handler (fn [{:keys [components body-params path-params] :as request}]
+           :handler (fn [{:keys [components body-params parameters] :as request}]
                       (let [user-id    (oidc/get-verified-email (:identity request))
-                            project-id (parse-uuid (:project-id path-params))
+                            project-id (:project-id (:path parameters))
                             positions  (mapv (fn [{:keys [id position]}]
                                                {:id       (parse-uuid (str id))
                                                 :position position})
@@ -71,9 +71,9 @@
    ;; --- Task generation (SSE) ---
    ["/generate"
     {:post {:summary "Generate tasks and append them to the task list (SSE)"
-            :handler (fn [{:keys [components path-params] :as request}]
+            :handler (fn [{:keys [components parameters] :as request}]
                        (let [user-id    (oidc/get-verified-email (:identity request))
-                             project-id (parse-uuid (:project-id path-params))
+                             project-id (:project-id (:path parameters))
                              db         (:database components)
                              task-planner (get-task-planner components)]
                          (if-let [project (projects-persistence/get-project
@@ -93,13 +93,13 @@
 
    ;; --- Individual task ---
    ["/:task-id"
-    {:parameters {:path {:task-id string?}}}
+    {:parameters {:path {:project-id :uuid :task-id :uuid}}}
 
     ["" {:put    {:summary "Partially update a task (title, description, status, task_type, estimated_minutes)"
-                  :handler (fn [{:keys [components body-params path-params] :as request}]
+                  :handler (fn [{:keys [components body-params parameters] :as request}]
                              (let [user-id    (oidc/get-verified-email (:identity request))
-                                   project-id (parse-uuid (:project-id path-params))
-                                   task-id    (parse-uuid (:task-id path-params))]
+                                   project-id (:project-id (:path parameters))
+                                   task-id    (:task-id (:path parameters))]
                                (if-let [task (tasks-api/update-task!
                                               (:database components) project-id user-id task-id
                                               body-params)]
@@ -107,10 +107,10 @@
                                  (not-found {:reason "Project or task not found"}))))}
 
          :delete {:summary "Hard delete a task"
-                  :handler (fn [{:keys [components path-params] :as request}]
+                  :handler (fn [{:keys [components parameters] :as request}]
                              (let [user-id    (oidc/get-verified-email (:identity request))
-                                   project-id (parse-uuid (:project-id path-params))
-                                   task-id    (parse-uuid (:task-id path-params))]
+                                   project-id (:project-id (:path parameters))
+                                   task-id    (:task-id (:path parameters))]
                                (if (nil? (tasks-api/delete-task!
                                           (:database components) project-id user-id task-id))
                                  (not-found {:reason "Project not found"})

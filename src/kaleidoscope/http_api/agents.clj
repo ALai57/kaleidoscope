@@ -21,12 +21,12 @@
                                   body-params))))}}]
 
    ["/:definition-id"
-    {:parameters {:path {:definition-id string?}}}
+    {:parameters {:path {:definition-id :uuid}}}
 
     ["" {:put {:summary "Update an agent's display-name, avatar, or system-prompt"
-               :handler (fn [{:keys [components body-params path-params] :as request}]
+               :handler (fn [{:keys [components body-params parameters] :as request}]
                           (let [user-id       (oidc/get-verified-email (:identity request))
-                                definition-id (parse-uuid (:definition-id path-params))]
+                                definition-id (:definition-id (:path parameters))]
                             (if-let [updated (agents-api/update-agent-definition!
                                               (:database components)
                                               user-id

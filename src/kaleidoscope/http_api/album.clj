@@ -69,9 +69,9 @@
                                            {200 {:description "An album"
                                                  :content     {"application/json"
                                                                {:schema models.albums/Album}}}})
-                        :parameters {:path {:album-id string?}}
-                        :handler    (fn [{:keys [components body-params path-params] :as request}]
-                                      (let [{:keys [album-id]} path-params]
+                        :parameters {:path {:album-id :uuid}}
+                        :handler    (fn [{:keys [components parameters] :as request}]
+                                      (let [{:keys [album-id]} (:path parameters)]
                                         (log/infof "Getting album: %s" album-id)
                                         (ok (first (albums-api/get-albums (:database components) {:id album-id})))))}
                   :put {:summary    "Update an album"
@@ -79,9 +79,9 @@
                                            {200 {:description "An album"
                                                  :content     {"application/json"
                                                                {:schema models.albums/Album}}}})
-                        :parameters {:path {:album-id string?}}
-                        :handler    (fn [{:keys [components body-params path-params] :as request}]
-                                      (let [{:keys [album-id]} path-params]
+                        :parameters {:path {:album-id :uuid}}
+                        :handler    (fn [{:keys [components body-params parameters] :as request}]
+                                      (let [{:keys [album-id]} (:path parameters)]
                                         (log/infof "Updating album: %s with: %s" album-id body-params)
                                         (ok (first (albums-api/update-album! (:database components)
                                                                              (assoc body-params :id album-id))))))}}]
@@ -92,9 +92,9 @@
                                                              :content     {"application/json"
                                                                            {:schema [:sequential models.albums/AlbumContent]}}}})
 
-                                    :parameters {:path {:album-id string?}}
-                                    :handler    (fn [{:keys [components body-params path-params] :as request}]
-                                                  (let [{:keys [album-id]} path-params]
+                                    :parameters {:path {:album-id :uuid}}
+                                    :handler    (fn [{:keys [components parameters] :as request}]
+                                                  (let [{:keys [album-id]} (:path parameters)]
                                                     (log/infof "Getting album contents from album: %s" album-id)
                                                     (let [contents (albums-api/get-album-contents (:database components) {:album-id album-id})]
                                                       (ok contents))))}
@@ -109,9 +109,9 @@
                                                                 {:schema   [:sequential [:map [:id :uuid]]]
                                                                  :examples {"example-album-1" {:summary "Example album 1"
                                                                                                :value   [{:id #uuid "a52a7e7e-89ca-4fbf-9062-e8089254d0e5"}]}}}}}
-                                    :parameters  {:path {:album-id string?}}
-                                    :handler     (fn [{:keys [components body-params path-params] :as request}]
-                                                   (let [{:keys [album-id]} path-params
+                                    :parameters  {:path {:album-id :uuid}}
+                                    :handler     (fn [{:keys [components body-params parameters] :as request}]
+                                                   (let [{:keys [album-id]} (:path parameters)
                                                          photo-ids          (map :id body-params)]
                                                      (log/infof "Adding photo: %s to album: %s" photo-ids album-id)
                                                      (let [inserted-rows (albums-api/add-photos-to-album! (:database components) album-id photo-ids)
@@ -122,10 +122,10 @@
                                                        {200 {:description "An album"
                                                              :content     {"application/json"
                                                                            {:schema models.albums/Album}}}})
-                                    :parameters {:path {:album-id string?}}
-                                    :handler    (fn [{:keys [components body-params path-params] :as request}]
+                                    :parameters {:path {:album-id :uuid}}
+                                    :handler    (fn [{:keys [components body-params parameters] :as request}]
                                                   ;; This would allow a user to delete contents from an album that is different from the path specified
-                                                  (let [{:keys [album-id]} path-params
+                                                  (let [{:keys [album-id]} (:path parameters)
                                                         content-ids        (map :id body-params)]
                                                     (log/infof "Removing contents %s from album %s" content-ids album-id)
                                                     (albums-api/remove-content-album-link! (:database components) content-ids)
@@ -136,10 +136,10 @@
                               {200 {:description "An album's contents"
                                     :content     {"application/json"
                                                   {:schema models.albums/AlbumContent}}}})
-           :parameters {:path {:album-id   string?
-                               :content-id string?}}
-           :handler    (fn [{:keys [components path-params] :as request}]
-                         (let [{:keys [album-id content-id]} path-params
+           :parameters {:path {:album-id   :uuid
+                               :content-id :uuid}}
+           :handler    (fn [{:keys [components parameters] :as request}]
+                         (let [{:keys [album-id content-id]} (:path parameters)
 
                                _        (log/infof "Getting album content %s for album: %s" content-id album-id)
                                [result] (albums-api/get-album-contents (:database components)
@@ -153,11 +153,11 @@
                                  {200 {:description "An album"
                                        :content     {"application/json"
                                                      {:schema models.albums/AlbumContent}}}})
-              :parameters {:path {:album-id   string?
-                                  :content-id string?}}
-              :handler    (fn [{:keys [components path-params] :as request}]
+              :parameters {:path {:album-id   :uuid
+                                  :content-id :uuid}}
+              :handler    (fn [{:keys [components parameters] :as request}]
                             ;; This would allow a user to delete contents from an album that is different from the path specified
-                            (let [{:keys [content-id album-id]} path-params]
+                            (let [{:keys [content-id album-id]} (:path parameters)]
                               (log/infof "Removing content: %s from album: %s" content-id album-id)
                               (albums-api/remove-content-album-link! (:database components) content-id)
                               (no-content)))}}]])

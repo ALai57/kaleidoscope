@@ -34,15 +34,15 @@
                                   {:status 409 :body {:reason "Path already registered"}}))))}}]
 
    ["/:workspace-root-id"
-    {:parameters {:path {:workspace-root-id string?}}}
+    {:parameters {:path {:workspace-root-id :uuid}}}
 
     ["" {:delete {:summary   "Remove a workspace root"
                   :responses (merge hu/openapi-401
                                      hu/openapi-404
                                      {204 {:description "Deleted"}})
-                  :handler   (fn [{:keys [components path-params] :as request}]
+                  :handler   (fn [{:keys [components parameters] :as request}]
                                (let [user-id (oidc/get-verified-email (:identity request))
-                                     root-id (parse-uuid (:workspace-root-id path-params))]
+                                     root-id (:workspace-root-id (:path parameters))]
                                  (if (persistence/delete-workspace-root!
                                       (:database components) root-id user-id)
                                    {:status 204}

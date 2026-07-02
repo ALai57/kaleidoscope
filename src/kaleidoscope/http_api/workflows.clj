@@ -26,27 +26,27 @@
                                body-params)))}}]
 
    ["/:workflow-id"
-    {:parameters {:path {:workflow-id string?}}}
+    {:parameters {:path {:workflow-id :uuid}}}
 
     ["" {:get {:summary "Get a workflow with its steps"
-               :handler (fn [{:keys [components path-params] :as request}]
-                          (let [workflow-id (parse-uuid (:workflow-id path-params))]
+               :handler (fn [{:keys [components parameters] :as request}]
+                          (let [workflow-id (:workflow-id (:path parameters))]
                             (if-let [wf (workflows-api/get-workflow
                                          (:database components) workflow-id)]
                               (ok wf)
                               (not-found {:reason "Workflow not found"}))))}
 
          :put {:summary "Update a workflow (status, name, description, steps)"
-               :handler (fn [{:keys [components body-params path-params] :as request}]
-                          (let [workflow-id (parse-uuid (:workflow-id path-params))]
+               :handler (fn [{:keys [components body-params parameters] :as request}]
+                          (let [workflow-id (:workflow-id (:path parameters))]
                             (if-let [wf (workflows-api/update-workflow!
                                          (:database components) workflow-id body-params)]
                               (ok wf)
                               (not-found {:reason "Workflow not found"}))))}
 
          :delete {:summary "Delete a workflow (blocked if is_default=true)"
-                  :handler (fn [{:keys [components path-params] :as request}]
-                             (let [workflow-id (parse-uuid (:workflow-id path-params))
+                  :handler (fn [{:keys [components parameters] :as request}]
+                             (let [workflow-id (:workflow-id (:path parameters))
                                    result      (workflows-api/delete-workflow!
                                                 (:database components) workflow-id)]
                                (cond
@@ -64,14 +64,14 @@
   ["/projects/:project-id"
    {:tags     ["workflows"]
     :security [{:andrewslai-pkce ["roles" "profile"]}]
-    :parameters {:path {:project-id string?}}}
+    :parameters {:path {:project-id :uuid}}}
 
    ;; --- Recommendation ---
    ["/workflow-recommendation"
     {:post {:summary "Rank live workflows against this project"
-            :handler (fn [{:keys [components path-params] :as request}]
+            :handler (fn [{:keys [components parameters] :as request}]
                        (let [user-id    (:user-id (:identity request))
-                             project-id (parse-uuid (:project-id path-params))
+                             project-id (:project-id (:path parameters))
                              db         (:database components)
                              executor   (:workflow-executor components)]
                          (if-let [recs (workflows-api/get-workflow-recommendation
@@ -82,18 +82,18 @@
    ;; --- Runs collection ---
    ["/workflow-runs"
     ["" {:get {:summary "List workflow runs for a project"
-               :handler (fn [{:keys [components path-params] :as request}]
+               :handler (fn [{:keys [components parameters] :as request}]
                           (let [user-id    (:user-id (:identity request))
-                                project-id (parse-uuid (:project-id path-params))]
+                                project-id (:project-id (:path parameters))]
                             (if-let [runs (workflows-api/get-workflow-runs
                                            (:database components) project-id user-id)]
                               (ok runs)
                               (not-found {:reason "Project not found"}))))}
 
          :post {:summary "Start a new workflow run (body: {workflow_id?, mode, scrutiny?, target_score?})"
-                :handler (fn [{:keys [components body-params path-params] :as request}]
+                :handler (fn [{:keys [components body-params parameters] :as request}]
                            (let [user-id      (:user-id (:identity request))
-                                 project-id   (parse-uuid (:project-id path-params))
+                                 project-id   (:project-id (:path parameters))
                                  workflow-id  (when-let [id (:workflow-id body-params)]
                                                 (parse-uuid id))
                                  mode         (:mode body-params "manual")
@@ -111,23 +111,23 @@
 
     ;; --- Individual run ---
     ["/:run-id"
-     {:parameters {:path {:run-id string?}}}
+     {:parameters {:path {:project-id :uuid :run-id :uuid}}}
 
      ["" {:get {:summary "Get a workflow run with all step runs"
-                :handler (fn [{:keys [components path-params] :as request}]
+                :handler (fn [{:keys [components parameters] :as request}]
                            (let [user-id    (:user-id (:identity request))
-                                 project-id (parse-uuid (:project-id path-params))
-                                 run-id     (parse-uuid (:run-id path-params))]
+                                 project-id (:project-id (:path parameters))
+                                 run-id     (:run-id (:path parameters))]
                              (if-let [run (workflows-api/get-workflow-run
                                            (:database components) run-id project-id user-id)]
                                (ok run)
                                (not-found {:reason "Run not found"}))))}
 
           :put {:summary "Update run mode (manual | autonomous)"
-                :handler (fn [{:keys [components body-params path-params] :as request}]
+                :handler (fn [{:keys [components body-params parameters] :as request}]
                            (let [user-id    (:user-id (:identity request))
-                                 project-id (parse-uuid (:project-id path-params))
-                                 run-id     (parse-uuid (:run-id path-params))
+                                 project-id (:project-id (:path parameters))
+                                 run-id     (:run-id (:path parameters))
                                  mode       (:mode body-params)]
                              (if-let [run (workflows-api/update-run-mode!
                                            (:database components)
@@ -138,10 +138,10 @@
      ;; --- Rounds timeline ---
      ["/rounds"
       {:get {:summary "Get the rounds timeline for a loop workflow run"
-             :handler (fn [{:keys [components path-params] :as request}]
+             :handler (fn [{:keys [components parameters] :as request}]
                         (let [user-id    (:user-id (:identity request))
-                              project-id (parse-uuid (:project-id path-params))
-                              run-id     (parse-uuid (:run-id path-params))]
+                              project-id (:project-id (:path parameters))
+                              run-id     (:run-id (:path parameters))]
                           (if-let [rounds (workflows-api/get-run-rounds
                                            (:database components) run-id project-id user-id)]
                             (ok rounds)
@@ -150,10 +150,10 @@
      ;; --- Force proceed ---
      ["/force-proceed"
       {:post {:summary "Skip remaining advisor rounds and immediately generate tasks"
-              :handler (fn [{:keys [components path-params] :as request}]
+              :handler (fn [{:keys [components parameters] :as request}]
                          (let [user-id    (:user-id (:identity request))
-                               project-id (parse-uuid (:project-id path-params))
-                               run-id     (parse-uuid (:run-id path-params))
+                               project-id (:project-id (:path parameters))
+                               run-id     (:run-id (:path parameters))
                                db         (:database components)
                                executor   (:workflow-executor components)]
                            (if-let [run (workflows-api/force-proceed!
@@ -164,10 +164,10 @@
      ;; --- Advance (SSE) ---
      ["/advance"
       {:post {:summary "Execute the current pending step (SSE). In autonomous mode, continues until all steps are done."
-              :handler (fn [{:keys [components path-params] :as request}]
+              :handler (fn [{:keys [components parameters] :as request}]
                          (let [user-id    (:user-id (:identity request))
-                               project-id (parse-uuid (:project-id path-params))
-                               run-id     (parse-uuid (:run-id path-params))
+                               project-id (:project-id (:path parameters))
+                               run-id     (:run-id (:path parameters))
                                db         (:database components)
                                executor   (:workflow-executor components)]
                            (hu/sse-response
@@ -183,13 +183,13 @@
 
      ;; --- Skip step ---
      ["/steps/:step-run-id/skip"
-      {:parameters {:path {:step-run-id string?}}
+      {:parameters {:path {:project-id :uuid :run-id :uuid :step-run-id :uuid}}
        :post {:summary "Skip a pending step"
-              :handler (fn [{:keys [components path-params] :as request}]
+              :handler (fn [{:keys [components parameters] :as request}]
                          (let [user-id     (:user-id (:identity request))
-                               project-id  (parse-uuid (:project-id path-params))
-                               run-id      (parse-uuid (:run-id path-params))
-                               step-run-id (parse-uuid (:step-run-id path-params))]
+                               project-id  (:project-id (:path parameters))
+                               run-id      (:run-id (:path parameters))
+                               step-run-id (:step-run-id (:path parameters))]
                            (if-let [run (workflows-api/skip-step!
                                          (:database components)
                                          project-id user-id run-id step-run-id)]
@@ -198,13 +198,13 @@
 
      ;; --- Respond to awaiting_input step ---
      ["/steps/:step-run-id/respond"
-      {:parameters {:path {:step-run-id string?}}
+      {:parameters {:path {:project-id :uuid :run-id :uuid :step-run-id :uuid}}
        :post {:summary "Submit answers for an awaiting_input step; appends answers to project.description and resumes the workflow"
-              :handler (fn [{:keys [components body-params path-params] :as request}]
+              :handler (fn [{:keys [components body-params parameters] :as request}]
                          (let [user-id     (:user-id (:identity request))
-                               project-id  (parse-uuid (:project-id path-params))
-                               run-id      (parse-uuid (:run-id path-params))
-                               step-run-id (parse-uuid (:step-run-id path-params))
+                               project-id  (:project-id (:path parameters))
+                               run-id      (:run-id (:path parameters))
+                               step-run-id (:step-run-id (:path parameters))
                                answers     (or (:answers body-params) [])]
                            (if-let [run (workflows-api/respond-to-step!
                                          (:database components)
@@ -216,10 +216,10 @@
      ;; --- Custom step (SSE) ---
      ["/custom-step"
       {:post {:summary "Inject and execute a custom ad-hoc step (SSE). Returns step_complete + recommendation events."
-              :handler (fn [{:keys [components body-params path-params] :as request}]
+              :handler (fn [{:keys [components body-params parameters] :as request}]
                          (let [user-id    (:user-id (:identity request))
-                               project-id (parse-uuid (:project-id path-params))
-                               run-id     (parse-uuid (:run-id path-params))
+                               project-id (:project-id (:path parameters))
+                               run-id     (:run-id (:path parameters))
                                db         (:database components)
                                executor   (:workflow-executor components)]
                            (hu/sse-response
