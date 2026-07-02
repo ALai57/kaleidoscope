@@ -55,18 +55,16 @@
 
    ;; --- Reorder (must be before /:task-id to avoid route collision) ---
    ["/reorder"
-    {:put {:summary "Replace the full position sequence for a project's tasks"
-           :handler (fn [{:keys [components body-params parameters] :as request}]
-                      (let [user-id    (oidc/get-verified-email (:identity request))
-                            project-id (:project-id (:path parameters))
-                            positions  (mapv (fn [{:keys [id position]}]
-                                               {:id       (parse-uuid (str id))
-                                                :position position})
-                                             body-params)]
-                        (if (nil? (tasks-api/reorder-tasks!
-                                   (:database components) project-id user-id positions))
-                          (not-found {:reason "Project not found"})
-                          {:status 204})))}}]
+    {:put {:summary    "Replace the full position sequence for a project's tasks"
+           :parameters {:body [:vector [:map [:id :uuid] [:position :int]]]}
+           :handler    (fn [{:keys [components parameters] :as request}]
+                         (let [user-id    (oidc/get-verified-email (:identity request))
+                               project-id (:project-id (:path parameters))
+                               positions  (:body parameters)]
+                           (if (nil? (tasks-api/reorder-tasks!
+                                      (:database components) project-id user-id positions))
+                             (not-found {:reason "Project not found"})
+                             {:status 204})))}}]
 
    ;; --- Task generation (SSE) ---
    ["/generate"

@@ -124,17 +124,18 @@
                                         (:database components) project-id)
                                        []))))}
 
-          :post {:summary   "Trigger scoring (pass definition_ids to score specific definitions)"
-                 :handler   (fn [{:keys [components body-params parameters] :as request}]
-                              (let [project-id     (:project-id (:path parameters))
-                                    definition-ids (when-let [ids (:definition-ids body-params)]
-                                                     (mapv parse-uuid ids))]
-                                (if-let [project (projects-api/score-project!
-                                                  (:database components)
-                                                  (:scorer components)
-                                                  project-id (:user-id (:identity request)) definition-ids)]
-                                  (ok project)
-                                  (not-found {:reason "Project not found"}))))}}]
+          :post {:summary    "Trigger scoring (pass definition_ids to score specific definitions)"
+                 :parameters {:body [:map
+                                     [:definition-ids {:optional true} [:vector :uuid]]]}
+                 :handler    (fn [{:keys [components parameters] :as request}]
+                               (let [project-id     (:project-id (:path parameters))
+                                     definition-ids (:definition-ids (:body parameters))]
+                                 (if-let [project (projects-api/score-project!
+                                                   (:database components)
+                                                   (:scorer components)
+                                                   project-id (:user-id (:identity request)) definition-ids)]
+                                   (ok project)
+                                   (not-found {:reason "Project not found"}))))}}]
 
      ["/history" {:get {:summary   "Get all score runs for all versions and definitions"
                         :handler   (fn [{:keys [components parameters] :as request}]

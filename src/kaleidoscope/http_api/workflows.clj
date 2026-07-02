@@ -90,24 +90,29 @@
                               (ok runs)
                               (not-found {:reason "Project not found"}))))}
 
-         :post {:summary "Start a new workflow run (body: {workflow_id?, mode, scrutiny?, target_score?})"
-                :handler (fn [{:keys [components body-params parameters] :as request}]
-                           (let [user-id      (:user-id (:identity request))
-                                 project-id   (:project-id (:path parameters))
-                                 workflow-id  (when-let [id (:workflow-id body-params)]
-                                                (parse-uuid id))
-                                 mode         (:mode body-params "manual")
-                                 scrutiny     (:scrutiny body-params)
-                                 target-score (:target-score body-params)]
-                             (if-let [run (workflows-api/create-run!
-                                           (:database components)
-                                           project-id user-id
-                                           {:workflow-id  workflow-id
-                                            :mode         mode
-                                            :scrutiny     scrutiny
-                                            :target-score target-score})]
-                               (ok run)
-                               (not-found {:reason "Project not found"}))))}}]
+         :post {:summary    "Start a new workflow run (body: {workflow_id?, mode, scrutiny?, target_score?})"
+                :parameters {:body [:map
+                                    [:workflow-id {:optional true} :uuid]
+                                    [:mode {:optional true} [:enum "manual" "autonomous"]]
+                                    [:scrutiny {:optional true} [:enum "quick" "standard" "rigorous"]]
+                                    [:target-score {:optional true} [:double {:min 0 :max 10}]]]}
+                :handler    (fn [{:keys [components parameters] :as request}]
+                              (let [user-id      (:user-id (:identity request))
+                                    project-id   (:project-id (:path parameters))
+                                    body         (:body parameters)
+                                    workflow-id  (:workflow-id body)
+                                    mode         (:mode body "manual")
+                                    scrutiny     (:scrutiny body)
+                                    target-score (:target-score body)]
+                                (if-let [run (workflows-api/create-run!
+                                              (:database components)
+                                              project-id user-id
+                                              {:workflow-id  workflow-id
+                                               :mode         mode
+                                               :scrutiny     scrutiny
+                                               :target-score target-score})]
+                                  (ok run)
+                                  (not-found {:reason "Project not found"}))))}}]
 
     ;; --- Individual run ---
     ["/:run-id"

@@ -27,6 +27,12 @@
 (def ^:dynamic *request-id*
   "Unbound")
 
+(def ^:dynamic *user-context*
+  "Bound to `{:user-id ... :email ... :type ...}` for the duration of an
+  authenticated request by `wrap-bind-user-context`. `nil` for unauthenticated
+  requests. Read by log output functions and used to tag the request's span."
+  nil)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom middlewares
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
