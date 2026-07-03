@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.projects
   (:require [kaleidoscope.api.score-definitions :as score-defs-api]
             [kaleidoscope.api.workflows :as workflows-api]
+            [kaleidoscope.persistence.briefs :as briefs-persistence]
             [kaleidoscope.persistence.projects :as persistence]
             [kaleidoscope.scoring.protocol :as scoring]
             [taoensso.timbre :as log]))
@@ -85,6 +86,45 @@
   [db project-id user-id]
   (when (persistence/get-project db project-id user-id)
     (persistence/get-score-history db project-id)))
+
+(defn get-latest-scores
+  "Return the latest score run per definition for a project. Verified
+  exploitable 2026-07-03: the HTTP handler for GET /projects/:id/scores
+  used to call persistence/get-latest-score-runs directly, with no
+  ownership check at all — any authenticated writer could read any other
+  user's score runs (including LLM-generated rationale text) by project-id
+  alone. See PLAN.md.
+
+  Returns [] (not nil) when the project is owned but has no score runs yet
+  — nil is reserved for \"not found or not owned\" so callers can tell the
+  two apart."
+  [db project-id user-id]
+  (when (persistence/get-project db project-id user-id)
+    (or (persistence/get-latest-score-runs db project-id) [])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Briefs
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Verified exploitable 2026-07-03: all three HTTP handlers for
+;; GET /projects/:id/briefs[...] called kaleidoscope.persistence.briefs
+;; directly, with no ownership check — any authenticated writer could read
+;; any other user's project briefs (AI-refined project descriptions) by
+;; project-id alone. See PLAN.md.
+
+(defn get-all-briefs
+  [db project-id user-id]
+  (when (persistence/get-project db project-id user-id)
+    (briefs-persistence/get-all-briefs db project-id)))
+
+(defn get-latest-brief
+  [db project-id user-id]
+  (when (persistence/get-project db project-id user-id)
+    (briefs-persistence/get-latest-brief db project-id)))
+
+(defn get-brief-by-version
+  [db project-id user-id version]
+  (when (persistence/get-project db project-id user-id)
+    (briefs-persistence/get-brief-by-version db project-id version)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Notes

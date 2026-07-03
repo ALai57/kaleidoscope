@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.workspace-roots
   (:require [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.persistence.workspace-roots :as persistence]
+            [kaleidoscope.utils.local-files :as local-files]
             [ring.util.http-response :refer [bad-request not-found ok]]))
 
 (def reitit-workspace-roots-routes
@@ -25,8 +26,14 @@
                             (let [user-id (:user-id (:identity request))
                                   path    (:path body-params)
                                   label   (:label body-params)]
-                              (if (empty? path)
+                              (cond
+                                (empty? path)
                                 (bad-request {:reason "path is required"})
+
+                                (not (local-files/path-allowed? path))
+                                (bad-request {:reason "path is not under an allowed root"})
+
+                                :else
                                 (if-let [root (persistence/add-workspace-root!
                                                (:database components) user-id path label)]
                                   (ok root)

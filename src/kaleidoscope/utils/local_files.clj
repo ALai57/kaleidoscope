@@ -68,6 +68,63 @@
   (str/starts-with? (.getCanonicalPath f) (.getCanonicalPath root)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Allowlist — which directories the server is willing to read from
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Before this existed, local-paths (per-project) and workspace-roots
+;; (per-user) were accepted with no restriction beyond "exists on disk" —
+;; any authenticated writer could point the Engineering Reviewer at
+;; /etc/passwd, a deployed .env file, or an SSH key, and its contents would
+;; be spliced into an LLM prompt and returned to them via the score
+;; rationale (trivially forced verbatim via a prompt-injected project
+;; description). Verified exploitable 2026-07-03 — see PLAN.md.
+;;
+;; Deny-by-default: an unset/empty allowlist means nothing resolves, not
+;; "allow everything." This feature requires an operator to opt in.
+
+(defn- configured-roots-string
+  "The raw KALEIDOSCOPE_LOCAL_CODE_CONTEXT_ROOTS env value. A separate
+   function (not inlined) so tests can override it with with-redefs
+   instead of mutating real process environment variables."
+  []
+  (System/getenv "KALEIDOSCOPE_LOCAL_CODE_CONTEXT_ROOTS"))
+
+(defn allowed-roots
+  "Canonicalized set of directories code-context paths may resolve under,
+   parsed from a comma-separated KALEIDOSCOPE_LOCAL_CODE_CONTEXT_ROOTS.
+   Roots that don't exist, aren't directories, or can't be canonicalized
+   are dropped (and logged), not silently kept."
+  []
+  (into #{}
+        (keep (fn [root]
+                (let [root (str/trim root)]
+                  (when (seq root)
+                    (let [f (File. ^String root)]
+                      (if (and (.exists f) (.isDirectory f))
+                        (.getCanonicalPath f)
+                        (do (log/warnf "KALEIDOSCOPE_LOCAL_CODE_CONTEXT_ROOTS entry does not exist or is not a directory, ignoring: %s" root)
+                            nil)))))))
+        (some-> (configured-roots-string) (str/split #","))))
+
+(defn path-allowed?
+  "True if `path` canonicalizes to one of the allowed roots, or somewhere
+   underneath one. Canonicalizes before comparing (symlink-safe, same
+   technique as confined-path? above). Deny-by-default: if no roots are
+   configured, nothing is allowed, regardless of what path is asked for."
+  [path]
+  (let [roots (allowed-roots)]
+    (boolean
+     (and (seq roots)
+         (try
+           (let [canonical (.getCanonicalPath (File. ^String path))]
+             (boolean (some (fn [root]
+                              (or (= canonical root)
+                                  (str/starts-with? canonical (str root File/separator))))
+                            roots)))
+           (catch Exception e
+             (log/warnf "path-allowed?: could not canonicalize %s: %s" path (.getMessage e))
+             false))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Safe I/O
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -195,6 +252,13 @@
     (doseq [path paths]
       (let [f (File. ^String path)]
         (cond
+          ;; Enforced here, not just at the HTTP input boundary — this is
+          ;; the actual dangerous operation (arbitrary local file read), so
+          ;; it re-checks regardless of what validation happened upstream.
+          (not (path-allowed? path))
+          (do (log/warnf "read-local-paths: path is outside the configured allowlist, refusing: %s" path)
+              (vswap! skipped conj {:path path :reason :not-allowed}))
+
           (not (.exists f))
           (do (log/warnf "read-local-paths: path does not exist: %s" path)
               (vswap! skipped conj {:path path :reason :not-found}))

@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.projects-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.api.projects :as projects]
+            [kaleidoscope.persistence.briefs :as briefs-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [matcher-combinators.test :refer [match?]]
@@ -103,3 +104,45 @@
                               {:name "Still fine" :project-id victim-pid})
       (is (some? (first (filter #(= (:id %) skill-id) (projects-persistence/get-skills database pid)))))
       (is (empty? (projects-persistence/get-skills database victim-pid))))))
+
+(deftest scores-and-briefs-read-ownership-test
+  ;; Verified exploitable 2026-07-03: the HTTP handlers for
+  ;; GET /projects/:id/scores and GET /projects/:id/briefs[/latest|/:version]
+  ;; called persistence functions directly, with no ownership check at
+  ;; all — any authenticated writer could read any other user's score runs
+  ;; (LLM-generated rationale text) or project briefs (AI-refined project
+  ;; descriptions) just by knowing/guessing the project-id. Every sibling
+  ;; handler in the same file went through an ownership-checked api/
+  ;; function; these three didn't. Fixed by adding get-latest-scores/
+  ;; get-all-briefs/get-latest-brief/get-brief-by-version here, matching the
+  ;; existing get-score-history pattern, and pointing the HTTP handlers at
+  ;; them instead of calling persistence.* directly.
+  (let [database  (embedded-h2/fresh-db!)
+        owner-id  "owner@example.com"
+        other-id  "other@example.com"
+        project   (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
+        pid       (:id project)
+        def1      (projects-persistence/create-score-definition! database
+                                                                  {:user-id owner-id :name "D" :description "d"})]
+    (projects-persistence/insert-score-run! database pid (:id def1) {:overall 8.5 :dimensions []})
+    (briefs-persistence/create-brief! database {:project-id pid :content "Confidential brief" :source "initial"})
+
+    (testing "A different user cannot read another user's latest scores"
+      (is (nil? (projects/get-latest-scores database pid other-id))))
+
+    (testing "The owner can read their own latest scores"
+      (is (= 1 (count (projects/get-latest-scores database pid owner-id)))))
+
+    (testing "A different user cannot list another user's briefs"
+      (is (nil? (projects/get-all-briefs database pid other-id))))
+
+    (testing "A different user cannot read another user's latest brief"
+      (is (nil? (projects/get-latest-brief database pid other-id))))
+
+    (testing "A different user cannot read another user's brief by version"
+      (is (nil? (projects/get-brief-by-version database pid other-id 1))))
+
+    (testing "The owner can read their own briefs"
+      (is (= 1 (count (projects/get-all-briefs database pid owner-id))))
+      (is (= "Confidential brief" (:content (projects/get-latest-brief database pid owner-id))))
+      (is (= "Confidential brief" (:content (projects/get-brief-by-version database pid owner-id 1)))))))

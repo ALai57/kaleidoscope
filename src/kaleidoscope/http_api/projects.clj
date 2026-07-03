@@ -2,10 +2,10 @@
   (:require [clojure.string :as str]
             [kaleidoscope.api.projects :as projects-api]
             [kaleidoscope.http-api.http-utils :as hu]
-            [kaleidoscope.persistence.briefs :as briefs-persistence]
             [kaleidoscope.persistence.projects :as persistence]
             [kaleidoscope.scoring.agents :as agents]
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
+            [kaleidoscope.utils.local-files :as local-files]
             [ring.util.http-response :refer [bad-request not-found ok]]
             [taoensso.timbre :as log]))
 
@@ -120,9 +120,11 @@
      ["" {:get {:summary   "Get latest score run per definition"
                 :handler   (fn [{:keys [components parameters] :as request}]
                              (let [project-id (:project-id (:path parameters))]
-                               (ok (or (persistence/get-latest-score-runs
-                                        (:database components) project-id)
-                                       []))))}
+                               (if-let [scores (projects-api/get-latest-scores
+                                                (:database components) project-id
+                                                (:user-id (:identity request)))]
+                                 (ok scores)
+                                 (not-found {:reason "Project not found"}))))}
 
           :post {:summary    "Trigger scoring (pass definition_ids to score specific definitions)"
                  :parameters {:body [:map
@@ -270,27 +272,33 @@
                                    paths      (vec (filter (complement str/blank?)
                                                            (map str/trim
                                                                 (or (:local-paths body-params) []))))]
-                               (if-let [project (projects-api/update-project!
-                                                  (:database components)
-                                                  project-id (:user-id (:identity request))
-                                                  {:local-paths paths})]
-                                 (ok project)
-                                 (not-found {:reason "Project not found"}))))}}]]
+                               (if (not-every? local-files/path-allowed? paths)
+                                 (bad-request {:reason "One or more paths are not under an allowed root"})
+                                 (if-let [project (projects-api/update-project!
+                                                    (:database components)
+                                                    project-id (:user-id (:identity request))
+                                                    {:local-paths paths})]
+                                   (ok project)
+                                   (not-found {:reason "Project not found"})))))}}]]
 
     ;; --- Briefs ---
     ["/briefs"
      ["" {:get {:summary "List all brief versions for a project"
                 :handler (fn [{:keys [components parameters] :as request}]
                            (let [project-id (:project-id (:path parameters))]
-                             (ok (briefs-persistence/get-all-briefs
-                                  (:database components) project-id))))}}]
+                             (if-let [briefs (projects-api/get-all-briefs
+                                              (:database components) project-id
+                                              (:user-id (:identity request)))]
+                               (ok briefs)
+                               (not-found {:reason "Project not found"}))))}}]
 
      ["/latest"
       {:get {:summary "Get the latest brief version for a project"
              :handler (fn [{:keys [components parameters] :as request}]
                         (let [project-id (:project-id (:path parameters))]
-                          (if-let [brief (briefs-persistence/get-latest-brief
-                                          (:database components) project-id)]
+                          (if-let [brief (projects-api/get-latest-brief
+                                          (:database components) project-id
+                                          (:user-id (:identity request)))]
                             (ok brief)
                             (not-found {:reason "No brief found for this project"}))))}}]
 
@@ -300,7 +308,8 @@
              :handler (fn [{:keys [components parameters] :as request}]
                         (let [project-id (:project-id (:path parameters))
                               version    (parse-long (:version (:path parameters)))]
-                          (if-let [brief (briefs-persistence/get-brief-by-version
-                                          (:database components) project-id version)]
+                          (if-let [brief (projects-api/get-brief-by-version
+                                          (:database components) project-id
+                                          (:user-id (:identity request)) version)]
                             (ok brief)
                             (not-found {:reason "Brief version not found"}))))}}]]]])
