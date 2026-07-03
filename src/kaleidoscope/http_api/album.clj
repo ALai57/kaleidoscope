@@ -124,11 +124,10 @@
                                                                            {:schema models.albums/Album}}}})
                                     :parameters {:path {:album-id :uuid}}
                                     :handler    (fn [{:keys [components body-params parameters] :as request}]
-                                                  ;; This would allow a user to delete contents from an album that is different from the path specified
                                                   (let [{:keys [album-id]} (:path parameters)
                                                         content-ids        (map :id body-params)]
                                                     (log/infof "Removing contents %s from album %s" content-ids album-id)
-                                                    (albums-api/remove-content-album-link! (:database components) content-ids)
+                                                    (albums-api/remove-content-album-link! (:database components) album-id content-ids)
                                                     (no-content)))}}]
    ["/:album-id/contents/:content-id"
     {:get {:summary    "Retrieve content from album by ID"
@@ -156,8 +155,7 @@
               :parameters {:path {:album-id   :uuid
                                   :content-id :uuid}}
               :handler    (fn [{:keys [components parameters] :as request}]
-                            ;; This would allow a user to delete contents from an album that is different from the path specified
                             (let [{:keys [content-id album-id]} (:path parameters)]
                               (log/infof "Removing content: %s from album: %s" content-id album-id)
-                              (albums-api/remove-content-album-link! (:database components) content-id)
+                              (albums-api/remove-content-album-link! (:database components) album-id content-id)
                               (no-content)))}}]])

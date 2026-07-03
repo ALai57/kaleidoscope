@@ -1180,3 +1180,79 @@ ownership" (it doesn't, by design) but "does every mutation that accepts
 an id actually verify that id belongs to the site the caller is
 authorized for" — a strictly narrower, cheaper check than full ownership,
 and one this pass shows can still be silently skipped.
+
+## Seventh pass: dead code, a self-acknowledged TODO, and one verified-clean subsystem
+
+A seventh pass (2026-07-03) applied finding #6's closing takeaway directly
+— audited the rest of Model 3 (`albums`, `portfolio`, `article-audiences`)
+for the same "id accepted but not verified" shape — plus read two files
+referenced by earlier greps but never actually opened
+(`api/tags.clj`, `http_api/portfolio.clj`).
+
+**`api/tags.clj` is dead code.** `create-tag!`/`update-tag!`/`delete-tag!`
+are all unscoped (Pattern A shape, same as everything else in this
+document), but grepping for callers across `src/` found none — no
+`http_api/tags.clj` exists, and nothing else in the codebase calls these
+functions. Not exploitable; nothing to fix. Worth knowing about only so a
+future reader doesn't assume tag mutation is reachable and go looking for
+where it's supposedly protected.
+
+**`http_api/portfolio.clj` is static and read-only.** `GET
+/projects-portfolio` serves a hardcoded Clojure map (personal portfolio
+content); no user input reaches it at all. Correctly `public-access`.
+Nothing to find here.
+
+**`albums`/`photos_in_albums` had the exact shape finding #6 predicted —
+and the original author had already flagged it themselves.** Both
+`DELETE /albums/:album-id/contents` (bulk) and `DELETE
+/albums/:album-id/contents/:content-id` deleted by content-id alone,
+never checking it actually belonged to the `album-id` named in the URL —
+the same code comment appeared at both call sites, verbatim: `;; This
+would allow a user to delete contents from an album that is different
+from the path specified`. Same pattern as finding #4's disabled catch-all:
+a previous author had already identified the exact risk and left it as a
+comment instead of a fix.
+
+**Severity note, unlike every other finding in this document: this is
+NOT a cross-tenant authorization boundary under the current design.**
+Checked the schema directly — `albums` has no `hostname` column at all,
+unlike `photos` (which does). Albums were never scoped per-site to begin
+with; `GET /albums` and `GET /albums/-/contents` already return every
+album across every site to any caller holding `*-admin` on any one site,
+by design. Fixing the content/album mismatch doesn't close a privilege
+escalation, because the broader privilege (blanket cross-site album
+access via `*-admin`) already exists one layer up and is outside this
+plan's scope to relitigate. Fixed anyway, because it's a real correctness
+gap the original author already flagged and it was cheap to close
+properly with the primitive this session already built
+(`rdbms/scoped-delete!`) — `remove-content-album-link!` now takes
+`album-id` and scopes the delete by `{:id content-id :album-id album-id}`.
+Regression test added
+(`remove-content-album-link-scoping-test` in
+`test/kaleidoscope/api/albums_test.clj`).
+
+**`article-audiences` (Model 4, group-based read visibility) checked and
+confirmed clean.** Traced `get-published-articles`'s group-membership
+check end to end: the `email` it scopes by comes from `(:identity
+request)`, populated only by the verified-JWT identity pipeline (see
+finding #4's JWT-verification check) — not attacker-suppliable. `/compositions*`
+is intentionally `public-access` with no authentication required; an
+unauthenticated caller's `email` is `nil`, which — via the same SQL
+`column = NULL never matches` semantics noted earlier in this document —
+correctly yields zero group memberships rather than an error or an
+accidental full-access grant, so anonymous visitors transparently fall
+back to public-only content. No bypass found. First finding of this
+review that's a clean bill of health rather than a fix — worth recording
+for the same reason the dead-code and static-route results are: knowing
+what's already sound is as useful as knowing what isn't, and stops a
+future pass from re-deriving it from scratch.
+
+Full suite green (132 tests, 745 assertions).
+
+**Takeaway:** seven passes in, the highest-value technique so far might be
+the simplest — grep a codebase for its own developers' TODO-shaped
+comments (`;; This would allow...`, `#_{...}` disabled code, docstrings
+that say "for now" or "not currently"). Two of seven findings
+(this one and finding #4's catch-all) were sitting in a comment the whole
+time, already correctly diagnosed by whoever wrote them, just never
+acted on.

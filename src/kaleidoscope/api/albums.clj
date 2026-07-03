@@ -170,10 +170,20 @@
                         :ex-subtype :UnableToAddPhotoToAlbum))))
 
 (defn remove-content-album-link!
-  [database album-content-id]
-  (rdbms/delete! database
-                 :photos_in_albums album-content-id
-                 :ex-subtype :UnableToDeletePhotoFromAlbum))
+  "Delete one or more album-content links, scoped to album-id. Fixes the
+  TODO already left in http_api/album.clj ('This would allow a user to
+  delete contents from an album that is different from the path
+  specified'). Not a cross-tenant authorization boundary under the
+  current design — albums have no per-site scoping at all (unlike
+  photos), so any site-admin already has blanket access to every album
+  regardless — but a real correctness gap: the album-id named in the URL
+  should constrain which content-links a request can actually affect,
+  rather than silently accepting any content-id regardless of which
+  album it belongs to."
+  [database album-id album-content-ids]
+  (doseq [id (if (coll? album-content-ids) album-content-ids [album-content-ids])]
+    (rdbms/scoped-delete! database :photos_in_albums {:id id :album-id album-id}
+                          :ex-subtype :UnableToDeletePhotoFromAlbum)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Album contents

@@ -69,8 +69,27 @@
         (is (= 3 (count (albums-api/get-album-contents database {:album-id album-id}))))
 
         (testing "Content is deleted"
-          (albums-api/remove-content-album-link! database (map :id album-content))
+          (albums-api/remove-content-album-link! database album-id (map :id album-content))
           (is (= 0 (count (albums-api/get-album-contents database {:album-id album-id})))))))))
+
+(deftest remove-content-album-link-scoping-test
+  ;; Fixes the TODO already left in http_api/album.clj ("This would allow
+  ;; a user to delete contents from an album that is different from the
+  ;; path specified") — a content-id belonging to a *different* album than
+  ;; the one named in the request should not be deletable via that request.
+  (let [database   (embedded-h2/fresh-db!)
+        [album-a
+         album-b]  (map :id (albums-api/get-albums database))
+        photo-id   (:id (first (albums-api/get-photos database)))
+        [content]  (albums-api/add-photos-to-album! database album-a photo-id)]
+
+    (testing "A content-id belonging to a different album is not removed"
+      (albums-api/remove-content-album-link! database album-b (:id content))
+      (is (= 1 (count (albums-api/get-album-contents database {:album-id album-a})))))
+
+    (testing "The content-id is removed when the correct album-id is given"
+      (albums-api/remove-content-album-link! database album-a (:id content))
+      (is (= 0 (count (albums-api/get-album-contents database {:album-id album-a})))))))
 
 (deftest get-album-contents-test
   ;; 3 example-albums seeded in DB
