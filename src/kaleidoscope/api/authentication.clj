@@ -53,6 +53,10 @@
   [id-token]
   (cond
     (auth0/m2m-token? id-token)
+    ;; M2M tokens have no email/email_verified claim, so :sub is the only
+    ;; stable identifier available. Per the OIDC spec, the sub field is a
+    ;; string identifying the principal — treat every M2M caller as a
+    ;; distinct (test/service) user keyed by that string.
     {:type    :service-account
      :user-id (:sub id-token)
      :roles   (get-realm-roles id-token)}

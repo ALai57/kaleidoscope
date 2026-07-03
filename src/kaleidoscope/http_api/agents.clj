@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.agents
   (:require [kaleidoscope.api.agents :as agents-api]
-            [kaleidoscope.api.authentication :as oidc]
             [ring.util.http-response :refer [not-found ok]]))
 
 (def reitit-agent-routes
@@ -10,11 +9,11 @@
 
    ["" {:get  {:summary "List agent definitions for the authenticated user (seeds defaults on first access)"
                :handler (fn [{:keys [components] :as request}]
-                          (let [user-id (oidc/get-verified-email (:identity request))]
+                          (let [user-id (:user-id (:identity request))]
                             (ok (agents-api/get-agent-definitions (:database components) user-id))))}
          :post {:summary "Create a new custom agent definition"
                 :handler (fn [{:keys [components body-params] :as request}]
-                           (let [user-id (oidc/get-verified-email (:identity request))]
+                           (let [user-id (:user-id (:identity request))]
                              (ok (agents-api/create-agent-definition!
                                   (:database components)
                                   user-id
@@ -25,7 +24,7 @@
 
     ["" {:put {:summary "Update an agent's display-name, avatar, or system-prompt"
                :handler (fn [{:keys [components body-params parameters] :as request}]
-                          (let [user-id       (oidc/get-verified-email (:identity request))
+                          (let [user-id       (:user-id (:identity request))
                                 definition-id (:definition-id (:path parameters))]
                             (if-let [updated (agents-api/update-agent-definition!
                                               (:database components)

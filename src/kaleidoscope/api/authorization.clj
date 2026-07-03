@@ -17,15 +17,18 @@
 (defn require-*-writer
   "Require the user to have the *-writer role, where * is the server-name. For
   example, when sending a request to andrewslai.com, requires
-  `andrewslai.com-writer`. Also requires a :verified-user identity — M2M/service
-  tokens and unverified human sessions are rejected regardless of roles."
+  `andrewslai.com-writer`. Also requires a :verified-user or :service-account
+  identity — unverified human sessions are rejected regardless of roles.
+  Service-account (M2M) writes are attributed to the token's :sub (see
+  `classify-identity`), so every route gated by this function must read
+  :user-id off the identity map rather than deriving it from email."
   [{:keys [identity uri server-name] :as request}]
   (log/debugf "Checking if user %s has access to endpoint %s %s" identity server-name uri)
   (let [role  (str server-name ":writer")
         admin (str server-name ":admin")]
     (cond
-      (not= :verified-user (:type identity))
-      (ar/error "Write access requires a verified user identity")
+      (not (contains? #{:verified-user :service-account} (:type identity)))
+      (ar/error "Write access requires an authenticated identity")
 
       (or (contains? (:roles identity) role)
           (contains? (:roles identity) admin))

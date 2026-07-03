@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.workspace-roots
-  (:require [kaleidoscope.api.authentication :as oidc]
-            [kaleidoscope.http-api.http-utils :as hu]
+  (:require [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.persistence.workspace-roots :as persistence]
             [ring.util.http-response :refer [bad-request not-found ok]]))
 
@@ -14,7 +13,7 @@
                                 {200 {:description "A collection of workspace roots"
                                       :content     {"application/json" {:schema [:any]}}}})
               :handler   (fn [{:keys [components] :as request}]
-                           (let [user-id (oidc/get-verified-email (:identity request))]
+                           (let [user-id (:user-id (:identity request))]
                              (ok (persistence/get-workspace-roots (:database components) user-id))))}
 
         :post {:summary   "Register a new workspace root"
@@ -23,7 +22,7 @@
                                         :content     {"application/json" {:schema [:any]}}}
                                    409 {:description "Path already registered"}})
                :handler   (fn [{:keys [components body-params] :as request}]
-                            (let [user-id (oidc/get-verified-email (:identity request))
+                            (let [user-id (:user-id (:identity request))
                                   path    (:path body-params)
                                   label   (:label body-params)]
                               (if (empty? path)
@@ -41,7 +40,7 @@
                                      hu/openapi-404
                                      {204 {:description "Deleted"}})
                   :handler   (fn [{:keys [components parameters] :as request}]
-                               (let [user-id (oidc/get-verified-email (:identity request))
+                               (let [user-id (:user-id (:identity request))
                                      root-id (:workspace-root-id (:path parameters))]
                                  (if (persistence/delete-workspace-root!
                                       (:database components) root-id user-id)

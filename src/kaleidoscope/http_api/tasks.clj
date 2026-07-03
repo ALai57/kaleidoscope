@@ -1,6 +1,5 @@
 (ns kaleidoscope.http-api.tasks
-  (:require [kaleidoscope.api.authentication :as oidc]
-            [kaleidoscope.api.tasks :as tasks-api]
+  (:require [kaleidoscope.api.tasks :as tasks-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.tasks.planner :as planner]
@@ -24,7 +23,7 @@
    ;; --- Task collection ---
    ["" {:get  {:summary "List tasks for a project (ordered by position)"
                :handler (fn [{:keys [components parameters query-params] :as request}]
-                          (let [user-id    (oidc/get-verified-email (:identity request))
+                          (let [user-id    (:user-id (:identity request))
                                 project-id (:project-id (:path parameters))
                                 status     (:status query-params)]
                             (if-let [tasks (tasks-api/list-tasks
@@ -35,7 +34,7 @@
 
         :post {:summary "Create a task"
                :handler (fn [{:keys [components body-params parameters] :as request}]
-                          (let [user-id    (oidc/get-verified-email (:identity request))
+                          (let [user-id    (:user-id (:identity request))
                                 project-id (:project-id (:path parameters))]
                             (if-let [task (tasks-api/create-task!
                                            (:database components) project-id user-id body-params)]
@@ -46,7 +45,7 @@
    ["/status"
     {:get {:summary "Return pending and total task counts for a project"
            :handler (fn [{:keys [components parameters] :as request}]
-                      (let [user-id    (oidc/get-verified-email (:identity request))
+                      (let [user-id    (:user-id (:identity request))
                             project-id (:project-id (:path parameters))]
                         (if-let [status (tasks-api/get-task-status
                                          (:database components) project-id user-id)]
@@ -58,7 +57,7 @@
     {:put {:summary    "Replace the full position sequence for a project's tasks"
            :parameters {:body [:vector [:map [:id :uuid] [:position :int]]]}
            :handler    (fn [{:keys [components parameters] :as request}]
-                         (let [user-id    (oidc/get-verified-email (:identity request))
+                         (let [user-id    (:user-id (:identity request))
                                project-id (:project-id (:path parameters))
                                positions  (:body parameters)]
                            (if (nil? (tasks-api/reorder-tasks!
@@ -70,7 +69,7 @@
    ["/generate"
     {:post {:summary "Generate tasks and append them to the task list (SSE)"
             :handler (fn [{:keys [components parameters] :as request}]
-                       (let [user-id    (oidc/get-verified-email (:identity request))
+                       (let [user-id    (:user-id (:identity request))
                              project-id (:project-id (:path parameters))
                              db         (:database components)
                              task-planner (get-task-planner components)]
@@ -95,7 +94,7 @@
 
     ["" {:put    {:summary "Partially update a task (title, description, status, task_type, estimated_minutes)"
                   :handler (fn [{:keys [components body-params parameters] :as request}]
-                             (let [user-id    (oidc/get-verified-email (:identity request))
+                             (let [user-id    (:user-id (:identity request))
                                    project-id (:project-id (:path parameters))
                                    task-id    (:task-id (:path parameters))]
                                (if-let [task (tasks-api/update-task!
@@ -106,7 +105,7 @@
 
          :delete {:summary "Hard delete a task"
                   :handler (fn [{:keys [components parameters] :as request}]
-                             (let [user-id    (oidc/get-verified-email (:identity request))
+                             (let [user-id    (:user-id (:identity request))
                                    project-id (:project-id (:path parameters))
                                    task-id    (:task-id (:path parameters))]
                                (if (nil? (tasks-api/delete-task!
