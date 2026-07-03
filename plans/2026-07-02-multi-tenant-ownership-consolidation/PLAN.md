@@ -1256,3 +1256,69 @@ that say "for now" or "not currently"). Two of seven findings
 (this one and finding #4's catch-all) were sitting in a comment the whole
 time, already correctly diagnosed by whoever wrote them, just never
 acted on.
+
+## Eighth pass: a systematic sweep, and the first pass with no new fix
+
+An eighth pass (2026-07-03) made no code changes — every avenue checked
+came back either already-safe or unreachable. Recording it anyway, for
+the same reason finding #7 recorded `article-audiences` as clean: a
+documented "checked, nothing here" is worth as much to a future reviewer
+as a documented bug, and stops the same ground being re-covered.
+
+**Systematic mass-assignment re-sweep.** Findings #1 and #5 were both
+found by reading one file closely; this pass instead grepped every
+`http_api/*.clj` file for every place a handler passes `body-params`
+(raw or lightly touched) into a mutation, rather than relying on having
+happened to read the right file. Every remaining site checks out: `album.clj`'s
+`update-album!`/`create-album!` and `groups.clj`'s create-group!/add-member
+all use `(assoc body-params :id/:owner-id ...)` — the *safe* order (the
+explicit key always wins) — as opposed to finding #5's `(merge {:id x}
+body-params)`, where the raw body wins. `articles.clj`'s `update-article!`
+call site already `select-keys`s down to `:public-visibility` *before*
+merging in `:id`, so there's nothing left in the map for an override to
+even target. Every create-path (`create-album!`, `create-score-definition!`,
+`create-workflow!`, `run-custom-step!`) either forces identity fields after
+the fact or destructures the body down to a fixed set of fields downstream.
+No new instance of the bug class found.
+
+**Logging and error-reporting checked for sensitive-data leakage — clean.**
+`middleware.clj`'s `log-request!` only logs `:request-method`/`:uri`
+(`:body`/`:params`/`:multipart-params` are explicitly commented out, not
+merely unused); no request field ever reaches it that could contain an
+Authorization header or body content. `clients/bugsnag.clj`'s `report!`
+passes only the raw exception object to Bugsnag's SDK, never the request
+map — this application's own code doesn't hand Bugsnag anything to leak.
+
+**Two more dead-code functions found, unreachable exactly like
+`api/tags.clj` from the previous pass:** `clients/route53.clj`'s
+`receive-order!` (would email intent-to-purchase-domain details, rendering
+user-influenceable fields via Selmer into an HTML template — templating a
+fixed, trusted template file with untrusted *values*, the safe way to use
+Selmer, not the unsafe "template string itself is attacker-controlled"
+SSTI shape) is referenced only from its own `(comment ...)` block, no HTTP
+route calls it. `/registration` GET (`registration.clj`) is a literal
+empty stub handler — `(fn [request])`, no body, always returns nil.
+Neither is exploitable; neither does anything at all, currently.
+
+**CORS: absence is correct, not a gap.** No CORS middleware exists
+anywhere in this codebase. Checked whether that's a hole rather than
+assuming: auth here is Bearer-token (Authorization header), not
+cookie-based, and frontend + API are served same-origin per site (the
+whole virtual-hosting design). Browsers block cross-origin `fetch()` state
+changes by default absent explicit `Access-Control-Allow-Origin` —
+*adding* permissive CORS would be the vulnerability; its absence is the
+secure default working as intended.
+
+Full suite unchanged (132 tests, 745 assertions) — no code touched this
+pass.
+
+**Takeaway:** eight passes, seven distinct fixes, and now one pass that
+found nothing new despite deliberately trying several techniques
+(systematic re-sweep of a known bug class, a completely different category
+— logging/error-reporting — and a framework-level question about CORS).
+That's the first real signal of diminishing returns in this review, as
+opposed to "didn't look hard enough" — each of the checks above was a
+genuine, specific hypothesis, not a token effort. Worth treating as a
+natural stopping point unless a specific new area or a fresh pair of eyes
+suggests otherwise, rather than continuing to search for a eighth critical
+finding on momentum alone.
