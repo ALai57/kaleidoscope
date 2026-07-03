@@ -63,7 +63,47 @@
    {:pattern #"^/albums.*"            :handler auth/require-*-admin}
    {:pattern #"^/article-audiences.*" :handler auth/require-*-admin}
 
-   #_{:pattern #"^/.*" :handler (constantly false)}])
+   ;; Everything below is intentionally public — listed explicitly so the
+   ;; catch-all at the bottom can safely reject anything NOT named here.
+   ;;
+   ;; Before 2026-07-03 this list relied on buddy-auth's default :policy
+   ;; :allow for any URI that didn't match a pattern above — meaning a new
+   ;; route mounted in kaleidoscope-app that didn't happen to match one of
+   ;; these regexes was served with *zero* authorization enforcement, not
+   ;; "denied by default." No sensitive route was found relying on that gap
+   ;; at the time (see PLAN.md, "Critical finding #4"), but the failure mode
+   ;; is silent and total — a single missed or mistyped pattern is a full,
+   ;; invisible data exposure with no error and no test failure to catch it.
+   {:pattern #"^/openapi\.json$" :handler auth/public-access}
+   {:pattern #"^/api-docs.*"     :handler auth/public-access}
+   {:pattern #"^/favicon\.ico$"  :handler auth/public-access}
+   {:pattern #"^/assets.*"       :handler auth/public-access}
+   {:pattern #"^/static.*"       :handler auth/public-access}
+   ;; `/` and `/favicon.ico` carry route-level :uri route-data
+   ;; ("index.html", "static/favicon.ico") that wrap-force-uri rewrites
+   ;; :uri to *before* wrap-access-rules runs (wrap-force-uri is earlier —
+   ;; more outer — in the middleware stack). Access rules see the rewritten
+   ;; value, not the original request path, so both forms need a pattern.
+   {:pattern #"^index\.html$"         :handler auth/public-access}
+   {:pattern #"^static/favicon\.ico$" :handler auth/public-access}
+   ;; Pre-auth signup flow — must be reachable before the caller has an
+   ;; identity to check a role against.
+   {:pattern #"^/registration.*" :handler auth/public-access}
+   {:pattern #"^/check-domain.*" :handler auth/public-access}
+   ;; Stripe payment-intent creation — must be reachable before checkout
+   ;; completes (standard Stripe Elements pattern: the client needs a
+   ;; client-secret before the payer is necessarily authenticated). Not
+   ;; itself a data-exposure risk (a PaymentIntent doesn't charge anything
+   ;; until confirmed with a real payment method), but it is an
+   ;; unauthenticated write to a paid third-party API with no rate limiting
+   ;; in front of it — worth revisiting as a cost/abuse question separately
+   ;; from authorization correctness.
+   {:pattern #"^/v1/payments.*"  :handler auth/public-access}
+
+   ;; Fail closed: anything not explicitly named above is rejected, not
+   ;; allowed. This was already written by a previous author and left
+   ;; disabled (commented out) — re-enabled as the load-bearing fix here.
+   {:pattern #"^/.*" :handler (constantly false)}])
 
 ;; Add a tracing middleware data
 

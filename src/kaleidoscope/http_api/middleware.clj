@@ -133,7 +133,16 @@
   [#(ba/wrap-authentication % authentication-backend)
    wrap-classify-identity
    wrap-bind-user-context
+   ;; :policy :reject is the load-bearing option here, not a default worth
+   ;; leaving implicit. buddy-auth's own default is :policy :allow — any
+   ;; URI that doesn't match a pattern in `access-rules` is served with NO
+   ;; authorization check at all unless this is set. This is an independent
+   ;; safety net alongside the explicit catch-all rule at the bottom of
+   ;; KALEIDOSCOPE-ACCESS-CONTROL-LIST — that rule protects as long as it
+   ;; stays last in the list; this protects even if the list is ever
+   ;; reordered, replaced, or supplied from somewhere else entirely.
    #(ar/wrap-access-rules % {:rules          access-rules
+                             :policy         :reject
                              :reject-handler (fn [& args]
                                                (-> "Not authorized"
                                                    (unauthorized)

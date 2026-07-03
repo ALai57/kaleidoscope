@@ -911,3 +911,93 @@ are worth doing per HTTP file at least once, specifically checking "does
 this call an ownership-checked wrapper or the raw persistence layer,"
 rather than relying on spot-checking driven by which functions seem
 interesting.
+
+## Critical finding #4: the authorization scheme fails *open*, not closed
+
+A fourth pass (2026-07-03) used a different technique again: instead of
+tracing a function or reading a file, trace the *framework wiring itself* —
+what happens to a request whose URI doesn't match anything in
+`KALEIDOSCOPE-ACCESS-CONTROL-LIST` at all? This is the most severe finding
+of the whole review, because it isn't a bug in one endpoint — it's a
+structural property of the entire authorization scheme that every other
+finding in this document sits on top of.
+
+**The mechanism.** `http_api/middleware.clj`'s `auth-stack` wires
+`KALEIDOSCOPE-ACCESS-CONTROL-LIST` into `buddy.auth.accessrules/wrap-
+access-rules` with no `:policy` option. Checking buddy-auth's source
+directly (`wrap-access-rules`'s argument destructuring:
+`[handler & [{:keys [policy rules] :or {policy :allow} ...}]]`) confirms
+the library's own default is `:policy :allow`: **any URI that matches none
+of the compiled rules is served with no authorization check at all** — not
+"denied," not "logged," nothing. Silent and total.
+
+The codebase already had a partial acknowledgment of this: a commented-out
+catch-all at the bottom of the ACL list —
+`#_{:pattern #"^/.*" :handler (constantly false)}` — clearly written by a
+previous author who considered exactly this risk and then left it disabled.
+
+**What this means in practice:** every route mounted in `kaleidoscope-app`
+had to be checked by hand against every regex in the ACL to know whether it
+was actually protected, because there is no mechanism that would fail
+loudly if one were missed. Doing that check found several routes relying on
+the implicit-allow gap — `/openapi.json`, `/api-docs*`, `/favicon.ico`,
+`/assets/*`, `/static/*`, `/registration`, `/check-domain`, `/v1/payments`
+— all of which turned out to be intentionally-public by design, not
+accidentally exposed sensitive data. But that's true *today, by luck of
+what currently exists* — the architecture itself doesn't distinguish
+"intentionally public" from "nobody remembered to add a rule." The next
+route added to this router that doesn't happen to match one of ~20 regexes
+would have been silently, completely open, with every test in the suite
+still green, since tests only check routes someone thought to write a test
+for.
+
+**Fix, two independent layers:**
+1. Re-enabled the catch-all rule (uncommented, moved to the true end of the
+   list, changed from `(constantly false)` semantics preserved) — matches
+   the original author's own intent, minimal diff.
+2. `auth-stack` now passes `:policy :reject` explicitly to `wrap-access-
+   rules` — a second, independent safety net that holds even if the ACL
+   list is ever reordered, replaced, or the catch-all rule is accidentally
+   dropped in a future edit. Belt and suspenders on purpose: (1) protects
+   via list ordering, (2) protects via the library's own policy mechanism,
+   and neither depends on the other staying correct.
+
+Both together required adding explicit `public-access` entries for every
+route that actually needs to be public, since the fail-closed catch-all
+would otherwise 401 all of them. One subtlety caught by the test suite,
+not by inspection: `/` and `/favicon.ico` carry route-level `:uri`
+route-data (`"index.html"`, `"static/favicon.ico"`) that `wrap-force-uri`
+— an *earlier, more outer* middleware than the auth stack — rewrites
+`:uri` to before `wrap-access-rules` ever runs. The access-rules middleware
+sees the rewritten S3-bucket-key string, not the original request path, so
+patterns matching the real path (`#"^/$"`, `#"^/favicon\.ico$"`) don't
+actually cover these two routes — separate patterns matching the rewritten
+values (`#"^index\.html$"`, `#"^static/favicon\.ico$"`) were needed
+alongside them. This was caught immediately by `home-test` and
+`access-rule-configuration-test` going from 200 to 401 the moment the
+fail-closed catch-all was enabled — exactly the kind of thing this fix is
+supposed to make loud instead of silent.
+
+**Verified with a clean before/after**, not just code inspection: built the
+real `auth-stack` with the real `KALEIDOSCOPE-ACCESS-CONTROL-LIST`
+(dropping the new catch-all to reconstruct the pre-fix shape) and confirmed
+an unmatched URI returned `200` before the fix and `401` after, using the
+exact same request in both cases. Permanent regression test added
+(`access-control-list-fails-closed-test` in
+`test/kaleidoscope/http_api/kaleidoscope_test.clj`) — it can't be tested by
+hitting `kaleidoscope-app` with a made-up path, because a genuinely
+unmounted route never reaches the auth middleware at all (reitit's own
+not-found handler answers first, bypassing the whole middleware stack), so
+the test builds `auth-stack` directly against the production ACL list, the
+same technique used to verify the fix. Full suite green (124 tests, 669
+assertions).
+
+**Noted, not fixed:** `/v1/payments` (Stripe payment-intent creation) is
+now explicitly `public-access` rather than implicitly so — same behavior,
+now visible in the list. It's an unauthenticated write to a paid
+third-party API with no rate limiting in front of it. Not itself a data-
+exposure risk (a PaymentIntent doesn't charge anything until confirmed with
+a real payment method), and likely intentional (standard Stripe Elements
+pattern — the client needs a client-secret before the payer is necessarily
+authenticated), but worth a deliberate look as a cost/abuse question,
+separate from authorization correctness.

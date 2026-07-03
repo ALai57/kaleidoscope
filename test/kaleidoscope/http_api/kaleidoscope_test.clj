@@ -7,8 +7,10 @@
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [kaleidoscope.api.articles :as articles-api]
             [kaleidoscope.api.portfolio :as portfolio]
+            [kaleidoscope.http-api.auth.buddy-backends :as bb]
             [kaleidoscope.http-api.cache-control :as cc]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
+            [kaleidoscope.http-api.middleware :as mw]
             [kaleidoscope.init.env :as env]
             [kaleidoscope.models.albums :refer [example-album example-album-2]]
             [kaleidoscope.models.articles :as models.articles]
@@ -177,6 +179,33 @@
 
     "GET `/v2/photos/:photo-id` (individual photo) is publicly accessible"
     {:status 404} (mock/request :get (str "https://andrewslai.com/v2/photos/" (random-uuid)))))
+
+(deftest access-control-list-fails-closed-test
+  ;; Critical finding, 2026-07-03 (see PLAN.md): buddy-auth's wrap-access-
+  ;; rules defaults :policy to :allow — before this was fixed, a URI that
+  ;; didn't match ANY pattern in KALEIDOSCOPE-ACCESS-CONTROL-LIST was served
+  ;; with zero authorization enforcement, silently and totally, regardless
+  ;; of authentication or role. A single missed or mistyped pattern for any
+  ;; future route was a full, invisible data exposure with no error and
+  ;; nothing else to catch it.
+  ;;
+  ;; This can't be tested by hitting kaleidoscope-app with a made-up path,
+  ;; because a genuinely unmounted route never reaches the auth middleware
+  ;; at all — reitit's own not-found handler answers first, bypassing the
+  ;; whole middleware stack (see the comment on that handler in
+  ;; kaleidoscope.clj). It has to be tested at the level directly below the
+  ;; router: build the real production auth-stack with the real production
+  ;; access-control list, and confirm a URI that matches none of its
+  ;; patterns is rejected, not allowed through.
+  (let [rules   kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST
+        stack   (mw/auth-stack (bb/authenticated-backend {:realm_access {:roles []}}) rules)
+        handler (reduce (fn [h a-mw] (a-mw h))
+                        (fn [_req] {:status 200 :body "should never be reached"})
+                        (reverse stack))]
+    (testing "A URI matching no pattern in the real ACL is rejected, not allowed"
+      (is (= 401 (:status (handler {:uri            "/some-brand-new-route-nobody-registered-in-the-acl"
+                                    :request-method :get
+                                    :headers        {}})))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test of Blogging API
