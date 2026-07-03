@@ -165,7 +165,18 @@
     {:status 401} (mock/request :get "https://andrewslai.com/articles/does-not-exist")
 
     "POST `/articles/new-article` is not publicly accessible"
-    {:status 401} (mock/request :post "https://andrewslai.com/articles/new-article/branches/new-branch/versions")))
+    {:status 401} (mock/request :post "https://andrewslai.com/articles/new-article/branches/new-branch/versions")
+
+    ;; GET /v2/photos/:photo-id is public while GET /v2/photos (the list
+    ;; endpoint) requires a writer role. buddy-auth's :pattern matcher uses
+    ;; re-matches (whole-string match), so the unanchored `^/v2/photos` rule
+    ;; only ever matches the literal "/v2/photos" and doesn't shadow the
+    ;; `^/v2/photos/.*` rule below it, despite appearing first in the list.
+    "GET `/v2/photos` (list) is not publicly accessible"
+    {:status 401} (mock/request :get "https://andrewslai.com/v2/photos")
+
+    "GET `/v2/photos/:photo-id` (individual photo) is publicly accessible"
+    {:status 404} (mock/request :get (str "https://andrewslai.com/v2/photos/" (random-uuid)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test of Blogging API
