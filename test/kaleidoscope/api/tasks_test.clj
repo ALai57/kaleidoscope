@@ -55,3 +55,28 @@
     (testing "The owner can delete their own task"
       (is (some? (tasks/delete-task! database project-id owner-id task-id)))
       (is (nil? (tasks-persistence/get-task database task-id))))))
+
+(deftest task-update-mass-assignment-test
+  ;; Verified exploitable 2026-07-03: update-task! used to pass the raw
+  ;; update body straight into the SQL SET clause. A caller who legitimately
+  ;; owns a task could include :project-id in the body and re-parent their
+  ;; own task into a project they don't own — the preceding ownership check
+  ;; only verifies the task's *current* project-id, not what the update
+  ;; itself is trying to set. This plants attacker-controlled content
+  ;; (title/description) into a victim's project without ever touching it
+  ;; directly.
+  (let [database          (embedded-h2/fresh-db!)
+        owner-id          "owner@example.com"
+        victim-id         "victim@example.com"
+        project           (new-project! database owner-id "Owner's Project")
+        project-id        (:id project)
+        task              (tasks/create-task! database project-id owner-id {:title "Legit task"})
+        task-id           (:id task)
+        victim-project    (new-project! database victim-id "Victim's Project")
+        victim-project-id (:id victim-project)]
+
+    (testing "Including :project-id in the update body does not re-parent the task"
+      (tasks/update-task! database project-id owner-id task-id
+                          {:title "Still fine" :project-id victim-project-id})
+      (is (= project-id (:project-id (tasks-persistence/get-task database task-id))))
+      (is (empty? (tasks-persistence/list-tasks database victim-project-id))))))

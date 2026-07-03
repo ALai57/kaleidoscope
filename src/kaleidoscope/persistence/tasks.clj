@@ -75,14 +75,43 @@
                           :ex-subtype :UnableToCreateTask))))
 
 (defn update-task!
-  "Partial update on a task row. Returns the updated task."
-  [db task-id updates]
-  (first (rdbms/update! db :project-tasks (assoc updates :id task-id :updated-at (utils/now)))))
+  "Partial update on a task row, scoped to project-id. Returns the updated
+  task, or nil if not found or not under that project.
+
+  Only title/description/status/task-type/estimated-minutes are settable —
+  the caller's `updates` map is destructured, not passed through, so an
+  HTTP body can't smuggle in :project-id (or :user-id) via the SET clause.
+  Passing :project-id through here (with the WHERE clause unscoped, as it
+  used to be) let an attacker re-parent their own task into a project they
+  don't own, planting attacker-controlled content in a victim's project
+  (verified exploitable 2026-07-03 — see PLAN.md)."
+  [db project-id task-id {:keys [title description status task-type estimated-minutes]}]
+  (first (rdbms/scoped-update! db :project-tasks
+                               {:id task-id :project-id project-id}
+                               (cond-> {:updated-at (utils/now)}
+                                 title       (assoc :title title)
+                                 description (assoc :description description)
+                                 status      (assoc :status status)
+                                 task-type   (assoc :task-type task-type)
+                                 (some? estimated-minutes) (assoc :estimated-minutes estimated-minutes)))))
 
 (defn delete-task!
-  "Hard delete a task by id."
-  [db task-id]
-  (rdbms/delete! db :project-tasks task-id :ex-subtype :UnableToDeleteTask))
+  "Hard delete a task by id, scoped to project-id. Returns true iff a task
+  was actually deleted, false if not found/not under that project.
+
+  Checks existence via a scoped read first rather than trusting the DELETE
+  statement's own return value, which is backend-inconsistent (Postgres
+  returns the deleted row via an automatic RETURNING; H2 returns an empty
+  result regardless of whether anything matched — see
+  `rdbms/scoped-delete!` and `persistence.ownership/delete-owned!`, which
+  hit the same H2 quirk). The read isn't load-bearing for security; the
+  DELETE's own WHERE clause is safe either way."
+  [db project-id task-id]
+  (if (seq (get-tasks-raw db {:id task-id :project-id project-id}))
+    (do (rdbms/scoped-delete! db :project-tasks {:id task-id :project-id project-id}
+                              :ex-subtype :UnableToDeleteTask)
+        true)
+    false))
 
 (defn bulk-reorder!
   "Update positions for multiple tasks in a single transaction.

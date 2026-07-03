@@ -704,3 +704,75 @@ plan as originally written:
   `persistence.agents/get-agent-definitions` directly. This is a real bug,
   but it's a dialect-portability issue in seeding logic, unrelated to
   ownership — worth its own fix, not folded into this plan.
+
+## Critical post-implementation finding: mass assignment bypasses the ownership check entirely
+
+A critical re-analysis after steps 0–8 landed (2026-07-03) found something more
+serious than anything in the original audit — not a gap in *this* plan's
+scope, but a reminder that "ownership" has two independent axes, and this
+plan only ever hardened one of them.
+
+**The two axes.** `scoped-update!`'s WHERE clause answers *"can this caller
+reach this row at all?"* Every fix in this plan — the compound theme key,
+the workflow-run scoping, the admin-override decision — hardens that axis.
+But nothing checks *"which fields of that row is the caller allowed to
+set?"* — the SET clause. A caller who legitimately owns a row can still
+write anything into any column of it, including foreign-key-shaped columns
+like `user_id`/`project_id`, if the `updates` map handed to `scoped-update!`
+is the raw HTTP body rather than an explicit allowlist.
+
+**Two verified-exploitable instances**, both pre-existing (not introduced by
+this plan's earlier steps — this plan's WHERE-clause fixes just never
+touched the SET-clause side):
+
+1. **Task/skill re-parenting.** `persistence/tasks.clj`'s `update-task!` and
+   `persistence/projects.clj`'s `update-skill!` passed `updates` through
+   wholesale. The preceding ownership check verifies the row's *current*
+   `project_id`; the update body can include a *different* `project_id` and
+   silently re-parent the row after the check passes. Reproduced: an
+   attacker who owns nothing but their own project can PUT their own task
+   with `{:project-id <victim-project-id>, :title "INJECTED"}` and the
+   attacker-controlled title shows up in the victim's project task list —
+   a project the attacker never had any access to.
+2. **Project ownership takeover.** `persistence/projects.clj`'s
+   `update-project!` passed `updates` through wholesale, including
+   `:user-id`. Reproduced: an attacker can PUT their own project with
+   `{:user-id "victim@example.com", ...}` and the row — content and all —
+   transfers to the victim's account. Since project descriptions feed the
+   LLM scorer and workflow engine, this is a plausible prompt-injection
+   vector into a victim's AI pipeline, not just data pollution.
+
+**What was already safe, and why.** `agents.clj`, `score_definitions.clj`,
+and `workflows.clj`'s metadata updates already build the SET map via
+Clojure `{:keys [...]}` destructuring rather than passing the body through
+— that pattern happens to allowlist correctly, so `:user-id` can't be
+smuggled in. `themes.clj`'s three sensitive fields (`:id`, `:owner-id`,
+`:hostname`) are force-overridden by the HTTP handler *after* merging user
+input. Every creation path (`create-project!`, `create-workflow!`,
+`create-task!`, `create-agent-definition!`) explicitly allowlists which
+fields come from the body vs. the authenticated identity. The WHERE-clause
+work itself — the actual subject of this plan — held up under this pass;
+no bypass of the ownership check, the compound key, or the admin-override
+decision was found.
+
+**Fix applied:** `update-task!`, `update-project!`, and `update-skill!` now
+destructure their `updates` parameter to an explicit field allowlist
+(matching the pattern already used correctly in `agents.clj`) instead of
+passing the map through — `title`/`description`/`status`/`task-type`/
+`estimated-minutes` for tasks, `title`/`description`/`status`/
+`local-paths` for projects, `name`/`description`/`status`/`position` for
+skills. `delete-task!` was also scoped by `project-id` while touching this
+code (it had the same unscoped-WHERE shape as the pre-fix `update-task!`,
+just with no SET-clause exposure since delete has no body). Regression
+tests added (`task-update-mass-assignment-test`,
+`project-update-mass-assignment-test`, `skill-update-mass-assignment-test`)
+reproduce each exploit against the pre-fix code path and assert it no
+longer works. Full suite green (119 tests, 648 assertions) after the fix.
+
+**Takeaway for future work on this codebase:** when adding a new
+`update-X!`, the question isn't just "is the WHERE clause scoped" — it's
+also "does the SET map come from an explicit allowlist, or from a raw
+request body." The `ownership/update-owned!` primitive from step 2 doesn't
+protect against this either — it will happily write whatever's in the
+`updates` map passed to it. Allowlisting the mutable fields is the caller's
+responsibility, every time.

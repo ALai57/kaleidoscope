@@ -41,22 +41,21 @@
                                   :estimated-minutes estimated-minutes})))
 
 (defn update-task!
-  "Partial update on a task. Verifies the task belongs to project-id. Returns
-   the updated task, or nil if the project or task isn't found/owned."
+  "Partial update on a task. Returns the updated task, or nil if the
+  project isn't owned, or the task isn't found under it — the persistence
+  layer's WHERE clause enforces the latter, not a preceding check."
   [db project-id user-id task-id updates]
   (when (projects-persistence/get-project db project-id user-id)
-    (when-let [task (persistence/get-task db task-id)]
-      (when (= (:project-id task) project-id)
-        (persistence/update-task! db task-id updates)))))
+    (persistence/update-task! db project-id task-id updates)))
 
 (defn delete-task!
-  "Hard-delete a task. Verifies the task belongs to project-id. Returns the
-   deleted rows, or nil if the project or task isn't found/owned."
+  "Hard-delete a task. Returns true, or nil if the project isn't owned, or
+  the task isn't found under it — the persistence layer's WHERE clause
+  enforces the latter, not a preceding check."
   [db project-id user-id task-id]
   (when (projects-persistence/get-project db project-id user-id)
-    (when-let [task (persistence/get-task db task-id)]
-      (when (= (:project-id task) project-id)
-        (persistence/delete-task! db task-id)))))
+    (when (persistence/delete-task! db project-id task-id)
+      true)))
 
 (defn reorder-tasks!
   "Replace the position sequence for a project's tasks.

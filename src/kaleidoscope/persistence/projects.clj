@@ -43,13 +43,23 @@
   "Update a project, scoped to user-id. Returns nil if not found or not
   owned — the WHERE clause enforces that, not a preceding check. This
   closes the original Pattern A gap: user-id used to be accepted here and
-  silently ignored."
-  [db project-id user-id updates]
-  (let [now (utils/now)]
-    (first (rdbms/scoped-update! db
-                                 :projects
-                                 {:id project-id :user-id user-id}
-                                 (assoc updates :updated-at now)))))
+  silently ignored.
+
+  Only title/description/status/local-paths are settable — the caller's
+  `updates` map is destructured, not passed through, so an HTTP body can't
+  smuggle in :user-id (or anything else) via the SET clause. Passing
+  :user-id through here used to let the current owner silently transfer
+  the whole row, content and all, to an arbitrary account (verified
+  exploitable 2026-07-03 — see PLAN.md)."
+  [db project-id user-id {:keys [title description status local-paths]}]
+  (first (rdbms/scoped-update! db
+                               :projects
+                               {:id project-id :user-id user-id}
+                               (cond-> {:updated-at (utils/now)}
+                                 title              (assoc :title title)
+                                 description        (assoc :description description)
+                                 status             (assoc :status status)
+                                 (some? local-paths) (assoc :local-paths local-paths)))))
 
 (defn delete-project!
   "Delete a project, scoped to user-id."
@@ -458,9 +468,20 @@
   "Update a skill, scoped to project-id. This is the fix for the child-
   resource gap noted in PLAN.md §4b: project-id used to be accepted here and
   silently ignored, so ownership was enforced only by the caller's preceding
-  get-project check, not by this statement itself."
-  [db project-id skill-id updates]
+  get-project check, not by this statement itself.
+
+  Only name/description/status/position are settable — the caller's
+  `updates` map is destructured, not passed through, so an HTTP body can't
+  smuggle in :project-id via the SET clause. Passing :project-id through
+  here (even with the WHERE clause scoped correctly) used to let a skill be
+  silently re-parented into a project the caller doesn't own after the
+  ownership check passed (verified exploitable 2026-07-03 — see PLAN.md)."
+  [db project-id skill-id {:keys [name description status position]}]
   (first (rdbms/scoped-update! db
                                :project-skills
                                {:id skill-id :project-id project-id}
-                               updates)))
+                               (cond-> {}
+                                 name        (assoc :name name)
+                                 description (assoc :description description)
+                                 status      (assoc :status status)
+                                 (some? position) (assoc :position position)))))

@@ -63,3 +63,43 @@
               by passing their own project-id alongside someone else's skill-id"
       (projects/update-skill! database other-pid other-id skill-id {:name "Hijacked"})
       (is (= "Renamed" (:name (first (projects-persistence/get-skills database pid))))))))
+
+(deftest project-update-mass-assignment-test
+  ;; Verified exploitable 2026-07-03: update-project! used to pass the raw
+  ;; update body straight into the SQL SET clause, including :user-id. A
+  ;; caller updating their own project could set :user-id to a victim's
+  ;; identity and silently transfer the row — content and all — to that
+  ;; victim's account.
+  (let [database  (embedded-h2/fresh-db!)
+        owner-id  "owner@example.com"
+        victim-id "victim@example.com"
+        project   (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
+        pid       (:id project)]
+
+    (testing "Including :user-id in the update body does not transfer ownership"
+      (projects/update-project! database pid owner-id {:title "Still mine" :user-id victim-id})
+      (is (some? (projects-persistence/get-project database pid owner-id)))
+      (is (nil? (projects-persistence/get-project database pid victim-id))))))
+
+(deftest skill-update-mass-assignment-test
+  ;; Verified exploitable 2026-07-03: update-skill! used to pass the raw
+  ;; update body straight into the SQL SET clause, even after the WHERE
+  ;; clause was fixed to scope by project-id. A caller updating their own
+  ;; skill could include :project-id in the body and re-parent the skill
+  ;; into a project they don't own.
+  (let [database          (embedded-h2/fresh-db!)
+        owner-id          "owner@example.com"
+        victim-id         "victim@example.com"
+        project           (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
+        pid               (:id project)
+        _                 (projects-persistence/replace-skills! database pid
+                                                                 [{:name "Skill 1" :description "d" :position 0}])
+        skill-id          (:id (first (projects-persistence/get-skills database pid)))
+        victim-project    (projects-persistence/create-project! database {:user-id victim-id :title "Victim's Project"})
+        victim-pid        (:id victim-project)]
+
+    (testing "Including :project-id in the update body does not re-parent the skill"
+      (projects/update-skill! database pid owner-id skill-id
+                              {:name "Still fine" :project-id victim-pid})
+      (is (some? (first (filter #(= (:id %) skill-id) (projects-persistence/get-skills database pid)))))
+      (is (empty? (projects-persistence/get-skills database victim-pid))))))
