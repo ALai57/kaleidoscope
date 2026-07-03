@@ -1093,3 +1093,90 @@ sibling. Five passes, five different techniques, five different root
 causes, zero repeats. That pattern — not any individual finding — is the
 strongest signal that this class of review is worth continuing rather than
 declaring done.
+
+(Also: found `wrap-rate-limit` defined in `middleware.clj` but not yet
+wired into `reitit-configuration`'s middleware vector or applied to any
+route via `:rate-limit` route-data — completed both, and applied it to
+`/v1/payments` and `/check-domain` specifically, closing the abuse-vector
+noted above. `registration.clj` separately gained an RFC-1035-shaped regex
+constraining `:domain` before it reaches the AWS SDK.)
+
+## Critical finding #6: cross-site article-branch manipulation (Model 3's first real bug)
+
+A sixth pass (2026-07-03) targeted a namespace no prior pass had touched —
+`articles.clj`, the reference example for Model 3 ("shared/site-wide write
+access, no per-row restriction," per the Authorization Models section) —
+specifically checking whether the same "merge raw body, no allowlist"
+shape found in finding #5 recurred there. It didn't recur in that exact
+form (`PUT /articles/:article-url` already uses `select-keys`), but reading
+adjacent code turned up a different, equally serious gap: **two operations
+that are supposed to be scoped per-site weren't scoped at all.**
+
+**The mechanism.** `create-branch!` accepts an optional `:article-id` to
+attach a new branch to an *existing* article rather than creating one.
+That lookup (`get-articles tx {:id article-id}`) never filtered by
+hostname — any site's writer supplying any other site's real article-id
+could attach a new branch to it. Separately, `publish-branch!`/
+`unpublish-branch!` took a bare `branch-id` with no hostname parameter
+anywhere in the function signature, and the HTTP handler resolved that
+`branch-id` from `{:branch-name :article-url}` alone — also no hostname
+check. Since RBAC for `/branches.*` only verifies the *caller* holds
+`<the-requested-site>:writer`, and never cross-checks that the *target
+row* belongs to that same site (the same shape as finding #1's original
+Pattern A gap, and finding #3's read-side omission — this codebase keeps
+re-deriving the same lesson in different files), both operations were
+reachable by a writer on any unrelated site.
+
+**The exploit, verified two ways:**
+1. A writer authorized only for `andrewslai.com` supplied another site's
+   real `article-id` to `create-branch!` and successfully attached a new
+   branch to that foreign article — confirmed the resulting row carried
+   the *victim's* real hostname, not the attacker's claimed one, proving
+   the lookup silently found and used the wrong-site article.
+2. The more severe one: a writer authorized only for `andrewslai.com`
+   looked up another site's *private, unpublished draft* branch by
+   `article-url` + `branch-name` alone (both guessable/knowable without
+   any access to that site) and successfully force-published it — flipping
+   `published_at` from `nil` to a real timestamp, which is exactly what
+   `published_articles`'s view definition uses to decide what's publicly
+   visible. This is a confidentiality violation (an attacker can decide
+   *for* another site's owner when their draft becomes public), not just
+   an integrity one.
+
+**Fix:** both functions now take (or already had, and now actually use) a
+`hostname` and scope every lookup by it, returning `nil` on a mismatch —
+same pattern as every other fix in this document. `create-branch!` no
+longer proceeds to the insert at all if the article-id lookup comes back
+empty. The HTTP publish handler now resolves the branch scoped by hostname
+*before* calling `publish-branch!`, and `publish-branch!` independently
+re-verifies hostname itself — belt and suspenders, since the HTTP-layer
+scoping alone would already have closed the hole, but the function
+shouldn't trust its caller to have done that correctly (the exact
+principle behind `scoped-update!` from step 2: the check has to live at
+the dangerous operation, not a preceding call site). `unpublish-branch!`
+was fixed identically even though it currently has no HTTP route — it's
+only reachable from tests today, but "not currently wired up" was true of
+finding #5's rate-limiter too, and code that's merely *unreachable right
+now* is not the same guarantee as code that's *safe*.
+
+Regression tests added (`cross-site-branch-manipulation-test` in
+`test/kaleidoscope/api/articles_test.clj`) covering both attacks and their
+legitimate same-site counterparts. Verified with fresh empirical checks
+before writing the permanent test, not just from the fix's own test suite
+passing. Full suite green (132 tests, 749 assertions).
+
+**Takeaway:** this is the first bug found in Model 3 (shared/site-wide
+access) specifically, and it's a useful data point on the "authorization
+models" framing from earlier in this document: Model 3's defining property
+is "no per-row ownership check, RBAC role is sufficient" — and that
+property is exactly right for articles *within* a site. The bug was never
+"Model 3 is the wrong model here," it was that two functions quietly
+assumed a row already belonged to the caller's site without checking,
+which is a different failure than owning the row-scoping question
+incorrectly — it's not doing the row-scoping at all. Worth remembering
+when auditing the rest of Model 3 (`albums`, `portfolio`,
+`article-audiences`): the question isn't "does this need per-user
+ownership" (it doesn't, by design) but "does every mutation that accepts
+an id actually verify that id belongs to the site the caller is
+authorized for" — a strictly narrower, cheaper check than full ownership,
+and one this pass shows can still be silently skipped.

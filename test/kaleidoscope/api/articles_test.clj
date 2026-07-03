@@ -177,7 +177,8 @@
   (let [database       (embedded-h2/fresh-db!)
         article-branch {:article-tags "thoughts"
                         :article-url  "my-test-article"
-                        :author       "Andrew Lai"}
+                        :author       "Andrew Lai"
+                        :hostname     "andrewslai.com"}
         version        {:content "<p>Hello</p>"}
 
 
@@ -206,9 +207,9 @@
 
     (testing "Can publish branches"
       (is (match? [{:published-at inst?}]
-                  (articles/publish-branch! database old-branch-id "2000-01-01T00:00:00Z")))
+                  (articles/publish-branch! database old-branch-id "andrewslai.com" "2000-01-01T00:00:00Z")))
       (is (match? [{:published-at inst?}]
-                  (articles/publish-branch! database new-branch-id "2050-01-01T00:00:00Z"))))
+                  (articles/publish-branch! database new-branch-id "andrewslai.com" "2050-01-01T00:00:00Z"))))
 
     (testing "Cannot create new version on published branch"
       (is (thrown? clojure.lang.ExceptionInfo
@@ -235,9 +236,9 @@
 
     (testing "Can unpublish branch"
       (is (match? [{:published-at nil?}]
-                  (articles/unpublish-branch! database old-branch-id)))
+                  (articles/unpublish-branch! database old-branch-id "andrewslai.com")))
       (is (match? [{:published-at nil?}]
-                  (articles/unpublish-branch! database new-branch-id)))
+                  (articles/unpublish-branch! database new-branch-id "andrewslai.com")))
       (is (empty? (articles/-get-published-articles database {:article-url (:article-url article-branch)}))))
     ))
 
@@ -329,3 +330,58 @@
         (articles/delete-article-audience! database id)
 
         (is (empty? (articles/get-article-audiences database {:id id})))))))
+
+(deftest cross-site-branch-manipulation-test
+  ;; Verified exploitable 2026-07-03 (see PLAN.md): a writer authorized for
+  ;; ONE site could manipulate branches belonging to a COMPLETELY DIFFERENT
+  ;; site — neither create-branch!'s article-id lookup nor publish-branch!/
+  ;; unpublish-branch!'s branch lookup checked hostname anywhere in the
+  ;; chain. Two distinct attacks: (1) attaching a new branch to another
+  ;; site's existing article by guessing/knowing its article-id, and (2)
+  ;; force-publishing (or unpublishing) another site's branch by
+  ;; article-url + branch-name alone, with no need to be authorized for
+  ;; that site at all.
+  (let [database        (embedded-h2/fresh-db!)
+        victim-hostname "sahiltalkingcents.com"
+        attacker-host   "andrewslai.com"
+        [victim-article] (articles/create-article! database {:article-url "victim-post"
+                                                              :hostname    victim-hostname
+                                                              :author      "victim"})]
+
+    (testing "A writer on a different site cannot attach a branch to this site's article
+              by supplying its article-id"
+      (is (nil? (articles/create-branch! database {:article-id  (:id victim-article)
+                                                    :branch-name "attacker-branch"
+                                                    :hostname    attacker-host
+                                                    :author      "attacker"})))
+      (is (empty? (articles/get-branches database {:article-id (:id victim-article)}))))
+
+    (testing "The same site's writer can legitimately attach a branch to its own article"
+      (is (some? (articles/create-branch! database {:article-id  (:id victim-article)
+                                                     :branch-name "legit-branch"
+                                                     :hostname    victim-hostname
+                                                     :author      "victim"}))))
+
+    (articles/new-version! database {:article-url "victim-draft"
+                                     :hostname    victim-hostname
+                                     :branch-name "main"
+                                     :author      "victim"}
+                           {:content "unpublished draft content"})
+
+    (testing "A writer on a different site cannot force-publish this site's draft branch"
+      (let [target (first (articles/get-branches database {:article-url "victim-draft"}))]
+        (is (nil? (articles/publish-branch! database (:branch-id target) attacker-host)))
+        (is (nil? (:published-at (first (articles/get-branches database
+                                                                {:article-url "victim-draft"
+                                                                 :hostname    victim-hostname})))))))
+
+    (testing "The site's own writer can publish its own draft branch"
+      (let [target (first (articles/get-branches database {:article-url "victim-draft"}))]
+        (is (some? (:published-at (first (articles/publish-branch! database (:branch-id target) victim-hostname)))))))
+
+    (testing "A writer on a different site cannot unpublish this site's now-published branch"
+      (let [target (first (articles/get-branches database {:article-url "victim-draft"}))]
+        (is (nil? (articles/unpublish-branch! database (:branch-id target) attacker-host)))
+        (is (some? (:published-at (first (articles/get-branches database
+                                                                 {:article-url "victim-draft"
+                                                                  :hostname    victim-hostname})))))))))

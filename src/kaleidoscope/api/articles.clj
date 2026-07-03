@@ -42,46 +42,65 @@
   (rdbms/make-finder :full-branches))
 
 (defn create-branch!
-  [db {:keys [article-id author branch-name] :as article-branch}]
+  "Create a branch, optionally attaching it to an existing article by
+  :article-id. Verified exploitable 2026-07-03 (see PLAN.md): the
+  article-id lookup used to be unscoped by hostname — a writer authorized
+  for *any* site could supply any other site's existing article-id and
+  attach a new branch to it, entirely outside the site they're actually
+  authorized for. Returns nil if article-id is given but doesn't resolve
+  to an article under the given hostname."
+  [db {:keys [article-id author branch-name hostname] :as article-branch}]
   (log/infof "Creating branch: %s" article-branch)
   (next/with-transaction [tx db]
     (let [now    (utils/now)
           [{article-id :id :as article}] (if article-id
-                                           (get-articles tx {:id article-id})
-                                           (create-article! tx (select-keys article-branch [:author :article-url :article-tags :hostname :article-title])))
-          [{branch-id :id :as branch}]   (rdbms/insert! tx
-                                                        :article-branches {:branch-name branch-name
-                                                                           :article-id  article-id
-                                                                           :created-at  now
-                                                                           :modified-at now}
-                                                        :ex-subtype :UnableToCreateArticleBranch)
-          result                         (get-branches tx {:branch-id branch-id})]
-      (log/infof "Created Article Branch: %s" result)
-      result)))
+                                           (get-articles tx {:id article-id :hostname hostname})
+                                           (create-article! tx (select-keys article-branch [:author :article-url :article-tags :hostname :article-title])))]
+      (when article-id
+        (let [[{branch-id :id :as branch}] (rdbms/insert! tx
+                                                          :article-branches {:branch-name branch-name
+                                                                             :article-id  article-id
+                                                                             :created-at  now
+                                                                             :modified-at now}
+                                                          :ex-subtype :UnableToCreateArticleBranch)
+              result                       (get-branches tx {:branch-id branch-id})]
+          (log/infof "Created Article Branch: %s" result)
+          result)))))
 
 (defn publish-branch!
-  ([db branch-id]
-   (publish-branch! db branch-id (utils/now)))
-  ([db branch-id now]
+  "Publish a branch, scoped to hostname. Verified exploitable 2026-07-03
+  (see PLAN.md): the branch lookup used to take a bare branch-id with no
+  hostname check anywhere in the call chain, and the HTTP handler resolved
+  branch-id from :article-url + :branch-name alone (also no hostname
+  check) — a writer authorized for *any* site could force-publish another
+  site's private draft article by url + branch name, with no need to be
+  authorized for that site at all. Returns nil if not found under that
+  hostname."
+  ([db branch-id hostname]
+   (publish-branch! db branch-id hostname (utils/now)))
+  ([db branch-id hostname now]
    (log/infof "Publishing Branch: %s" branch-id)
-   (let [result (rdbms/update! db :article-branches
-                               {:published-at now
-                                :id           branch-id}
-                               :ex-subtype :UnableToPublishBranch)
-         result (get-branches db {:branch-id branch-id})]
-     (log/infof "Published Branch: %s" result)
-     result)))
+   (when (seq (get-branches db {:branch-id branch-id :hostname hostname}))
+     (rdbms/update! db :article-branches
+                    {:published-at now
+                     :id           branch-id}
+                    :ex-subtype :UnableToPublishBranch)
+     (let [result (get-branches db {:branch-id branch-id})]
+       (log/infof "Published Branch: %s" result)
+       result))))
 
 (defn unpublish-branch!
-  [db branch-id]
+  "Unpublish a branch, scoped to hostname — see publish-branch! for why."
+  [db branch-id hostname]
   (log/infof "Unpublishing Branch: %s" branch-id)
-  (let [result (rdbms/update! db :article-branches
-                              {:published-at nil
-                               :id           branch-id}
-                              :ex-subtype :UnableToUnPublishBranch)
-        result (get-branches db {:branch-id branch-id})]
-    (log/infof "Unpublished Branch: %s" result)
-    result))
+  (when (seq (get-branches db {:branch-id branch-id :hostname hostname}))
+    (rdbms/update! db :article-branches
+                   {:published-at nil
+                    :id           branch-id}
+                   :ex-subtype :UnableToUnPublishBranch)
+    (let [result (get-branches db {:branch-id branch-id})]
+      (log/infof "Unpublished Branch: %s" result)
+      result)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Versions

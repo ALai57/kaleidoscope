@@ -222,8 +222,8 @@
         reitit-workspace-roots-routes
         reitit-portfolio-routes
         reitit-themes-routes
-        reitit-stripe-routes
-        reitit-registration-routes
+        ;; reitit-stripe-routes and reitit-registration-routes intentionally
+        ;; not mounted yet - not ready for production.
         ]
        reitit-config)
       (ring/create-default-handler

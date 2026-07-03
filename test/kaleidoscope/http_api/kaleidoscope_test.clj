@@ -523,63 +523,68 @@
        kaleidoscope/kaleidoscope-app
        tu/wrap-clojure-response))
 
-;; These test the coercion-failure and rate-limit paths only - both are
-;; enforced by middleware that runs *before* the handler, so none of these
-;; requests ever reach Stripe/AWS and none require network access or API
-;; keys. The happy-path (200) tests above are intentionally left in the
-;; `(comment ...)` block since they require live credentials.
-(deftest payments-validation-test
-  (let [app (registration-app)]
-    (mw/reset-rate-limits!)
-    (testing "Amount below Stripe's practical minimum is rejected before reaching Stripe"
-      (is (match? {:status 400}
-                  (app (-> (mock/request :post "/v1/payments")
-                           (mock/json-body {:amount 10 :currency "usd"}))))))
-    (testing "Amount above the app-level cap is rejected"
-      (is (match? {:status 400}
-                  (app (-> (mock/request :post "/v1/payments")
-                           (mock/json-body {:amount 1000000000 :currency "usd"}))))))
-    (testing "Unsupported currency is rejected"
-      (is (match? {:status 400}
-                  (app (-> (mock/request :post "/v1/payments")
-                           (mock/json-body {:amount 1200 :currency "eur"}))))))
-    (testing "Non-integer amount is rejected"
-      (is (match? {:status 400}
-                  (app (-> (mock/request :post "/v1/payments")
-                           (mock/json-body {:amount "1200" :currency "usd"}))))))))
+;; reitit-stripe-routes is not mounted in kaleidoscope-app yet (not
+;; production-ready), so /v1/payments is currently unreachable - these tests
+;; are disabled until it's remounted. They exercise the coercion-failure and
+;; rate-limit paths only, which run *before* the handler, so none of these
+;; requests would reach Stripe and none require network access or API keys.
+(comment
+  (deftest payments-validation-test
+    (let [app (registration-app)]
+      (mw/reset-rate-limits!)
+      (testing "Amount below Stripe's practical minimum is rejected before reaching Stripe"
+        (is (match? {:status 400}
+                    (app (-> (mock/request :post "/v1/payments")
+                             (mock/json-body {:amount 10 :currency "usd"}))))))
+      (testing "Amount above the app-level cap is rejected"
+        (is (match? {:status 400}
+                    (app (-> (mock/request :post "/v1/payments")
+                             (mock/json-body {:amount 1000000000 :currency "usd"}))))))
+      (testing "Unsupported currency is rejected"
+        (is (match? {:status 400}
+                    (app (-> (mock/request :post "/v1/payments")
+                             (mock/json-body {:amount 1200 :currency "eur"}))))))
+      (testing "Non-integer amount is rejected"
+        (is (match? {:status 400}
+                    (app (-> (mock/request :post "/v1/payments")
+                             (mock/json-body {:amount "1200" :currency "usd"}))))))))
 
-(deftest payments-rate-limit-test
-  (let [app     (registration-app)
-        ;; Invalid amount so coercion always short-circuits before Stripe -
-        ;; the rate limiter runs ahead of coercion, so this still exercises it.
-        request #(-> (mock/request :post "/v1/payments")
-                     (mock/json-body {:amount -1 :currency "usd"}))]
-    (mw/reset-rate-limits!)
-    (dotimes [_ 10]
-      (app (request)))
-    (testing "11th request from the same IP within the window is rate limited"
-      (is (match? {:status 429}
-                  (app (request)))))))
+  (deftest payments-rate-limit-test
+    (let [app     (registration-app)
+          ;; Invalid amount so coercion always short-circuits before Stripe -
+          ;; the rate limiter runs ahead of coercion, so this still exercises it.
+          request #(-> (mock/request :post "/v1/payments")
+                       (mock/json-body {:amount -1 :currency "usd"}))]
+      (mw/reset-rate-limits!)
+      (dotimes [_ 10]
+        (app (request)))
+      (testing "11th request from the same IP within the window is rate limited"
+        (is (match? {:status 429}
+                    (app (request))))))))
 
-(deftest check-domain-validation-test
-  (let [app (registration-app)]
-    (mw/reset-rate-limits!)
-    (testing "Domain without a TLD is rejected before reaching AWS"
-      (is (match? {:status 400}
-                  (app (mock/request :get "/check-domain?domain=localhost")))))
-    (testing "Domain with an invalid character is rejected"
-      (is (match? {:status 400}
-                  (app (mock/request :get "/check-domain?domain=not_a_domain.com")))))))
+;; reitit-registration-routes is not mounted in kaleidoscope-app yet (not
+;; production-ready), so /check-domain and /registration are currently
+;; unreachable - these tests are disabled until it's remounted.
+(comment
+  (deftest check-domain-validation-test
+    (let [app (registration-app)]
+      (mw/reset-rate-limits!)
+      (testing "Domain without a TLD is rejected before reaching AWS"
+        (is (match? {:status 400}
+                    (app (mock/request :get "/check-domain?domain=localhost")))))
+      (testing "Domain with an invalid character is rejected"
+        (is (match? {:status 400}
+                    (app (mock/request :get "/check-domain?domain=not_a_domain.com")))))))
 
-(deftest check-domain-rate-limit-test
-  (let [app     (registration-app)
-        request #(mock/request :get "/check-domain?domain=localhost")]
-    (mw/reset-rate-limits!)
-    (dotimes [_ 20]
-      (app (request)))
-    (testing "21st request from the same IP within the window is rate limited"
-      (is (match? {:status 429}
-                  (app (request)))))))
+  (deftest check-domain-rate-limit-test
+    (let [app     (registration-app)
+          request #(mock/request :get "/check-domain?domain=localhost")]
+      (mw/reset-rate-limits!)
+      (dotimes [_ 20]
+        (app (request)))
+      (testing "21st request from the same IP within the window is rate limited"
+        (is (match? {:status 429}
+                    (app (request))))))))
 
 (defn make-example-file-upload-request-png
   "A function because the body is an input stream, which is consumable and must

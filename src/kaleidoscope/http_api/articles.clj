@@ -100,13 +100,16 @@
                                                                         :value   models.articles/example-branch-1}}}}}}
            :handler   (fn [{:keys [components path-params] :as request}]
                         (let [branch-name (:branch-name path-params)
-                              article-url (:article-url path-params)]
+                              article-url (:article-url path-params)
+                              hostname    (hu/get-host request)]
                           (try
-                            (log/infof "Publishing article %s and branch %s" article-url branch-name)
+                            (log/infof "Publishing article %s and branch %s for %s" article-url branch-name hostname)
                             (let [[{:keys [branch-id]}] (articles-api/get-branches (:database components) {:branch-name branch-name
-                                                                                                           :article-url article-url})
-                                  result                (articles-api/publish-branch! (:database components) branch-id)]
-                              (ok result))
+                                                                                                           :article-url article-url
+                                                                                                           :hostname    hostname})]
+                              (if-let [result (and branch-id (articles-api/publish-branch! (:database components) branch-id hostname))]
+                                (ok result)
+                                (not-found {:reason "Missing"})))
                             (catch Exception e
                               (log/error "Caught exception " e)))))}}]
    ["/:article-url/branches/:branch-name/versions"
