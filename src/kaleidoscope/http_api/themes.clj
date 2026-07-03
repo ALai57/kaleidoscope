@@ -1,7 +1,7 @@
 (ns kaleidoscope.http-api.themes
   (:require [kaleidoscope.api.themes :as themes-api]
             [kaleidoscope.http-api.http-utils :as hu]
-            [ring.util.http-response :refer [no-content ok unauthorized not-found]]
+            [ring.util.http-response :refer [no-content ok not-found]]
             [taoensso.timbre :as log]))
 
 (def ThemeRequest
@@ -57,6 +57,7 @@
                                 (log/error "Caught exception " e))))}}]
    ["/:theme-id" {:delete {:summary    "Delete a theme"
                            :responses  (merge hu/openapi-401
+                                              hu/openapi-404
                                               {200 {:description "Success deleting the theme"
                                                     :content     {"application/json"
                                                                   {:schema [:any]}}}})
@@ -64,17 +65,19 @@
                            :handler    (fn [{:keys [components parameters] :as request}]
                                          (try
                                            (let [{:keys [theme-id]} (:path parameters)
-                                                 requester-id       (:user-id (:identity request))]
+                                                 requester-id       (:user-id (:identity request))
+                                                 site               (hu/get-host request)]
                                              (log/infof "User %s attempting to delete theme %s!" requester-id theme-id)
-                                             (if-let [result (themes-api/delete-theme! (:database components) requester-id theme-id)]
+                                             (if-let [result (themes-api/delete-theme! (:database components) requester-id site theme-id)]
                                                (no-content)
-                                               (unauthorized)))
+                                               (not-found {:reason "Theme not found"})))
                                            (catch Exception e
                                              (log/error "Caught exception " e))))}
 
                   :put {:summary    "Save a theme"
                         :openapi    {:security [{:andrewslai-pkce ["roles" "profile"]}]}
                         :responses  (merge hu/openapi-401
+                                           hu/openapi-404
                                            {200 {:description "The theme that was created"
                                                  :content     {"application/json"
                                                                {:schema themes-api/Theme}}}})
@@ -89,14 +92,15 @@
                                         (log/info "Updating theme!" parameters)
                                         (let [{:keys [theme-id]} (:path parameters)
                                               requester-id       (:user-id (:identity request))
+                                              site               (hu/get-host request)
                                               theme              (merge (:request parameters)
-                                                                        {:hostname (hu/get-host request)
+                                                                        {:hostname site
                                                                          :owner-id requester-id
                                                                          :id       theme-id})]
-                                          (if-let [[result] (themes-api/update-theme! (:database components) requester-id theme)]
+                                          (if-let [[result] (themes-api/update-theme! (:database components) requester-id site theme)]
                                             (do
                                               (log/infof "Updated theme %s" result)
                                               (ok result))
-                                            (unauthorized)))
+                                            (not-found {:reason "Theme not found"})))
                                         (catch Exception e
                                           (log/error "Caught exception " e))))}}]])

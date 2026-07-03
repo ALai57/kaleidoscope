@@ -40,17 +40,22 @@
                           :ex-subtype :UnableToCreateProject))))
 
 (defn update-project!
+  "Update a project, scoped to user-id. Returns nil if not found or not
+  owned — the WHERE clause enforces that, not a preceding check. This
+  closes the original Pattern A gap: user-id used to be accepted here and
+  silently ignored."
   [db project-id user-id updates]
   (let [now (utils/now)]
-    (first (rdbms/update! db
-                          :projects
-                          (merge updates
-                                 {:id         project-id
-                                  :updated-at now})))))
+    (first (rdbms/scoped-update! db
+                                 :projects
+                                 {:id project-id :user-id user-id}
+                                 (assoc updates :updated-at now)))))
 
 (defn delete-project!
+  "Delete a project, scoped to user-id."
   [db project-id user-id]
-  (rdbms/delete! db :projects project-id :ex-subtype :UnableToDeleteProject))
+  (rdbms/scoped-delete! db :projects {:id project-id :user-id user-id}
+                        :ex-subtype :UnableToDeleteProject))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Score Definitions
@@ -68,9 +73,10 @@
   (get-score-definitions-raw db {:user-id user-id}))
 
 (defn get-score-definition
-  "Return a score definition with its dimensions."
-  [db definition-id]
-  (when-let [defn (first (get-score-definitions-raw db {:id definition-id}))]
+  "Return a score definition with its dimensions, scoped to user-id. Returns
+  nil if not found or not owned — the two are indistinguishable by design."
+  [db definition-id user-id]
+  (when-let [defn (first (get-score-definitions-raw db {:id definition-id :user-id user-id}))]
     (let [dims (get-score-dimension-definitions-raw db {:score-definition-id definition-id})]
       (assoc defn :dimensions (vec (sort-by :position dims))))))
 
@@ -134,46 +140,53 @@
       (assoc defn :dimensions (vec (sort-by :position (or dims [])))))))
 
 (defn update-score-definition!
-  [db definition-id {:keys [name description scorer-type dimensions]}]
+  "Update a score definition, scoped to user-id. Returns nil if not found or
+  not owned — ownership is enforced by the UPDATE's WHERE clause itself, not
+  a preceding check."
+  [db definition-id user-id {:keys [name description scorer-type dimensions]}]
   (next/with-transaction [tx db]
     (let [now  (utils/now)
-          defn (first (rdbms/update! tx
-                                     :score-definitions
-                                     (cond-> {:id         definition-id
-                                              :updated-at now}
-                                       name        (assoc :name name)
-                                       description (assoc :description description)
-                                       scorer-type (assoc :scorer-type scorer-type))))]
-      (when (some? dimensions)
-        ;; Replace all dimensions
-        (next/execute! tx
-                       (hsql/format (-> (hh/delete-from :score-dimension-definitions)
-                                        (hh/where [:= :score-definition-id definition-id])))
-                       {:builder-fn rs/as-unqualified-kebab-maps})
-        (when (seq dimensions)
-          (rdbms/insert! tx
-                         :score-dimension-definitions
-                         (vec (map-indexed
-                                (fn [i {:keys [name criteria]}]
-                                  {:id                  (utils/uuid)
-                                   :score-definition-id definition-id
-                                   :name                name
-                                   :criteria            criteria
-                                   :position            i})
-                                dimensions))
-                         :ex-subtype :UnableToUpdateScoreDimension)))
-      (assoc defn :dimensions
-             (vec (sort-by :position
-                           (get-score-dimension-definitions-raw tx {:score-definition-id definition-id})))))))
+          defn (first (rdbms/scoped-update! tx
+                                            :score-definitions
+                                            {:id definition-id :user-id user-id}
+                                            (cond-> {:updated-at now}
+                                              name        (assoc :name name)
+                                              description (assoc :description description)
+                                              scorer-type (assoc :scorer-type scorer-type))))]
+      (when defn
+        (when (some? dimensions)
+          ;; Replace all dimensions
+          (next/execute! tx
+                         (hsql/format (-> (hh/delete-from :score-dimension-definitions)
+                                          (hh/where [:= :score-definition-id definition-id])))
+                         {:builder-fn rs/as-unqualified-kebab-maps})
+          (when (seq dimensions)
+            (rdbms/insert! tx
+                           :score-dimension-definitions
+                           (vec (map-indexed
+                                  (fn [i {:keys [name criteria]}]
+                                    {:id                  (utils/uuid)
+                                     :score-definition-id definition-id
+                                     :name                name
+                                     :criteria            criteria
+                                     :position            i})
+                                  dimensions))
+                           :ex-subtype :UnableToUpdateScoreDimension)))
+        (assoc defn :dimensions
+               (vec (sort-by :position
+                             (get-score-dimension-definitions-raw tx {:score-definition-id definition-id}))))))))
 
 (defn delete-score-definition!
-  "Delete a score definition. Blocked if is_default=true."
-  [db definition-id]
-  (if-let [defn (first (get-score-definitions-raw db {:id definition-id}))]
+  "Delete a score definition, scoped to user-id. Blocked if is_default=true.
+  Returns {:error :not-found} if not found or not owned (indistinguishable
+  by design), {:error :cannot-delete-default} if it's a default."
+  [db definition-id user-id]
+  (if-let [defn (first (get-score-definitions-raw db {:id definition-id :user-id user-id}))]
     (if (:is-default defn)
       (do (log/warnf "Attempted to delete default score definition %s" definition-id)
           {:error :cannot-delete-default})
-      (rdbms/delete! db :score-definitions definition-id :ex-subtype :UnableToDeleteScoreDefinition))
+      (rdbms/scoped-delete! db :score-definitions {:id definition-id :user-id user-id}
+                            :ex-subtype :UnableToDeleteScoreDefinition))
     {:error :not-found}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -442,7 +455,12 @@
     (get-skill-tree tx project-id)))
 
 (defn update-skill!
+  "Update a skill, scoped to project-id. This is the fix for the child-
+  resource gap noted in PLAN.md §4b: project-id used to be accepted here and
+  silently ignored, so ownership was enforced only by the caller's preceding
+  get-project check, not by this statement itself."
   [db project-id skill-id updates]
-  (first (rdbms/update! db
-                        :project-skills
-                        (assoc updates :id skill-id))))
+  (first (rdbms/scoped-update! db
+                               :project-skills
+                               {:id skill-id :project-id project-id}
+                               updates)))

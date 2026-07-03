@@ -36,7 +36,7 @@
         (is (nil? (groups/delete-group! database "not-the-owner" group-id))))
 
       (testing "Group owner can delete the group"
-        (is (= [] (groups/delete-group! database "user-1" group-id)))
+        (is (true? (groups/delete-group! database "user-1" group-id)))
         (is (empty? (#'groups/get-groups database example-group)))))))
 
 (deftest create-and-retrieve-group-memberships-test

@@ -9,10 +9,6 @@
   [db user-id]
   (get-agent-definitions-raw db {:user-id user-id}))
 
-(defn get-agent-definition
-  [db definition-id]
-  (first (get-agent-definitions-raw db {:id definition-id})))
-
 (defn create-agent-definition!
   [db {:keys [user-id agent-type name short-name avatar color system-prompt is-default]}]
   (let [now (utils/now)]
@@ -32,14 +28,16 @@
                           :ex-subtype :UnableToCreateAgentDefinition))))
 
 (defn update-agent-definition!
-  [db definition-id {:keys [name short-name avatar color system-prompt]}]
+  "Update an agent definition, scoped to user-id. Returns nil if not found
+  or not owned — the WHERE clause enforces that, not a preceding check."
+  [db definition-id user-id {:keys [name short-name avatar color system-prompt]}]
   (let [now (utils/now)]
-    (first (rdbms/update! db
-                          :agent-definitions
-                          (cond-> {:id         definition-id
-                                   :updated-at now}
-                            name          (assoc :name name)
-                            short-name    (assoc :short-name short-name)
-                            avatar        (assoc :avatar avatar)
-                            color         (assoc :color color)
-                            system-prompt (assoc :system-prompt system-prompt))))))
+    (first (rdbms/scoped-update! db
+                                 :agent-definitions
+                                 {:id definition-id :user-id user-id}
+                                 (cond-> {:updated-at now}
+                                   name          (assoc :name name)
+                                   short-name    (assoc :short-name short-name)
+                                   avatar        (assoc :avatar avatar)
+                                   color         (assoc :color color)
+                                   system-prompt (assoc :system-prompt system-prompt))))))

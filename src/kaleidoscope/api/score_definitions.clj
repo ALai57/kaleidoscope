@@ -55,32 +55,28 @@
   (persistence/get-score-definitions db user-id))
 
 (defn get-score-definition
-  "Return a score definition with its dimensions. Verifies ownership."
+  "Return a score definition with its dimensions. Ownership is enforced by
+  the persistence layer's WHERE clause, not a check here."
   [db user-id definition-id]
-  (when-let [defn (persistence/get-score-definition db definition-id)]
-    (when (= (:user-id defn) user-id)
-      defn)))
+  (persistence/get-score-definition db definition-id user-id))
 
 (defn create-score-definition!
   [db user-id body]
   (persistence/create-score-definition! db (assoc body :user-id user-id)))
 
 (defn update-score-definition!
-  "Update a score definition. Verifies ownership. Returns nil if not found or not owned."
+  "Update a score definition. Returns nil if not found or not owned —
+  ownership is enforced by the persistence layer's WHERE clause, not a
+  check here."
   [db user-id definition-id updates]
-  (when-let [defn (persistence/get-score-definition db definition-id)]
-    (when (= (:user-id defn) user-id)
-      (persistence/update-score-definition! db definition-id updates))))
+  (persistence/update-score-definition! db definition-id user-id updates))
 
 (defn delete-score-definition!
-  "Delete a score definition. Verifies ownership. Returns an error map if it's
-  a default, not found, or not owned by user-id."
+  "Delete a score definition. Returns {:error :not-found} if not found or
+  not owned (indistinguishable by design), {:error :cannot-delete-default}
+  if it's a default. Ownership is enforced by the persistence layer."
   [db user-id definition-id]
-  (if-let [defn (persistence/get-score-definition db definition-id)]
-    (if (= (:user-id defn) user-id)
-      (persistence/delete-score-definition! db definition-id)
-      {:error :not-found})
-    {:error :not-found}))
+  (persistence/delete-score-definition! db definition-id user-id))
 
 (defn seed-default-definitions!
   "Seed the two default score definitions for a user if they don't already have them."

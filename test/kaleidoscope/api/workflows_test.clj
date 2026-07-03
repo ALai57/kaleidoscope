@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.workflows-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.api.workflows :as workflows]
+            [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
@@ -50,3 +51,42 @@
     (testing "The owner can delete their own workflow"
       (is (not (:error (workflows/delete-workflow! database owner-id wf-id))))
       (is (nil? (workflows/get-workflow database owner-id wf-id))))))
+
+(deftest workflow-run-project-scoping-test
+  (let [database          (embedded-postgres/fresh-db!)
+        owner-id          "owner@example.com"
+        other-id          "other@example.com"
+        wf                (workflows/create-workflow! database owner-id custom-workflow)
+        owner-project     (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
+        owner-project-id  (:id owner-project)
+        run               (workflows/create-run! database owner-project-id owner-id
+                                                  {:workflow-id (:id wf) :mode "manual"})
+        run-id            (:id run)
+        step-run-id       (:id (first (:steps run)))
+        ;; attacker legitimately owns a different project (and a different run on it)
+        other-project     (projects-persistence/create-project! database {:user-id other-id :title "Attacker's Project"})
+        other-project-id  (:id other-project)
+        other-wf          (workflows/create-workflow! database other-id custom-workflow)
+        other-run         (workflows/create-run! database other-project-id other-id
+                                                  {:workflow-id (:id other-wf) :mode "manual"})]
+
+    (testing "The owner can fetch their own run via their own project"
+      (is (match? {:id run-id} (workflows/get-workflow-run database run-id owner-project-id owner-id))))
+
+    (testing "A user who owns a *different* project cannot fetch a foreign run
+              by passing their own project-id alongside someone else's run-id"
+      (is (nil? (workflows/get-workflow-run database run-id other-project-id other-id))))
+
+    (testing "...nor switch its mode"
+      (is (nil? (workflows/update-run-mode! database run-id other-project-id other-id "autonomous")))
+      (is (= "manual" (:mode (workflows/get-workflow-run database run-id owner-project-id owner-id)))))
+
+    (testing "...nor read its rounds timeline"
+      (is (nil? (workflows/get-run-rounds database run-id other-project-id other-id))))
+
+    (testing "...nor skip one of its steps, even by passing their own (different) run-id"
+      (is (nil? (workflows/skip-step! database other-project-id other-id run-id step-run-id))))
+
+    (testing "A user cannot skip a step-run that belongs to a different run than the one they passed,
+              even when they own both the run-id and the project"
+      (is (nil? (workflows/skip-step! database other-project-id other-id (:id other-run) step-run-id))))))

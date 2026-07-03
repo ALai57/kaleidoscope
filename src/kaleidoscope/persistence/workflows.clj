@@ -22,17 +22,28 @@
   [db user-id]
   (get-workflows-raw db {:user-id user-id}))
 
+(defn- with-steps
+  "Attach ordered steps to a workflow row."
+  [db wf]
+  (let [steps (next/execute! db
+                             (hsql/format {:select   :*
+                                           :from     :workflow-steps
+                                           :where    [:= :workflow-id (:id wf)]
+                                           :order-by [[:position :asc]]})
+                             {:builder-fn rs/as-unqualified-kebab-maps})]
+    (assoc wf :steps (vec steps))))
+
 (defn get-workflow
-  "Return a single workflow with its ordered steps."
-  [db workflow-id]
-  (when-let [wf (first (get-workflows-raw db {:id workflow-id}))]
-    (let [steps (next/execute! db
-                               (hsql/format {:select   :*
-                                             :from     :workflow-steps
-                                             :where    [:= :workflow-id workflow-id]
-                                             :order-by [[:position :asc]]})
-                               {:builder-fn rs/as-unqualified-kebab-maps})]
-      (assoc wf :steps (vec steps)))))
+  "Return a single workflow with its ordered steps. When called with
+  workflow-id alone this is unscoped (used internally, e.g. by run/step-run
+  helpers that have already verified ownership through their project);
+  callers taking a workflow-id directly from a request must pass user-id."
+  ([db workflow-id]
+   (when-let [wf (first (get-workflows-raw db {:id workflow-id}))]
+     (with-steps db wf)))
+  ([db workflow-id user-id]
+   (when-let [wf (first (get-workflows-raw db {:id workflow-id :user-id user-id}))]
+     (with-steps db wf))))
 
 (defn get-default-workflow
   "Return the first live default workflow for a user, or nil."
@@ -106,55 +117,62 @@
       (get-workflow tx (:id wf)))))
 
 (defn update-workflow!
-  "Update a workflow's metadata and optionally replace all steps."
-  [db workflow-id {:keys [name description status is-default steps]}]
+  "Update a workflow's metadata and optionally replace all steps, scoped to
+  user-id. Returns nil if not found or not owned — the WHERE clause on the
+  metadata update is what enforces that; steps are only touched once the
+  update confirms the caller owns the workflow."
+  [db workflow-id user-id {:keys [name description status is-default steps]}]
   (next/with-transaction [tx db]
-    (let [now (utils/now)]
-      (first (rdbms/update! tx
-                            :workflows
-                            (cond-> {:id         workflow-id
-                                     :updated-at now}
-                              name        (assoc :name name)
-                              description (assoc :description description)
-                              status      (assoc :status status)
-                              (some? is-default) (assoc :is-default (boolean is-default))))))
-    (when (some? steps)
-      ;; Full replace of steps
-      (next/execute! tx
-                     (hsql/format (-> (hh/delete-from :workflow-steps)
-                                      (hh/where [:= :workflow-id workflow-id])))
-                     {:builder-fn rs/as-unqualified-kebab-maps})
-      (when (seq steps)
-        (let [now (utils/now)]
-          (rdbms/insert! tx
-                         :workflow-steps
-                         (vec (map-indexed
-                                (fn [i {:keys [name description position agent-type output-kind
-                                               execution-mode loop-until requires]}]
-                                  {:id             (utils/uuid)
-                                   :workflow-id    workflow-id
-                                   :position       (or position i)
-                                   :name           name
-                                   :description    description
-                                   :agent-type     (or agent-type "coach")
-                                   :output-kind    (or output-kind "text")
-                                   :execution-mode (or execution-mode "sequential")
-                                   :loop-until     loop-until
-                                   :requires       (or requires [])
-                                   :created-at     now
-                                   :updated-at     now})
-                                steps))
-                         :ex-subtype :UnableToUpdateWorkflowStep))))
-    (get-workflow tx workflow-id)))
+    (let [now (utils/now)
+          wf  (first (rdbms/scoped-update! tx
+                                           :workflows
+                                           {:id workflow-id :user-id user-id}
+                                           (cond-> {:updated-at now}
+                                             name        (assoc :name name)
+                                             description (assoc :description description)
+                                             status      (assoc :status status)
+                                             (some? is-default) (assoc :is-default (boolean is-default)))))]
+      (when wf
+        (when (some? steps)
+          ;; Full replace of steps
+          (next/execute! tx
+                         (hsql/format (-> (hh/delete-from :workflow-steps)
+                                          (hh/where [:= :workflow-id workflow-id])))
+                         {:builder-fn rs/as-unqualified-kebab-maps})
+          (when (seq steps)
+            (let [now (utils/now)]
+              (rdbms/insert! tx
+                             :workflow-steps
+                             (vec (map-indexed
+                                    (fn [i {:keys [name description position agent-type output-kind
+                                                   execution-mode loop-until requires]}]
+                                      {:id             (utils/uuid)
+                                       :workflow-id    workflow-id
+                                       :position       (or position i)
+                                       :name           name
+                                       :description    description
+                                       :agent-type     (or agent-type "coach")
+                                       :output-kind    (or output-kind "text")
+                                       :execution-mode (or execution-mode "sequential")
+                                       :loop-until     loop-until
+                                       :requires       (or requires [])
+                                       :created-at     now
+                                       :updated-at     now})
+                                    steps))
+                             :ex-subtype :UnableToUpdateWorkflowStep))))
+        (get-workflow tx workflow-id)))))
 
 (defn delete-workflow!
-  "Delete a workflow. Returns {:error :cannot-delete-default} if is_default=true."
-  [db workflow-id]
-  (if-let [wf (first (get-workflows-raw db {:id workflow-id}))]
+  "Delete a workflow, scoped to user-id. Returns {:error :not-found} if not
+  found or not owned (indistinguishable by design), {:error
+  :cannot-delete-default} if is_default=true."
+  [db workflow-id user-id]
+  (if-let [wf (first (get-workflows-raw db {:id workflow-id :user-id user-id}))]
     (if (:is-default wf)
       (do (log/warnf "Attempted to delete default workflow %s" workflow-id)
           {:error :cannot-delete-default})
-      (rdbms/delete! db :workflows workflow-id :ex-subtype :UnableToDeleteWorkflow))
+      (rdbms/scoped-delete! db :workflows {:id workflow-id :user-id user-id}
+                            :ex-subtype :UnableToDeleteWorkflow))
     {:error :not-found}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

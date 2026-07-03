@@ -1,7 +1,7 @@
 (ns kaleidoscope.http-api.groups
   (:require [kaleidoscope.api.groups :as groups-api]
             [kaleidoscope.http-api.http-utils :as hu]
-            [ring.util.http-response :refer [no-content ok unauthorized]]
+            [ring.util.http-response :refer [no-content not-found ok]]
             [taoensso.timbre :as log]))
 
 (def reitit-groups-routes
@@ -53,6 +53,7 @@
                                           (log/error "Caught exception " e))))}
                   :delete {:summary    "Delete a group"
                            :responses  (merge hu/openapi-401
+                                              hu/openapi-404
                                               {200 {:description "Success deleting the group"
                                                     :content     {"application/json"
                                                                   {:schema [:any]}}}})
@@ -64,7 +65,7 @@
                                              (log/infof "User %s attempting to delete group %s!" requester-id group-id)
                                              (if-let [result (groups-api/delete-group! (:database components) requester-id group-id)]
                                                (no-content)
-                                               (unauthorized)))
+                                               (not-found {:reason "Group not found"})))
                                            (catch Exception e
                                              (log/error "Caught exception " e))))}}]
    ["/:group-id/members" {:post {:summary    "Add a member"
@@ -85,6 +86,7 @@
                                                    (log/error "Caught exception " e))))}}]
    ["/:group-id/members/:membership-id" {:delete {:summary    "Delete a member from a group"
                                                   :responses  (merge hu/openapi-401
+                                                                     hu/openapi-404
                                                                      {204 {:description "Success deleting the member"
                                                                            :content     {"application/json"
                                                                                          {:schema [:any]}}}})
@@ -97,6 +99,6 @@
                                                                     (log/infof "User %s attempting to remove member %s from group %s!" requester-id membership-id group-id)
                                                                     (if-let [result (groups-api/remove-user-from-group! (:database components) requester-id group-id membership-id)]
                                                                       (no-content)
-                                                                      (unauthorized)))
+                                                                      (not-found {:reason "Group or membership not found"})))
                                                                   (catch Exception e
                                                                     (log/error "Caught exception " e))))}}]])

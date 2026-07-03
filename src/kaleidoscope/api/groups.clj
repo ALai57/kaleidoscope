@@ -1,11 +1,8 @@
 (ns kaleidoscope.api.groups
-  (:require [kaleidoscope.persistence.rdbms :as rdbms]
+  (:require [kaleidoscope.persistence.ownership :as ownership]
+            [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
             [taoensso.timbre :as log]))
-
-(defn get-owner
-  [group]
-  (:owner-id group))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Groups
@@ -24,20 +21,17 @@
                    :ex-subtype :UnableToCreateGroup)))
 
 (defn owns?
+  "Whether requester-id owns group-id. Delegates to the shared ownership
+  primitive instead of a hand-rolled fetch-then-compare."
   [database requester-id group-id]
-  (= requester-id (-> database
-                      (get-groups {:id group-id})
-                      first
-                      get-owner)))
+  (boolean (ownership/get-owned database :groups group-id requester-id)))
 
 (defn delete-group!
-  "Only allow a user to delete a group if they are the owner.
-  The `user-id` is the identity of the user requesting the operation."
+  "Delete a group, scoped to requester-id. Ownership is enforced by the
+  DELETE's WHERE clause itself, not a preceding check."
   [database requester-id group-id]
-  (if (owns? database requester-id group-id)
-    (rdbms/delete! database
-                   :groups     group-id
-                   :ex-subtype :UnableToDeleteGroup)
+  (if (ownership/delete-owned! database :groups group-id requester-id)
+    true
     (log/warnf "User %s does not have permissions to delete the group %s" requester-id group-id)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

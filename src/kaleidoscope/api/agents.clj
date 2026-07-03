@@ -66,11 +66,11 @@
   (persistence/create-agent-definition! db (assoc body :user-id user-id :is-default false)))
 
 (defn update-agent-definition!
-  "Update a single agent definition. Verifies ownership. Returns nil if not found."
+  "Update a single agent definition. Returns nil if not found or not owned —
+  ownership is enforced by the persistence layer's WHERE clause, not a
+  check here."
   [db user-id definition-id updates]
-  (when-let [defn (persistence/get-agent-definition db definition-id)]
-    (when (= (:user-id defn) user-id)
-      (persistence/update-agent-definition! db definition-id updates))))
+  (persistence/update-agent-definition! db definition-id user-id updates))
 
 (defn get-custom-system-prompt
   "Return the user's custom system prompt for agent-type, or nil if not customised.

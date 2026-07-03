@@ -175,6 +175,49 @@
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
     (update-impl! database table m)))
 
+(defmulti scoped-update-impl!
+  (fn [database table where-map set-map]
+    (class database)))
+
+(defmethod scoped-update-impl! :default
+  [database table where-map set-map]
+  [(next.sql/update! database table set-map where-map
+                     (merge next/snake-kebab-opts
+                            {:suffix     "RETURNING *"
+                             :builder-fn rs/as-unqualified-kebab-maps}))])
+
+(defn scoped-update!
+  "Like `update!`, but scopes the WHERE clause to every key in `where-map`
+  (e.g. {:id id :user-id user-id}) instead of just :id. Returns the updated
+  row wrapped in a vector (mirroring `update!`/`insert!`), or [nil] if no row
+  matched every key — the caller cannot distinguish 'not found' from 'not
+  owned', which is the point: ownership is enforced by the WHERE clause
+  itself, not by a preceding check that can be skipped."
+  [database table where-map set-map & {:keys [ex-subtype]}]
+  (span/with-span! {:name (format "kaleidoscope.db.scoped-update.%s" table)}
+    (scoped-update-impl! database table where-map set-map)))
+
+(defn scoped-delete!
+  "Like `delete!`, but scopes the WHERE clause to every key in `where-map`
+  instead of just :id — e.g. {:id id :user-id user-id}. Returns the raw
+  execute! result, whose shape is backend-dependent (Postgres returns the
+  deleted row via an automatic RETURNING; H2 returns an empty result
+  regardless of whether a row matched) — it is not a reliable success
+  signal. Callers that need one should check existence with a scoped read
+  before deleting (see `kaleidoscope.persistence.ownership/delete-owned!`)."
+  [database table where-map & {:keys [ex-subtype]}]
+  (span/with-span! {:name (format "kaleidoscope.db.scoped-delete.%s" table)}
+    (try+
+     (transact! database (-> (hh/delete-from table)
+                             (hh/where (into [:and] (map (fn [[k v]] [:= k v])) where-map))
+                             hsql/format))
+     (catch org.postgresql.util.PSQLException e
+       (throw+ (merge {:type    :PersistenceException
+                       :message {:data   where-map
+                                 :reason (.getMessage e)}}
+                      (when ex-subtype
+                        {:subtype ex-subtype})))))))
+
 (defn delete! [database table ids & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.delete.%s" table)}
     (try+

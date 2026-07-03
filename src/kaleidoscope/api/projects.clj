@@ -70,7 +70,7 @@
   (when-let [project (persistence/get-project db project-id user-id)]
     (let [definitions (if (seq definition-ids)
                         ;; Specific definitions requested
-                        (keep (partial persistence/get-score-definition db) definition-ids)
+                        (keep #(persistence/get-score-definition db % user-id) definition-ids)
                         ;; Default: all is_default definitions for the user
                         (persistence/get-default-score-definitions db user-id))]
       (doseq [defn definitions]

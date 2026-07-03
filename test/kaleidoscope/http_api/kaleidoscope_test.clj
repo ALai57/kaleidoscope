@@ -602,9 +602,12 @@
                         response))
             (is (= 1 (count (:body response))))))
 
-        (testing "I cannot delete groups I do not own"
+        ;; Also an admin-override regression test — see the comment on the
+        ;; equivalent theme-update test below for why "first-user" here
+        ;; already holds andrewslai.com:admin.
+        (testing "I cannot delete groups I do not own, even though I hold admin on this site"
           (log/with-min-level :error
-            (is (match? {:status 401}
+            (is (match? {:status 404}
                         (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s" second-user-group-id))
                                  (mock/header "Authorization" "Bearer user first-user"))))))))
 
@@ -927,13 +930,39 @@
                     (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" (java.util.UUID/randomUUID)))
                              (mock/header "Authorization" "Bearer x"))))))
 
-      (testing "I cannot update a theme I do not own"
+      ;; This also serves as the admin-override regression test (PLAN.md
+      ;; step 1: decided "no admin override"): KALEIDOSCOPE_AUTH_TYPE
+      ;; "custom-authenticated-user" grants the base identity
+      ;; `andrewslai.com:admin` (see init/env.clj), and the "Bearer user X"
+      ;; override only replaces :sub/:email, never :realm_access — so
+      ;; "someone-else" below already holds admin on this site. If ownership
+      ;; had an admin bypass, this request would succeed; it must still 404.
+      (testing "I cannot update a theme I do not own, even though I hold admin on this site"
         (log/with-min-level :error
-          (is (match? {:status 401}
+          (is (match? {:status 404}
                       (app (-> (mock/request :put (format "https://andrewslai.com/themes/%s" theme-id))
                                (mock/header "Authorization" "Bearer user someone-else")
                                (mock/json-body {:config       {:primary {:main "#HIJACKED"}}
                                                 :display-name "Hijacked name"})))))
+          (is (match? {:status 200
+                       :body   [{:config       {:primary {:main "#ABC123"}}
+                                 :id           string-uuid?
+                                 :display-name "My New Theme"}]}
+                      (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" theme-id))
+                               (mock/header "Authorization" "Bearer x")))))))
+
+      ;; Cross-site theme test (PLAN.md, "Gap: themes need a compound
+      ;; ownership key"): the *same* owner, holding writer/admin roles on
+      ;; multiple sites (custom-authenticated-user grants admin on all of
+      ;; them), cannot touch their own theme by routing the request through
+      ;; a different site's Host header than the one the theme belongs to.
+      (testing "I cannot update my own theme via a different site's Host header"
+        (log/with-min-level :error
+          (is (match? {:status 404}
+                      (app (-> (mock/request :put (format "https://sahiltalkingcents.com/themes/%s" theme-id))
+                               (mock/header "Authorization" "Bearer x")
+                               (mock/json-body {:config       {:primary {:main "#HIJACKED"}}
+                                                :display-name "Hijacked via wrong site"})))))
           (is (match? {:status 200
                        :body   [{:config       {:primary {:main "#ABC123"}}
                                  :id           string-uuid?

@@ -153,31 +153,48 @@
       (persistence/get-workflows db user-id)))
 
 (defn get-workflow
-  "Return a single workflow with its steps, checking user ownership."
+  "Return a single workflow with its steps. Ownership is enforced by the
+  persistence layer's WHERE clause, not a check here."
   [db user-id workflow-id]
-  (when-let [wf (persistence/get-workflow db workflow-id)]
-    (when (= (:user-id wf) user-id)
-      wf)))
+  (persistence/get-workflow db workflow-id user-id))
 
 (defn create-workflow!
   [db user-id body]
   (persistence/create-workflow! db (assoc body :user-id user-id)))
 
 (defn update-workflow!
-  "Update a workflow's metadata/steps. Verifies ownership. Returns nil if not found or not owned."
+  "Update a workflow's metadata/steps. Returns nil if not found or not
+  owned — ownership is enforced by the persistence layer's WHERE clause,
+  not a check here."
   [db user-id workflow-id updates]
-  (when-let [wf (persistence/get-workflow db workflow-id)]
-    (when (= (:user-id wf) user-id)
-      (persistence/update-workflow! db workflow-id updates))))
+  (persistence/update-workflow! db workflow-id user-id updates))
 
 (defn delete-workflow!
-  "Delete a workflow. Verifies ownership. Returns {:error :not-found} if not found or not owned."
+  "Delete a workflow. Returns {:error :not-found} if not found or not owned
+  (indistinguishable by design). Ownership is enforced by the persistence
+  layer."
   [db user-id workflow-id]
-  (if-let [wf (persistence/get-workflow db workflow-id)]
-    (if (= (:user-id wf) user-id)
-      (persistence/delete-workflow! db workflow-id)
-      {:error :not-found})
-    {:error :not-found}))
+  (persistence/delete-workflow! db workflow-id user-id))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Run/step-run scoping
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- get-owned-run
+  "Fetch a workflow run, returning nil unless it belongs to project-id.
+   project-id itself must already be verified as owned by the caller —
+   this only closes the second hop (run-id -> project-id)."
+  [db run-id project-id]
+  (when-let [run (persistence/get-workflow-run db run-id)]
+    (when (= (:project-id run) project-id)
+      run)))
+
+(defn- owned-step-run
+  "Fetch a step_run, returning nil unless it belongs to run-id."
+  [db step-run-id run-id]
+  (when-let [step-run (persistence/get-step-run db step-run-id)]
+    (when (= (:workflow-run-id step-run) run-id)
+      step-run)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Workflow recommendation
@@ -203,7 +220,7 @@
 (defn get-workflow-run
   [db run-id project-id user-id]
   (when (projects-persistence/get-project db project-id user-id)
-    (persistence/get-workflow-run db run-id)))
+    (get-owned-run db run-id project-id)))
 
 (defn create-run!
   "Create a workflow run for a project.
@@ -220,15 +237,18 @@
   "Switch a run between manual and autonomous mode."
   [db run-id project-id user-id mode]
   (when (projects-persistence/get-project db project-id user-id)
-    (persistence/update-workflow-run! db run-id {:mode mode})
-    (persistence/get-workflow-run db run-id)))
+    (when (get-owned-run db run-id project-id)
+      (persistence/update-workflow-run! db run-id {:mode mode})
+      (persistence/get-workflow-run db run-id))))
 
 (defn get-run-rounds
   "Return the rounds timeline for a loop workflow run.
-   Returns [] when the run has no rounds yet, nil when the project/user check fails."
+   Returns [] when the run has no rounds yet, nil when the project/user check
+   fails or the run doesn't belong to project-id."
   [db run-id project-id user-id]
   (when (projects-persistence/get-project db project-id user-id)
-    (persistence/get-workflow-run-rounds db run-id)))
+    (when (get-owned-run db run-id project-id)
+      (persistence/get-workflow-run-rounds db run-id))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Sequential step execution helpers
@@ -527,7 +547,7 @@
    For sequential workflows: uses the original linear executor."
   [db executor project-id user-id run-id output-stream]
   (when-let [project (projects-persistence/get-project db project-id user-id)]
-    (let [run (persistence/get-workflow-run db run-id)]
+    (when-let [run (get-owned-run db run-id project-id)]
       (if (and (:workflow-id run)
                (persistence/workflow-has-loop-steps? db (:workflow-id run)))
         (run-loop-workflow! db executor project run-id output-stream)
@@ -542,8 +562,8 @@
    Returns the updated run."
   [db project-id user-id run-id step-run-id]
   (when (projects-persistence/get-project db project-id user-id)
-    (let [run      (persistence/get-workflow-run db run-id)
-          step-run (persistence/get-step-run db step-run-id)]
+    (let [run      (get-owned-run db run-id project-id)
+          step-run (when run (owned-step-run db step-run-id run-id))]
       (when (and run step-run (#{"pending" "awaiting_input"} (:status step-run)))
         (persistence/update-step-run! db step-run-id
                                       {:status       "skipped"
@@ -575,31 +595,31 @@
    Returns the updated run map."
   [db executor project-id user-id run-id]
   (when (projects-persistence/get-project db project-id user-id)
-    (let [run           (persistence/get-workflow-run db run-id)
-          current-round (persistence/get-current-round db run-id)]
-      ;; Skip all pending loop step_runs in the current round
-      (when current-round
-        (doseq [step (concat
-                       (persistence/get-step-runs-by-round-and-mode
-                         db run-id (:id current-round) "parallel" #{"pending" "running"})
-                       (persistence/get-step-runs-by-round-and-mode
-                         db run-id (:id current-round) "fan_in"   #{"pending" "running" "awaiting_input"}))]
-          (persistence/update-step-run! db (:id step)
-                                        {:status       "skipped"
-                                         :completed-at (utils/now)}))
-        (persistence/complete-round! db (:id current-round)))
-      ;; Set force-proceeded flag and resume workflow in background.
-      ;; loop-steps-complete? checks this flag and routes straight to run-sequential-tail!.
-      (persistence/update-workflow-run! db run-id
-                                        {:status "in_progress"
-                                         :config (assoc (or (:config run) {}) :force-proceeded true)})
-      (let [null-os (java.io.ByteArrayOutputStream.)]
-        (future
-          (try
-            (advance-step! db executor project-id user-id run-id null-os)
-            (catch Exception e
-              (log/errorf "Background force-proceed failed for run %s: %s" run-id e)))))
-      (persistence/get-workflow-run db run-id))))
+    (when-let [run (get-owned-run db run-id project-id)]
+      (let [current-round (persistence/get-current-round db run-id)]
+        ;; Skip all pending loop step_runs in the current round
+        (when current-round
+          (doseq [step (concat
+                         (persistence/get-step-runs-by-round-and-mode
+                           db run-id (:id current-round) "parallel" #{"pending" "running"})
+                         (persistence/get-step-runs-by-round-and-mode
+                           db run-id (:id current-round) "fan_in"   #{"pending" "running" "awaiting_input"}))]
+            (persistence/update-step-run! db (:id step)
+                                          {:status       "skipped"
+                                           :completed-at (utils/now)}))
+          (persistence/complete-round! db (:id current-round)))
+        ;; Set force-proceeded flag and resume workflow in background.
+        ;; loop-steps-complete? checks this flag and routes straight to run-sequential-tail!.
+        (persistence/update-workflow-run! db run-id
+                                          {:status "in_progress"
+                                           :config (assoc (or (:config run) {}) :force-proceeded true)})
+        (let [null-os (java.io.ByteArrayOutputStream.)]
+          (future
+            (try
+              (advance-step! db executor project-id user-id run-id null-os)
+              (catch Exception e
+                (log/errorf "Background force-proceed failed for run %s: %s" run-id e)))))
+        (persistence/get-workflow-run db run-id)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom steps
@@ -614,23 +634,24 @@
    {:keys [name description agent-type] :as _custom-step}
    output-stream]
   (when-let [project (projects-persistence/get-project db project-id user-id)]
-    (let [position (persistence/next-custom-step-position db run-id)
-          step-run (persistence/create-custom-step-run!
-                    db run-id
-                    {:name        name
-                     :description description
-                     :agent-type  (or agent-type "coach")
-                     :position    position})]
-      (wf-protocol/execute-step! executor db project step-run output-stream)
-      (let [live-workflows  (persistence/get-live-workflows db user-id)
-            recommendation  (try
-                              (wf-protocol/recommend-workflows executor project live-workflows)
-                              (catch Exception e
-                                (log/errorf "Re-classification after custom step failed: %s" e)
-                                []))
-            completed-run   (persistence/get-workflow-run db run-id)]
-        {:run            completed-run
-         :recommendation recommendation}))))
+    (when (get-owned-run db run-id project-id)
+      (let [position (persistence/next-custom-step-position db run-id)
+            step-run (persistence/create-custom-step-run!
+                      db run-id
+                      {:name        name
+                       :description description
+                       :agent-type  (or agent-type "coach")
+                       :position    position})]
+        (wf-protocol/execute-step! executor db project step-run output-stream)
+        (let [live-workflows  (persistence/get-live-workflows db user-id)
+              recommendation  (try
+                                (wf-protocol/recommend-workflows executor project live-workflows)
+                                (catch Exception e
+                                  (log/errorf "Re-classification after custom step failed: %s" e)
+                                  []))
+              completed-run   (persistence/get-workflow-run db run-id)]
+          {:run            completed-run
+           :recommendation recommendation})))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Respond to awaiting_input step
@@ -654,7 +675,8 @@
      - Marks the step completed, advances current-step, resumes in background."
   [db executor project-id user-id run-id step-run-id answers]
   (when-let [project (projects-persistence/get-project db project-id user-id)]
-    (let [step-run (persistence/get-step-run db step-run-id)]
+   (when (get-owned-run db run-id project-id)
+    (let [step-run (owned-step-run db step-run-id run-id)]
       (when (and step-run (= "awaiting_input" (:status step-run)))
         (cond
           ;; ── Code context path selection ──────────────────────────────────────
@@ -720,7 +742,7 @@
                     (catch Exception e
                       (log/errorf "Background workflow continuation failed for run %s: %s"
                                   run-id e)))))
-              (persistence/get-workflow-run db run-id))))))))
+              (persistence/get-workflow-run db run-id)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Auto-start default workflow on project creation

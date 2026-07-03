@@ -91,6 +91,36 @@
                  {:return-keys true
                   :builder-fn  rs/as-unqualified-kebab-maps}))
 
+(defn ->h2-param
+  "Match hsql-upsert's value coercion so scoped statements behave the same
+  way as the existing upsert path on this H2 compatibility mode."
+  [v]
+  (cond
+    (nil? v) nil
+    (map? v) (json/encode v)
+    :else    (str v)))
+
+(defn hsql-scoped-update
+  "A plain (non-upsert) UPDATE scoped by an arbitrary where-map, returning the
+  affected row. H2 doesn't support `UPDATE ... RETURNING`; `SELECT * FROM
+  FINAL TABLE (...)` is H2's equivalent, same trick as `hsql-upsert` above."
+  [table where-map set-map]
+  (let [->col     csk/->snake_case_string
+        set-sql   (str/join ", " (map #(str (->col %) " = ?") (keys set-map)))
+        where-sql (str/join " AND " (map #(str (->col %) " = ?") (keys where-map)))
+        stmt      (format "SELECT * FROM FINAL TABLE (UPDATE %s SET %s WHERE %s)"
+                          (->col table) set-sql where-sql)]
+    (concat [stmt]
+            (map ->h2-param (vals set-map))
+            (map ->h2-param (vals where-map)))))
+
+(defmethod rdbms/scoped-update-impl! org.h2.jdbc.JdbcConnection
+  [database table where-map set-map]
+  (next/execute! database
+                 (hsql-scoped-update table where-map set-map)
+                 {:return-keys true
+                  :builder-fn  rs/as-unqualified-kebab-maps}))
+
 (defn start-db!
   ([]
    (start-db! (str (java.util.UUID/randomUUID))))
