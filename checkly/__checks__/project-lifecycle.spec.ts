@@ -32,7 +32,7 @@ test('create → read → update → delete', async ({ request }) => {
   // Create
   const createRes = await request.post(`${BASE_URL}/projects`, {
     headers: authHeaders,
-    data: { name: 'checkly-canary', description: 'Synthetic monitoring test — safe to delete' },
+    data: { title: `checkly-synthetic-test-${Date.now()}`, description: 'Synthetic monitoring test — safe to delete' },
   })
   expect(createRes.status()).toBe(200)
   const created = await createRes.json()
@@ -47,7 +47,7 @@ test('create → read → update → delete', async ({ request }) => {
   // Update
   const updateRes = await request.put(`${BASE_URL}/projects/${projectId}`, {
     headers: authHeaders,
-    data: { name: 'checkly-canary-updated' },
+    data: { title: `checkly-synthetic-test-${Date.now()}`},
   })
   expect(updateRes.status()).toBe(200)
 
