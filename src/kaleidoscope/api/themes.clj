@@ -52,23 +52,27 @@
                    :themes row
                    :ex-subtype :UnableToCreateTheme)))
 
-(defn update-theme!
-  [database {:keys [id] :as theme}]
-  (let [now (utils/now)
-        row (-> theme
-                (update :config #(with-meta % {:pgtype "json"}))
-                (assoc :created-at now)
-                (assoc :modified-at now))]
-    (rdbms/update! database
-                   :themes row
-                   :ex-subtype :UnableToUpdateTheme)))
-
 (defn owns?
   [database requester-id theme-id]
   (= requester-id (-> database
                       (get-themes {:id theme-id})
                       first
                       get-owner)))
+
+(defn update-theme!
+  "Only allow a user to update a theme if they are the owner.
+  The `requester-id` is the identity of the user requesting the operation."
+  [database requester-id {:keys [id] :as theme}]
+  (if (owns? database requester-id id)
+    (let [now (utils/now)
+          row (-> theme
+                  (update :config #(with-meta % {:pgtype "json"}))
+                  (assoc :created-at now)
+                  (assoc :modified-at now))]
+      (rdbms/update! database
+                     :themes row
+                     :ex-subtype :UnableToUpdateTheme))
+    (log/warnf "User %s does not have permissions to update the theme %s" requester-id id)))
 
 (defn delete-theme!
   "Only allow a user to delete a theme if they are the owner.

@@ -88,12 +88,15 @@
                                       (try
                                         (log/info "Updating theme!" parameters)
                                         (let [{:keys [theme-id]} (:path parameters)
+                                              requester-id       (:user-id (:identity request))
                                               theme              (merge (:request parameters)
                                                                         {:hostname (hu/get-host request)
-                                                                         :owner-id (:user-id (:identity request))
-                                                                         :id       theme-id})
-                                              [result]           (themes-api/update-theme! (:database components) theme)]
-                                          (log/infof "Updated theme %s" result)
-                                          (ok result))
+                                                                         :owner-id requester-id
+                                                                         :id       theme-id})]
+                                          (if-let [[result] (themes-api/update-theme! (:database components) requester-id theme)]
+                                            (do
+                                              (log/infof "Updated theme %s" result)
+                                              (ok result))
+                                            (unauthorized)))
                                         (catch Exception e
                                           (log/error "Caught exception " e))))}}]])

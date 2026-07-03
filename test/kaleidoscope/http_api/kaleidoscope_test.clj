@@ -927,6 +927,20 @@
                     (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" (java.util.UUID/randomUUID)))
                              (mock/header "Authorization" "Bearer x"))))))
 
+      (testing "I cannot update a theme I do not own"
+        (log/with-min-level :error
+          (is (match? {:status 401}
+                      (app (-> (mock/request :put (format "https://andrewslai.com/themes/%s" theme-id))
+                               (mock/header "Authorization" "Bearer user someone-else")
+                               (mock/json-body {:config       {:primary {:main "#HIJACKED"}}
+                                                :display-name "Hijacked name"})))))
+          (is (match? {:status 200
+                       :body   [{:config       {:primary {:main "#ABC123"}}
+                                 :id           string-uuid?
+                                 :display-name "My New Theme"}]}
+                      (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" theme-id))
+                               (mock/header "Authorization" "Bearer x")))))))
+
       (testing "Update theme"
         (app (-> (mock/request :put (format "https://andrewslai.com/themes/%s" theme-id))
                  (mock/header "Authorization" "Bearer x")

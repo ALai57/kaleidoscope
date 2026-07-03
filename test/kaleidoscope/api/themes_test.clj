@@ -37,12 +37,19 @@
         (is (themes/owns? database "user-1" theme-id))
         (is (not (themes/owns? database "user-2" theme-id))))
 
+      (testing "Non-owner cannot update the theme"
+        (is (nil? (themes/update-theme! database "user-2" {:display-name "hijacked"
+                                                            :id           theme-id
+                                                            :config       {:secondary {:something "else"}}})))
+        (is (match? [{:display-name "mytheme"}]
+                    (themes/get-themes database (dissoc example-theme :config)))))
+
       (testing "Can update the theme"
         (is (match? [{:display-name "another-theme"
                       :id           theme-id}]
-                    (themes/update-theme! database {:display-name "another-theme"
-                                                    :id           theme-id
-                                                    :config       {:secondary {:something "else"}}}))))
+                    (themes/update-theme! database "user-1" {:display-name "another-theme"
+                                                             :id           theme-id
+                                                             :config       {:secondary {:something "else"}}}))))
 
       (testing "Non-owner cannot delete the theme"
         (is (nil? (themes/delete-theme! database "not-the-owner" theme-id))))
@@ -70,12 +77,19 @@
             (is (themes/owns? database "user-1" theme-id))
             (is (not (themes/owns? database "user-2" theme-id))))
 
+          (testing "Non-owner cannot update the theme"
+            (is (nil? (themes/update-theme! database "user-2" {:display-name "hijacked"
+                                                                :id           theme-id
+                                                                :config       {:secondary {:something "else"}}})))
+            (is (match? [{:display-name "mytheme"}]
+                        (themes/get-themes database (dissoc example-theme :config)))))
+
           (testing "Can update the theme"
             (is (match? [{:display-name "another-theme"
                           :id           theme-id}]
-                        (themes/update-theme! database {:display-name "another-theme"
-                                                        :id           theme-id
-                                                        :config       {:secondary {:something "else"}}}))))
+                        (themes/update-theme! database "user-1" {:display-name "another-theme"
+                                                                 :id           theme-id
+                                                                 :config       {:secondary {:something "else"}}}))))
 
           (testing "Non-owner cannot delete the theme"
             (is (nil? (themes/delete-theme! database "not-the-owner" theme-id))))
