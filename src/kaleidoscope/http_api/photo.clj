@@ -14,8 +14,23 @@
   "media")
 
 (defn get-file-extension
+  "Return a safe file extension (letters/digits only, max 10 chars) from an
+  uploaded filename, or \"bin\" if none can be extracted.
+
+  Verified exploitable 2026-07-03 (see PLAN.md): the previous version
+  (`(last (str/split path #\"\\.\"))`) returned the *entire* filename
+  unchanged when it contained no `.` at all — and for a filename with
+  multiple `.`s and a `/` after the last one (e.g. \"a.b/../../etc/x\"),
+  still returned a slash-containing tail. This value is spliced directly
+  into a storage path (`kaleidoscope.api.albums/new-image`), so an
+  attacker-chosen \"extension\" containing `../` could redirect an upload
+  outside the intended storage directory. Extracting only a short
+  alphanumeric suffix closes this regardless of what the local filesystem
+  backend's own confinement check does (see
+  `persistence.filesystem.local/confined-path?`) — belt and suspenders."
   [path]
-  (last (str/split path #"\.")))
+  (let [ext (or (second (re-find #"\.([a-zA-Z0-9]{1,10})$" (or path ""))) "bin")]
+    (str/lower-case ext)))
 
 (defn file-upload?
   "TODO replace with Malli spec"
@@ -141,17 +156,15 @@
                         :parameters {:path {:photo-id :uuid}}
                         :handler    (fn [{:keys [components body-params parameters] :as request}]
                                       (let [{:keys [photo-id]} (:path parameters)
-
-                                            _ (log/infof "Getting photo %s" photo-id)
-                                            hostname (hu/get-host request)
-                                            photo (albums-api/get-photos (:database components) {:id       photo-id
-                                                                                                 :hostname hostname})]
-                                        (if (empty? photo)
+                                            hostname (hu/get-host request)]
+                                        (log/infof "Updating photo %s for %s" photo-id hostname)
+                                        (if-let [updated (albums-api/update-photo!
+                                                           (:database components) photo-id hostname
+                                                           {:photo-title (:title body-params)})]
+                                          (ok updated)
                                           (do
                                             (log/warnf "Photo `%s` does not exist for `%s`" photo-id hostname)
-                                            (not-found {:reason "Missing"}))
-                                          (ok (albums-api/update-photo! (:database components) (merge {:id photo-id}
-                                                                                                      body-params))))))}
+                                            (not-found {:reason "Missing"})))))}
                   }]
 
    ["/:photo-id/:filename" {:get {:summary    "Get a particular photo"

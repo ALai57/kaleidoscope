@@ -50,11 +50,38 @@
               out (io/output-stream file-path)]
     (io/copy in out)))
 
+(defn confined-path?
+  "True if path, joined onto root, canonicalizes to somewhere under root's
+  canonical path. Prevents traversal via `../` segments or symlinks — same
+  technique as kaleidoscope.utils.local-files/confined-path?.
+
+  Verified exploitable 2026-07-03 (see PLAN.md): put-file/get-file/ls built
+  a path via bare string formatting (`(format \"%s/%s\" root path)`) with no
+  confinement check at all. Combined with a separate bug where an uploaded
+  filename with no `.` in it makes `get-file-extension` return the entire
+  filename (including any `../` segments) as the \"extension\", an upload
+  could write outside `root` entirely — a local file write, not just a
+  read. Not reachable via the current production config (fly.toml uses the
+  S3 backend, where `../` in an object key is just a literal character, not
+  a traversal), but a real gap in this backend regardless of who's
+  configured to use it."
+  [root path]
+  (let [root-file (io/file root)
+        candidate (io/file root path)]
+    (try
+      (string/starts-with? (.getCanonicalPath candidate) (.getCanonicalPath root-file))
+      (catch java.io.IOException _
+        false))))
+
 (defrecord LocalFS [root]
   fs/DistributedFileSystem
   (ls [_ path options]
+    (when-not (confined-path? root path)
+      (throw (ex-info "Path is outside the storage root" {:root root :path path})))
     (map (partial clojurize root) (.listFiles (io/file (format "%s/%s" root path)))))
   (get-file [_ path options]
+    (when-not (confined-path? root path)
+      (throw (ex-info "Path is outside the storage root" {:root root :path path})))
     (let [result  (io/input-stream (format "%s/%s" root path))
           version (fs/md5 (slurp (io/input-stream (format "%s/%s" root path))))]
       (if (= version (:version options))
@@ -64,6 +91,8 @@
             (fs/object {:content result
                         :version version})))))
   (put-file [this path input-stream _metadata]
+    (when-not (confined-path? root path)
+      (throw (ex-info "Path is outside the storage root" {:root root :path path})))
     (write-stream! input-stream (format "%s/%s" root path))
     (fs/get this path)))
 

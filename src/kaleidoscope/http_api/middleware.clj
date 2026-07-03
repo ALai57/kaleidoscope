@@ -96,6 +96,53 @@
                        (st/start! session-tracker))
                      request))))))
 
+(defonce ^:private rate-limit-buckets
+  (atom {}))
+
+(defn reset-rate-limits!
+  "Test hook - clears all rate-limit counters."
+  []
+  (reset! rate-limit-buckets {}))
+
+(defn- request-ip
+  [{:keys [remote-addr headers] :as _request}]
+  (or (get headers "fly-client-ip")
+      (some-> (get headers "x-forwarded-for") (string/split #",\s*") first)
+      remote-addr
+      "unknown"))
+
+(def wrap-rate-limit
+  "Fixed-window rate limiter keyed by client IP + route URI.
+
+  Enabled per-route via route data `:rate-limit {:max-requests N :window-ms
+  M}`; routes without that key are unaffected. Exists to bound abuse of
+  unauthenticated routes that write to paid third-party APIs (Stripe) or fan
+  out to external services (AWS Route53) with no ACL protecting them.
+
+  State is a single in-process atom - correct for a single-instance deploy
+  only. A multi-instance deploy would need a shared store (e.g. Redis)
+  instead."
+  {:name    ::wrap-rate-limit
+   :compile (fn [{:keys [rate-limit] :as _route-data} _opts]
+              (when rate-limit
+                (let [{:keys [max-requests window-ms]} rate-limit]
+                  (fn wrapper [handler]
+                    (fn new-handler [{:keys [uri] :as request}]
+                      (let [bucket-key      [(request-ip request) uri]
+                            now             (System/currentTimeMillis)
+                            window-start    (- now (mod now window-ms))
+                            {:keys [count]} (get (swap! rate-limit-buckets update bucket-key
+                                                         (fn [entry]
+                                                           (if (= (:window entry) window-start)
+                                                             (update entry :count inc)
+                                                             {:window window-start :count 1})))
+                                                  bucket-key)]
+                        (if (> count max-requests)
+                          {:status  429
+                           :headers {"Content-Type" "application/json"}
+                           :body    "{\"error\":\"Too many requests\"}"}
+                          (handler request))))))))})
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configured middleware stacks
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -207,6 +254,7 @@
           :middleware [wrap-add-http-spans
                        wrap-force-host
                        wrap-force-uri
+                       wrap-rate-limit
                        wrap-gzip
                        wrap-content-type
 

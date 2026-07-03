@@ -141,29 +141,43 @@
   [:map
    [:client-secret :string]])
 
+;; Stripe's own minimum charge amount is ~50 cents in USD; the upper bound is
+;; an app-level guardrail, not a Stripe requirement — this route is
+;; unauthenticated (see KALEIDOSCOPE-ACCESS-CONTROL-LIST above), so nothing
+;; else stops a caller from requesting an arbitrarily large PaymentIntent.
+;; Extend this set if the storefront ever needs to charge in another currency.
+(def supported-payment-currencies
+  #{"usd"})
+
+(def PaymentRequest
+  [:map
+   [:amount [:int {:min 50 :max 100000}]]
+   [:currency (into [:enum] supported-payment-currencies)]
+   ;; Clients should generate and reuse this across retries of the *same*
+   ;; logical payment so Stripe can dedupe them into one PaymentIntent
+   ;; instead of creating a new object per retry.
+   [:idempotency-key {:optional true} [:string {:min 1 :max 255}]]])
+
 (def reitit-stripe-routes
   "Stripe requires the frontend to receive a payment intent secret that the backend generates
 
   https://docs.stripe.com/payments/accept-a-payment?ui=elements&architecture-style=resources&shell=true&api=true&resource=payment_intents&action=create"
   ["" {:no-doc true}
    ["/v1/payments"
-    {:post {:span-name "kaleidoscope.payments.create"
+    {:post {:span-name  "kaleidoscope.payments.create"
+            ;; Public + unauthenticated (see KALEIDOSCOPE-ACCESS-CONTROL-LIST)
+            ;; and fans out to a paid third-party API on every call — rate
+            ;; limit it so it can't be used to run up Stripe API volume.
+            :rate-limit {:max-requests 10 :window-ms 60000}
 
             :responses {200 {:description "Payment secret"
                              :content     {"application/json"
                                            {:schema [:map
                                                      [:client-secret :string]]}}}}
-            :request   {:description "Version"
-                        :content     {"application/json"
-                                      {:schema   [:map
-                                                  [:amount :int]
-                                                  [:currency :string]]
-                                       :examples {"example-price" {:summary "Example price"
-                                                                   :value   {:amount   12
-                                                                             :currency "USD"}}}}}}
-            :handler   (fn [{:keys [components body-params] :as request}]
-                         {:status 200
-                          :body   (stripe/payment-intent body-params)})}}]])
+            :parameters {:body PaymentRequest}
+            :handler    (fn [{:keys [components parameters] :as request}]
+                          {:status 200
+                           :body   (stripe/payment-intent (:body parameters))})}}]])
 
 (defn inject-components
   [components]

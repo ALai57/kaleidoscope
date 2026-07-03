@@ -251,3 +251,34 @@
                           (mock/json-body {:invalid :param})
                           app
                           clojurize)))))))
+
+(def rate-limited-route
+  ["/limited" {:get {:rate-limit {:max-requests 3 :window-ms 60000}
+                     :handler    (fn [_] {:status 200 :body {:ok true}})}}])
+
+(deftest wrap-rate-limit-test
+  (let [app (ring/ring-handler (ring/router rate-limited-route mw/reitit-configuration))]
+    (mw/reset-rate-limits!)
+    (testing "Requests within the limit succeed"
+      (dotimes [_ 3]
+        (is (match? {:status 200} (app (mock/request :get "/limited"))))))
+    (testing "The next request from the same IP is rejected"
+      (is (match? {:status 429} (app (mock/request :get "/limited")))))))
+
+(deftest wrap-rate-limit-per-ip-test
+  (let [app (ring/ring-handler (ring/router rate-limited-route mw/reitit-configuration))]
+    (mw/reset-rate-limits!)
+    (dotimes [_ 3]
+      (app (mock/request :get "/limited")))
+    (testing "A different IP is not affected by another IP's usage"
+      (is (match? {:status 200}
+                  (app (-> (mock/request :get "/limited")
+                           (assoc :remote-addr "10.0.0.1"))))))))
+
+(deftest wrap-rate-limit-unaffected-routes-test
+  (let [unlimited-route ["/unlimited" {:get {:handler (fn [_] {:status 200 :body {:ok true}})}}]
+        app             (ring/ring-handler (ring/router unlimited-route mw/reitit-configuration))]
+    (mw/reset-rate-limits!)
+    (testing "Routes without :rate-limit route data are never throttled"
+      (dotimes [_ 50]
+        (is (match? {:status 200} (app (mock/request :get "/unlimited"))))))))

@@ -106,12 +106,24 @@
       (testing "Can retrieve example-photo from the DB"
         (is (match? [example-photo] (albums-api/get-photos database {:id #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"}))))
 
-      (testing "Update the photo"
-        (is (match? {:id uuid?}
-                    (albums-api/update-photo! database {:id          (:id resp)
-                                                        :photo-title "New title"
-                                                        :description "New description"})))))
-    ))
+      ;; update-photo! scopes by hostname (see PLAN.md, cross-site photo
+      ;; IDOR fix). example-photo has no :hostname (nil) — SQL `column =
+      ;; NULL` never matches, including against a genuinely NULL column
+      ;; (real HTTP requests always carry a real Host header, so this is a
+      ;; test-only edge case, not a production path) — so this test
+      ;; exercises a photo created with an explicit hostname instead.
+      (let [hosted (albums-api/create-photo! database (assoc example-photo
+                                                              :id (random-uuid)
+                                                              :hostname "andrewslai.com"))]
+        (testing "Update the photo with the matching hostname"
+          (is (match? {:id uuid? :photo-title "New title"}
+                      (albums-api/update-photo! database (:id hosted) "andrewslai.com"
+                                                {:photo-title "New title"}))))
+
+        (testing "Update the photo with a different hostname does not match"
+          (is (nil? (albums-api/update-photo! database (:id hosted) "sahiltalkingcents.com"
+                                              {:photo-title "Hijacked"})))))))
+  )
 
 (deftest create-and-retrieve-photo-version-test
   (let [database (embedded-h2/fresh-db!)]

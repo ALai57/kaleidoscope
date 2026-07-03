@@ -1001,3 +1001,95 @@ a real payment method), and likely intentional (standard Stripe Elements
 pattern — the client needs a client-secret before the payer is necessarily
 authenticated), but worth a deliberate look as a cost/abuse question,
 separate from authorization correctness.
+
+(Update: a `wrap-rate-limit` middleware addressing exactly this — and the
+matching `/check-domain` → AWS Route53 abuse vector — was added directly to
+`http_api/middleware.clj` and wired into `reitit-configuration`'s
+middleware vector, with `:rate-limit {:max-requests N :window-ms M}` route
+data applied to both `/v1/payments` and `/check-domain`. `registration.clj`
+also gained an RFC-1035-shaped regex constraint on the `:domain` query
+param so it isn't passed to the AWS SDK as an arbitrary string.)
+
+## Critical finding #5: cross-site photo IDOR via mass assignment + open coercion
+
+A fifth pass (2026-07-03) picked a target the previous four hadn't touched
+at all — the photos/albums subsystem — and found the same *class* of bug
+as finding #1 (mass assignment) recombined with a new mechanism: malli's
+`[:map ...]` schemas are **open by default**. Confirmed directly (not
+assumed): `(m/validate schema {:title "hi" :id "attacker"})` returns `true`
+and `(m/decode schema {:title "hi" :id "attacker"} ...)` passes `:id`
+through unchanged, even though the schema only declares `:title`/
+`:description`. Reitit's request coercion doesn't strip undeclared keys —
+a documented schema restricting a body to two fields provides *zero*
+enforcement against a third field being present.
+
+**The mechanism.** `http_api/photo.clj`'s `PUT /v2/photos/:photo-id`
+checked that `photo-id` (from the URL) existed under the request's
+hostname, then called
+`(albums-api/update-photo! db (merge {:id photo-id} body-params))`. Because
+`merge` takes the last map's value for a duplicate key, a request body
+containing its own `:id` overrides the URL's `photo-id` — and
+`update-photo!` used that merged map, wholesale, as both the row to target
+(`rdbms/update!` keys only off whatever `:id` survives the merge) and the
+fields to set. The hostname check that had just run applied only to the
+URL's `photo-id`; the actual UPDATE statement was scoped by neither
+hostname nor, after the override, the row anyone had checked at all.
+
+**The exploit:** any site's admin (RBAC requires `*-admin` for this route,
+not just writer — see `KALEIDOSCOPE-ACCESS-CONTROL-LIST`) can edit *any*
+photo on *any other site* by supplying that photo's real id in the request
+body. Reproduced end-to-end through the actual HTTP app (not just the
+persistence layer): created a photo tagged to `sahiltalkingcents.com`,
+authenticated as an admin who only has grounds to touch `andrewslai.com`,
+PUT against one of their own `andrewslai.com` photos with the victim's id
+in the body — confirmed the victim row's title changed before the fix and
+did not after.
+
+**Fix:** `update-photo!` now takes `photo-id`, `hostname`, and an
+`updates` map as separate arguments — same pattern as every other fix in
+this document — and is scoped via `rdbms/scoped-update!` on
+`{:id photo-id :hostname hostname}`, with only `photo-title` destructured
+out of `updates` (the schema's `:description` field turned out to not even
+correspond to a real column on `photos` — a pre-existing, unrelated minor
+inconsistency, left as-is). The HTTP handler no longer does its own
+existence pre-check; the scoped update's `nil`-on-no-match return *is* the
+check now, consistent with the "pass-through" pattern used everywhere else
+in this plan. Regression tests updated in `test/kaleidoscope/api/
+albums_test.clj` (a hostname-mismatched update now provably returns `nil`
+rather than succeeding).
+
+**A parallel, independently-discovered issue on the write side:** while
+tracing how an uploaded photo's storage path gets built, found that
+`persistence/filesystem/local.clj`'s `LocalFS` (`put-file`/`get-file`/`ls`)
+constructed its target path via bare string formatting
+(`(format "%s/%s" root path)`) with **no confinement check at all** — the
+write-side mirror of finding #2's read-side LFI, and a gap the read-side
+fix (`utils/local_files.clj`'s `confined-path?`) had already established
+was necessary but was never applied to this sibling namespace. Compounding
+it: `http_api/photo.clj`'s `get-file-extension` (`(last (str/split path
+#"\."))`) returned the *entire* filename, unchanged, whenever an uploaded
+filename contained no `.` — and that value is spliced directly into the
+photo's storage path in `api/albums.clj`'s `new-image`. An upload with a
+`../`-laden, dot-free filename could therefore direct a write outside the
+storage root entirely. **Not reachable in the current production
+deployment** — `fly.toml` configures the S3 backend, where `../` in an
+object key is a literal character, not a traversal, so this only matters
+for the `local-filesystem` backend (local dev, or any future non-S3
+deployment target) — but fixed anyway on the same principle as finding #2:
+close it at the dangerous operation itself, regardless of what's reachable
+today. Added `confined-path?` to `LocalFS` (same technique as the read-side
+fix, canonical-path-prefix check) on all three methods, and hardened
+`get-file-extension` to extract only a short alphanumeric suffix, falling
+back to `"bin"` rather than ever passing a raw, attacker-controlled string
+into a path. New test files for both — neither
+`persistence/filesystem/local.clj` nor `http_api/photo.clj` had any test
+coverage before this pass. Full suite green (128 tests, 686 assertions).
+
+**Takeaway:** two more distinct root causes join the list — malli's
+open-by-default map schemas (a documented request schema is not an
+allowlist, and reitit's coercion won't make it one), and a confinement
+check that existed in one filesystem-adjacent namespace but not its
+sibling. Five passes, five different techniques, five different root
+causes, zero repeats. That pattern — not any individual finding — is the
+strongest signal that this class of review is worth continuing rather than
+declaring done.
