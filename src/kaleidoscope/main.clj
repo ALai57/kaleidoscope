@@ -27,6 +27,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Logging
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- current-span-ids
+  "Returns {:trace-id ... :span-id ...} for the currently bound/active OTel
+  span, for correlating log lines with traces (Grafana logs<->traces linking)."
+  []
+  (let [span-context (span/get-span-context)]
+    {:trace-id (.getTraceId span-context)
+     :span-id  (.getSpanId span-context)}))
+
 (defn- json-log-output
   "Useful when shipping logs via FluentBit (the recommended log router for AWS
   ECS applications)
@@ -35,12 +43,14 @@
   (let [event    (force msg_)
         ns-name  (or ?ns-str ?file "?")
         line-num (or ?line "?")]
-    (json/generate-string {:timestamp  instant
-                           :level      level
-                           :ns         ns-name
-                           :request-id mw/*request-id*
-                           :line       (format "%s:%s" ns-name line-num)
-                           :message    (string/replace event #"\n" " ")})))
+    (json/generate-string (merge {:timestamp  instant
+                                  :level      level
+                                  :ns         ns-name
+                                  :request-id mw/*request-id*
+                                  :line       (format "%s:%s" ns-name line-num)
+                                  :message    (string/replace event #"\n" " ")}
+                                 (current-span-ids)
+                                 mw/*user-context*))))
 
 (defn disable-json-logging?
   "Useful when running locally to avoid JSON structured logs."

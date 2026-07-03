@@ -129,6 +129,48 @@
     (is (match? {:identity {:type :unverified-user :roles #{"myrole"}}}
                 @captured-request))))
 
+(deftest wrap-bind-user-context-verified-user-test
+  (let [captured-user-context (atom :not-set)
+        mw-stack              (apply comp (sut/auth-stack (bb/authenticated-backend {:email          "a@test.com"
+                                                                                      :email_verified true})
+                                                           tu/public-access))
+        app                   (mw-stack (fn [req]
+                                          (reset! captured-user-context mw/*user-context*)
+                                          {:status 200
+                                           :body   {:foo "bar"}}))]
+    (app (-> (mock/request :get "/")
+             (mock/header "Authorization" "Bearer x")))
+    (is (match? {:user-id "a@test.com"
+                :email   "a@test.com"
+                :type    :verified-user}
+               @captured-user-context))))
+
+(deftest wrap-bind-user-context-service-account-test
+  (let [captured-user-context (atom :not-set)
+        mw-stack              (apply comp (sut/auth-stack (bb/authenticated-backend {:gty "client-credentials"
+                                                                                      :sub "service-client-123"})
+                                                           tu/public-access))
+        app                   (mw-stack (fn [req]
+                                          (reset! captured-user-context mw/*user-context*)
+                                          {:status 200
+                                           :body   {:foo "bar"}}))]
+    (app (-> (mock/request :get "/")
+             (mock/header "Authorization" "Bearer x")))
+    (is (match? {:user-id "service-client-123"
+                :type    :service-account}
+               @captured-user-context))))
+
+(deftest wrap-bind-user-context-unauthenticated-test
+  (let [captured-user-context (atom :not-set)
+        mw-stack              (apply comp (sut/auth-stack bb/unauthenticated-backend
+                                                           tu/public-access))
+        app                   (mw-stack (fn [req]
+                                          (reset! captured-user-context mw/*user-context*)
+                                          {:status 200
+                                           :body   {:foo "bar"}}))]
+    (app (mock/request :get "/"))
+    (is (nil? @captured-user-context))))
+
 (deftest auth-stack-wrong-role-test
   (let [captured-request (atom nil)
         mw-stack         (apply comp (sut/auth-stack (bb/authenticated-backend {:realm_access {:roles ["myrole"]}})

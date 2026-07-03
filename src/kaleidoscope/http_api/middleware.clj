@@ -109,11 +109,30 @@
     (handler (cond-> request
                (:identity request) (update :identity #(merge % (oidc/classify-identity %)))))))
 
+(defn wrap-bind-user-context
+  "Binds *user-context* to {:user-id :email :type} derived from the classified
+  :identity, and tags the currently open request span with the same fields
+  (as `enduser.*` attributes) so both logs and traces can be correlated back
+  to the user that made the request. No-ops for unauthenticated requests."
+  [handler]
+  (fn [request]
+    (if-let [identity (:identity request)]
+      (let [user-context {:user-id (:user-id identity)
+                          :email   (oidc/get-email identity)
+                          :type    (:type identity)}]
+        (span/add-span-data! {:attributes {"enduser.id"    (:user-id user-context)
+                                           "enduser.email" (:email user-context)
+                                           "enduser.type"  (str (:type user-context))}})
+        (binding [*user-context* user-context]
+          (handler request)))
+      (handler request))))
+
 (defn auth-stack
   "Stack is applied from top down"
   [authentication-backend access-rules]
   [#(ba/wrap-authentication % authentication-backend)
    wrap-classify-identity
+   wrap-bind-user-context
    #(ar/wrap-access-rules % {:rules          access-rules
                              :reject-handler (fn [& args]
                                                (-> "Not authorized"

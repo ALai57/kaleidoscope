@@ -5,6 +5,7 @@
   work together and that the HTTP API behaves according to spec."
   (:require [clojure.java.io :as io]
             [clojure.test :refer [are deftest is testing use-fixtures]]
+            [kaleidoscope.api.articles :as articles-api]
             [kaleidoscope.api.portfolio :as portfolio]
             [kaleidoscope.http-api.cache-control :as cc]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
@@ -244,25 +245,29 @@
     "/articles/does-not-exist"   {:status 404}
     ))
 
-;; This is more difficult to port because it makes assumptions about fixture data
-;; Commented out for now
-#_(deftest published-article-retrieval-test
-    (are [endpoint expected]
-      (testing (format "%s returns %s" endpoint expected)
-        (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
-                        "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
-                        "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
-                        "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
-                       (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
-                       env/prepare-kaleidoscope
-                       kaleidoscope/kaleidoscope-app
-                       tu/wrap-clojure-response)]
-          (is (match? expected
-                      (app (mock/request :get (str "http://andrewslai.com" endpoint)))))))
+(deftest published-article-retrieval-test
+  (are [endpoint expected]
+    (testing (format "%s returns %s" endpoint expected)
+      (let [components (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                             "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                             "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                             "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                            (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                            env/prepare-kaleidoscope)
+            ;; Fixture articles are private by default; mark them public so an
+            ;; anonymous request can see them via /compositions.
+            _          (doseq [id [1 2 3 4]]
+                         (articles-api/update-article! (:database components)
+                                                       {:id id :public-visibility true}))
+            app        (->> components
+                            kaleidoscope/kaleidoscope-app
+                            tu/wrap-clojure-response)]
+        (is (match? expected
+                    (app (mock/request :get (str "http://andrewslai.com" endpoint)))))))
 
-      "/compositions"                  {:status 200 :body (has-count 4)}
-      "/compositions/my-first-article" {:status 200 :body (malli-matcher models.articles/GetCompositionResponse)}
-      "/compositions/does-not-exist"   {:status 404}))
+    "/compositions"                  {:status 200 :body (has-count 4)}
+    "/compositions/my-first-article" {:status 200 :body (malli-matcher models.articles/GetCompositionResponse)}
+    "/compositions/does-not-exist"   {:status 404}))
 
 (deftest create-branch-happy-path-test
   (let [app     (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"

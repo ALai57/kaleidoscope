@@ -196,6 +196,7 @@
       (and article-url
            (contains? allowed-article-ids article-id)) (-get-published-articles db {:article-id article-id
                                                                                     :hostname   hostname})
+      article-url                                      []
       (not-empty allowed-article-ids)                  (-get-published-articles db {:article-id allowed-article-ids
                                                                                     :hostname   hostname})
       :else                                            [])))
