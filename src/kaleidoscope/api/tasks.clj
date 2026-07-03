@@ -41,23 +41,33 @@
                                   :estimated-minutes estimated-minutes})))
 
 (defn update-task!
-  "Partial update on a task. Returns the updated task."
+  "Partial update on a task. Verifies the task belongs to project-id. Returns
+   the updated task, or nil if the project or task isn't found/owned."
   [db project-id user-id task-id updates]
   (when (projects-persistence/get-project db project-id user-id)
-    (persistence/update-task! db task-id updates)))
+    (when-let [task (persistence/get-task db task-id)]
+      (when (= (:project-id task) project-id)
+        (persistence/update-task! db task-id updates)))))
 
 (defn delete-task!
-  "Hard-delete a task. Returns the deleted rows."
+  "Hard-delete a task. Verifies the task belongs to project-id. Returns the
+   deleted rows, or nil if the project or task isn't found/owned."
   [db project-id user-id task-id]
   (when (projects-persistence/get-project db project-id user-id)
-    (persistence/delete-task! db task-id)))
+    (when-let [task (persistence/get-task db task-id)]
+      (when (= (:project-id task) project-id)
+        (persistence/delete-task! db task-id)))))
 
 (defn reorder-tasks!
   "Replace the position sequence for a project's tasks.
-   positions is a seq of {:id uuid :position int}."
+   positions is a seq of {:id uuid :position int}. Verifies every id belongs
+   to project-id before applying any update — rejects the whole batch (nil)
+   if any id is foreign to the project."
   [db project-id user-id positions]
   (when (projects-persistence/get-project db project-id user-id)
-    (persistence/bulk-reorder! db positions)))
+    (let [owned-ids (set (map :id (persistence/list-tasks db project-id)))]
+      (when (every? #(contains? owned-ids (:id %)) positions)
+        (persistence/bulk-reorder! db positions)))))
 
 (defn get-task-status
   "Return {:pending-count N :total-count N} for a project."

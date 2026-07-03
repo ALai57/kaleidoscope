@@ -55,21 +55,32 @@
   (persistence/get-score-definitions db user-id))
 
 (defn get-score-definition
-  [db definition-id]
-  (persistence/get-score-definition db definition-id))
+  "Return a score definition with its dimensions. Verifies ownership."
+  [db user-id definition-id]
+  (when-let [defn (persistence/get-score-definition db definition-id)]
+    (when (= (:user-id defn) user-id)
+      defn)))
 
 (defn create-score-definition!
   [db user-id body]
   (persistence/create-score-definition! db (assoc body :user-id user-id)))
 
 (defn update-score-definition!
-  [db definition-id updates]
-  (persistence/update-score-definition! db definition-id updates))
+  "Update a score definition. Verifies ownership. Returns nil if not found or not owned."
+  [db user-id definition-id updates]
+  (when-let [defn (persistence/get-score-definition db definition-id)]
+    (when (= (:user-id defn) user-id)
+      (persistence/update-score-definition! db definition-id updates))))
 
 (defn delete-score-definition!
-  "Delete a score definition. Returns an error map if it's a default or not found."
-  [db definition-id]
-  (persistence/delete-score-definition! db definition-id))
+  "Delete a score definition. Verifies ownership. Returns an error map if it's
+  a default, not found, or not owned by user-id."
+  [db user-id definition-id]
+  (if-let [defn (persistence/get-score-definition db definition-id)]
+    (if (= (:user-id defn) user-id)
+      (persistence/delete-score-definition! db definition-id)
+      {:error :not-found})
+    {:error :not-found}))
 
 (defn seed-default-definitions!
   "Seed the two default score definitions for a user if they don't already have them."

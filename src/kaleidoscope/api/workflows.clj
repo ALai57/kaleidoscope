@@ -153,20 +153,31 @@
       (persistence/get-workflows db user-id)))
 
 (defn get-workflow
-  [db workflow-id]
-  (persistence/get-workflow db workflow-id))
+  "Return a single workflow with its steps, checking user ownership."
+  [db user-id workflow-id]
+  (when-let [wf (persistence/get-workflow db workflow-id)]
+    (when (= (:user-id wf) user-id)
+      wf)))
 
 (defn create-workflow!
   [db user-id body]
   (persistence/create-workflow! db (assoc body :user-id user-id)))
 
 (defn update-workflow!
-  [db workflow-id updates]
-  (persistence/update-workflow! db workflow-id updates))
+  "Update a workflow's metadata/steps. Verifies ownership. Returns nil if not found or not owned."
+  [db user-id workflow-id updates]
+  (when-let [wf (persistence/get-workflow db workflow-id)]
+    (when (= (:user-id wf) user-id)
+      (persistence/update-workflow! db workflow-id updates))))
 
 (defn delete-workflow!
-  [db workflow-id]
-  (persistence/delete-workflow! db workflow-id))
+  "Delete a workflow. Verifies ownership. Returns {:error :not-found} if not found or not owned."
+  [db user-id workflow-id]
+  (if-let [wf (persistence/get-workflow db workflow-id)]
+    (if (= (:user-id wf) user-id)
+      (persistence/delete-workflow! db workflow-id)
+      {:error :not-found})
+    {:error :not-found}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Workflow recommendation

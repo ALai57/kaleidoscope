@@ -116,7 +116,9 @@
 
 (deftest auth-stack-happy-path-test
   (let [captured-request (atom nil)
-        mw-stack         (apply comp (sut/auth-stack (bb/authenticated-backend {:realm_access {:roles ["myrole"]}})
+        mw-stack         (apply comp (sut/auth-stack (bb/authenticated-backend {:email          "a@test.com"
+                                                                                  :email_verified true
+                                                                                  :realm_access   {:roles ["myrole"]}})
                                                      (tu/restricted-access "myrole")))
         app              (mw-stack (fn [req]
                                      (reset! captured-request req)
@@ -126,8 +128,22 @@
                  :body   {:foo "bar"}}
                 (app (-> (mock/request :get "/")
                          (mock/header "Authorization" "Bearer x")))))
-    (is (match? {:identity {:type :unverified-user :roles #{"myrole"}}}
+    (is (match? {:identity {:type :verified-user :roles #{"myrole"}}}
                 @captured-request))))
+
+(deftest auth-stack-unverified-user-test
+  (let [captured-request (atom nil)
+        mw-stack         (apply comp (sut/auth-stack (bb/authenticated-backend {:realm_access {:roles ["myrole"]}})
+                                                     (tu/restricted-access "myrole")))
+        app              (mw-stack (fn [req]
+                                     (reset! captured-request req)
+                                     {:status 200
+                                      :body   {:foo "bar"}}))]
+    (testing "An unverified user is rejected even with the correct role"
+      (is (match? {:status 401}
+                  (app (-> (mock/request :get "/")
+                           (mock/header "Authorization" "Bearer x")))))
+      (is (nil? (:identity @captured-request))))))
 
 (deftest wrap-bind-user-context-verified-user-test
   (let [captured-user-context (atom :not-set)

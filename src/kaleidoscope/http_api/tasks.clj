@@ -62,7 +62,7 @@
                                positions  (:body parameters)]
                            (if (nil? (tasks-api/reorder-tasks!
                                       (:database components) project-id user-id positions))
-                             (not-found {:reason "Project not found"})
+                             (not-found {:reason "Project not found, or one or more tasks do not belong to it"})
                              {:status 204})))}}]
 
    ;; --- Task generation (SSE) ---

@@ -86,12 +86,13 @@
 
 (defn bulk-reorder!
   "Update positions for multiple tasks in a single transaction.
-   positions is a seq of {:id uuid :position int}."
+   positions is a seq of {:id uuid :position int}. Returns the updated rows."
   [db positions]
   (let [now (utils/now)]
     (next/with-transaction [tx db]
-      (doseq [{:keys [id position]} positions]
-        (rdbms/update! tx :project-tasks {:id id :position position :updated-at now})))))
+      (mapv (fn [{:keys [id position]}]
+              (first (rdbms/update! tx :project-tasks {:id id :position position :updated-at now})))
+            positions))))
 
 (defn bulk-create-tasks!
   "Insert multiple tasks in a transaction, assigning sequential positions

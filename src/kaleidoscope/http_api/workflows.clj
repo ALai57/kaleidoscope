@@ -30,25 +30,28 @@
 
     ["" {:get {:summary "Get a workflow with its steps"
                :handler (fn [{:keys [components parameters] :as request}]
-                          (let [workflow-id (:workflow-id (:path parameters))]
+                          (let [user-id     (:user-id (:identity request))
+                                workflow-id (:workflow-id (:path parameters))]
                             (if-let [wf (workflows-api/get-workflow
-                                         (:database components) workflow-id)]
+                                         (:database components) user-id workflow-id)]
                               (ok wf)
                               (not-found {:reason "Workflow not found"}))))}
 
          :put {:summary "Update a workflow (status, name, description, steps)"
                :handler (fn [{:keys [components body-params parameters] :as request}]
-                          (let [workflow-id (:workflow-id (:path parameters))]
+                          (let [user-id     (:user-id (:identity request))
+                                workflow-id (:workflow-id (:path parameters))]
                             (if-let [wf (workflows-api/update-workflow!
-                                         (:database components) workflow-id body-params)]
+                                         (:database components) user-id workflow-id body-params)]
                               (ok wf)
                               (not-found {:reason "Workflow not found"}))))}
 
          :delete {:summary "Delete a workflow (blocked if is_default=true)"
                   :handler (fn [{:keys [components parameters] :as request}]
-                             (let [workflow-id (:workflow-id (:path parameters))
+                             (let [user-id     (:user-id (:identity request))
+                                   workflow-id (:workflow-id (:path parameters))
                                    result      (workflows-api/delete-workflow!
-                                                (:database components) workflow-id)]
+                                                (:database components) user-id workflow-id)]
                                (cond
                                  (:error result) (case (:error result)
                                                    :cannot-delete-default
