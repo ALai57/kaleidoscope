@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "checkly": {
+      "source": "checkly/checkly-cli",
+      "sourceType": "github",
+      "skillPath": "skills/checkly/SKILL.md",
+      "computedHash": "0ec85be1d417fa649bd299fc9e06a3c199d234350db783c39b3403ab8de79e98"
+    }
+  }
+}
