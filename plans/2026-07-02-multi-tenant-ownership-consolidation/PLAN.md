@@ -90,22 +90,58 @@ the inventory by grepping every `rdbms/update!` / `rdbms/delete!` (and
 confirm each one is either preceded by or fused with a scoping check, rather
 than re-skimming per-file.
 
+### Second audit gap found while re-deriving the inventory (fixed 2026-07-03)
+
+Doing exactly what the note above asked — grepping every mutation call site
+directly instead of re-skimming per-file — turned up a gap more severe than
+the themes one: every function in `api/workflows.clj` that takes a `run-id`
+or `step-run-id` (`get-workflow-run`, `update-run-mode!`, `get-run-rounds`,
+`advance-step!`, `skip-step!`, `force-proceed!`, `run-custom-step!`,
+`respond-to-step!`) verified that the caller owned `project-id`, then
+fetched/mutated `run-id`/`step-run-id` **with no check that the run or step
+actually belonged to that project**. Since the HTTP routes
+(`/projects/:project-id/workflow-runs/:run-id[/steps/:step-run-id/...]`)
+take both IDs straight from the URL, any authenticated writer who owned *any
+one project* could substitute another user's `run-id` and get full read/write
+access to that run — reading step outputs and scores, advancing it, skipping
+steps, force-proceeding it, or answering its clarify prompts. This is broader
+than the earlier Pattern A/B findings: it's a read leak, not just a write bug,
+and it sat in the busiest, most actively-developed file in the codebase.
+
+This is the same *shape* as §4b's "child resources are a different shape"
+note below, but it's not just an architectural mismatch to design around —
+`api/tasks.clj`'s `update-task!`/`delete-task!` show the correct fix already
+existed two files over (re-check `(= (:project-id child) project-id)` after
+the project-ownership gate) and simply hadn't been applied here. Fixed by
+adding `get-owned-run`/`owned-step-run` helpers in `api/workflows.clj` that
+re-verify the run belongs to `project-id` and the step-run belongs to
+`run-id` before any read or mutation proceeds; cross-project regression tests
+added in `workflow-run-project-scoping-test`
+(`test/kaleidoscope/api/workflows_test.clj`). `update-skill!`
+(`persistence/projects.clj`) has the identical shape (`project-id` param
+accepted, never used in the `WHERE`) but is structurally blocked from a
+targeted fix the same way `update-project!` is — `rdbms/update!` only ever
+filters by `:id` — so it's left for step 3's `scoped-update!` primitive
+rather than patched ad hoc; added to the inventory below.
+
 ## Call-site inventory (from survey)
 
 | File | Resource | Pattern |
 |---|---|---|
 | `api/projects.clj` (13 sites) | project | A |
-| `api/tasks.clj` (6 sites) | project | A |
-| `api/workflows.clj` (11 sites, project/run-scoped ops) | project | A |
+| `api/projects.clj` (`update-skill!`) | skill (child of project) | **A — confirmed, unfixed, blocked on step 3** |
+| `api/tasks.clj` (6 sites) | project | A (verified correct — task-level re-check already in place) |
+| `api/workflows.clj` (11 sites, project-scoped ops) | project | A |
+| `api/workflows.clj` (run-id/step-run-id ops, 8 fns) | workflow-run / step-run | **none — fixed 2026-07-03, see above** |
 | `api/workflows.clj` (get/update/delete-workflow) | workflow | B |
 | `api/score_definitions.clj` (get/update/delete) | score-definition | B |
 | `api/agents.clj` (update-agent-definition!) | agent-definition | B |
 | `api/groups.clj` (`owns?`) | group | C |
 | `api/themes.clj` (`owns?`, delete only) | theme | C |
-| `api/themes.clj` (`update-theme!`) | theme | **none — fixed, see below** |
+| `api/themes.clj` (`update-theme!`) | theme | **none — fixed, see above** |
 
 Roughly 30+ call sites across 7 files. This table should be treated as a
-starting point, not ground truth — see "Audit gap found during review" above.
+starting point, not ground truth — see the two audit-gap notes above.
 
 ## Identity threading (unaffected by this change)
 
@@ -299,9 +335,12 @@ user's row, with nothing put in its place. Decide one of:
   `WHERE id=? AND (owner_id=? OR ?is-admin)`, and callers pass whether the
   resolved identity holds the site's admin role.
 
-Either is defensible; the plan currently doesn't say which, so this should be
-resolved before implementation rather than defaulting to "no override" by
-omission.
+**Decided 2026-07-03: no admin override.** Ownership is owner-only, always —
+an admin can reach the route (Model 1 lets them in) but the SQL where clause
+still excludes them if they're not the owner. `scoped-update!`/`get-owned`
+(§2) do not take an `:allow-admin?` flag. Admin moderation of another user's
+row requires direct DB access; if that becomes a real product need later,
+it's a deliberate follow-up, not an implicit default.
 
 ### Gap: themes need a compound ownership key, not just `owner-id`
 
@@ -441,6 +480,47 @@ worth the same "grep every mutation call site" pass from the audit-gap note),
 or state explicitly that they're out of scope and why, rather than leaving
 them unmentioned.
 
+**This is not hypothetical — it already bit workflow runs, fixed 2026-07-03.**
+`api/workflows.clj`'s run-id/step-run-id functions were doing this "nested
+identity" pattern *incompletely*: they checked the outer hop (`project-id`
+owned by caller) but never the inner one (`run-id`/`step-run-id` actually
+belongs to that `project-id`). `api/tasks.clj` shows the pattern done
+correctly. See the "Second audit gap" note earlier in this document — the fix
+(`get-owned-run`/`owned-step-run` in `api/workflows.clj`) re-verifies the
+inner hop before every read/mutation, and should be treated as the reference
+implementation for whatever this section decides for notes/skills/
+conversations/section-questions, whether that's the same standalone-helper
+approach or a `project-id`-scoped variant of the shared primitive from step 3.
+
+**Decided 2026-07-03: notes/conversations are out of scope (no bug found);
+skills was in scope and is fixed.** Audited each remaining child resource in
+`api/projects.clj`:
+
+- `get-notes`/`create-note!`, `get-conversation`/`save-conversation-turn!` —
+  these mutate by *inserting new rows* tagged with `project-id`, never by
+  updating/deleting an existing row by its own id. There's no row to steal:
+  a caller can't overwrite someone else's note by guessing a note-id, because
+  nothing is ever looked up or mutated by note-id in the first place. The
+  only exposure would be writing junk rows into a project the caller doesn't
+  own, and every production call site (`http_api/projects.clj`) already
+  gates on `get-project` before reaching the insert (the same shape
+  `api/tasks.clj` uses correctly) — `save-conversation-turn!`'s own `user-id`
+  param is unused, same look as Pattern A, but there's no scoped-mutation fix
+  to apply here because there's no existing row being reached into. Leaving
+  as-is; this is the "defensible pattern" case, not a gap.
+- `update-skill!` — this one *does* mutate an existing row by id
+  (`skill-id`), which is exactly the shape that bit workflow runs. Already
+  found and fixed in step 4 (`persistence/projects.clj`'s `update-skill!`
+  now scopes by `{:id skill-id :project-id project-id}`).
+- `get-section-questions` — read-only generation, no persistence at all.
+  Nothing to scope.
+
+Net: child resources didn't need a wholesale migration onto a
+`project-id`-scoped primitive variant. The one real instance of the gap
+(`update-skill!`) is fixed; everything else in this shape was never
+reachable the way `update-skill!`/run-id/step-run-id were, because there's
+no existing-row lookup-by-child-id to smuggle a foreign id past.
+
 ### 5. Tests
 
 Add a "cross-tenant" assertion per resource type — user B's requests against
@@ -484,18 +564,21 @@ an auth refactor otherwise.
    and where-map shape in step 3 — retrofitting an admin bypass after
    domains have already migrated onto a fixed-shape primitive means
    revisiting every call site a second time.
-2. Fix the in-flight WIP (`score_definitions.clj`, `workflows.clj`) to use
-   the new scoped-mutation primitive instead of the fetch-then-compare
-   pattern it currently adds.
-3. Extend `persistence/rdbms.clj` with `scoped-update!`/`scoped-delete!`, and
+2. Extend `persistence/rdbms.clj` with `scoped-update!`/`scoped-delete!`, and
    design the resource-spec data table (§2) alongside it rather than as a
    follow-up — the generic `get-owned`/`update-owned!`/`delete-owned!` should
    land in the same change as the primitive, not be retrofitted later. Build
-   in, from the start: the admin-override mechanism decided in step 1, and a
-   compound scoping key (`:owner-col` + optional `:site-col`) so `themes` can
-   bind `:site-col` to the request's `server-name` (see "Gap: themes need a
-   compound ownership key") rather than being force-fit into a single-column
-   spec later.
+   in, from the start: **no admin-override path** (decided in step 1 —
+   ownership is owner-only, always; the primitive doesn't take an
+   `:allow-admin?` flag), and a compound scoping key (`:owner-col` + optional
+   `:site-col`) so `themes` can bind `:site-col` to the request's
+   `server-name` (see "Gap: themes need a compound ownership key") rather
+   than being force-fit into a single-column spec later.
+3. Fix the in-flight WIP (`score_definitions.clj`, `workflows.clj`) to use
+   the primitive from step 2 instead of the fetch-then-compare pattern it
+   currently adds. (Corrected order: the primitive has to exist before
+   anything can migrate onto it — the original numbering here had this
+   backwards.)
 4. Migrate `projects.clj` (fix the dead `user-id` param in
    `update-project!`/`delete-project!`).
 5. Migrate `groups.clj`/`themes.clj` onto the same primitive, deleting their
@@ -519,3 +602,105 @@ an auth refactor otherwise.
      still fail (no-override case), or an admin's request is confirmed to
      succeed while a same-role non-admin's request against the same row
      fails (override case).
+
+## Implementation log
+
+Steps 0–5 are done, full suite green after each. Notable deviations from the
+plan as originally written:
+
+- **Steps 2/3 were reordered.** The original numbering had "fix the WIP" before
+  "build the primitive," which is backwards — you can't migrate onto
+  something that doesn't exist yet. Corrected in the sequencing above.
+- **`scoped-update!`/`scoped-delete!`** landed in `persistence/rdbms.clj`
+  alongside `update!`/`delete!`, same shape (where-map instead of bare id).
+  Required an H2-specific `scoped-update-impl!` override
+  (`persistence/rdbms/embedded_h2_impl.clj`) mirroring the existing
+  `update-impl!` override — H2 doesn't support `UPDATE ... RETURNING`, only
+  `SELECT * FROM FINAL TABLE (...)`. Caught by testing the primitive
+  directly against both backends before migrating any domain onto it
+  (`test/kaleidoscope/persistence/ownership_test.clj`) — the single-column
+  tests only ran against Postgres and would have shipped an H2 dialect bug
+  silently.
+- **`delete-owned!`'s return value required a design change mid-flight.**
+  Postgres returns the deleted row via an automatic `RETURNING` when
+  `:return-keys true`; H2 returns an empty result *regardless of whether a
+  row matched*. A boolean success signal can't be derived from the DELETE
+  statement's own return value on H2, so `delete-owned!` checks existence
+  via a scoped read first, then deletes — the read is not load-bearing for
+  security (the DELETE's WHERE clause is safe either way), only for giving
+  callers an honest true/false.
+- **`get-owned` vs `update-owned!`/`delete-owned!` treat a missing `site`
+  differently, on purpose.** `get-owned`'s 4-arity (no site) does a
+  global, site-agnostic lookup — needed for `owns?`-style predicates that
+  intentionally don't care which site a theme belongs to. But the same
+  "just omit it" shape on a *mutation* is a footgun: silently matching
+  `site_col IS NULL` (no real row) rather than raising. `update-owned!`/
+  `delete-owned!` now throw (`require-site!`) if called against a
+  site-scoped resource with no site — the omission has to be a decision,
+  not a default.
+- **`persistence/projects.clj`'s `update-skill!` fixed as part of step 4**,
+  not deferred — the primitive it was blocked on now exists. Scoped to
+  `{:id skill-id :project-id project-id}`; regression test added
+  (`test/kaleidoscope/api/projects_test.clj`).
+- **Themes' `update-theme!`/`delete-theme!` signatures changed** to take
+  `site` as an explicit parameter (`[db requester-id site theme]` /
+  `[db requester-id site theme-id]`) rather than deriving it from the theme
+  payload map — deriving it from the payload breaks on partial updates that
+  don't include `:hostname`, which the existing api-layer tests already did
+  (they only send changed fields). `http_api/themes.clj` now threads
+  `(hu/get-host request)` through explicitly on both routes.
+- **`delete-group!`/`delete-theme!`'s success return value changed** from
+  the old raw `rdbms/delete!` result (`[]` on H2, meaningless — it returns
+  `[]` whether or not anything matched) to a clean `true`. One existing
+  assertion (`test/kaleidoscope/api/groups_test.clj`) was asserting the old
+  `[]` shape and has been updated; it was checking "didn't throw," not
+  "actually deleted."
+- **`api/groups.clj`'s `get-owner`, `api/themes.clj`'s `get-owner`, and
+  `persistence/agents.clj`'s `get-agent-definition`** were deleted as dead
+  code once their only callers (the hand-rolled `owns?`/fetch-then-compare
+  checks they supported) were replaced.
+
+**Steps 6–8 are also done, full suite green (116 tests, 642 assertions).**
+
+- **Step 6 (response contract):** applied the plan's own recommendation —
+  `projects`/`workflows`/`score-definitions`/`agents` already returned 404
+  uniformly; only `groups.clj` (delete) and `themes.clj` (update, delete)
+  used 401, confirming the plan's prediction that themes was "the outlier to
+  fix." Changed those three call sites to `not-found`, updated the two
+  existing test assertions that pinned the old 401, and added
+  `hu/openapi-404` to the affected route docs alongside the existing
+  `openapi-401` (a route can still 401 for missing/invalid auth — 404 is now
+  additionally possible for the ownership case).
+- **Step 7 (child resources):** audited notes/conversations/skills/section-
+  questions. Notes and conversations only ever *insert* new rows tagged with
+  an already-verified `project-id` — there's no existing-row lookup by child
+  id to smuggle a foreign id past, so the gap that hit workflow runs and
+  skills structurally can't occur there. Section-questions has no
+  persistence at all. Skills was the one real instance and was already fixed
+  in step 4. Conclusion: no wholesale migration needed: see the "Decided
+  2026-07-03" note under §4b for the per-resource breakdown.
+- **Step 8 (tests):** added `test/kaleidoscope/api/projects_test.clj` (didn't
+  exist — this is the resource the plan's original Pattern A bug came from)
+  and `test/kaleidoscope/api/agents_test.clj` (also didn't exist). The
+  cross-site theme test and the admin-override test both landed as
+  annotations on *existing* HTTP-level tests rather than new ones, because
+  of a discovery worth flagging: `KALEIDOSCOPE_AUTH_TYPE=custom-authenticated-user`
+  (`init/env.clj`) grants the base test identity `<site>:admin` on every
+  configured site, and the "Bearer user X" override used throughout
+  `kaleidoscope_test.clj` to simulate a second user only replaces
+  `:sub`/`:email` — it never touches `:realm_access`. So every "different
+  user" identity in that file already holds admin on the site being tested.
+  Every existing cross-tenant assertion in that file was already, silently,
+  an admin-override test; they're now commented to say so explicitly. Added
+  one new HTTP-level test (same owner, two different Host headers) as the
+  end-to-end proof of the cross-site theme fix, alongside the api-level one
+  from step 5.
+- **Found, not fixed (out of scope):** `api/agents.clj`'s
+  `seed-default-agent-definitions!` uses raw `ON CONFLICT ... DO NOTHING`
+  SQL that H2 doesn't support in this compatibility mode — never exercised
+  by any test before `agents_test.clj` was added here, because no prior test
+  called `get-agent-definitions` (which seeds on every call) against H2.
+  `agents_test.clj` routes around it by reading through
+  `persistence.agents/get-agent-definitions` directly. This is a real bug,
+  but it's a dialect-portability issue in seeding logic, unrelated to
+  ownership — worth its own fix, not folded into this plan.
