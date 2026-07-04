@@ -92,22 +92,44 @@
   (next/execute! conn stmt {:return-keys true
                             :builder-fn  rs/as-unqualified-kebab-maps}))
 
+(defn- wrap-sql-exceptions
+  "Runs `thunk`, rethrowing any PSQLException as a :PersistenceException
+  carrying `table` and the driver's SQLState. Every query in this namespace
+  funnels through a handful of shared call sites, so without this, Bugsnag's
+  frame-based grouping lumps together completely unrelated SQL errors (wrong
+  table, bad types, timeouts, ...) as a single 'error' just because they
+  bubbled up through the same line - see kaleidoscope.clients.bugsnag, which
+  reads :table/:sql-state back out to give each a distinct grouping hash."
+  [table query-data thunk]
+  (try+
+   (thunk)
+   (catch org.postgresql.util.PSQLException e
+     (log/errorf "Caught PSQLException querying `%s`: %s" table e)
+     (throw+ {:type      :PersistenceException
+              :table     table
+              :sql-state (.getSQLState e)
+              :message   {:data query-data :reason (.getMessage e)}}))))
+
 (defn find-by-keys
   ([database table query-map]
    (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
-     (next.sql/find-by-keys database
-                            (csk/->snake_case_keyword table)
-                            (cske/transform-keys csk/->snake_case_keyword query-map)
-                            {:builder-fn rs/as-unqualified-kebab-maps}))))
+     (wrap-sql-exceptions
+      table query-map
+      #(next.sql/find-by-keys database
+                              (csk/->snake_case_keyword table)
+                              (cske/transform-keys csk/->snake_case_keyword query-map)
+                              {:builder-fn rs/as-unqualified-kebab-maps})))))
 
 (defn make-finder
   [table]
   (fn getter
     ([database]
      (span/with-span! {:name (format "kaleidoscope.db.get.%s" table)}
-       (next/execute! database
-                      [(format "SELECT * FROM %s" (csk/->snake_case_string table))]
-                      {:builder-fn rs/as-unqualified-kebab-maps})))
+       (wrap-sql-exceptions
+        table nil
+        #(next/execute! database
+                        [(format "SELECT * FROM %s" (csk/->snake_case_string table))]
+                        {:builder-fn rs/as-unqualified-kebab-maps}))))
     ([database query-map]
      (span/with-span! {:name (format "kaleidoscope.db.get2.%s" table)}
        (let [[[where-in-key where-in-vals] :as where-ins] (filter (fn [[k v]]
@@ -116,11 +138,13 @@
            (empty? query-map)      (getter database)
            (= 0 (count where-ins)) (find-by-keys database table query-map)
            (= 1 (count where-ins)) (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
-                                     (next/execute! database
-                                                    (hsql/format {:select :*
-                                                                  :from   table
-                                                                  :where  [:in where-in-key where-in-vals]})
-                                                    {:builder-fn rs/as-unqualified-kebab-maps}))
+                                     (wrap-sql-exceptions
+                                      table query-map
+                                      #(next/execute! database
+                                                      (hsql/format {:select :*
+                                                                    :from   table
+                                                                    :where  [:in where-in-key where-in-vals]})
+                                                      {:builder-fn rs/as-unqualified-kebab-maps})))
            :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported" {}))))))))
 
 (defmulti insert-impl!
@@ -143,14 +167,17 @@
      (insert-impl! database table m)
      (catch org.postgresql.util.PSQLException e
        (log/errorf "Caught Exception while inserting: %s" e)
-       (throw+ (merge {:type    :PersistenceException
-                       :message {:data   (select-keys m [:username :email])
-                                 :reason (.getMessage e)}}
+       (throw+ (merge {:type      :PersistenceException
+                       :table     table
+                       :sql-state (.getSQLState e)
+                       :message   {:data   (select-keys m [:username :email])
+                                   :reason (.getMessage e)}}
                       (when ex-subtype
                         {:subtype ex-subtype}))))
      (catch Object e
        (log/errorf "Caught Exception while inserting: %s" e)
        (throw+ (merge {:type    :PersistenceException
+                       :table   table
                        :message {:data   (select-keys m [:username :email])
                                  :reason (if (map? e)
                                            e
@@ -173,7 +200,7 @@
 
 (defn update! [database table {:keys [id] :as m} & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
-    (update-impl! database table m)))
+    (wrap-sql-exceptions table {:id id} #(update-impl! database table m))))
 
 (defmulti scoped-update-impl!
   (fn [database table where-map set-map]
@@ -195,7 +222,7 @@
   itself, not by a preceding check that can be skipped."
   [database table where-map set-map & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.scoped-update.%s" table)}
-    (scoped-update-impl! database table where-map set-map)))
+    (wrap-sql-exceptions table where-map #(scoped-update-impl! database table where-map set-map))))
 
 (defn scoped-delete!
   "Like `delete!`, but scopes the WHERE clause to every key in `where-map`
@@ -212,9 +239,11 @@
                              (hh/where (into [:and] (map (fn [[k v]] [:= k v])) where-map))
                              hsql/format))
      (catch org.postgresql.util.PSQLException e
-       (throw+ (merge {:type    :PersistenceException
-                       :message {:data   where-map
-                                 :reason (.getMessage e)}}
+       (throw+ (merge {:type      :PersistenceException
+                       :table     table
+                       :sql-state (.getSQLState e)
+                       :message   {:data   where-map
+                                   :reason (.getMessage e)}}
                       (when ex-subtype
                         {:subtype ex-subtype})))))))
 
@@ -227,9 +256,11 @@
                                                   [ids])])
                              hsql/format))
      (catch org.postgresql.util.PSQLException e
-       (throw+ (merge {:type    :PersistenceException
-                       :message {:data   ids
-                                 :reason (.getMessage e)}}
+       (throw+ (merge {:type      :PersistenceException
+                       :table     table
+                       :sql-state (.getSQLState e)
+                       :message   {:data   ids
+                                   :reason (.getMessage e)}}
                       (when ex-subtype
                         {:subtype ex-subtype})))))))
 
