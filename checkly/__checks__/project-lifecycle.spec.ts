@@ -7,7 +7,7 @@ const AUDIENCE    = 'https://api.andrewslai.com'
 let projectId: string | null = null
 let authHeaders: Record<string, string> = {}
 
-test.beforeAll(async ({ request }) => {
+test.beforeAll('Log in as the synthetic test user', async ({ request }) => {
   const tokenRes = await request.post(`https://${AUTH0_DOMAIN}/oauth/token`, {
     data: {
       grant_type:    'client_credentials',
@@ -16,13 +16,13 @@ test.beforeAll(async ({ request }) => {
       audience:      AUDIENCE,
     },
   })
-  expect(tokenRes.status(), 'Auth0 token request failed').toBe(200)
+  expect(tokenRes.status(), 'The synthetic test user could not log in').toBe(200)
   const { access_token } = await tokenRes.json()
   authHeaders = { Authorization: `Bearer ${access_token}` }
 })
 
 // Always clean up, even if assertions fail mid-test.
-test.afterAll(async ({ request }) => {
+test.afterAll('Delete the synthetic test project if one remains', async ({ request }) => {
   if (projectId) {
     await request.delete(`${BASE_URL}/projects/${projectId}`, { headers: authHeaders })
   }
