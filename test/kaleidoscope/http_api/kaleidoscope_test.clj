@@ -207,6 +207,27 @@
                                     :request-method :get
                                     :headers        {}})))))))
 
+(deftest auth-runs-before-coercion-test
+  ;; 2026-07-04 production incident: POST /workflows requires a :name field
+  ;; in its body. An unauthenticated request with no/invalid body was being
+  ;; rejected by Malli coercion (400) before it ever reached the access-rules
+  ;; check that should return 401 - coercion ran before auth in the
+  ;; middleware chain. Any protected write route with a required body field
+  ;; had the same hole. Fixed by moving the auth stack before
+  ;; `coercion-middleware` in `kaleidoscope-app`.
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+    (testing "An unauthenticated request with a body that fails schema validation still gets 401, not 400"
+      (is (match? {:status 401}
+                  (app (-> (mock/request :post "https://andrewslai.com/workflows")
+                           (mock/json-body {}))))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test of Blogging API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

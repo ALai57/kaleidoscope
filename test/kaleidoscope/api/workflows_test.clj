@@ -23,6 +23,30 @@
                   :agent-type  "coach"
                   :output-kind "text"}]})
 
+(deftest seed-default-workflows-reconciles-drifted-steps-test
+  ;; Production incident, 2026-06-30 through 2026-07-04: once a default
+  ;; workflow's stored steps drifted from its current code definition,
+  ;; `seed-default-workflows!` called `persistence/update-workflow!` with the
+  ;; wrong arity (missing user-id), so every subsequent call - including the
+  ;; one triggered by every `POST /projects` via `start-default-workflow!` -
+  ;; threw an ArityException. The blanket exception handler in
+  ;; `http-api/projects.clj` then surfaced this as an opaque 400.
+  (let [database (embedded-postgres/fresh-db!)
+        user-id  "drifted-user@example.com"]
+    (workflows/seed-default-workflows! database user-id)
+    (let [live-default (->> (workflows-persistence/get-workflows database user-id)
+                            (filter :is-default)
+                            first)]
+      ;; Force a drift: overwrite the stored steps so they no longer match
+      ;; `feature-development-workflow`/`autonomous-team-review-workflow`,
+      ;; simulating a default workflow definition changing in code without a
+      ;; corresponding DB migration for already-seeded users.
+      (workflows/update-workflow! database user-id (:id live-default) {:steps []})
+
+      (testing "Re-seeding reconciles the drift instead of throwing"
+        (workflows/seed-default-workflows! database user-id)
+        (is (seq (:steps (workflows/get-workflow database user-id (:id live-default)))))))))
+
 (deftest workflow-ownership-test
   (let [database   (embedded-postgres/fresh-db!)
         owner-id   "owner@example.com"

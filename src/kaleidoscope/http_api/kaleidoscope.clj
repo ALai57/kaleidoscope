@@ -189,13 +189,14 @@
   ([]
    (kaleidoscope-app {}))
   ([components]
-   (let [reitit-config (update-in mw/reitit-configuration
-                                  [:data :middleware]
-                                  (fn [mw]
-                                    (concat mw [(mw/wrap-exception-reporter (:exception-reporter components))
-                                                (inject-components components)
-                                                (:session-tracking components)
-                                                (:auth-stack components)])))]
+   (let [reitit-config (assoc-in mw/reitit-configuration
+                                 [:data :middleware]
+                                 (concat mw/base-middleware
+                                         [(mw/wrap-exception-reporter (:exception-reporter components))
+                                          (inject-components components)
+                                          (:session-tracking components)
+                                          (:auth-stack components)]
+                                         mw/coercion-middleware))]
      (ring/ring-handler
       (ring/router
        [

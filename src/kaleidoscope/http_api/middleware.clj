@@ -258,6 +258,37 @@
                   (span/with-span! {:name (format "kaleidoscope.mw.force-uri")}
                     (handler (if uri (assoc request :uri uri) request))))))})
 
+(def base-middleware
+  "Request setup shared by every route, applied before auth and before
+  coercion. Kept separate from `coercion-middleware` so `kaleidoscope-app`
+  can splice the auth stack in between the two — auth must run before body
+  coercion, otherwise an unauthenticated request with a missing/invalid body
+  gets rejected by Malli (400) before it ever reaches the access-rules check
+  that should return 401."
+  [wrap-add-http-spans
+   wrap-force-host
+   wrap-force-uri
+   wrap-rate-limit
+   wrap-gzip
+   wrap-content-type
+
+   wrap-request-identifier
+   wrap-trace
+   wrap-multipart-params
+   log-request!
+
+   parameters/parameters-middleware ;; Add :query-params and :form-params (if url-encoded body), and params (merged)
+   muuntaja/format-middleware       ;; Add :body-params
+
+   openapi/openapi-feature])
+
+(def coercion-middleware
+  "Must run after authentication/access-rules - see `base-middleware`."
+  [rrc/coerce-exceptions-middleware ;; Coerce malli/Coercion objects
+   rrc/coerce-request-middleware    ;; Add :parameters
+   rrc/coerce-response-middleware   ;; ?
+   ])
+
 (def reitit-configuration
   "Router data affecting all routes"
   {;;:reitit.middleware/transform dev/print-request-diffs
@@ -265,27 +296,7 @@
 
    :data {:coercion   rcm/coercion
           :muuntaja   m/instance
-          :middleware [wrap-add-http-spans
-                       wrap-force-host
-                       wrap-force-uri
-                       wrap-rate-limit
-                       wrap-gzip
-                       wrap-content-type
-
-                       wrap-request-identifier
-                       wrap-trace
-                       wrap-multipart-params
-                       log-request!
-
-                       parameters/parameters-middleware ;; Add :query-params and :form-params (if url-encoded body), and params (merged)
-                       muuntaja/format-middleware       ;; Add :body-params
-
-                       openapi/openapi-feature
-
-                       rrc/coerce-exceptions-middleware ;; Coerce malli/Coercion objects
-                       rrc/coerce-request-middleware    ;; Add :parameters
-                       rrc/coerce-response-middleware   ;; ?
-                       ]}})
+          :middleware (concat base-middleware coercion-middleware)}})
 
 
 

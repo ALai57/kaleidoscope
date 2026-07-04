@@ -132,7 +132,7 @@
             (when (or step-diff flag-diff)
               (log/infof "Updating workflow '%s' for user %s (steps=%s is-default=%s)"
                          wf-name user-id step-diff flag-diff)
-              (persistence/update-workflow! db (:id existing-wf)
+              (persistence/update-workflow! db (:id existing-wf) user-id
                                             (cond-> {}
                                               step-diff (assoc :steps (:steps wf-def))
                                               flag-diff (assoc :is-default (:is-default wf-def))))))
