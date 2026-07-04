@@ -86,6 +86,12 @@
   [result]
   (= "NoSuchKey" (:cognitect.aws.error/code result)))
 
+(defn prefixed-key
+  "Combine an optional bucket-scoping prefix with a path, so many logical
+  environments can share one bucket. A nil prefix leaves the path unchanged."
+  [prefix path]
+  (if prefix (str prefix path) path))
+
 (defn copy-input-stream
   "Copy the S3 response stream into a byte array so the HTTP connection can
   be released immediately."
@@ -117,7 +123,7 @@
 ;; S3 filesystem record
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defrecord S3 [bucket client]
+(defrecord S3 [bucket prefix client]
   fs/DistributedFileSystem
   (ls [_ path options]
     (log/infof "S3 List Objects `%s/%s` with options %s" bucket path options)
@@ -136,7 +142,7 @@
     (span/with-span! {:name "kaleidoscope.s3.get"}
       (let [result (invoke-with-timeout client
                                         {:op      :GetObject
-                                         :request (cond-> {:Bucket bucket :Key path}
+                                         :request (cond-> {:Bucket bucket :Key (prefixed-key prefix path)}
                                                     (:version options) (assoc :IfNoneMatch (:version options)))})]
         (cond
           (= 304 (:cognitect.aws.http/status result)) fs/not-modified-response
@@ -151,7 +157,7 @@
     (span/with-span! {:name "kaleidoscope.s3.put"}
       (let [result (invoke-with-timeout client
                                         {:op      :PutObject
-                                         :request (merge {:Bucket bucket :Key path :Body input-stream}
+                                         :request (merge {:Bucket bucket :Key (prefixed-key prefix path) :Body input-stream}
                                                          (prepare-metadata metadata))})]
         (if (:cognitect.anomalies/category result)
           (do (log/error "Could not put object" result)

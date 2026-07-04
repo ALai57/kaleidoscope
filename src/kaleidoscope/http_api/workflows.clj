@@ -4,6 +4,30 @@
             [ring.util.http-response :refer [conflict not-found ok]]
             [taoensso.timbre :as log]))
 
+;; Each step position runs at least one Claude call, and parallel steps fan
+;; out into concurrent calls (see api.workflows/run-parallel-steps!) — this
+;; caps the worst-case cost/fan-out of a single user-defined workflow.
+;; Execution-mode/output-kind are restricted to the values the execution
+;; engine actually dispatches on; anything else is silently inert there but
+;; rejecting it here is cheaper than debugging a step that never runs.
+(def WorkflowStep
+  [:map
+   [:name [:string {:min 1 :max 200}]]
+   [:description {:optional true} [:string {:max 2000}]]
+   [:position {:optional true} :int]
+   [:agent-type {:optional true} [:string {:max 100}]]
+   [:output-kind {:optional true} [:enum "clarify" "text" "score" "decision" "tasks"]]
+   [:execution-mode {:optional true} [:enum "sequential" "parallel" "fan_in"]]
+   [:loop-until {:optional true} [:maybe [:string {:max 200}]]]
+   [:requires {:optional true} [:vector [:string {:max 100}]]]])
+
+(def WorkflowRequest
+  [:map
+   [:name [:string {:min 1 :max 200}]]
+   [:description {:optional true} [:string {:max 5000}]]
+   [:is-default {:optional true} :boolean]
+   [:steps {:optional true} [:vector {:max 20} WorkflowStep]]])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; /workflows  — CRUD
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -18,12 +42,18 @@
                          (ok (workflows-api/get-workflows (:database components)
                                                           (:user-id (:identity request)))))}
 
-        :post {:summary "Create a workflow"
-               :handler (fn [{:keys [components body-params] :as request}]
-                          (ok (workflows-api/create-workflow!
-                               (:database components)
-                               (:user-id (:identity request))
-                               body-params)))}}]
+        :post {:summary    "Create a workflow"
+               ;; Creating a workflow is cheap (no LLM call), but it defines
+               ;; how many Claude calls *running* it will make later — rate
+               ;; limit creation too so the step-count cap can't be
+               ;; sidestepped by rapidly creating many 20-step workflows.
+               :rate-limit {:max-requests 10 :window-ms 60000}
+               :parameters {:body WorkflowRequest}
+               :handler    (fn [{:keys [components parameters] :as request}]
+                             (ok (workflows-api/create-workflow!
+                                  (:database components)
+                                  (:user-id (:identity request))
+                                  (:body parameters))))}}]
 
    ["/:workflow-id"
     {:parameters {:path {:workflow-id :uuid}}}
@@ -71,7 +101,8 @@
 
    ;; --- Recommendation ---
    ["/workflow-recommendation"
-    {:post {:summary "Rank live workflows against this project"
+    {:post {:summary    "Rank live workflows against this project"
+            :rate-limit {:max-requests 10 :window-ms 60000}
             :handler (fn [{:keys [components parameters] :as request}]
                        (let [user-id    (:user-id (:identity request))
                              project-id (:project-id (:path parameters))
@@ -94,6 +125,7 @@
                               (not-found {:reason "Project not found"}))))}
 
          :post {:summary    "Start a new workflow run (body: {workflow_id?, mode, scrutiny?, target_score?})"
+                :rate-limit {:max-requests 5 :window-ms 60000}
                 :parameters {:body [:map
                                     [:workflow-id {:optional true} :uuid]
                                     [:mode {:optional true} [:enum "manual" "autonomous"]]
@@ -157,7 +189,8 @@
 
      ;; --- Force proceed ---
      ["/force-proceed"
-      {:post {:summary "Skip remaining advisor rounds and immediately generate tasks"
+      {:post {:summary    "Skip remaining advisor rounds and immediately generate tasks"
+              :rate-limit {:max-requests 10 :window-ms 60000}
               :handler (fn [{:keys [components parameters] :as request}]
                          (let [user-id    (:user-id (:identity request))
                                project-id (:project-id (:path parameters))
@@ -171,7 +204,11 @@
 
      ;; --- Advance (SSE) ---
      ["/advance"
-      {:post {:summary "Execute the current pending step (SSE). In autonomous mode, continues until all steps are done."
+      {:post {:summary    "Execute the current pending step (SSE). In autonomous mode, continues until all steps are done."
+              ;; Autonomous mode loops server-side through every remaining
+              ;; step on a single call, so this limit bounds how many such
+              ;; loops a caller can *start* per minute, not steps within one.
+              :rate-limit {:max-requests 10 :window-ms 60000}
               :handler (fn [{:keys [components parameters] :as request}]
                          (let [user-id    (:user-id (:identity request))
                                project-id (:project-id (:path parameters))
@@ -207,7 +244,8 @@
      ;; --- Respond to awaiting_input step ---
      ["/steps/:step-run-id/respond"
       {:parameters {:path {:project-id :uuid :run-id :uuid :step-run-id :uuid}}
-       :post {:summary "Submit answers for an awaiting_input step; appends answers to project.description and resumes the workflow"
+       :post {:summary    "Submit answers for an awaiting_input step; appends answers to project.description and resumes the workflow"
+              :rate-limit {:max-requests 10 :window-ms 60000}
               :handler (fn [{:keys [components body-params parameters] :as request}]
                          (let [user-id     (:user-id (:identity request))
                                project-id  (:project-id (:path parameters))
@@ -223,8 +261,13 @@
 
      ;; --- Custom step (SSE) ---
      ["/custom-step"
-      {:post {:summary "Inject and execute a custom ad-hoc step (SSE). Returns step_complete + recommendation events."
-              :handler (fn [{:keys [components body-params parameters] :as request}]
+      {:post {:summary    "Inject and execute a custom ad-hoc step (SSE). Returns step_complete + recommendation events."
+              :rate-limit {:max-requests 5 :window-ms 60000}
+              :parameters {:body [:map
+                                  [:name {:optional true} [:string {:max 200}]]
+                                  [:description {:optional true} [:string {:max 2000}]]
+                                  [:agent-type {:optional true} [:string {:max 100}]]]}
+              :handler (fn [{:keys [components parameters] :as request}]
                          (let [user-id    (:user-id (:identity request))
                                project-id (:project-id (:path parameters))
                                run-id     (:run-id (:path parameters))
@@ -235,7 +278,7 @@
                               (try
                                 (let [result (workflows-api/run-custom-step!
                                               db executor project-id user-id run-id
-                                              body-params
+                                              (:body parameters)
                                               output-stream)
                                       writer (java.io.OutputStreamWriter. output-stream "UTF-8")]
                                   (hu/write-sse-event! writer {:event "recommendation"

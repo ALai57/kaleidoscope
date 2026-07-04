@@ -67,7 +67,8 @@
 
    ;; --- Task generation (SSE) ---
    ["/generate"
-    {:post {:summary "Generate tasks and append them to the task list (SSE)"
+    {:post {:summary    "Generate tasks and append them to the task list (SSE)"
+            :rate-limit {:max-requests 10 :window-ms 60000}
             :handler (fn [{:keys [components parameters] :as request}]
                        (let [user-id    (:user-id (:identity request))
                              project-id (:project-id (:path parameters))

@@ -325,20 +325,31 @@
     (.write writer (str "data: " (json/encode data) "\n\n"))
     (.flush writer)))
 
+;; http_api.workflows/WorkflowStep caps a single workflow definition at 20
+;; steps, but that's a defense at creation time only — this is a second,
+;; independent cap at the point Claude calls actually fire, so a workflow
+;; row created before the cap existed (or via any future path that bypasses
+;; the HTTP schema) still can't fan out into unbounded concurrent Opus calls.
+(def max-concurrent-parallel-steps
+  10)
+
 (defn- run-parallel-steps!
-  "Launch all parallel step runs as concurrent futures. Waits for all to complete.
-   Failures are caught per-future and logged; the fan_in step will receive failure sentinels."
+  "Launch parallel step runs as concurrent futures, in batches capped at
+   max-concurrent-parallel-steps. Waits for each batch to complete before
+   starting the next. Failures are caught per-future and logged; the
+   fan_in step will receive failure sentinels."
   [executor db project par-steps output-stream]
-  (let [futures (mapv (fn [step-run]
-                        (future
-                          (try
-                            (wf-protocol/execute-step! executor db project step-run output-stream)
-                            (catch Exception e
-                              (log/errorf "Parallel step %s (%s) failed: %s"
-                                          (:id step-run) (:agent-type step-run) e)
-                              nil))))
-                      par-steps)]
-    (doseq [f futures] @f)))
+  (doseq [batch (partition-all max-concurrent-parallel-steps par-steps)]
+    (let [futures (mapv (fn [step-run]
+                          (future
+                            (try
+                              (wf-protocol/execute-step! executor db project step-run output-stream)
+                              (catch Exception e
+                                (log/errorf "Parallel step %s (%s) failed: %s"
+                                            (:id step-run) (:agent-type step-run) e)
+                                nil))))
+                        batch)]
+      (doseq [f futures] @f))))
 
 (defn- ensure-initial-brief!
   "Create the initial brief (version 1) from project.description if no brief exists yet."

@@ -1,5 +1,8 @@
 (ns kaleidoscope.persistence.filesystem.s3-impl-test
-  (:require [kaleidoscope.persistence.filesystem.s3-impl :as sut]
+  (:require [clojure.java.io :as io]
+            [cognitect.aws.client.api :as aws]
+            [kaleidoscope.persistence.filesystem :as fs]
+            [kaleidoscope.persistence.filesystem.s3-impl :as sut]
             [kaleidoscope.test-main :as tm]
             [clojure.test :refer [is use-fixtures deftest testing]]
             [taoensso.timbre :as log]))
@@ -8,6 +11,39 @@
   (fn [f]
     (log/with-min-level tm/*test-log-level*
       (f))))
+
+(deftest prefixed-key-test
+  (testing "prepends a configured prefix to the path"
+    (is (= "eph-foo/index.html" (sut/prefixed-key "eph-foo/" "index.html"))))
+  (testing "leaves the path unchanged when there is no prefix"
+    (is (= "index.html" (sut/prefixed-key nil "index.html")))))
+
+(deftest get-file-and-put-file-apply-the-configured-prefix-test
+  (testing "get-file sends the prefixed key to S3, and unset prefix leaves it unchanged"
+    (let [requests (atom [])]
+      (with-redefs [aws/invoke (fn [_client op-map]
+                                 (swap! requests conj op-map)
+                                 {:ETag          "\"abc\""
+                                  :ContentType   "text/html"
+                                  :ContentLength 5
+                                  :Body          (io/input-stream (.getBytes "hello"))})]
+        (fs/get-file (sut/map->S3 {:bucket "kal-ephemeral" :prefix "eph-foo/" :client :fake-client}) "index.html" {})
+        (fs/get-file (sut/map->S3 {:bucket "andrewslai.com" :client :fake-client}) "index.html" {})
+        (is (= "eph-foo/index.html" (get-in (first @requests) [:request :Key])))
+        (is (= "index.html" (get-in (second @requests) [:request :Key]))))))
+
+  (testing "put-file sends the prefixed key to S3, and unset prefix leaves it unchanged"
+    (let [requests (atom [])]
+      (with-redefs [aws/invoke (fn [_client op-map]
+                                 (swap! requests conj op-map)
+                                 ;; Return an anomaly so put-file short-circuits without a follow-up get-file call
+                                 {:cognitect.anomalies/category :cognitect.anomalies/fault})]
+        (fs/put-file (sut/map->S3 {:bucket "kal-ephemeral" :prefix "eph-foo/" :client :fake-client})
+                     "index.html" (io/input-stream (.getBytes "hello")) {})
+        (fs/put-file (sut/map->S3 {:bucket "andrewslai.com" :client :fake-client})
+                     "index.html" (io/input-stream (.getBytes "hello")) {})
+        (is (= "eph-foo/index.html" (get-in (first @requests) [:request :Key])))
+        (is (= "index.html" (get-in (second @requests) [:request :Key])))))))
 
 (clojure.test/deftest no-such-key-test
   (clojure.test/testing "matches the cognitect AWS SDK error code for missing S3 keys"

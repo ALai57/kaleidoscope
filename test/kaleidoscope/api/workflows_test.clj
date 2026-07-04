@@ -3,6 +3,7 @@
             [kaleidoscope.api.workflows :as workflows]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
+            [kaleidoscope.workflows.protocol :as wf-protocol]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
 
@@ -90,3 +91,25 @@
     (testing "A user cannot skip a step-run that belongs to a different run than the one they passed,
               even when they own both the run-id and the project"
       (is (nil? (workflows/skip-step! database other-project-id other-id (:id other-run) step-run-id))))))
+
+;; #'workflows/run-parallel-steps! is private - this is a defense-in-depth
+;; cap applied at the point Claude calls actually fire (on top of the
+;; 20-step/HTTP-schema cap in http_api.workflows/WorkflowRequest), so it's
+;; worth verifying directly rather than only through the HTTP layer.
+(deftest run-parallel-steps-concurrency-cap-test
+  (let [in-flight     (atom 0)
+        max-observed  (atom 0)
+        fake-executor (reify wf-protocol/IWorkflowExecutor
+                        (execute-step! [_ _db _project _step-run _output-stream]
+                          (let [n (swap! in-flight inc)]
+                            (swap! max-observed max n)
+                            (Thread/sleep 20)
+                            (swap! in-flight dec)
+                            "ok"))
+                        (recommend-workflows [_ _project _live-workflows] []))
+        step-runs     (mapv (fn [i] {:id i :agent-type "coach"}) (range 25))]
+    (#'workflows/run-parallel-steps! fake-executor nil nil step-runs nil)
+    (testing "No more than max-concurrent-parallel-steps futures run at once, even with 25 steps"
+      (is (<= @max-observed workflows/max-concurrent-parallel-steps)))
+    (testing "All steps still complete (batching doesn't drop work)"
+      (is (zero? @in-flight)))))

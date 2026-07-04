@@ -201,16 +201,24 @@
   {:name      :kaleidoscope-static-content-adapters
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn [env] {"kaleidoscope.pub"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
-                                             "kaleidoscope.client"              (s3-storage/make-s3 {:bucket "kaleidoscope.client"})
-                                             "andrewslai.com"                   (s3-storage/make-s3 {:bucket "andrewslai.com"})
-                                             "caheriaguilar.com"                (s3-storage/make-s3 {:bucket "caheriaguilar.com"})
-                                             "sahiltalkingcents.com"            (s3-storage/make-s3 {:bucket "sahiltalkingcents.com"})
-                                             "caheriaguilar.and.andrewslai.com" (s3-storage/make-s3 {:bucket "wedding"})
+               "s3"               (fn [env] (cond-> {"kaleidoscope.pub"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
+                                                     "kaleidoscope.client"              (s3-storage/make-s3 {:bucket "kaleidoscope.client"})
+                                                     "andrewslai.com"                   (s3-storage/make-s3 {:bucket "andrewslai.com"})
+                                                     "caheriaguilar.com"                (s3-storage/make-s3 {:bucket "caheriaguilar.com"})
+                                                     "sahiltalkingcents.com"            (s3-storage/make-s3 {:bucket "sahiltalkingcents.com"})
+                                                     "caheriaguilar.and.andrewslai.com" (s3-storage/make-s3 {:bucket "wedding"})
 
-                                             ;; For testing locally
-                                             "andrewslai.com.localhost"         (s3-storage/make-s3 {:bucket "andrewslai.com"})
-                                             })
+                                                     ;; For testing locally
+                                                     "andrewslai.com.localhost"         (s3-storage/make-s3 {:bucket "andrewslai.com"})}
+
+                                             ;; For ephemeral test environments (arbitrary *.fly.dev hosts)
+                                             (and (get env "KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS")
+                                                  (get env "KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET"))
+                                             (assoc (get env "KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS")
+                                                    (s3-storage/make-s3
+                                                     (cond-> {:bucket (get env "KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET")}
+                                                       (get env "KALEIDOSCOPE_EPHEMERAL_HOST_PREFIX")
+                                                       (assoc :prefix (get env "KALEIDOSCOPE_EPHEMERAL_HOST_PREFIX")))))))
                "in-memory"        (fn [_env] {"kaleidoscope.pub"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "kaleidoscope.client"              (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "andrewslai.com"                   (memory/make-mem-fs {:store (atom memory/example-fs)})

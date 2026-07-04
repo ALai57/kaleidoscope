@@ -28,19 +28,27 @@
                            (ok (projects-api/get-projects (:database components)
                                                           (:user-id (:identity request)))))}
 
-        :post {:summary   "Create a project (triggers scoring against default definitions)"
-               :responses (merge hu/openapi-401
+        :post {:summary    "Create a project (triggers scoring against default definitions)"
+               ;; Creation itself triggers scoring against every default
+               ;; definition plus starts the default workflow — several
+               ;; Claude calls per request — so this is rate limited like
+               ;; the other LLM-triggering routes, not just size-capped.
+               :rate-limit {:max-requests 5 :window-ms 60000}
+               :responses  (merge hu/openapi-401
                                   {200 {:description "The created project with scores"
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
-               :handler   (fn [{:keys [components body-params] :as request}]
+               :parameters {:body [:map
+                                   [:title [:string {:min 1 :max 200}]]
+                                   [:description {:optional true} [:string {:max 20000}]]]}
+               :handler    (fn [{:keys [components parameters] :as request}]
                             (try
                               (ok (projects-api/create-project!
                                    (:database components)
                                    (:scorer components)
                                    (:workflow-executor components)
                                    (:user-id (:identity request))
-                                   body-params))
+                                   (:body parameters)))
                               (catch Exception e
                                 (log/errorf "Error creating project: %s" e)
                                 (bad-request {:error (.getMessage e)}))))}}]
@@ -127,8 +135,14 @@
                                  (not-found {:reason "Project not found"}))))}
 
           :post {:summary    "Trigger scoring (pass definition_ids to score specific definitions)"
+                 ;; score-project! runs one synchronous Claude call per
+                 ;; definition-id on the request thread (api/projects.clj
+                 ;; score-project!) — capping the vector bounds worst-case
+                 ;; cost/latency of a single request; the rate limit bounds
+                 ;; how often that worst case can be repeated.
+                 :rate-limit {:max-requests 5 :window-ms 60000}
                  :parameters {:body [:map
-                                     [:definition-ids {:optional true} [:vector :uuid]]]}
+                                     [:definition-ids {:optional true} [:vector {:max 20} :uuid]]]}
                  :handler    (fn [{:keys [components parameters] :as request}]
                                (let [project-id     (:project-id (:path parameters))
                                      definition-ids (:definition-ids (:body parameters))]
@@ -148,7 +162,8 @@
                                                []))))}}]
 
      ["/section-questions"
-      {:post {:summary   "Generate guiding questions for a score dimension"
+      {:post {:summary    "Generate guiding questions for a score dimension"
+              :rate-limit {:max-requests 10 :window-ms 60000}
               :handler   (fn [{:keys [components body-params parameters] :as request}]
                            (let [project-id (:project-id (:path parameters))
                                  db         (:database components)
@@ -178,12 +193,14 @@
                                         project-id (:user-id (:identity request)) agent-type)
                                        []))))}
 
-          :post {:summary   "Send a message — returns SSE stream of tokens"
-                 :handler   (fn [{:keys [components body-params parameters] :as request}]
+          :post {:summary    "Send a message — returns SSE stream of tokens"
+                 :rate-limit {:max-requests 10 :window-ms 60000}
+                 :parameters {:body [:map [:message {:optional true} [:string {:max 8000}]]]}
+                 :handler   (fn [{:keys [components parameters] :as request}]
                               (let [user-id    (:user-id (:identity request))
                                     project-id (:project-id (:path parameters))
                                     agent-type (:agent (:path parameters))
-                                    user-msg   (get body-params :message "")
+                                    user-msg   (get (:body parameters) :message "")
                                     db         (:database components)
                                     scorer     (:scorer components)]
                                 (if-not (persistence/get-project db project-id user-id)
@@ -233,7 +250,8 @@
                                         (:user-id (:identity request)))
                                        []))))}}]
 
-     ["/generate" {:post {:summary   "Generate a skill tree using the Eng Lead agent"
+     ["/generate" {:post {:summary    "Generate a skill tree using the Eng Lead agent"
+                          :rate-limit {:max-requests 5 :window-ms 60000}
                           :handler   (fn [{:keys [components parameters] :as request}]
                                        (let [project-id (:project-id (:path parameters))
                                              db         (:database components)

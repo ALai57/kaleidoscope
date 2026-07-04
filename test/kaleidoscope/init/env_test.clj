@@ -17,3 +17,27 @@
                            (ex-message e))))))
 
   (mi/unstrument!))
+
+(deftest s3-static-content-launcher-adds-ephemeral-host-alias-when-configured
+  (let [s3-launcher (get-in sut/kaleidoscope-static-content-adapter-boot-instructions [:launchers "s3"])
+        base-hosts  #{"kaleidoscope.pub" "kaleidoscope.client" "andrewslai.com" "caheriaguilar.com"
+                      "sahiltalkingcents.com" "caheriaguilar.and.andrewslai.com" "andrewslai.com.localhost"}]
+    (testing "unset ephemeral env vars leave the adapter map unchanged"
+      (is (= base-hosts (set (keys (s3-launcher {}))))))
+
+    (testing "setting both ephemeral env vars adds an alias entry pointed at the given bucket"
+      (let [adapters (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS"  "kal-eph-foo.fly.dev"
+                                   "KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET" "kal-ephemeral"})]
+        (is (= (conj base-hosts "kal-eph-foo.fly.dev") (set (keys adapters))))
+        (is (= "kal-ephemeral" (:storage-root (get adapters "kal-eph-foo.fly.dev"))))
+        (is (nil? (:prefix (get adapters "kal-eph-foo.fly.dev"))))))
+
+    (testing "also setting the prefix env var scopes the ephemeral adapter to that key prefix"
+      (let [adapters (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS"  "kal-eph-foo.fly.dev"
+                                   "KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET" "kal-ephemeral"
+                                   "KALEIDOSCOPE_EPHEMERAL_HOST_PREFIX" "eph-foo/"})]
+        (is (= "eph-foo/" (:prefix (get adapters "kal-eph-foo.fly.dev"))))))
+
+    (testing "setting only one of the two ephemeral env vars leaves the adapter map unchanged"
+      (is (= base-hosts (set (keys (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS" "kal-eph-foo.fly.dev"})))))
+      (is (= base-hosts (set (keys (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET" "kal-ephemeral"}))))))))
