@@ -18,6 +18,19 @@
 
   (mi/unstrument!))
 
+(deftest environment-name-test
+  (testing "defaults to production when KALEIDOSCOPE_ENV is unset"
+    (is (= "production" (sut/environment-name {}))))
+
+  (testing "reads KALEIDOSCOPE_ENV when set"
+    (is (= "ephemeral-foo" (sut/environment-name {"KALEIDOSCOPE_ENV" "ephemeral-foo"})))))
+
+(deftest env->bugsnag-test
+  (testing "release-stage follows KALEIDOSCOPE_ENV, defaulting to production"
+    (is (= "production" (:release-stage (sut/env->bugsnag {"KALEIDOSCOPE_BUGSNAG_KEY" "key"}))))
+    (is (= "ephemeral-foo" (:release-stage (sut/env->bugsnag {"KALEIDOSCOPE_BUGSNAG_KEY" "key"
+                                                              "KALEIDOSCOPE_ENV"        "ephemeral-foo"}))))))
+
 (deftest s3-static-content-launcher-adds-ephemeral-host-alias-when-configured
   (let [s3-launcher (get-in sut/kaleidoscope-static-content-adapter-boot-instructions [:launchers "s3"])
         base-hosts  #{"kaleidoscope.pub" "kaleidoscope.client" "andrewslai.com" "caheriaguilar.com"

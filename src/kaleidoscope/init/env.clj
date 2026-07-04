@@ -99,15 +99,26 @@
            (str (get env "KALEIDOSCOPE_STATIC_CONTENT_FOLDER") "/" subpath)
            (get env "KALEIDOSCOPE_STATIC_CONTENT_FOLDER"))})
 
+(defn environment-name
+  "The logical environment this process is running as - `production`, a
+  per-slug `ephemeral-<slug>`, etc. Read once here so Bugsnag's releaseStage,
+  the OTEL `deployment.environment` resource attribute, and JSON log lines
+  all agree on the same value. Defaults to `production` to match the
+  pre-existing implicit default (Bugsnag's own SDK default releaseStage)."
+  [env]
+  (get env "KALEIDOSCOPE_ENV" "production"))
+
 (defn env->bugsnag
   {:malli/schema [:=> [:cat :map]
                   [:map
                    [:api-key [:string {:error/message "Missing Bugsnag key. Set via KALEIDOSCOPE_BUGSNAG_KEY environment variable."}]]
-                   [:app-version [:string {:error/message "Missing App version. Set in code. Should never happen."}]]]]
+                   [:app-version [:string {:error/message "Missing App version. Set in code. Should never happen."}]]
+                   [:release-stage [:string {:error/message "Missing release stage. Set in code. Should never happen."}]]]]
    :malli/scope  #{:output}}
   [env]
-  {:api-key     (get env "KALEIDOSCOPE_BUGSNAG_KEY")
-   :app-version (:version (vu/get-version-details))})
+  {:api-key       (get env "KALEIDOSCOPE_BUGSNAG_KEY")
+   :app-version   (:version (vu/get-version-details))
+   :release-stage (environment-name env)})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot instructions for starting system components from the environment

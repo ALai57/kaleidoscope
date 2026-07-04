@@ -39,16 +39,17 @@
   "Useful when shipping logs via FluentBit (the recommended log router for AWS
   ECS applications)
   https://docs.aws.amazon.com/AmazonECS/latest/developerguide/firelens-using-fluentbit.html"
-  [{:keys [level msg_ instant ?ns-str ?file ?line] :as data}]
+  [environment {:keys [level msg_ instant ?ns-str ?file ?line] :as data}]
   (let [event    (force msg_)
         ns-name  (or ?ns-str ?file "?")
         line-num (or ?line "?")]
-    (json/generate-string (merge {:timestamp  instant
-                                  :level      level
-                                  :ns         ns-name
-                                  :request-id mw/*request-id*
-                                  :line       (format "%s:%s" ns-name line-num)
-                                  :message    (string/replace event #"\n" " ")}
+    (json/generate-string (merge {:timestamp   instant
+                                  :level       level
+                                  :ns          ns-name
+                                  :environment environment
+                                  :request-id  mw/*request-id*
+                                  :line        (format "%s:%s" ns-name line-num)
+                                  :message     (string/replace event #"\n" " ")}
                                  (current-span-ids)
                                  mw/*user-context*))))
 
@@ -63,7 +64,7 @@
    (cond-> {:min-level [["io.zonky*" :error]
                         ["org.eclipse.jetty.*" :warn]
                         ["*" (keyword (get env "KALEIDOSCOPE_LOG_LEVEL" "info"))]]
-            :output-fn json-log-output
+            :output-fn (partial json-log-output (env/environment-name env))
             :appenders {:spit (appenders/spit-appender {:fname "log.txt"})}}
      (disable-json-logging? env) (assoc :output-fn ul/clean-output-fn))))
 
@@ -71,7 +72,7 @@
   "Initialize the OpenTelemetry SDK from OTEL_* environment variables.
   Must run before any span creation and before the datasource is wrapped
   with library telemetry (HikariCP + JDBC)."
-  []
+  [env]
   ;; The OTel Java SDK logs export failures via java.util.logging (JUL), not SLF4J.
   ;; Without this bridge, those errors are written to stderr in raw JUL format and
   ;; never routed through Timbre — making silent export failures impossible to detect.
@@ -81,11 +82,13 @@
   (SLF4JBridgeHandler/removeHandlersForRootLogger)
   (SLF4JBridgeHandler/install)
   (let [service-name (or (System/getenv "OTEL_SERVICE_NAME") "kaleidoscope")
-        endpoint     (System/getenv "OTEL_EXPORTER_OTLP_ENDPOINT")]
-    (println "OTEL init: service=" service-name "endpoint=" endpoint)
+        endpoint     (System/getenv "OTEL_EXPORTER_OTLP_ENDPOINT")
+        environment  (env/environment-name env)]
+    (println "OTEL init: service=" service-name "endpoint=" endpoint "environment=" environment)
     (sdk/init-otel-sdk!
      service-name
      {:set-as-global true
+      :resources [{:attributes {"deployment.environment" environment}}]
       :tracer-provider
       {:span-processors
        (when endpoint
@@ -135,7 +138,7 @@
   ;; Logging and OTEL SDK must be initialized before start-system! so that
   ;; the datasource wrapper (HikariCP + JDBC telemetry) can pick up the SDK.
   (initialize-logging! env)
-  (init-otel!)
+  (init-otel! env)
   (let [system-components (env/start-system! env)
         http-port         5000
 
