@@ -112,12 +112,25 @@
       "unknown"))
 
 (def wrap-rate-limit
-  "Fixed-window rate limiter keyed by client IP + route URI.
+  "Fixed-window rate limiter keyed by client IP + route (not by the literal
+  request path).
 
   Enabled per-route via route data `:rate-limit {:max-requests N :window-ms
   M}`; routes without that key are unaffected. Exists to bound abuse of
   unauthenticated routes that write to paid third-party APIs (Stripe) or fan
-  out to external services (AWS Route53) with no ACL protecting them.
+  out to external services (AWS Route53) with no ACL protecting them, and
+  more generally to cap request volume on any route that triggers a paid
+  LLM call.
+
+  `:compile` runs exactly once per route at router-build time, not per
+  request — so `route-key` below is a single gensym captured once in the
+  closure, identical for every request that matches this route regardless
+  of its path-parameter values. Keying on `(:uri request)` instead (the
+  literal path, e.g. `/projects/<uuid>/scores`) was tried first and is
+  wrong: it gives every distinct resource id its own independent bucket, so
+  a caller who owns N projects gets N times the effective limit on any
+  route with a `:project-id`/`:run-id` segment — silently defeating the
+  limit's stated purpose on every parameterized route in the app.
 
   State is a single in-process atom - correct for a single-instance deploy
   only. A multi-instance deploy would need a shared store (e.g. Redis)
@@ -125,10 +138,11 @@
   {:name    ::wrap-rate-limit
    :compile (fn [{:keys [rate-limit] :as _route-data} _opts]
               (when rate-limit
-                (let [{:keys [max-requests window-ms]} rate-limit]
+                (let [{:keys [max-requests window-ms]} rate-limit
+                      route-key (gensym "rate-limited-route")]
                   (fn wrapper [handler]
-                    (fn new-handler [{:keys [uri] :as request}]
-                      (let [bucket-key      [(request-ip request) uri]
+                    (fn new-handler [request]
+                      (let [bucket-key      [(request-ip request) route-key]
                             now             (System/currentTimeMillis)
                             window-start    (- now (mod now window-ms))
                             {:keys [count]} (get (swap! rate-limit-buckets update bucket-key
