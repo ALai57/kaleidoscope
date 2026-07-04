@@ -17,7 +17,8 @@
             [taoensso.timbre :as log])
   (:import [java.net URI]
            [java.net.http HttpClient HttpRequest HttpResponse
-            HttpRequest$BodyPublishers HttpResponse$BodyHandlers]))
+            HttpRequest$BodyPublishers HttpResponse$BodyHandlers]
+           [java.time Duration]))
 
 (def ^:private anthropic-messages-url
   "https://api.anthropic.com/v1/messages")
@@ -27,6 +28,25 @@
 
 (def ^:private anthropic-version
   "2023-06-01")
+
+;; Without these, a stalled/hung connection to Anthropic blocks the calling
+;; thread (or a run-parallel-steps! future) forever - connect-timeout bounds
+;; TCP setup, request-timeout bounds time-to-response. For streaming calls,
+;; this bounds time-to-first-byte, not full stream duration (java.net.http's
+;; per-request timeout applies to `send` returning, which for a streamed
+;; body handler happens once headers arrive) - a connection that starts
+;; streaming and then stalls mid-stream isn't caught by this, only one that
+;; never responds at all.
+(def ^:private connect-timeout
+  (Duration/ofSeconds 10))
+
+(def ^:private request-timeout
+  (Duration/ofSeconds 60))
+
+(def ^:private anthropic-http-client
+  (delay (-> (HttpClient/newBuilder)
+             (.connectTimeout connect-timeout)
+             (.build))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Low-level HTTP helpers
@@ -41,9 +61,10 @@
                      (.header "Content-Type" "application/json")
                      (.header "x-api-key" api-key)
                      (.header "anthropic-version" anthropic-version)
+                     (.timeout request-timeout)
                      (.POST (HttpRequest$BodyPublishers/ofString body-str))
                      (.build))
-        client   (HttpClient/newHttpClient)
+        client   @anthropic-http-client
         response (.send client request (HttpResponse$BodyHandlers/ofString))
         status   (.statusCode response)
         parsed   (json/decode (.body response) true)]
@@ -129,9 +150,10 @@
                      (.header "Content-Type" "application/json")
                      (.header "x-api-key" api-key)
                      (.header "anthropic-version" anthropic-version)
+                     (.timeout request-timeout)
                      (.POST (HttpRequest$BodyPublishers/ofString body-str))
                      (.build))
-        client   (HttpClient/newHttpClient)
+        client   @anthropic-http-client
         response (.send client request (HttpResponse$BodyHandlers/ofLines))
         sb       (StringBuilder.)]
     (let [^java.util.stream.Stream lines (.body response)]

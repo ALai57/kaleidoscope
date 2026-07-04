@@ -547,6 +547,36 @@
                                   (run-sequential-tail! db executor project run-id output-stream)))))))))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; find-current-step-run is a plain read with no row lock, so nothing
+;; prevented two concurrent advance-step! calls on the *same* run from both
+;; reading the same pending step and both executing it (each burning its own
+;; Claude call, racing to write the result). This in-process set closes that:
+;; only one advance-step! call per run-id can proceed at a time, regardless
+;; of whether it came from the /advance route, /custom-step's background
+;; resume, or respond-to-step!'s background resume - they all funnel through
+;; this function. A per-process set is sufficient here (not a DB-level
+;; lock): it's a single-instance deploy today, and the goal is closing a
+;; same-process race, not cross-instance coordination.
+(defonce ^:private advancing-runs
+  (atom #{}))
+
+(defn- claim-run!
+  "Atomically marks run-id as actively advancing. Returns true if this call
+   claimed it, false if another advance-step! call already holds it."
+  [run-id]
+  (loop []
+    (let [current @advancing-runs]
+      (if (contains? current run-id)
+        false
+        (if (compare-and-set! advancing-runs current (conj current run-id))
+          true
+          (recur))))))
+
+(defn- release-run!
+  [run-id]
+  (swap! advancing-runs disj run-id))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public: advance step
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -555,14 +585,22 @@
    until all steps are done or the run pauses for input.
 
    For loop workflows (any parallel/fan_in steps): uses the round-based loop executor.
-   For sequential workflows: uses the original linear executor."
+   For sequential workflows: uses the original linear executor.
+
+   Returns {:error :already-advancing} without doing anything if another
+   advance-step! call for this run-id is already in progress."
   [db executor project-id user-id run-id output-stream]
   (when-let [project (projects-persistence/get-project db project-id user-id)]
     (when-let [run (get-owned-run db run-id project-id)]
-      (if (and (:workflow-id run)
-               (persistence/workflow-has-loop-steps? db (:workflow-id run)))
-        (run-loop-workflow! db executor project run-id output-stream)
-        (run-sequential-workflow! db executor project run-id output-stream)))))
+      (if-not (claim-run! run-id)
+        {:error :already-advancing}
+        (try
+          (if (and (:workflow-id run)
+                   (persistence/workflow-has-loop-steps? db (:workflow-id run)))
+            (run-loop-workflow! db executor project run-id output-stream)
+            (run-sequential-workflow! db executor project run-id output-stream))
+          (finally
+            (release-run! run-id)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Skip step
@@ -668,6 +706,21 @@
 ;; Respond to awaiting_input step
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Matches the cap enforced at project-creation time
+;; (http_api.projects/reitit-projects-routes POST /projects). Applied again
+;; here because the two branches below are a second, uncapped mutation path
+;; for the same description/brief content - repeated `respond` calls could
+;; otherwise grow it without bound over the life of a project, inflating
+;; the cost of every subsequent Claude call built from it.
+(def max-description-length
+  20000)
+
+(defn- cap-length
+  [s]
+  (if (> (count s) max-description-length)
+    (subs s 0 max-description-length)
+    s))
+
 (defn respond-to-step!
   "Handle a user's answers for an awaiting_input step.
 
@@ -716,7 +769,7 @@
                 answers-text  (str "\n\n---\nUser clarification:\n" (str/join "\n" answers))]
             (briefs-persistence/create-brief! db
                                               {:project-id        project-id
-                                               :content           (str current-text answers-text)
+                                               :content           (cap-length (str current-text answers-text))
                                                :source            "user_clarification"
                                                :workflow-round-id round-id})
             (persistence/update-step-run! db step-run-id
@@ -737,7 +790,7 @@
           :else
           (let [current-desc (or (:description project) "")
                 answers-text (str "\n\nAdditional context from user:\n" (str/join "\n" answers))
-                new-desc     (str current-desc answers-text)]
+                new-desc     (cap-length (str current-desc answers-text))]
             (projects-persistence/update-project! db project-id user-id {:description new-desc})
             (let [run (persistence/get-workflow-run db run-id)]
               (persistence/update-step-run! db step-run-id

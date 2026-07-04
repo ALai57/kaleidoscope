@@ -6,7 +6,8 @@
             [taoensso.timbre :as log])
   (:import [java.net URI]
            [java.net.http HttpClient HttpRequest HttpResponse
-            HttpRequest$BodyPublishers HttpResponse$BodyHandlers]))
+            HttpRequest$BodyPublishers HttpResponse$BodyHandlers]
+           [java.time Duration]))
 
 (def ^:private anthropic-messages-url
   "https://api.anthropic.com/v1/messages")
@@ -17,9 +18,21 @@
 (def ^:private anthropic-version
   "2023-06-01")
 
+;; Bounds worst-case thread-blocking time on a stalled/hung connection to
+;; Anthropic - connect-timeout for TCP setup, request-timeout for
+;; time-to-response (for streaming calls, time-to-first-byte only; a
+;; connection that starts streaming and then stalls isn't caught by this).
+(def ^:private connect-timeout
+  (Duration/ofSeconds 10))
+
+(def ^:private request-timeout
+  (Duration/ofSeconds 60))
+
 (defn- make-http-client
   []
-  (HttpClient/newHttpClient))
+  (-> (HttpClient/newBuilder)
+      (.connectTimeout connect-timeout)
+      (.build)))
 
 (defn- post-anthropic
   "Make a synchronous POST request to the Anthropic messages API.
@@ -31,6 +44,7 @@
                      (.header "Content-Type" "application/json")
                      (.header "x-api-key" api-key)
                      (.header "anthropic-version" anthropic-version)
+                     (.timeout request-timeout)
                      (.POST (HttpRequest$BodyPublishers/ofString body-str))
                      (.build))
         client   (make-http-client)
@@ -127,6 +141,7 @@
                      (.header "Content-Type" "application/json")
                      (.header "x-api-key" api-key)
                      (.header "anthropic-version" anthropic-version)
+                     (.timeout request-timeout)
                      (.POST (HttpRequest$BodyPublishers/ofString body-str))
                      (.build))
         client   (make-http-client)

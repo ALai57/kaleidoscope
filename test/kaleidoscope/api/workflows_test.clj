@@ -3,6 +3,7 @@
             [kaleidoscope.api.workflows :as workflows]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
+            [kaleidoscope.persistence.workflows :as workflows-persistence]
             [kaleidoscope.workflows.protocol :as wf-protocol]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
@@ -113,3 +114,59 @@
       (is (<= @max-observed workflows/max-concurrent-parallel-steps)))
     (testing "All steps still complete (batching doesn't drop work)"
       (is (zero? @in-flight)))))
+
+;; find-current-step-run is a plain read with no row lock - this verifies
+;; the claim-run!/release-run! guard added to advance-step! actually
+;; prevents two overlapping calls on the same run from both executing the
+;; pending step (each would otherwise burn its own Claude call).
+(deftest advance-step-concurrency-lock-test
+  (let [database      (embedded-postgres/fresh-db!)
+        user-id       "owner@example.com"
+        wf            (workflows/create-workflow! database user-id custom-workflow)
+        project       (projects-persistence/create-project! database {:user-id user-id :title "Locked Project"})
+        project-id    (:id project)
+        run           (workflows/create-run! database project-id user-id
+                                             {:workflow-id (:id wf) :mode "manual"})
+        run-id        (:id run)
+        slow-executor (reify wf-protocol/IWorkflowExecutor
+                        (execute-step! [_ _db _project _step-run _output-stream]
+                          (Thread/sleep 200)
+                          "ok")
+                        (recommend-workflows [_ _project _live-workflows] []))
+        os1           (java.io.ByteArrayOutputStream.)
+        os2           (java.io.ByteArrayOutputStream.)
+        f1            (future (workflows/advance-step! database slow-executor project-id user-id run-id os1))]
+    (Thread/sleep 50) ;; let f1 claim the run first; it's still sleeping inside execute-step!
+    (let [second-result (workflows/advance-step! database slow-executor project-id user-id run-id os2)
+          first-result  @f1]
+      (testing "The overlapping second call is rejected instead of double-executing the step"
+        (is (= {:error :already-advancing} second-result)))
+      (testing "The first call proceeds and completes normally"
+        (is (not= :already-advancing (:error first-result)))))))
+
+;; respond-to-step!'s "decision" and sequential-clarify branches append
+;; answers to the brief/description with no cap of their own - this is the
+;; second, uncapped mutation path for that field (the first being project
+;; creation, capped in http_api.projects). Verifies the cap holds here too.
+(deftest respond-to-step-description-cap-test
+  (let [database       (embedded-postgres/fresh-db!)
+        user-id        "owner@example.com"
+        wf             (workflows/create-workflow! database user-id custom-workflow)
+        project        (projects-persistence/create-project! database {:user-id    user-id
+                                                                        :title      "Cap Test"
+                                                                        :description "short"})
+        project-id     (:id project)
+        run            (workflows/create-run! database project-id user-id
+                                              {:workflow-id (:id wf) :mode "manual"})
+        run-id         (:id run)
+        step-run-id    (:id (first (:steps run)))
+        no-op-executor (reify wf-protocol/IWorkflowExecutor
+                         (execute-step! [_ _db _project _step-run _output-stream] "ok")
+                         (recommend-workflows [_ _project _live-workflows] []))]
+    (workflows-persistence/update-step-run! database step-run-id
+                                            {:status "awaiting_input" :output-kind "clarify"})
+    (workflows/respond-to-step! database no-op-executor project-id user-id run-id step-run-id
+                                [(apply str (repeat 25000 "a"))])
+    (testing "The resulting description is capped, not grown without bound"
+      (is (<= (count (:description (projects-persistence/get-project database project-id user-id)))
+              workflows/max-description-length)))))

@@ -218,9 +218,13 @@
                            (hu/sse-response
                             (fn [output-stream]
                               (try
-                                (workflows-api/advance-step!
-                                 db executor project-id user-id run-id output-stream)
-                                (let [writer (java.io.OutputStreamWriter. output-stream "UTF-8")]
+                                (let [result (workflows-api/advance-step!
+                                              db executor project-id user-id run-id output-stream)
+                                      writer  (java.io.OutputStreamWriter. output-stream "UTF-8")]
+                                  (when (= :already-advancing (:error result))
+                                    (hu/write-sse-event! writer
+                                                         {:event "error"
+                                                          :data  {:reason "already-advancing"}}))
                                   (.write writer "data: [DONE]\n\n")
                                   (.flush writer))
                                 (catch Exception e

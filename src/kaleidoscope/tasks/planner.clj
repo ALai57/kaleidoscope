@@ -5,7 +5,8 @@
             [taoensso.timbre :as log])
   (:import [java.net URI]
            [java.net.http HttpClient HttpRequest HttpResponse
-            HttpRequest$BodyPublishers HttpResponse$BodyHandlers]))
+            HttpRequest$BodyPublishers HttpResponse$BodyHandlers]
+           [java.time Duration]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Protocol
@@ -34,6 +35,20 @@
 (def ^:private anthropic-version
   "2023-06-01")
 
+;; Bounds worst-case thread-blocking time on a stalled/hung connection to
+;; Anthropic - connect-timeout for TCP setup, request-timeout for
+;; time-to-response.
+(def ^:private connect-timeout
+  (Duration/ofSeconds 10))
+
+(def ^:private request-timeout
+  (Duration/ofSeconds 60))
+
+(def ^:private anthropic-http-client
+  (delay (-> (HttpClient/newBuilder)
+             (.connectTimeout connect-timeout)
+             (.build))))
+
 (defn- post-anthropic-sync
   "Synchronous POST to Anthropic messages API. Returns parsed JSON body."
   [api-key body-map]
@@ -43,9 +58,10 @@
                      (.header "Content-Type" "application/json")
                      (.header "x-api-key" api-key)
                      (.header "anthropic-version" anthropic-version)
+                     (.timeout request-timeout)
                      (.POST (HttpRequest$BodyPublishers/ofString body-str))
                      (.build))
-        client   (HttpClient/newHttpClient)
+        client   @anthropic-http-client
         response (.send client request (HttpResponse$BodyHandlers/ofString))
         status   (.statusCode response)
         parsed   (json/decode (.body response) true)]
