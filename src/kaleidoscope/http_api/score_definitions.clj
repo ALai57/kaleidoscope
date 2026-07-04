@@ -4,6 +4,34 @@
             [ring.util.http-response :refer [bad-request no-content not-found ok]]
             [taoensso.timbre :as log]))
 
+;; Each dimension's :criteria text is spliced into the scoring prompt for
+;; every run against this definition - capping count and length bounds
+;; per-call token cost the same way score-project!'s definition-ids cap
+;; bounds call *count*. is-default is deliberately not accepted here at
+;; all: kaleidoscope.api.score-definitions/create-score-definition! forces
+;; it to false regardless of what's in the body.
+(def ScoreDimension
+  [:map
+   [:name [:string {:min 1 :max 200}]]
+   [:criteria {:optional true} [:string {:max 2000}]]])
+
+(def ScoreDefinitionRequest
+  [:map
+   [:name [:string {:min 1 :max 200}]]
+   [:description {:optional true} [:string {:max 2000}]]
+   [:scorer-type {:optional true} [:string {:max 100}]]
+   [:dimensions {:optional true} [:vector {:max 20} ScoreDimension]]])
+
+;; PUT is a partial update - every field optional, but dimensions/lengths
+;; capped the same as on create, since update-score-definition! fully
+;; replaces the dimensions vector when present.
+(def ScoreDefinitionUpdateRequest
+  [:map
+   [:name {:optional true} [:string {:min 1 :max 200}]]
+   [:description {:optional true} [:string {:max 2000}]]
+   [:scorer-type {:optional true} [:string {:max 100}]]
+   [:dimensions {:optional true} [:vector {:max 20} ScoreDimension]]])
+
 (def reitit-score-definition-routes
   ["/score-definitions"
    {:tags     ["score-definitions"]
@@ -18,16 +46,17 @@
                            (let [user-id (:user-id (:identity request))]
                              (ok (score-defs-api/get-score-definitions (:database components) user-id))))}
 
-        :post {:summary   "Create a score definition"
-               :responses (merge hu/openapi-401
+        :post {:summary    "Create a score definition"
+               :responses  (merge hu/openapi-401
                                   {200 {:description "The created score definition"
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
-               :handler   (fn [{:keys [components body-params] :as request}]
+               :parameters {:body ScoreDefinitionRequest}
+               :handler   (fn [{:keys [components parameters] :as request}]
                             (let [user-id (:user-id (:identity request))]
                               (try
                                 (ok (score-defs-api/create-score-definition!
-                                     (:database components) user-id body-params))
+                                     (:database components) user-id (:body parameters)))
                                 (catch Exception e
                                   (log/errorf "Error creating score definition: %s" e)
                                   (bad-request {:error (.getMessage e)})))))}}]
@@ -50,17 +79,18 @@
                                 (ok defn)
                                 (not-found {:reason "Score definition not found"}))))}
 
-         :put {:summary   "Update a score definition"
-               :responses (merge hu/openapi-401
+         :put {:summary    "Update a score definition"
+               :responses  (merge hu/openapi-401
                                   hu/openapi-404
                                   {200 {:description "The updated score definition"
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
-               :handler   (fn [{:keys [components body-params parameters] :as request}]
+               :parameters {:body ScoreDefinitionUpdateRequest}
+               :handler   (fn [{:keys [components parameters] :as request}]
                             (let [user-id (:user-id (:identity request))
                                   def-id  (:definition-id (:path parameters))]
                               (if-let [result (score-defs-api/update-score-definition!
-                                               (:database components) user-id def-id body-params)]
+                                               (:database components) user-id def-id (:body parameters))]
                                 (ok result)
                                 (not-found {:reason "Score definition not found"}))))}
 

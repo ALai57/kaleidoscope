@@ -61,8 +61,15 @@
   (persistence/get-score-definition db definition-id user-id))
 
 (defn create-score-definition!
+  "Create a user-authored score definition. is-default is always forced to
+  false here regardless of what the caller sends - only seed-default-
+  definitions! (which calls the persistence layer directly, bypassing this
+  function) is allowed to create is-default=true rows. Without this, a
+  client could mark arbitrarily many of their own definitions as default,
+  and every project-creation / bare POST /scores call runs one Claude call
+  per is-default definition with no cap (see score-project!)."
   [db user-id body]
-  (persistence/create-score-definition! db (assoc body :user-id user-id)))
+  (persistence/create-score-definition! db (assoc body :user-id user-id :is-default false)))
 
 (defn update-score-definition!
   "Update a score definition. Returns nil if not found or not owned —

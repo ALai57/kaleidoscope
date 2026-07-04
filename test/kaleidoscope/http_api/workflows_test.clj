@@ -83,3 +83,22 @@
     (testing "11th request from the same IP within the window is rate limited"
       (is (match? {:status 429}
                   (app (request)))))))
+
+;; PUT /workflows/:workflow-id was the second, unguarded path to the same
+;; unbounded-step-count gap POST /workflows caps - this closes that gap.
+(deftest update-workflow-validation-test
+  (let [app         (test-app {:database (embedded-h2/fresh-db!)})
+        workflow-id (random-uuid)]
+    (mw/reset-rate-limits!)
+    (testing "More than 20 steps via PUT is rejected, same as via POST"
+      (is (match? {:status 400}
+                  (app (-> (mock/request :put (str "/workflows/" workflow-id))
+                           (mock/json-body {:steps (mapv step (repeat 21 {}))}))))))
+    (testing "An unrecognized execution-mode via PUT is rejected"
+      (is (match? {:status 400}
+                  (app (-> (mock/request :put (str "/workflows/" workflow-id))
+                           (mock/json-body {:steps [(step {:execution-mode "loop-forever"})]}))))))
+    (testing "An empty name (when name is supplied) is still rejected"
+      (is (match? {:status 400}
+                  (app (-> (mock/request :put (str "/workflows/" workflow-id))
+                           (mock/json-body {:name ""}))))))))

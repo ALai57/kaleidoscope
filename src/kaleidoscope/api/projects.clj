@@ -64,6 +64,18 @@
                (:id project) (:name definition) (:overall score-result))
     (persistence/insert-score-run! db (:id project) (:id definition) score-result)))
 
+;; http_api.projects/reitit-projects-routes caps the explicit definition-ids
+;; path at 20, but that only applies when the caller passes definition-ids -
+;; project creation and a bare POST /scores both take the default (nil)
+;; path below, which has no cap of its own. is-default is now forced false
+;; for every HTTP-created definition (score-definitions/create-score-
+;; definition!), so this default set should only ever contain the two
+;; system-seeded rows - this cap is defense-in-depth in case that ever
+;; changes, mirroring the explicit-ids cap rather than trusting a single
+;; enforcement point for the same fan-out risk.
+(def max-default-score-definitions
+  20)
+
 (defn score-project!
   "Score a project against specified definition IDs (or all defaults if nil).
    Returns the updated project."
@@ -73,7 +85,8 @@
                         ;; Specific definitions requested
                         (keep #(persistence/get-score-definition db % user-id) definition-ids)
                         ;; Default: all is_default definitions for the user
-                        (persistence/get-default-score-definitions db user-id))]
+                        (take max-default-score-definitions
+                              (persistence/get-default-score-definitions db user-id)))]
       (doseq [defn definitions]
         (try
           (run-score! db scorer project defn)

@@ -282,3 +282,33 @@
     (testing "Routes without :rate-limit route data are never throttled"
       (dotimes [_ 50]
         (is (match? {:status 200} (app (mock/request :get "/unlimited"))))))))
+
+;; The bucket key must be per-route, not per literal request path - keying
+;; on (:uri request) would give every distinct :id its own independent
+;; bucket, letting a caller who owns N resources get N times the effective
+;; limit on any parameterized route.
+(def parameterized-rate-limited-route
+  ["/limited/:id" {:get {:rate-limit {:max-requests 3 :window-ms 60000}
+                        :handler    (fn [_] {:status 200 :body {:ok true}})}}])
+
+(deftest wrap-rate-limit-shares-bucket-across-path-params-test
+  (let [app (ring/ring-handler (ring/router parameterized-rate-limited-route mw/reitit-configuration))]
+    (mw/reset-rate-limits!)
+    (testing "Requests to different concrete ids under the same route share one bucket"
+      (is (match? {:status 200} (app (mock/request :get "/limited/aaa"))))
+      (is (match? {:status 200} (app (mock/request :get "/limited/bbb"))))
+      (is (match? {:status 200} (app (mock/request :get "/limited/ccc")))))
+    (testing "A 4th request, even against a brand-new id, is rejected"
+      (is (match? {:status 429} (app (mock/request :get "/limited/never-seen-before")))))))
+
+(deftest wrap-rate-limit-separate-routes-dont-share-a-bucket-test
+  (let [routes ["" {}
+                ["/limited-a" {:get {:rate-limit {:max-requests 1 :window-ms 60000}
+                                     :handler    (fn [_] {:status 200 :body {:ok true}})}}]
+                ["/limited-b" {:get {:rate-limit {:max-requests 1 :window-ms 60000}
+                                     :handler    (fn [_] {:status 200 :body {:ok true}})}}]]
+        app    (ring/ring-handler (ring/router routes mw/reitit-configuration))]
+    (mw/reset-rate-limits!)
+    (is (match? {:status 200} (app (mock/request :get "/limited-a"))))
+    (testing "A different route entirely isn't affected by another route's usage"
+      (is (match? {:status 200} (app (mock/request :get "/limited-b")))))))

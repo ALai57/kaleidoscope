@@ -4,6 +4,7 @@
             [kaleidoscope.persistence.briefs :as briefs-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.scoring.protocol :as scoring-protocol]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
 
@@ -146,3 +147,27 @@
       (is (= 1 (count (projects/get-all-briefs database pid owner-id))))
       (is (= "Confidential brief" (:content (projects/get-latest-brief database pid owner-id))))
       (is (= "Confidential brief" (:content (projects/get-brief-by-version database pid owner-id 1)))))))
+
+(deftest score-project-default-path-fan-out-cap-test
+  ;; The HTTP-reachable create-score-definition! forces is-default false
+  ;; (see kaleidoscope.api.score-definitions-test), so this set should only
+  ;; ever contain the two system-seeded rows in practice - this cap is
+  ;; defense-in-depth verifying score-project!'s *own* fan-out width is
+  ;; bounded independent of that, mirroring the explicit-definition-ids cap
+  ;; rather than trusting a single enforcement point for the same risk.
+  (let [database   (embedded-h2/fresh-db!)
+        user-id    "owner@example.com"
+        project    (projects-persistence/create-project! database {:user-id user-id :title "Project"})
+        pid        (:id project)
+        call-count (atom 0)
+        counting-scorer (reify scoring-protocol/IScorer
+                          (score [_ _project _score-definition]
+                            (swap! call-count inc)
+                            {:overall 5.0 :dimensions []}))]
+    (dotimes [i 25]
+      (projects-persistence/create-score-definition!
+       database {:user-id user-id :name (str "Def " i) :description "d" :is-default true}))
+    (projects/score-project! database counting-scorer pid user-id nil)
+    (testing "score-project! never fires more than max-default-score-definitions Claude calls
+              from the default (no explicit definition-ids) path"
+      (is (<= @call-count projects/max-default-score-definitions)))))

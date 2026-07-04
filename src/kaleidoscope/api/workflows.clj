@@ -678,29 +678,42 @@
   "Insert a custom step at the next available position and execute it immediately.
    Writes SSE token events to output-stream. On completion, re-runs classification
    and returns {:step-run <completed-step-run> :recommendation [...]}.
-   The SSE stream is left open so the caller can write [DONE] after."
+   The SSE stream is left open so the caller can write [DONE] after.
+
+   Executes against the same executor as advance-step!, so it takes the same
+   claim-run! lock: without it, a client firing /advance and /custom-step
+   concurrently on the same run-id could execute two steps (and two
+   current-step writes) at once - the exact race the lock exists to close,
+   just through a door that didn't check it. Returns {:error :already-
+   advancing} without doing anything if advance-step! is already running for
+   this run-id (and vice versa)."
   [db executor project-id user-id run-id
    {:keys [name description agent-type] :as _custom-step}
    output-stream]
   (when-let [project (projects-persistence/get-project db project-id user-id)]
     (when (get-owned-run db run-id project-id)
-      (let [position (persistence/next-custom-step-position db run-id)
-            step-run (persistence/create-custom-step-run!
-                      db run-id
-                      {:name        name
-                       :description description
-                       :agent-type  (or agent-type "coach")
-                       :position    position})]
-        (wf-protocol/execute-step! executor db project step-run output-stream)
-        (let [live-workflows  (persistence/get-live-workflows db user-id)
-              recommendation  (try
-                                (wf-protocol/recommend-workflows executor project live-workflows)
-                                (catch Exception e
-                                  (log/errorf "Re-classification after custom step failed: %s" e)
-                                  []))
-              completed-run   (persistence/get-workflow-run db run-id)]
-          {:run            completed-run
-           :recommendation recommendation})))))
+      (if-not (claim-run! run-id)
+        {:error :already-advancing}
+        (try
+          (let [position (persistence/next-custom-step-position db run-id)
+                step-run (persistence/create-custom-step-run!
+                          db run-id
+                          {:name        name
+                           :description description
+                           :agent-type  (or agent-type "coach")
+                           :position    position})]
+            (wf-protocol/execute-step! executor db project step-run output-stream)
+            (let [live-workflows  (persistence/get-live-workflows db user-id)
+                  recommendation  (try
+                                    (wf-protocol/recommend-workflows executor project live-workflows)
+                                    (catch Exception e
+                                      (log/errorf "Re-classification after custom step failed: %s" e)
+                                      []))
+                  completed-run   (persistence/get-workflow-run db run-id)]
+              {:run            completed-run
+               :recommendation recommendation}))
+          (finally
+            (release-run! run-id)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Respond to awaiting_input step

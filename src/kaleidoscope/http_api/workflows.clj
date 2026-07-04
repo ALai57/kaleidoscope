@@ -28,6 +28,18 @@
    [:is-default {:optional true} :boolean]
    [:steps {:optional true} [:vector {:max 20} WorkflowStep]]])
 
+;; PUT is a partial update (update-workflow! only touches fields present in
+;; the body), so every field is optional here - but it must cap the same
+;; fields WorkflowRequest caps on create, otherwise PUT is a second,
+;; unguarded path to the same unbounded-step-count/unbounded-length gap.
+(def WorkflowUpdateRequest
+  [:map
+   [:name {:optional true} [:string {:min 1 :max 200}]]
+   [:description {:optional true} [:string {:max 5000}]]
+   [:status {:optional true} [:string {:max 50}]]
+   [:is-default {:optional true} :boolean]
+   [:steps {:optional true} [:vector {:max 20} WorkflowStep]]])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; /workflows  — CRUD
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -67,12 +79,13 @@
                               (ok wf)
                               (not-found {:reason "Workflow not found"}))))}
 
-         :put {:summary "Update a workflow (status, name, description, steps)"
-               :handler (fn [{:keys [components body-params parameters] :as request}]
+         :put {:summary    "Update a workflow (status, name, description, steps)"
+               :parameters {:body WorkflowUpdateRequest}
+               :handler (fn [{:keys [components parameters] :as request}]
                           (let [user-id     (:user-id (:identity request))
                                 workflow-id (:workflow-id (:path parameters))]
                             (if-let [wf (workflows-api/update-workflow!
-                                         (:database components) user-id workflow-id body-params)]
+                                         (:database components) user-id workflow-id (:body parameters))]
                               (ok wf)
                               (not-found {:reason "Workflow not found"}))))}
 
@@ -285,8 +298,12 @@
                                               (:body parameters)
                                               output-stream)
                                       writer (java.io.OutputStreamWriter. output-stream "UTF-8")]
-                                  (hu/write-sse-event! writer {:event "recommendation"
-                                                               :data  (:recommendation result)})
+                                  (if (= :already-advancing (:error result))
+                                    (hu/write-sse-event! writer
+                                                         {:event "error"
+                                                          :data  {:reason "already-advancing"}})
+                                    (hu/write-sse-event! writer {:event "recommendation"
+                                                                 :data  (:recommendation result)}))
                                   (.write writer "data: [DONE]\n\n")
                                   (.flush writer))
                                 (catch Exception e

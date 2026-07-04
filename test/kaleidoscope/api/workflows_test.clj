@@ -144,6 +144,36 @@
       (testing "The first call proceeds and completes normally"
         (is (not= :already-advancing (:error first-result)))))))
 
+;; run-custom-step! used to call execute-step! directly with no lock at
+;; all, so a client firing /advance and /custom-step concurrently on the
+;; same run could execute two steps at once - the exact race claim-run!/
+;; release-run! exist to close, just through a door that didn't check it.
+(deftest run-custom-step-shares-lock-with-advance-step-test
+  (let [database      (embedded-postgres/fresh-db!)
+        user-id       "owner@example.com"
+        wf            (workflows/create-workflow! database user-id custom-workflow)
+        project       (projects-persistence/create-project! database {:user-id user-id :title "Locked Project"})
+        project-id    (:id project)
+        run           (workflows/create-run! database project-id user-id
+                                             {:workflow-id (:id wf) :mode "manual"})
+        run-id        (:id run)
+        slow-executor (reify wf-protocol/IWorkflowExecutor
+                        (execute-step! [_ _db _project _step-run _output-stream]
+                          (Thread/sleep 200)
+                          "ok")
+                        (recommend-workflows [_ _project _live-workflows] []))
+        os1           (java.io.ByteArrayOutputStream.)
+        os2           (java.io.ByteArrayOutputStream.)
+        f1            (future (workflows/advance-step! database slow-executor project-id user-id run-id os1))]
+    (Thread/sleep 50) ;; let f1 claim the run first; it's still sleeping inside execute-step!
+    (let [custom-result (workflows/run-custom-step! database slow-executor project-id user-id run-id
+                                                     {:name "Ad-hoc" :description "d"} os2)
+          advance-result @f1]
+      (testing "A concurrent /custom-step call on the same run is rejected, not raced"
+        (is (= {:error :already-advancing} custom-result)))
+      (testing "The original /advance call still completes normally"
+        (is (not= :already-advancing (:error advance-result)))))))
+
 ;; respond-to-step!'s "decision" and sequential-clarify branches append
 ;; answers to the brief/description with no cap of their own - this is the
 ;; second, uncapped mutation path for that field (the first being project

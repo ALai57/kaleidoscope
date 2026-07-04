@@ -47,3 +47,18 @@
     (testing "The owner can delete their own score definition"
       (is (not (:error (score-defs/delete-score-definition! database owner-id def-id))))
       (is (nil? (score-defs/get-score-definition database owner-id def-id))))))
+
+;; score-project!'s unbounded "default definitions" fan-out path only
+;; considers is-default=true rows - if a user could set that flag on their
+;; own definitions via the HTTP-reachable create path, they could grow that
+;; unbounded set arbitrarily. create-score-definition! must force it false
+;; regardless of what the caller asks for; only the internal seeding path
+;; (which calls the persistence layer directly, bypassing this function) is
+;; allowed to create is-default=true rows.
+(deftest create-score-definition-forces-is-default-false-test
+  (let [database (embedded-h2/fresh-db!)
+        user-id  "owner@example.com"
+        defn     (score-defs/create-score-definition!
+                  database user-id (assoc custom-definition :is-default true))]
+    (testing "is-default is false regardless of what the caller sent"
+      (is (false? (:is-default (score-defs/get-score-definition database user-id (:id defn))))))))

@@ -71,17 +71,26 @@
                                 (ok project)
                                 (not-found {:reason "Project not found"}))))}
 
-         :put {:summary   "Update a project"
-               :responses (merge hu/openapi-401
+         :put {:summary    "Update a project"
+               ;; Mirrors the caps on POST /projects above - update-project!
+               ;; accepts title/description raw with no length check of its
+               ;; own, and that description is spliced into every scoring/
+               ;; workflow prompt. Without this, PUT was a second, uncapped
+               ;; path to the exact field POST already caps.
+               :responses  (merge hu/openapi-401
                                   hu/openapi-404
                                   {200 {:description "The updated project"
                                         :content     {"application/json"
                                                       {:schema [:any]}}}})
-               :handler   (fn [{:keys [components body-params parameters] :as request}]
+               :parameters {:body [:map
+                                   [:title {:optional true} [:string {:min 1 :max 200}]]
+                                   [:description {:optional true} [:string {:max 20000}]]
+                                   [:status {:optional true} [:string {:max 50}]]]}
+               :handler   (fn [{:keys [components parameters] :as request}]
                             (let [project-id (:project-id (:path parameters))]
                               (if-let [project (projects-api/update-project!
                                                 (:database components) project-id
-                                                (:user-id (:identity request)) body-params)]
+                                                (:user-id (:identity request)) (:body parameters))]
                                 (ok project)
                                 (not-found {:reason "Project not found"}))))}
 
