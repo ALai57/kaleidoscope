@@ -8,6 +8,12 @@
    :server-name "andrewslai.com"
    :uri         "/projects"})
 
+(defn- ephemeral-request
+  [identity]
+  {:identity    identity
+   :server-name "kal-eph-foo.fly.dev"
+   :uri         "/projects"})
+
 (deftest require-*-writer-test
   (testing "A verified user with the *-writer role is granted access"
     (is (true? (auth/require-*-writer
@@ -31,7 +37,13 @@
 
   (testing "An unverified user is rejected regardless of roles"
     (is (not (true? (auth/require-*-writer
-                      (writer-request {:type :unverified-user :roles #{"andrewslai.com:writer"}})))))))
+                      (writer-request {:type :unverified-user :roles #{"andrewslai.com:writer"}}))))))
+
+  (testing "Any *.fly.dev host is normalized to the shared `ephemeral` role, not its literal hostname"
+    (is (true? (auth/require-*-writer
+                (ephemeral-request {:type :service-account :roles #{"ephemeral:writer"}}))))
+    (is (not (true? (auth/require-*-writer
+                      (ephemeral-request {:type :service-account :roles #{"kal-eph-foo.fly.dev:writer"}})))))))
 
 (deftest require-*-reader-test
   (testing "A verified user with the *-reader role is granted access"

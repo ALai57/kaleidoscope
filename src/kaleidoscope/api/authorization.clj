@@ -1,5 +1,6 @@
 (ns kaleidoscope.api.authorization
   (:require [buddy.auth.accessrules :as ar]
+            [clojure.string :as string]
             [taoensso.timbre :as log]))
 
 (def public-access
@@ -14,6 +15,25 @@
 (defn- authenticated-identity?
   [identity]
   (contains? authenticated-identity-types (:type identity)))
+
+(defn- ephemeral-host?
+  "Fly.io serves every deployed app at its own *.fly.dev hostname. Ephemeral
+  test environments (plans/2026-07-03-ephemeral-fly-environment) are only
+  ever reached this way, so the suffix alone is enough to recognize them
+  without a domain registry."
+  [server-name]
+  (and server-name (string/ends-with? server-name ".fly.dev")))
+
+(defn- role-domain
+  "The role-string prefix to check for a given server-name. Every onboarded
+  real domain gets its own namespace (e.g. `andrewslai.com`); every ephemeral
+  Fly environment shares one `ephemeral` namespace instead of requiring a new
+  Auth0 role per deploy. Data scoping (e.g. articles.hostname) is unaffected
+  — it's derived independently via `http-utils/get-host`, not this fn."
+  [server-name]
+  (if (ephemeral-host? server-name)
+    "ephemeral"
+    server-name))
 
 (defn require-role
   [role {:keys [identity uri] :as request}]
@@ -31,17 +51,19 @@
                       (:roles identity)))))
 
 (defn require-*-writer
-  "Require the user to have the *-writer role, where * is the server-name. For
-  example, when sending a request to andrewslai.com, requires
-  `andrewslai.com-writer`. Also requires a :verified-user or :service-account
-  identity — unverified human sessions are rejected regardless of roles.
-  Service-account (M2M) writes are attributed to the token's :sub (see
-  `classify-identity`), so every route gated by this function must read
-  :user-id off the identity map rather than deriving it from email."
+  "Require the user to have the *-writer role, where * is the server-name (or
+  `ephemeral` for any *.fly.dev host — see `role-domain`). For example, when
+  sending a request to andrewslai.com, requires `andrewslai.com:writer`.
+  Also requires a :verified-user or :service-account identity — unverified
+  human sessions are rejected regardless of roles. Service-account (M2M)
+  writes are attributed to the token's :sub (see `classify-identity`), so
+  every route gated by this function must read :user-id off the identity map
+  rather than deriving it from email."
   [{:keys [identity uri server-name] :as request}]
   (log/debugf "Checking if user %s has access to endpoint %s %s" identity server-name uri)
-  (let [role  (str server-name ":writer")
-        admin (str server-name ":admin")]
+  (let [domain (role-domain server-name)
+        role   (str domain ":writer")
+        admin  (str domain ":admin")]
     (cond
       (not (authenticated-identity? identity))
       (ar/error "Write access requires an authenticated identity")
@@ -56,14 +78,16 @@
                         (:roles identity))))))
 
 (defn require-*-reader
-  "Require the user to have the *-reader role, where * is the server-name. For
-  example, when sending a request to andrewslai.com, requires
-  `andrewslai.com-reader`. Also requires a :verified-user or :service-account
-  identity — unverified human sessions are rejected regardless of roles."
+  "Require the user to have the *-reader role, where * is the server-name (or
+  `ephemeral` for any *.fly.dev host — see `role-domain`). For example, when
+  sending a request to andrewslai.com, requires `andrewslai.com:reader`.
+  Also requires a :verified-user or :service-account identity — unverified
+  human sessions are rejected regardless of roles."
   [{:keys [identity uri server-name] :as request}]
   (log/debugf "Checking if user %s has access to endpoint %s" identity uri)
-  (let [role  (str server-name ":reader")
-        admin (str server-name ":admin")]
+  (let [domain (role-domain server-name)
+        role   (str domain ":reader")
+        admin  (str domain ":admin")]
     (cond
       (not (authenticated-identity? identity))
       (ar/error "Read access requires an authenticated identity")
@@ -78,13 +102,14 @@
                         (:roles identity))))))
 
 (defn require-*-admin
-  "Require the user to have the *-admin role, where * is the server-name. For
-  example, when sending a request to andrewslai.com, requires
-  `andrewslai.com-admin`. Also requires a :verified-user or :service-account
-  identity — unverified human sessions are rejected regardless of roles."
+  "Require the user to have the *-admin role, where * is the server-name (or
+  `ephemeral` for any *.fly.dev host — see `role-domain`). For example, when
+  sending a request to andrewslai.com, requires `andrewslai.com:admin`. Also
+  requires a :verified-user or :service-account identity — unverified human
+  sessions are rejected regardless of roles."
   [{:keys [identity uri server-name] :as request}]
   (log/debugf "Checking if user %s has access to endpoint %s on domain %s" identity uri server-name)
-  (let [role (str server-name ":admin")]
+  (let [role (str (role-domain server-name) ":admin")]
     (cond
       (not (authenticated-identity? identity))
       (ar/error "Admin access requires an authenticated identity")
