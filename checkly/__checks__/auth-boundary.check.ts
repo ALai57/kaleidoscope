@@ -2,7 +2,7 @@ import { MultiStepCheck } from 'checkly/constructs'
 import * as path from 'path'
 
 new MultiStepCheck('auth-boundary', {
-  name: 'Auth boundary — protected endpoints return 401',
+  name: 'Unauthenticated users cannot access protected resources',
   frequency: 10,
   locations: ['us-east-1'],
   code: {

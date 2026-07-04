@@ -1,7 +1,7 @@
 import { ApiCheck, AssertionBuilder } from 'checkly/constructs'
 
 new ApiCheck('health-ping', {
-  name: 'Health — /ping',
+  name: 'The website responds to health checks',
   frequency: 1,
   locations: ['us-east-1', 'eu-west-1'],
   request: {

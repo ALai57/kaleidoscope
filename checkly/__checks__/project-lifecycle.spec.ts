@@ -28,36 +28,42 @@ test.afterAll(async ({ request }) => {
   }
 })
 
-test('create → read → update → delete', async ({ request }) => {
-  // Create
-  const createRes = await request.post(`${BASE_URL}/projects`, {
-    headers: authHeaders,
-    data: { title: `checkly-synthetic-test-${Date.now()}`, description: 'Synthetic monitoring test — safe to delete' },
+test('Authenticated users can create, view, update, and delete a project', async ({ request }) => {
+  await test.step('Create a new project', async () => {
+    const createRes = await request.post(`${BASE_URL}/projects`, {
+      headers: authHeaders,
+      data: { title: `checkly-synthetic-test-${Date.now()}`, description: 'Synthetic monitoring test — safe to delete' },
+    })
+    expect(createRes.status()).toBe(200)
+    const created = await createRes.json()
+    expect(created.id).toBeTruthy()
+    projectId = created.id
   })
-  expect(createRes.status()).toBe(200)
-  const created = await createRes.json()
-  expect(created.id).toBeTruthy()
-  projectId = created.id
 
-  // Read back
-  const getRes = await request.get(`${BASE_URL}/projects/${projectId}`, { headers: authHeaders })
-  expect(getRes.status()).toBe(200)
-  expect((await getRes.json()).id).toBe(projectId)
-
-  // Update
-  const updateRes = await request.put(`${BASE_URL}/projects/${projectId}`, {
-    headers: authHeaders,
-    data: { title: `checkly-synthetic-test-${Date.now()}`},
+  await test.step('View the newly created project', async () => {
+    const getRes = await request.get(`${BASE_URL}/projects/${projectId}`, { headers: authHeaders })
+    expect(getRes.status()).toBe(200)
+    expect((await getRes.json()).id).toBe(projectId)
   })
-  expect(updateRes.status()).toBe(200)
 
-  // Delete
-  const deleteRes = await request.delete(`${BASE_URL}/projects/${projectId}`, { headers: authHeaders })
-  expect(deleteRes.status()).toBe(204)
+  await test.step('Update the project', async () => {
+    const updateRes = await request.put(`${BASE_URL}/projects/${projectId}`, {
+      headers: authHeaders,
+      data: { title: `checkly-synthetic-test-${Date.now()}`},
+    })
+    expect(updateRes.status()).toBe(200)
+  })
+
   const deletedId = projectId
-  projectId = null  // prevents afterAll from double-deleting
 
-  // Confirm gone
-  const goneRes = await request.get(`${BASE_URL}/projects/${deletedId}`, { headers: authHeaders })
-  expect(goneRes.status()).toBe(404)
+  await test.step('Delete the project', async () => {
+    const deleteRes = await request.delete(`${BASE_URL}/projects/${deletedId}`, { headers: authHeaders })
+    expect(deleteRes.status()).toBe(204)
+    projectId = null  // prevents afterAll from double-deleting
+  })
+
+  await test.step('Confirm the project no longer exists', async () => {
+    const goneRes = await request.get(`${BASE_URL}/projects/${deletedId}`, { headers: authHeaders })
+    expect(goneRes.status()).toBe(404)
+  })
 })

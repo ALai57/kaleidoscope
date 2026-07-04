@@ -4,7 +4,7 @@ import * as path from 'path'
 // Runs from a single region only to avoid creating duplicate canary projects.
 // Requires CHECKLY env vars: AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET
 new MultiStepCheck('project-lifecycle', {
-  name: 'Project lifecycle — authenticated CRUD',
+  name: 'Authenticated users can create, view, update, and delete a project',
   frequency: 15,
   locations: ['us-east-1'],
   code: {
