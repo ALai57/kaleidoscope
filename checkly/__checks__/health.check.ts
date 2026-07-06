@@ -2,7 +2,7 @@ import { ApiCheck, AssertionBuilder } from 'checkly/constructs'
 
 new ApiCheck('health-ping', {
   name: 'The website responds to health checks',
-  frequency: 1,
+  frequency: 360, // every 6 hours
   locations: ['us-east-1', 'eu-west-1'],
   request: {
     url: 'https://sahiltalkingcents.com/ping',

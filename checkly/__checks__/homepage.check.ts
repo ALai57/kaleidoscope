@@ -3,7 +3,7 @@ import * as path from 'path'
 
 new BrowserCheck('homepage-browser', {
   name: 'The homepage loads without errors',
-  frequency: 5,
+  frequency: 360, // every 6 hours
   locations: ['us-east-1'],
   code: {
     entrypoint: path.join(__dirname, 'homepage.spec.ts'),
