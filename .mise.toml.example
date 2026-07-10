@@ -1,0 +1,8 @@
+[env]
+AWS_PROFILE="kaleidoscope-admin"
+AWS_ACCESS_KEY_ID= false
+AWS_SECRET_ACCESS_KEY= false
+KALEIDOSCOPE_DB_HOST="http://andrewslai-postgres.cwvfukjbn65j.us-east-1.rds.amazonaws.com"
+KALEIDOSCOPE_DB_PORT="5432"
+KALEIDOSCOPE_DB_USER="andrewslai"
+KALEIDOSCOPE_DB_NAME="postgres"

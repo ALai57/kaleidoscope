@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Provision an ephemeral Fly.io test environment end-to-end (backend + frontend).
+#
+#   scripts/ephemeral/up --name=<slug>     # or omit --name to use the git branch
+#
+# Orchestrates: provision-db -> build-frontend -> deploy-app -> smoke-test.
+# build-frontend runs before deploy-app so the SPA is already in S3 when the app
+# boots and the first smoke-test request hits /.
+set -euo pipefail
+# shellcheck source=scripts/ephemeral/lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
+
+SLUG="$(resolve_slug "$@")"
+log "Bringing up ephemeral environment for slug '$SLUG' (Fly: $(fly_app_name "$SLUG"), Neon: $(neon_branch_name "$SLUG"))"
+
+"$EPHEMERAL_DIR/provision-db"    --name="$SLUG"
+"$EPHEMERAL_DIR/build-frontend"  --name="$SLUG"
+"$EPHEMERAL_DIR/deploy-app"      --name="$SLUG"
+"$EPHEMERAL_DIR/smoke-test"      --name="$SLUG"
+
+log "Ephemeral environment ready: https://$(fly_app_name "$SLUG").fly.dev"

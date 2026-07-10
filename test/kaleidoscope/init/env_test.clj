@@ -54,3 +54,21 @@
     (testing "setting only one of the two ephemeral env vars leaves the adapter map unchanged"
       (is (= base-hosts (set (keys (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS" "kal-eph-foo.fly.dev"})))))
       (is (= base-hosts (set (keys (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET" "kal-ephemeral"}))))))))
+
+(deftest s3-static-content-launcher-overrides-client-shell-bucket-when-configured
+  (let [s3-launcher (get-in sut/kaleidoscope-static-content-adapter-boot-instructions [:launchers "s3"])]
+    (testing "unset client env vars serve the shell from the default kaleidoscope.client bucket"
+      (let [client (get (s3-launcher {}) "kaleidoscope.client")]
+        (is (= "kaleidoscope.client" (:storage-root client)))
+        (is (nil? (:prefix client)))))
+
+    (testing "KALEIDOSCOPE_CLIENT_BUCKET redirects the shell to the given bucket"
+      (let [client (get (s3-launcher {"KALEIDOSCOPE_CLIENT_BUCKET" "kal-ephemeral"}) "kaleidoscope.client")]
+        (is (= "kal-ephemeral" (:storage-root client)))
+        (is (nil? (:prefix client)))))
+
+    (testing "KALEIDOSCOPE_CLIENT_PREFIX scopes the shell adapter to that key prefix"
+      (let [client (get (s3-launcher {"KALEIDOSCOPE_CLIENT_BUCKET" "kal-ephemeral"
+                                      "KALEIDOSCOPE_CLIENT_PREFIX" "eph-foo/"}) "kaleidoscope.client")]
+        (is (= "kal-ephemeral" (:storage-root client)))
+        (is (= "eph-foo/" (:prefix client)))))))

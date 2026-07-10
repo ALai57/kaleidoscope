@@ -213,7 +213,12 @@
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
                "s3"               (fn [env] (cond-> {"kaleidoscope.pub"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
-                                                     "kaleidoscope.client"              (s3-storage/make-s3 {:bucket "kaleidoscope.client"})
+                                                     ;; The shared SPA-shell bucket (serves /, /index.html, /assets/*).
+                                                     ;; Bucket/prefix are overridable per environment so an ephemeral
+                                                     ;; deploy can serve its own frontend build; defaults to prod's bucket.
+                                                     "kaleidoscope.client"              (s3-storage/make-s3 (cond-> {:bucket (or (get env "KALEIDOSCOPE_CLIENT_BUCKET") "kaleidoscope.client")}
+                                                                                                             (get env "KALEIDOSCOPE_CLIENT_PREFIX")
+                                                                                                             (assoc :prefix (get env "KALEIDOSCOPE_CLIENT_PREFIX"))))
                                                      "andrewslai.com"                   (s3-storage/make-s3 {:bucket "andrewslai.com"})
                                                      "caheriaguilar.com"                (s3-storage/make-s3 {:bucket "caheriaguilar.com"})
                                                      "sahiltalkingcents.com"            (s3-storage/make-s3 {:bucket "sahiltalkingcents.com"})

@@ -1,7 +1,6 @@
 # OTEL Collector
 
 Receives traces from `kaleidoscope-publishing` over Fly.io's private network and fans them out to:
-- **Grafana Tempo** — existing trace backend
 - **Sumo Logic** — centralized observability
 
 The main app points `OTEL_EXPORTER_OTLP_ENDPOINT` at this collector (`http://kaleidoscope-otel-collector.internal:4318`). The collector adds a batch processor and exports to all backends in parallel.
@@ -13,8 +12,6 @@ The main app points `OTEL_EXPORTER_OTLP_ENDPOINT` at this collector (`http://kal
 ```bash
 fly apps create kaleidoscope-otel-collector --org personal
 fly secrets set \
-  GRAFANA_INSTANCE_ID=<numeric-id> \
-  GRAFANA_API_KEY=<api-token> \
   SUMOLOGIC_OTLP_ENDPOINT=<presigned-url> \
   --app kaleidoscope-otel-collector
 fly deploy --config iac/otel-collector/fly.toml
@@ -32,8 +29,6 @@ fly deploy --config fly.toml
 
 | Secret | Description |
 |---|---|
-| `GRAFANA_INSTANCE_ID` | Grafana numeric instance/user ID (shown in Grafana Cloud → My Account → Stack Details → Tempo → User) |
-| `GRAFANA_API_KEY` | Grafana Cloud API token with **traces:write** scope |
 | `SUMOLOGIC_OTLP_ENDPOINT` | Sumo Logic presigned OTLP URL — auth is embedded in the URL, no separate credentials needed. See below. |
 
 ### Finding the Sumo Logic presigned OTLP URL
@@ -43,13 +38,6 @@ fly deploy --config fly.toml
 3. Copy the generated endpoint URL — it contains the auth token in the path
 
 The collector appends `/v1/traces` automatically — set the base path only (omit `/v1/traces` from the URL you copy).
-
-### Finding Grafana Tempo credentials
-
-1. Log in to [grafana.com](https://grafana.com) → **My Account**
-2. Under your stack, click **Details**
-3. In the **Tempo** section: note the **User** (numeric ID → `GRAFANA_INSTANCE_ID`)
-4. Generate an API token with **traces:write** scope → `GRAFANA_API_KEY`
 
 ---
 
@@ -69,6 +57,18 @@ The health check endpoint is available internally at port 13133. To test from a 
 fly ssh console --app kaleidoscope-otel-collector
 curl http://localhost:13133/health/status
 ```
+
+---
+
+## Grafana Tempo — investigated and dropped
+
+We attempted to use Grafana Cloud Tempo as a trace backend but found sending data to it non-trivial and not worth the setup cost given that Sumo Logic was already working.
+
+**What we tried:**
+- Collector config with `otlp_http/grafana` exporter, Basic auth via `Authorization` header constructed from instance ID and API key
+- Direct curl test script (`scripts/test-grafana-tempo`) sending a minimal OTLP JSON span to `https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/traces`
+
+**Conclusion:** Sumo Logic accepts OTLP traces via a simple presigned URL with no auth header ceremony, and traces were confirmed flowing there. Grafana Tempo requires credential coordination (numeric instance ID + scoped API token + Basic auth construction) that added friction without clear benefit over Sumo Logic for this use case. Dropping Grafana Tempo keeps the collector config simpler. The `scripts/test-grafana-tempo` script remains if we want to revisit later.
 
 ---
 

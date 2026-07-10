@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Provision the Neon database branch for an ephemeral environment and migrate it.
+#
+#   scripts/ephemeral/provision-db --name=<slug>
+#
+# Creates eph-<slug> forked from the long-lived `staging` branch (never from
+# prod's `main`), then runs the same migrations bin/db-migrate runs, against it.
+set -euo pipefail
+# shellcheck source=scripts/ephemeral/lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
+
+SLUG="$(resolve_slug "$@")"
+BRANCH="$(neon_branch_name "$SLUG")"
+
+load_staging_env
+require_cmd neonctl
+require_cmd clojure
+
+if neon_branch_exists "$BRANCH"; then
+  warn "Neon branch '$BRANCH' already exists — reusing it."
+else
+  log "Creating Neon branch '$BRANCH' from '$STAGING_BRANCH'..."
+  neonctl branches create \
+    --project-id "$NEON_PROJECT_ID" --api-key "$NEON_API_KEY" \
+    --name "$BRANCH" --parent "$STAGING_BRANCH"
+fi
+
+log "Fetching connection string and running migrations against '$BRANCH'..."
+parse_conn_string "$(neon_conn_string "$BRANCH")"
+
+cd "$REPO_ROOT"
+KALEIDOSCOPE_DB_TYPE=postgres \
+KALEIDOSCOPE_DB_HOST="$DB_HOST" \
+KALEIDOSCOPE_DB_PORT=5432 \
+KALEIDOSCOPE_DB_NAME="$DB_NAME" \
+KALEIDOSCOPE_DB_USER="$DB_USER" \
+KALEIDOSCOPE_DB_PASSWORD="$DB_PASSWORD" \
+KALEIDOSCOPE_DB_SSL_MODE=require \
+  clojure -A:dev -M -m kaleidoscope.persistence.rdbms.migrations migrate
+
+log "Neon branch '$BRANCH' provisioned and migrated."

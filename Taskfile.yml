@@ -47,10 +47,27 @@ tasks:
       - task: build:uberjar
       - ./bin/deploy-image
 
+  env:up:
+    desc: Provision an ephemeral Fly.io test environment (backend only; NAME defaults to the git branch)
+    summary: |
+      Creates a Neon branch (eph-<slug>), deploys a Fly app (kal-eph-<slug>) against
+      real dependencies, and smoke-tests it. Requires .env.fly.staging.
+      Name it explicitly: task env:up NAME=pr-42
+    cmd: ./scripts/ephemeral/up {{if .NAME}}--name={{.NAME}}{{end}}
+
+  env:down:
+    desc: Tear down an ephemeral Fly.io test environment (NAME defaults to the git branch)
+    cmd: ./scripts/ephemeral/down {{if .NAME}}--name={{.NAME}}{{end}}
+
   deploy:otel-collector:
     desc: Deploy the OTEL collector to Fly.io
     dir: iac/otel-collector
     cmd: fly deploy
+
+  deploy:checkly:
+    desc: Deploy Checkly checks (monitoring as code)
+    dir: checkly
+    cmd: npx checkly deploy
 
   clean:
     desc: Remove build artifacts

@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Send a minimal OTLP trace directly to Grafana Tempo and verify it's accepted.
+#
+# Usage:
+#   GRAFANA_INSTANCE_ID=xxx GRAFANA_API_KEY=yyy ./scripts/test-grafana-tempo
+#
+# Or set them in your .env.local and source it first:
+#   source .env.local && ./scripts/test-grafana-tempo
+
+: "${GRAFANA_INSTANCE_ID:?GRAFANA_INSTANCE_ID is required}"
+: "${GRAFANA_API_KEY:?GRAFANA_API_KEY is required}"
+
+ENDPOINT="https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/traces"
+AUTH_HEADER="Authorization: Basic $(echo -n "${GRAFANA_INSTANCE_ID}:${GRAFANA_API_KEY}" | base64)"
+
+TRACE_ID=$(openssl rand 16 | base64 | tr -d '\n=')
+SPAN_ID=$(openssl rand 8 | base64 | tr -d '\n=')
+NOW=$(python3 -c "import time; print(int(time.time() * 1e9))")
+END=$((NOW + 2000000000))
+
+echo "==> Sending test span to Grafana Tempo..."
+echo "    Endpoint:  ${ENDPOINT}"
+echo "    Trace ID:  ${TRACE_ID}"
+echo "    Span ID:   ${SPAN_ID}"
+echo ""
+
+RESPONSE=$(curl -s -o /tmp/grafana_tempo_response.json -w "%{http_code}" \
+  -X POST "${ENDPOINT}" \
+  -H "Content-Type: application/json" \
+  -H "${AUTH_HEADER}" \
+  -d "{
+    \"resourceSpans\": [{
+      \"resource\": {
+        \"attributes\": [
+          {\"key\": \"service.name\", \"value\": {\"stringValue\": \"kaleidoscope-publishing\"}},
+          {\"key\": \"deployment.environment\", \"value\": {\"stringValue\": \"production\"}}
+        ]
+      },
+      \"scopeSpans\": [{
+        \"scope\": {\"name\": \"test-grafana-tempo\"},
+        \"spans\": [{
+          \"traceId\": \"${TRACE_ID}\",
+          \"spanId\": \"${SPAN_ID}\",
+          \"name\": \"test-span\",
+          \"kind\": 2,
+          \"startTimeUnixNano\": \"${NOW}\",
+          \"endTimeUnixNano\": \"${END}\",
+          \"status\": {\"code\": 1}
+        }]
+      }]
+    }]
+  }")
+
+echo "==> HTTP status: ${RESPONSE}"
+echo "==> Response body:"
+cat /tmp/grafana_tempo_response.json | jq . 2>/dev/null || cat /tmp/grafana_tempo_response.json
+echo ""
+
+if [ "$RESPONSE" = "200" ]; then
+  echo "PASS: Grafana Tempo accepted the span"
+  echo ""
+  echo "To find this trace in Grafana:"
+  echo "  1. Open your Grafana Cloud instance"
+  echo "  2. Go to Explore → Tempo"
+  echo "  3. Search by Service Name: kaleidoscope-publishing"
+  echo "     or paste trace ID (may need hex conversion from base64)"
+else
+  echo "FAIL: expected 200, got ${RESPONSE}"
+  exit 1
+fi

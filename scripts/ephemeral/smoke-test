@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Smoke-test a deployed ephemeral environment (kal-eph-<slug>).
+#
+#   scripts/ephemeral/smoke-test --name=<slug>
+#
+# Checks:
+#   1. GET /ping        -> 200                (server is up)
+#   2. GET /            -> 200                (SPA shell resolves; needs AWS creds)
+#   3. Auth0 M2M        -> token + GET /projects 200 with token, 401 without
+#                          (proves Auth0 + the Neon branch + authz together)
+# Step 3 is skipped with a warning when AUTH0_CLIENT_ID/SECRET aren't set.
+set -euo pipefail
+# shellcheck source=scripts/ephemeral/lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
+
+SLUG="$(resolve_slug "$@")"
+APP="$(fly_app_name "$SLUG")"
+BASE_URL="https://$APP.fly.dev"
+
+require_cmd curl
+
+AUTH0_DOMAIN="${AUTH0_DOMAIN:-dev-722l4eivlaenj2h1.us.auth0.com}"
+AUTH0_AUDIENCE="${AUTH0_AUDIENCE:-https://api.andrewslai.com}"
+
+fail=0
+check_status() { # <label> <expected> <url> [curl args...]
+  local label="$1" expected="$2" url="$3"; shift 3
+  local got
+  got="$(curl -s -o /dev/null -w '%{http_code}' "$@" "$url" || echo "000")"
+  if [ "$got" = "$expected" ]; then
+    log "PASS  $label -> $got"
+  else
+    warn "FAIL  $label -> $got (expected $expected)"
+    fail=1
+  fi
+}
+
+log "Smoke-testing $BASE_URL"
+check_status "GET /ping" 200 "$BASE_URL/ping"
+check_status "GET /"     200 "$BASE_URL/"
+
+if [ -n "${AUTH0_CLIENT_ID:-}" ] && [ -n "${AUTH0_CLIENT_SECRET:-}" ]; then
+  require_cmd jq
+  log "Fetching Auth0 M2M token..."
+  TOKEN="$(curl -s -X POST "https://${AUTH0_DOMAIN}/oauth/token" \
+    -H 'Content-Type: application/json' \
+    -d "{\"grant_type\":\"client_credentials\",\"client_id\":\"${AUTH0_CLIENT_ID}\",\"client_secret\":\"${AUTH0_CLIENT_SECRET}\",\"audience\":\"${AUTH0_AUDIENCE}\"}" \
+    | jq -r '.access_token')"
+  if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+    warn "FAIL  could not obtain M2M token — check AUTH0_CLIENT_ID/SECRET and API authorization"
+    fail=1
+  else
+    check_status "GET /projects (with token)" 200 "$BASE_URL/projects" -H "Authorization: Bearer $TOKEN"
+    check_status "GET /projects (no token)"   401 "$BASE_URL/projects"
+  fi
+else
+  warn "SKIP  Auth0 M2M checks — set AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET to enable"
+fi
+
+[ "$fail" -eq 0 ] || die "Smoke test failed."
+log "Smoke test passed."

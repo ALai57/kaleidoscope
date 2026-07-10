@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Build and deploy the backend to an ephemeral Fly.io app (kal-eph-<slug>).
+#
+#   scripts/ephemeral/deploy-app --name=<slug>
+#
+# Sets KALEIDOSCOPE_CLIENT_BUCKET/_PREFIX so /, /index.html, /assets/* serve the
+# per-env frontend build that `build-frontend` pushed to kal-ephemeral/eph-<slug>/.
+# Run `build-frontend` first (up orchestrates this) or / will 404 on a missing key.
+set -euo pipefail
+# shellcheck source=scripts/ephemeral/lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
+
+SLUG="$(resolve_slug "$@")"
+APP="$(fly_app_name "$SLUG")"
+BRANCH="$(neon_branch_name "$SLUG")"
+
+load_staging_env
+require_cmd fly
+require_cmd neonctl
+require_cmd sed
+: "${AWS_ACCESS_KEY_ID:?set AWS_ACCESS_KEY_ID in $STAGING_ENV_FILE}"
+: "${AWS_SECRET_ACCESS_KEY:?set AWS_SECRET_ACCESS_KEY in $STAGING_ENV_FILE}"
+: "${KALEIDOSCOPE_BUGSNAG_KEY:?set KALEIDOSCOPE_BUGSNAG_KEY in $STAGING_ENV_FILE}"
+
+cd "$REPO_ROOT"
+
+# The Dockerfile only COPYs a prebuilt target/kaleidoscope.jar — it never
+# compiles Clojure — so a stale jar would deploy silently without this.
+log "Building uberjar..."
+task build:uberjar
+
+# Generate a per-run fly.toml from the root one: swap app name + OTEL service,
+# drop prod's DB host/name/user ([env] lines, supplied per-branch via secrets),
+# and enable scale-to-zero. Everything else is inherited unchanged so the config
+# stays faithful to prod.
+RUN_TOML="$(mktemp -t "fly-${APP}").toml"
+trap 'rm -f "$RUN_TOML"' EXIT
+log "Generating $RUN_TOML from fly.toml..."
+sed \
+  -e "s/^app = .*/app = \"$APP\"/" \
+  -e "s|OTEL_SERVICE_NAME *=.*|OTEL_SERVICE_NAME                       = \"$(otel_service_name "$SLUG")\"|" \
+  -e "/KALEIDOSCOPE_DB_HOST/d" \
+  -e "/KALEIDOSCOPE_DB_NAME/d" \
+  -e "/KALEIDOSCOPE_DB_USER/d" \
+  -e "/KALEIDOSCOPE_ENV /d" \
+  -e "/KALEIDOSCOPE_ENV=/d" \
+  -e "s/auto_stop_machines  *= *false/auto_stop_machines  = \"suspend\"/" \
+  -e "s/min_machines_running *= *1/min_machines_running = 0/" \
+  fly.toml > "$RUN_TOML"
+
+log "Creating Fly app '$APP' (no-op if it already exists)..."
+fly apps create "$APP" 2>/dev/null || warn "App '$APP' already exists — reusing it."
+
+# Per-branch DB connection + per-env secrets. These override / supply the [env]
+# values dropped above. KALEIDOSCOPE_ENV tags Bugsnag releaseStage, the OTEL
+# deployment.environment attribute, and JSON log lines (init/env.clj).
+log "Fetching Neon connection string for '$BRANCH'..."
+parse_conn_string "$(neon_conn_string "$BRANCH")"
+
+# Secrets are the single source of truth for everything that differs per env.
+# The DB host/name/user and KALEIDOSCOPE_ENV were deleted from the generated
+# [env] above so there's no conflicting definition (see PLAN's convention note).
+# The frontend/static keys below live only in secrets — no [env] entry to delete.
+#   KALEIDOSCOPE_CLIENT_BUCKET/_PREFIX  -> /, /index.html, /assets/* (the SPA shell)
+#   KALEIDOSCOPE_EPHEMERAL_HOST_*       -> this host's /static/*, /media/*
+PREFIX="$(s3_prefix "$SLUG")"
+log "Setting secrets on '$APP'..."
+fly secrets set --app "$APP" --stage \
+  KALEIDOSCOPE_DB_HOST="$DB_HOST" \
+  KALEIDOSCOPE_DB_NAME="$DB_NAME" \
+  KALEIDOSCOPE_DB_USER="$DB_USER" \
+  KALEIDOSCOPE_DB_PASSWORD="$DB_PASSWORD" \
+  KALEIDOSCOPE_ENV="$(otel_service_name "$SLUG")" \
+  KALEIDOSCOPE_BUGSNAG_KEY="$KALEIDOSCOPE_BUGSNAG_KEY" \
+  AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+  AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+  KALEIDOSCOPE_CLIENT_BUCKET="$EPHEMERAL_BUCKET" \
+  KALEIDOSCOPE_CLIENT_PREFIX="$PREFIX" \
+  KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS="$APP.fly.dev" \
+  KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET="$EPHEMERAL_BUCKET" \
+  KALEIDOSCOPE_EPHEMERAL_HOST_PREFIX="$PREFIX"
+
+log "Deploying '$APP'..."
+fly deploy --app "$APP" --config "$RUN_TOML"
+
+log "Deployed: https://$APP.fly.dev"
