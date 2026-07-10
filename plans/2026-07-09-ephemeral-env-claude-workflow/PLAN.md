@@ -188,11 +188,57 @@ Original design notes:
 ---
 
 ## Still-open third-party prerequisites (one-time, not scripted)
-- Neon: persistent `staging` branch forked from `main`.
-- AWS: reuse prod creds (Phase 2); create `kal-ephemeral` bucket + scoped creds (Phase 4/5).
+- Neon: persistent `staging` branch forked from `main`. **DONE** (branch `staging` exists).
+- AWS: `kal-ephemeral` bucket + scoped IAM creds — **codified in Terraform** (`iac/artifact-bucket/s3.tf`,
+  see the migration below). Apply it, then read the `kaleidoscope_ephemeral_access_key_id` /
+  `kaleidoscope_ephemeral_secret_access_key` outputs into `.env.fly.staging`.
 - Auth0: `ephemeral:writer`/`:admin` role assigned to the M2M test client; wildcard callback URL
   `https://*.fly.dev/*` for interactive login.
-- `.env.fly.staging` (local, untracked): `NEON_API_KEY`, `NEON_PROJECT_ID`, AWS creds.
+- `.env.fly.staging` (local, untracked): `NEON_API_KEY`, `NEON_PROJECT_ID`, AWS creds (from the TF
+  outputs above), `KALEIDOSCOPE_BUGSNAG_KEY`, optional `AUTH0_CLIENT_ID`/`_SECRET`.
+
+### Terraform: kal-ephemeral bucket + moving the asset buckets into `artifact-bucket`
+`iac/artifact-bucket/s3.tf` now owns the S3 asset buckets. It gained: the `kaleidoscope.pub` /
+`kaleidoscope.client` buckets + their SES policy (moved verbatim from `iac/ecs-fargate/s3.tf`), and a
+new `kal-ephemeral` bucket with a dedicated `kaleidoscope-ephemeral` IAM user scoped to
+Get/Put/Delete + ListBucket on that bucket only (creds exposed as outputs). `iac/ecs-fargate/s3.tf` is
+now a pointer comment.
+
+**Moving the two existing buckets between root modules is a STATE operation — a bare `apply` would
+destroy the live prod buckets.** They have separate S3 backends (`ecs-fargate/…` vs
+`artifact-bucket/…` in `andrewslai-tf`), so migrate cross-state with `state rm` + `import`, and verify
+plans before any apply:
+
+```bash
+# 1. Drop them from ecs-fargate STATE (no destroy — config already removed):
+cd iac/ecs-fargate && ./terraform-ecs init
+terraform state rm 'aws_s3_bucket.kaleidoscope_assets_bucket'
+terraform state rm 'aws_s3_bucket_policy.allow_access_from_ses'
+
+# 2. Import them into artifact-bucket state (import id = bucket name for both):
+cd ../artifact-bucket && ./terraform-bucket init
+terraform import -var-file=provider_secrets.tfvars 'aws_s3_bucket.kaleidoscope_assets_bucket["kaleidoscope.pub"]'    kaleidoscope.pub
+terraform import -var-file=provider_secrets.tfvars 'aws_s3_bucket.kaleidoscope_assets_bucket["kaleidoscope.client"]' kaleidoscope.client
+terraform import -var-file=provider_secrets.tfvars 'aws_s3_bucket_policy.allow_access_from_ses["kaleidoscope.pub"]'    kaleidoscope.pub
+terraform import -var-file=provider_secrets.tfvars 'aws_s3_bucket_policy.allow_access_from_ses["kaleidoscope.client"]' kaleidoscope.client
+
+# 3. VERIFY before applying:
+#    - artifact-bucket plan: ONLY creates (kal-ephemeral bucket + IAM user/policy/key),
+#      NO changes to the two imported buckets/policies.
+#    - ecs-fargate plan: NO destroys of kaleidoscope.pub / kaleidoscope.client. If it wants to
+#      destroy them, STOP — the state rm didn't take.
+./terraform-bucket plan
+cd ../ecs-fargate && ./terraform-ecs plan
+
+# 4. Apply artifact-bucket, then read the ephemeral creds into .env.fly.staging:
+cd ../artifact-bucket && ./terraform-bucket apply
+terraform output kaleidoscope_ephemeral_access_key_id
+terraform output -raw kaleidoscope_ephemeral_secret_access_key
+```
+Order of steps 1↔2 isn't critical (no `apply` runs between), but never `apply` while a bucket is
+absent from both states or present in the wrong one.
+
+## Explicitly out of scope
 
 ## Explicitly out of scope
 - GitHub Actions per-PR automation (Phase 6 — build the CLI scripts first so CI reuses them).

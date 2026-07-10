@@ -1,32 +1,9 @@
-resource "aws_s3_bucket" "kaleidoscope_assets_bucket" {
-  for_each = toset(["kaleidoscope.pub", "kaleidoscope.client"])
-  bucket = each.key
-}
-
-## The Email receiving must be configured by hand in SES
-resource "aws_s3_bucket_policy" "allow_access_from_ses" {
-  for_each = aws_s3_bucket.kaleidoscope_assets_bucket
-  bucket = each.value.id
-  policy = <<-EOF
-{
-  "Version":"2012-10-17",
-  "Statement":[
-    {
-      "Sid":"AllowSESPuts",
-      "Effect":"Allow",
-      "Principal":{
-        "Service":"ses.amazonaws.com"
-      },
-      "Action":"s3:PutObject",
-      "Resource":"arn:aws:s3:::${each.value.id}/*",
-      "Condition":{
-        "StringEquals":{
-          "AWS:SourceAccount":"758589815425",
-          "AWS:SourceArn": "arn:aws:ses:us-east-1:758589815425:receipt-rule-set/${each.value.id}-emails:receipt-rule/myrule"
-        }
-      }
-    }
-  ]
-}
-EOF
-}
+# The kaleidoscope.pub / kaleidoscope.client asset buckets and their SES
+# bucket policies were moved to iac/artifact-bucket/s3.tf, which now owns all
+# S3 asset buckets (alongside the new kal-ephemeral bucket).
+#
+# Moving them between root modules is a STATE operation, not just a code move:
+# `terraform state rm` here + `terraform import` in "00000000-0000-0000-0000-000000000000"artifact-bucket. See the
+# migration steps in plans/2026-07-09-ephemeral-env-claude-workflow/PLAN.md.
+# Do NOT `apply` this module before removing them from its state, or Terraform
+# will destroy the live kaleidoscope.pub / kaleidoscope.client buckets.
