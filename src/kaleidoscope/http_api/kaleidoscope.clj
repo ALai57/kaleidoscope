@@ -20,6 +20,7 @@
    [kaleidoscope.http-api.photo :refer [reitit-photos-routes]]
    [kaleidoscope.http-api.ping :refer [reitit-ping-routes]]
    [kaleidoscope.http-api.portfolio :refer [reitit-portfolio-routes]]
+   [kaleidoscope.http-api.recipes :refer [reitit-recipes-routes reitit-recipe-labels-routes reitit-recipe-label-groups-routes reitit-recipe-audiences-routes]]
    [kaleidoscope.http-api.registration :refer [reitit-registration-routes]]
    [kaleidoscope.http-api.swagger :refer [reitit-openapi-routes]]
    [kaleidoscope.http-api.themes :refer [reitit-themes-routes]]
@@ -62,6 +63,20 @@
 
    {:pattern #"^/albums.*"            :handler auth/require-*-admin}
    {:pattern #"^/article-audiences.*" :handler auth/require-*-admin}
+
+   ;; Recipes: GETs are public so shared/public recipes and their label chips
+   ;; render for anonymous readers (the recipe list itself is access-filtered
+   ;; internally by get-visible-recipes); writes require a writer. Sharing uses
+   ;; writer (not admin like article-audiences) to keep it usable — see PLAN.md.
+   {:pattern #"^/recipes.*"             :request-method :get    :handler auth/public-access}
+   {:pattern #"^/recipes.*"             :request-method :post   :handler auth/require-*-writer}
+   {:pattern #"^/recipes.*"             :request-method :put    :handler auth/require-*-writer}
+   {:pattern #"^/recipes.*"             :request-method :delete :handler auth/require-*-writer}
+   {:pattern #"^/recipe-labels.*"       :request-method :get    :handler auth/public-access}
+   {:pattern #"^/recipe-labels.*"       :handler auth/require-*-writer}
+   {:pattern #"^/recipe-label-groups.*" :request-method :get    :handler auth/public-access}
+   {:pattern #"^/recipe-label-groups.*" :handler auth/require-*-writer}
+   {:pattern #"^/recipe-audiences.*"    :handler auth/require-*-writer}
 
    ;; Everything below is intentionally public — listed explicitly so the
    ;; catch-all at the bottom can safely reject anything NOT named here.
@@ -222,6 +237,10 @@
         reitit-project-workflow-routes
         reitit-workspace-roots-routes
         reitit-portfolio-routes
+        reitit-recipes-routes
+        reitit-recipe-labels-routes
+        reitit-recipe-label-groups-routes
+        reitit-recipe-audiences-routes
         reitit-themes-routes
         ;; reitit-stripe-routes and reitit-registration-routes intentionally
         ;; not mounted yet - not ready for production.

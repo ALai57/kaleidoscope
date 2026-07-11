@@ -6,13 +6,29 @@
   content (title, ingredients, instructions, servings, times) is one JSONB value
   under `:content`; the immutable scrape is the same shape under
   `:original-content`."
-  (:require [kaleidoscope.api.access :as access]
+  (:require [cheshire.core :as json]
+            [kaleidoscope.api.access :as access]
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as utils]
             [honey.sql :as hsql]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]
             [taoensso.timbre :as log]))
+
+(defn- ->content
+  "Normalize a JSONB content column to a Clojure map. Postgres returns it
+  already decoded; embedded H2 returns the raw JSON string — decode so the
+  domain always hands callers structured content regardless of backend."
+  [v]
+  (cond
+    (string? v) (json/decode v true)
+    :else       v))
+
+(defn- parse-content-columns
+  [recipe]
+  (-> recipe
+      (update :content ->content)
+      (cond-> (:original-content recipe) (update :original-content ->content))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Labels + groups
@@ -114,7 +130,9 @@
                                      {:builder-fn rs/as-unqualified-kebab-maps})
             by-recipe (group-by :recipe-id rows)]
         (mapv (fn [{:keys [id] :as recipe}]
-                (assoc recipe :labels (mapv #(dissoc % :recipe-id) (get by-recipe id []))))
+                (-> recipe
+                    parse-content-columns
+                    (assoc :labels (mapv #(dissoc % :recipe-id) (get by-recipe id [])))))
               recipes)))))
 
 (defn get-recipes
