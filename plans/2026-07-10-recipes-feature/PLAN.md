@@ -1,5 +1,10 @@
 # Recipes Feature — Scrape, Edit, Search, Share
 
+> **Implementation status (2026-07-11)** — built on branch `plans/recipes-feature` in both repos.
+> **Backend (kaleidoscope), done + tested:** migration (5 tables, one-per-group + composite-tenant constraints), `api/access` shared visibility, `api/recipes` (CRUD, labels/groups, one-per-group validation, ingredient search, audiences), `api/recipe_scraper` (SSRF-guarded fetch, JSON-LD, LLM fallback), `http_api/recipes` routes + ACL. Full suite green (196 tests). Phases 1, 3, 4, 5 complete.
+> **Frontend (kaleidoscope-ui), done + tested:** `types/recipe`, `api/recipes` (+13 tests), `LabelPicker` (+7 tests), `RecipesPage`/`RecipePage`/`RecipeEditorPage` (+ list-filter and scrape→save tests), routes/nav/manager card. Typecheck + lint clean; 24 recipe tests green. Phase 2 complete.
+> **Deferred:** `e2e/recipe-editor.spec.ts` (Playwright) not written; scraper LLM fallback exercised only via mock (no live Anthropic call); a real structured content-diff in "View original" is a plain list, not a highlighted diff. **Note:** the UI repo needs Node 22 (`.nvmrc`); the default shell Node (18) can't run vitest — `nvm use 22` first.
+>
 > **Revision (2026-07-11)** — data model reworked after a soundness/simplicity review:
 > (1) single opaque `UUID` identity, slug is the address; (2) one `RecipeContent` value/spec for both current and original — no differently-shaped snapshot blob; (3) ingredients named honestly as freeform text + text-contains match; (4) one-per-group invariant moved into the DB (partial unique index) with the group carried on the assignment row; (5) same-tenant integrity enforced by composite `(id, hostname)` FKs; (6) shared access/visibility helper instead of copying the article logic. Recipe tests run on embedded-postgres.
 
