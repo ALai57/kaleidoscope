@@ -23,8 +23,9 @@ require_cmd() { command -v "$1" >/dev/null 2>&1 || die "Required command not fou
 
 # --- staging config (secrets, never committed) -------------------------------
 # .env.fly.staging holds NEON_API_KEY, NEON_PROJECT_ID, AWS_* creds, the Bugsnag
-# key, and (optionally) the Auth0 M2M creds used by the smoke test. Covered by
-# the *.env* gitignore rule.
+# key, (optionally) the Auth0 M2M creds used by the smoke test, and (optionally)
+# FIRECRAWL_API_KEY + KALEIDOSCOPE_RECIPE_FETCHER_TYPE=firecrawl to enable the
+# recipe-scrape bot-block fallback. Covered by the *.env* gitignore rule.
 STAGING_ENV_FILE="${STAGING_ENV_FILE:-$REPO_ROOT/.env.fly.staging}"
 
 load_staging_env() {
