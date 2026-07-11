@@ -55,7 +55,7 @@ data-access concern and lives under `persistence/`. Wiring is via
 scrape(fetcher, {:api-key ...}, url)
  ├─ tier 1: fetch-direct           — SSRF-guarded Clojure-wrapped HTTP (free)
  │            200            → html
- │            403/429/503 or challenge-marker body → :reason :bot-blocked
+ │            403/429/503    → :reason :bot-blocked
  │            other non-2xx  → :reason :fetch-failed
  ├─ tier 2: only when tier 1 is :bot-blocked AND `fetcher` is present
  │            fetch-rendered via Firecrawl → rawHtml (paid, clears Cloudflare)
@@ -64,23 +64,27 @@ scrape(fetcher, {:api-key ...}, url)
 
 ## The Clojure HTTP client (new requirement)
 
-Replace raw `java.net.http` interop **in the scraper** with **hato**
-(`hato/hato`) — an idiomatic Clojure wrapper built *on top of*
-`java.net.http`. Chosen over clj-http because it keeps the same underlying HTTP
-engine the codebase already standardized on (no Apache HttpComponents
-transitive weight, which matters for the jlink/distroless image), while giving
-us Clojure maps in/out instead of `.header`/`.build`/`.send` interop chains.
+Replace raw `java.net.http` interop **in the scraper** with **clj-http**
+(`clj-http/clj-http`) — a mature, widely-used Clojure HTTP client (Apache
+HttpComponents under the hood). Gives us Clojure maps in/out instead of
+`.header`/`.build`/`.send` interop chains. Note this adds the Apache
+HttpComponents transitive deps to the image (a heavier stack than the
+`java.net.http` the codebase currently uses) — accepted for clj-http's
+maturity and familiarity.
 
-- Add `hato/hato {:mvn/version "1.0.0"}` to `deps.edn` (pin the current latest
-  at implementation time).
-- **SSRF-critical:** configure the client with `:redirect-policy :never` so
-  redirects are **not** auto-followed. `fetch-direct` keeps following redirects
-  manually, revalidating every hop with the existing `safe-url?` /
-  `blocked-address?` guard. A wrapper that silently auto-follows would defeat
-  the per-hop SSRF check — this must be explicit.
-- Scope: `fetch-direct` (rewritten) and the new Firecrawl client both use hato.
-  `workflows/llm_executor.clj` keeps its raw interop — out of scope here (do
-  not refactor unrelated code); noted as a possible follow-up.
+- Add `clj-http/clj-http {:mvn/version "3.13.0"}` to `deps.edn` (pin the
+  current latest at implementation time).
+- **SSRF-critical:** call with `:redirect-strategy :none` so redirects are
+  **not** auto-followed. `fetch-direct` keeps following redirects manually,
+  revalidating every hop with the existing `safe-url?` / `blocked-address?`
+  guard. A client that silently auto-follows would defeat the per-hop SSRF
+  check — this must be explicit.
+- Use `:throw-exceptions false` so non-2xx statuses come back as a response map
+  we classify ourselves (`403/429/503` → `:bot-blocked`, etc.) rather than
+  clj-http throwing on them.
+- Scope: `fetch-direct` (rewritten) and the new Firecrawl client both use
+  clj-http. `workflows/llm_executor.clj` keeps its raw interop — out of scope
+  here (do not refactor unrelated code); noted as a possible follow-up.
 
 ## Components
 
@@ -88,7 +92,7 @@ us Clojure maps in/out instead of `.header`/`.build`/`.send` interop chains.
 - A `RecipeFetcher` protocol with one method, `fetch-rendered [this url] → html`,
   plus a real Firecrawl record and a mock record. Protocol so tests inject a
   mock and never hit the network (same pattern as scorer/executor).
-- Real impl: `POST https://api.firecrawl.dev/v1/scrape` via hato, header
+- Real impl: `POST https://api.firecrawl.dev/v1/scrape` via clj-http, header
   `Authorization: Bearer <FIRECRAWL_API_KEY>`, JSON body
   `{:url url :formats ["rawHtml"]}`. Parse `data.rawHtml` from the response and
   return it. Non-success → throw `ex-info` with `{:type :scrape :reason
@@ -109,12 +113,10 @@ us Clojure maps in/out instead of `.header`/`.build`/`.send` interop chains.
 
 ### `api/recipe_scraper.clj` — orchestration
 - `fetch-direct` (renamed from today's `fetch-html`): same SSRF + manual
-  redirect loop + 2 MB body cap, rewritten on hato. Classify the terminal
-  status:
+  redirect loop + 2 MB body cap, rewritten on clj-http. Classify the terminal
+  status (by status code only — no body inspection):
   - `200` → return html.
-  - `403 | 429 | 503`, **or** a 200/non-2xx body containing a challenge marker
-    (`"Just a moment"`, `cf-mitigated`, `cf-browser-verification`) → throw
-    `{:type :scrape :reason :bot-blocked}`.
+  - `403 | 429 | 503` → throw `{:type :scrape :reason :bot-blocked}`.
   - other non-2xx → `{:type :scrape :reason :fetch-failed}`.
 - `scrape` gains a `fetcher` argument and orchestrates the tiers: call
   `fetch-direct`; on `:bot-blocked`, if `fetcher` is present call
@@ -189,30 +191,31 @@ tests; these live under `test/kaleidoscope/api/recipe_scraper_test.clj` and
    rendered `rawHtml`.
 3. Direct `403` + no fetcher (`none`) → `:bot-blocked` → route returns
    `422 {:reason "bot-blocked"}`.
-4. Challenge-marker body (200 with `"Just a moment"`) → treated as
-   `:bot-blocked`, same fallback path as case 2.
+4. Direct `503` (and `429`) → treated as `:bot-blocked`, same fallback path as
+   case 2.
 5. Fetcher throws `:render-failed` → `scrape` propagates it (assert we do
    **not** swallow it into a 422 — proves the Bugsnag path).
 6. Route-level: `422` body shape for an expected reason.
 
-Stub `fetch-direct`'s HTTP at the hato boundary (or inject a fake status/body)
-so no test makes a real outbound request.
+Stub `fetch-direct`'s HTTP at the clj-http boundary (or inject a fake
+status/body) so no test makes a real outbound request.
 
 ## Out of scope / follow-ups
 
 - Migrating `workflows/llm_executor.clj` off raw `java.net.http` interop onto
-  hato — consistent direction, but unrelated to this fix.
+  clj-http — consistent direction, but unrelated to this fix.
 - A manual "paste the recipe text" UI path for sites even Firecrawl can't clear
   (frontend repo).
 - Caching / rate-limiting Firecrawl calls — only worth it if the paid tier is
   hit often; not now.
 
+## Resolved decisions
+
+- **HTTP client: clj-http** (not hato) — user directive.
+- **Block detection: status code only** — `403/429/503` → `:bot-blocked`, no
+  body/challenge-marker sniffing (user: "treat 403 as blocked").
+
 ## Open decisions for user review
 
-1. **hato vs clj-http** — recommending hato (same `java.net.http` engine, light
-   deps). Say if you'd rather standardize on clj-http.
-2. **Fetcher location** — `persistence/firecrawl.clj`. Alternative: alongside
+1. **Fetcher location** — `persistence/firecrawl.clj`. Alternative: alongside
    the scraper in `api/`. Recommending `persistence/` (external data access).
-3. **Challenge-marker sniffing** — matching `"Just a moment"` / `cf-mitigated`
-   in the body is heuristic. Acceptable to also treat plain `403` as
-   `:bot-blocked` without body-sniffing if you'd prefer fewer moving parts.
