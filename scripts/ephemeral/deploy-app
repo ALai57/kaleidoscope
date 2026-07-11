@@ -33,7 +33,11 @@ task build:uberjar
 # drop prod's DB host/name/user ([env] lines, supplied per-branch via secrets),
 # and enable scale-to-zero. Everything else is inherited unchanged so the config
 # stays faithful to prod.
-RUN_TOML="$(mktemp -t "fly-${APP}").toml"
+#
+# The generated toml MUST live in the repo root: `fly deploy` resolves
+# [build].dockerfile and the build context relative to the config file's
+# directory, so a /tmp toml makes Fly look for the Dockerfile in /tmp.
+RUN_TOML="$REPO_ROOT/fly.$APP.toml"
 trap 'rm -f "$RUN_TOML"' EXIT
 log "Generating $RUN_TOML from fly.toml..."
 sed \

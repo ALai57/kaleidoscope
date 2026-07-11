@@ -189,8 +189,9 @@ Original design notes:
 
 ## Still-open third-party prerequisites (one-time, not scripted)
 - Neon: persistent `staging` branch forked from `main`. **DONE** (branch `staging` exists).
-- AWS: `kal-ephemeral` bucket + scoped IAM creds — **codified in Terraform** (`iac/artifact-bucket/s3.tf`,
-  see the migration below). Apply it, then read the `kaleidoscope_ephemeral_access_key_id` /
+- AWS: `kal-ephemeral` bucket + scoped IAM creds — **codified in Terraform** (`iac/artifact-bucket/s3.tf`)
+  and **APPLIED** (2026-07-10): buckets migrated between modules via state rm + import, `kal-ephemeral`
+  + `kaleidoscope-ephemeral` IAM user created. Read the `kaleidoscope_ephemeral_access_key_id` /
   `kaleidoscope_ephemeral_secret_access_key` outputs into `.env.fly.staging`.
 - Auth0: `ephemeral:writer`/`:admin` role assigned to the M2M test client; wildcard callback URL
   `https://*.fly.dev/*` for interactive login.

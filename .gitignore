@@ -44,3 +44,6 @@ pom.xml*
 
 opentelemetry-javaagent.jar
 kaleidoscope.iml
+
+# Generated per-environment Fly configs (scripts/ephemeral/deploy-app)
+fly.kal-eph-*.toml
