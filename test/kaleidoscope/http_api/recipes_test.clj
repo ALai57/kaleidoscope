@@ -3,6 +3,7 @@
   round-trip through the real router + middleware stack. Ingredient search
   (Postgres-only) is covered in kaleidoscope.api.recipes-test."
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
+            [kaleidoscope.api.recipe-scraper :as scraper]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.init.env :as env]
             [kaleidoscope.test-main :as tm]
@@ -83,6 +84,31 @@
     (testing "the created (public) recipe is retrievable anonymously"
       (is (match? {:status 200 :body {:recipe-url "chana-masala"}}
                   (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))
+
+(deftest scrape-endpoint-test
+  (let [app (make-app "custom-authenticated-user")]
+    (testing "anonymous scrape is rejected"
+      (is (match? {:status 401}
+                  ((make-app "always-unauthenticated")
+                   (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                       (mock/json-body {:url "http://example.com/r"}))))))
+
+    (testing "a writer gets a draft back (scrape mocked to avoid network)"
+      (with-redefs [scraper/scrape (fn [_ _] {:recipe {:title "Mocked" :ingredients ["a"]}
+                                              :suggested-labels []
+                                              :extraction-method "json-ld"
+                                              :warnings []})]
+        (is (match? {:status 200 :body {:recipe {:title "Mocked"} :extraction-method "json-ld"}}
+                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                             as-writer
+                             (mock/json-body {:url "http://example.com/r"})))))))
+
+    (testing "a scrape failure surfaces as 422 with a reason"
+      (with-redefs [scraper/scrape (fn [_ _] (throw (ex-info "blocked" {:type :scrape :reason :blocked-url})))]
+        (is (match? {:status 422 :body {:reason "blocked-url"}}
+                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                             as-writer
+                             (mock/json-body {:url "http://169.254.169.254/"})))))))))
 
 (deftest one-per-group-returns-400-test
   (let [app (make-app "custom-authenticated-user")]

@@ -1,9 +1,10 @@
 (ns kaleidoscope.http-api.recipes
   (:require [clojure.string :as str]
             [kaleidoscope.api.recipes :as recipes-api]
+            [kaleidoscope.api.recipe-scraper :as scraper]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.models.recipes :as models.recipes]
-            [ring.util.http-response :refer [bad-request not-found ok]]
+            [ring.util.http-response :refer [bad-request not-found ok unprocessable-entity]]
             [taoensso.timbre :as log]))
 
 (defn ->slug
@@ -61,6 +62,22 @@
                                           :recipe-url (or (not-empty recipe-url)
                                                           (->slug (:title content)))
                                           :author     (or (:name identity) (:user-id identity))})))))}}]
+
+   ["/scrape"
+    {:post {:summary    "Fetch + extract a recipe draft from a URL (does not save)"
+            :responses  (merge hu/openapi-401
+                               {200 {:body models.recipes/ScrapeResult}
+                                422 {:body [:map [:reason :string]]}})
+            :parameters {:body [:map [:url :string]]}
+            :handler    (fn [{:keys [components parameters] :as _request}]
+                          (let [url     (get-in parameters [:body :url])
+                                api-key (:api-key (:workflow-executor components))]
+                            (try
+                              (ok (scraper/scrape {:api-key api-key} url))
+                              (catch clojure.lang.ExceptionInfo e
+                                (if (= :scrape (:type (ex-data e)))
+                                  (unprocessable-entity {:reason (name (:reason (ex-data e)))})
+                                  (throw e))))))}}]
 
    ["/:recipe-url"
     {:get    {:summary    "Get a single recipe (access-checked)"

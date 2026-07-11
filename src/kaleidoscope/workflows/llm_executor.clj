@@ -52,8 +52,10 @@
 ;; Low-level HTTP helpers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- post-anthropic-sync
-  "Synchronous POST to Anthropic messages API. Returns parsed JSON body."
+(defn post-anthropic-sync
+  "Synchronous POST to Anthropic messages API. Returns parsed JSON body.
+  Public so other domains (e.g. the recipe scraper's LLM fallback) reuse this
+  one client instead of forking a parallel HTTP/Anthropic helper."
   [api-key body-map]
   (let [body-str (json/encode body-map)
         request  (-> (HttpRequest/newBuilder)
@@ -76,7 +78,7 @@
 (defn- extract-text [response]
   (-> response :content first :text))
 
-(defn- extract-json
+(defn extract-json
   "Extract the first complete JSON object from text.
    Handles three common LLM output patterns:
      1. Raw JSON (ideal)
