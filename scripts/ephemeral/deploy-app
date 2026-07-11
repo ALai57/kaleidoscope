@@ -84,7 +84,22 @@ fly secrets set --app "$APP" --stage \
   KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET="$EPHEMERAL_BUCKET" \
   KALEIDOSCOPE_EPHEMERAL_HOST_PREFIX="$PREFIX"
 
+# EPHEMERAL_LOCAL_BUILD=1 builds the image on the local Docker daemon and pushes
+# it over HTTPS to registry.fly.io, bypassing the remote builder — worth it when
+# the WireGuard tunnel to the remote builder is slow. Caveat: on Apple Silicon
+# the linux/amd64 image cross-builds under emulation, which can be slow for the
+# jlink/AppCDS steps. Default (unset) uses Fly's remote builder.
+DEPLOY_FLAGS=()
+if [ "${EPHEMERAL_LOCAL_BUILD:-}" = "1" ]; then
+  require_cmd docker
+  docker info >/dev/null 2>&1 || die "EPHEMERAL_LOCAL_BUILD=1 but the Docker daemon isn't running."
+  log "Building locally (--local-only) and pushing over HTTPS."
+  DEPLOY_FLAGS+=(--local-only)
+fi
+
 log "Deploying '$APP'..."
-fly deploy --app "$APP" --config "$RUN_TOML"
+# ${arr[@]+"${arr[@]}"} guards against the empty-array-under-`set -u` error on
+# bash 3.2 (macOS default): a bare "${DEPLOY_FLAGS[@]}" errors as unbound when empty.
+fly deploy --app "$APP" --config "$RUN_TOML" ${DEPLOY_FLAGS[@]+"${DEPLOY_FLAGS[@]}"}
 
 log "Deployed: https://$APP.fly.dev"

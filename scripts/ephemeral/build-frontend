@@ -23,8 +23,8 @@ require_cmd aws
 : "${AWS_SECRET_ACCESS_KEY:?set AWS_SECRET_ACCESS_KEY in $STAGING_ENV_FILE}"
 [ -d "$FRONTEND_DIR" ] || die "Frontend repo not found at $FRONTEND_DIR (override with FRONTEND_DIR=...)."
 
-log "Building frontend in $FRONTEND_DIR (npm ci && npm run build)..."
-( cd "$FRONTEND_DIR" && npm ci && npm run build )
+log "Building frontend in $FRONTEND_DIR (npm ci && npm run build -- --mode ephemeral)..."
+( cd "$FRONTEND_DIR" && npm ci && npm run build -- --mode ephemeral)
 
 DIST="$FRONTEND_DIR/resources/kaleidoscope.client/static/dist"
 [ -f "$DIST/index.html" ] || die "Expected build output at $DIST/index.html — did vite's outDir change?"

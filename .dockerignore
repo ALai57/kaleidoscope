@@ -3,3 +3,22 @@
 .git
 .gitignore
 #resources/
+
+# --- Kaleidoscope: keep the Docker build context small ---
+# The Dockerfile only COPYs target/kaleidoscope.jar from the context; exclude
+# everything large/irrelevant. iac/ holds ~1.5GB of Terraform provider plugins.
+iac/
+.lsp/
+log.txt
+checkly/
+plans/
+e2e/
+storybook-static/
+coverage/
+**/node_modules/
+.env*
+*.env*
+fly.kal-eph-*.toml
+# Keep only the uberjar out of target/
+target/*
+!target/kaleidoscope.jar
