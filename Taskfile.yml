@@ -73,6 +73,61 @@ tasks:
       and AUTH0_CLIENT_ID/SECRET (skipped with a warning otherwise).
     cmd: ./scripts/ephemeral/checkly-test {{if .NAME}}--name={{.NAME}}{{end}}
 
+  # ephemeral:* mirror the env:* tasks but demand an explicit NAME (no git-branch
+  # fallback), so you always target a named environment on purpose.
+  ephemeral:up:
+    desc: Provision a named ephemeral Fly.io test environment end-to-end (requires NAME)
+    summary: |
+      Like env:up but pinned to an explicit NAME instead of the git branch.
+      Creates a Neon branch (eph-<NAME>), deploys a Fly app (kal-eph-<NAME>) against
+      real dependencies, smoke-tests it, and runs the recipes Checkly check. Requires
+      .env.fly.staging; the Checkly step is skipped with a warning unless
+      CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID and AUTH0_CLIENT_ID/SECRET are set.
+      Usage: task ephemeral:up NAME=pr-42
+    requires:
+      vars: [NAME]
+    cmd: ./scripts/ephemeral/up --name={{.NAME}}
+
+  ephemeral:down:
+    desc: Tear down a named ephemeral Fly.io test environment (requires NAME)
+    requires:
+      vars: [NAME]
+    cmd: ./scripts/ephemeral/down --name={{.NAME}}
+
+  ephemeral:provision-db:
+    desc: Create and migrate the Neon branch for a named ephemeral env (requires NAME)
+    requires:
+      vars: [NAME]
+    cmd: ./scripts/ephemeral/provision-db --name={{.NAME}}
+
+  ephemeral:build-frontend:
+    desc: Build the frontend and sync it to a named ephemeral env's S3 prefix (requires NAME)
+    requires:
+      vars: [NAME]
+    cmd: ./scripts/ephemeral/build-frontend --name={{.NAME}}
+
+  ephemeral:deploy-app:
+    desc: Build and deploy the backend to a named ephemeral Fly app (requires NAME)
+    requires:
+      vars: [NAME]
+    cmd: ./scripts/ephemeral/deploy-app --name={{.NAME}}
+
+  ephemeral:smoke-test:
+    desc: Smoke-test a named deployed ephemeral env (requires NAME)
+    requires:
+      vars: [NAME]
+    cmd: ./scripts/ephemeral/smoke-test --name={{.NAME}}
+
+  ephemeral:checkly-test:
+    desc: Run the recipes Checkly check against a named ephemeral env (requires NAME)
+    summary: |
+      Points the Monitoring-as-Code checks at https://kal-eph-<NAME>.fly.dev and runs
+      a one-off `checkly test` in Checkly's cloud. Needs CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID
+      and AUTH0_CLIENT_ID/SECRET (skipped with a warning otherwise).
+    requires:
+      vars: [NAME]
+    cmd: ./scripts/ephemeral/checkly-test --name={{.NAME}}
+
   deploy:otel-collector:
     desc: Deploy the OTEL collector to Fly.io
     dir: iac/otel-collector
