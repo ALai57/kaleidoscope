@@ -13,6 +13,7 @@
             [kaleidoscope.persistence.filesystem.local :as local-fs]
             [kaleidoscope.persistence.filesystem.s3-impl :as s3-storage]
             [kaleidoscope.http-api.auth.access-control :as ac]
+            [kaleidoscope.api.firecrawl :as firecrawl]
             [kaleidoscope.scoring.mock :as scoring-mock]
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
             [kaleidoscope.workflows.mock :as workflow-mock]
@@ -271,6 +272,19 @@
                          {:api-key (get env "ANTHROPIC_API_KEY")}))}
    :default   "mock"})
 
+(def kaleidoscope-recipe-fetcher-boot-instructions
+  "Rendering fetch fallback for recipe scraping. `none` (default) means direct
+  fetch only — a bot-blocked site surfaces as :bot-blocked. `firecrawl` retries
+  bot-blocked fetches through Firecrawl (needs FIRECRAWL_API_KEY)."
+  {:name      :kaleidoscope-recipe-fetcher
+   :path      "KALEIDOSCOPE_RECIPE_FETCHER_TYPE"
+   :launchers {"none"      (fn [_env] nil)
+               "mock"      (fn [_env] (firecrawl/make-mock-fetcher))
+               "firecrawl" (fn [env]
+                             (firecrawl/make-firecrawl-fetcher
+                              {:api-key (get env "FIRECRAWL_API_KEY")}))}
+   :default   "none"})
+
 (def exception-reporter-boot-instructions
   {:name      :exception-reporter
    :path      "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"
@@ -295,7 +309,8 @@
    kaleidoscope-static-content-adapter-boot-instructions
    kaleidoscope-notify-image-resizer-boot-instructions
    kaleidoscope-scorer-boot-instructions
-   kaleidoscope-workflow-executor-boot-instructions])
+   kaleidoscope-workflow-executor-boot-instructions
+   kaleidoscope-recipe-fetcher-boot-instructions])
 
 (def BootInstruction
   [:map
@@ -339,7 +354,8 @@
            kaleidoscope-static-content-adapters
            kaleidoscope-notify-image-resizer
            kaleidoscope-scorer
-           kaleidoscope-workflow-executor]
+           kaleidoscope-workflow-executor
+           kaleidoscope-recipe-fetcher]
     :as   system}]
   {:database                database-connection
    :exception-reporter      (partial er/report! exception-reporter)
@@ -351,7 +367,8 @@
    :static-content-adapters kaleidoscope-static-content-adapters
    :notify-image-resizer!   kaleidoscope-notify-image-resizer
    :scorer                  kaleidoscope-scorer
-   :workflow-executor       kaleidoscope-workflow-executor})
+   :workflow-executor       kaleidoscope-workflow-executor
+   :recipe-fetcher          kaleidoscope-recipe-fetcher})
 
 (defn make-http-handler
   [system]

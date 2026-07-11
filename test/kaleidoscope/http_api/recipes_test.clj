@@ -108,7 +108,14 @@
         (is (match? {:status 422 :body {:reason "blocked-url"}}
                     (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
                              as-writer
-                             (mock/json-body {:url "http://169.254.169.254/"})))))))))
+                             (mock/json-body {:url "http://169.254.169.254/"})))))))
+
+    (testing "a rendering-fetcher failure is NOT a 422 — it propagates to the exception reporter (500)"
+      (with-redefs [scraper/scrape (fn [_ _] (throw (ex-info "firecrawl 500" {:type :scrape :reason :render-failed})))]
+        (is (match? {:status 500}
+                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                             as-writer
+                             (mock/json-body {:url "http://example.com/r"})))))))))
 
 (deftest one-per-group-returns-400-test
   (let [app (make-app "custom-authenticated-user")]

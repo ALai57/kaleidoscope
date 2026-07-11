@@ -76,7 +76,7 @@ CREATE TABLE recipe_audiences (                -- who a recipe is shared with
   FOREIGN KEY (recipe_id, hostname) REFERENCES recipes (id, hostname) ON DELETE CASCADE
 );
 
--;;
+--;;
 
 CREATE INDEX idx_recipes_hostname ON recipes (hostname);
 --;;

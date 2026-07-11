@@ -7,11 +7,12 @@
   client. The scrape endpoint does not save; it returns a draft the user
   reviews and edits before POSTing."
   (:require [cheshire.core :as json]
+            [clj-http.client :as http]
             [clojure.string :as str]
+            [kaleidoscope.api.firecrawl :as firecrawl]
             [kaleidoscope.workflows.llm-executor :as llm]
             [taoensso.timbre :as log])
   (:import (java.net URI InetAddress)
-           (java.net.http HttpClient HttpClient$Redirect HttpRequest HttpResponse$BodyHandlers)
            (java.time Duration)))
 
 (def ^:private max-body-bytes (* 2 1024 1024)) ;; 2 MB
@@ -49,48 +50,72 @@
           nil)
         (catch java.net.UnknownHostException _ :unknown-host)))))
 
-(def ^:private http-client
-  (delay (-> (HttpClient/newBuilder)
-             (.connectTimeout (Duration/ofSeconds 10))
-             (.followRedirects HttpClient$Redirect/NEVER)
-             (.build))))
+(defn- location-header
+  "Case-insensitive lookup of a redirect Location header from a clj-http
+  response headers map."
+  [headers]
+  (some (fn [[k v]] (when (.equalsIgnoreCase (name k) "location") v)) headers))
 
 (defn- fetch-once
-  [^URI uri]
-  (let [request (-> (HttpRequest/newBuilder)
-                    (.uri uri)
-                    (.header "User-Agent" "Mozilla/5.0 (compatible; KaleidoscopeRecipeBot/1.0)")
-                    (.header "Accept" "text/html,application/xhtml+xml")
-                    (.timeout (Duration/ofSeconds 10))
-                    (.GET)
-                    (.build))]
-    (.send @http-client request (HttpResponse$BodyHandlers/ofString))))
+  "Single HTTP GET via clj-http. `:redirect-strategy :none` keeps redirects for
+  us to follow manually (so each hop is SSRF-checked); `:throw-exceptions false`
+  lets us classify the status ourselves rather than clj-http throwing."
+  [^String url]
+  (http/get url {:headers            {"User-Agent" "Mozilla/5.0 (compatible; KaleidoscopeRecipeBot/1.0)"
+                                      "Accept"     "text/html,application/xhtml+xml"}
+                 :redirect-strategy  :none
+                 :throw-exceptions   false
+                 :connection-timeout 10000
+                 :socket-timeout     10000
+                 :as                 :string}))
 
-(defn fetch-html
-  "Fetch the page body, following redirects manually so each hop is
-  SSRF-checked. Throws ex-info {:type :scrape :reason ...} on failure."
+(defn fetch-direct
+  "Directly fetch the page body, following redirects manually so each hop is
+  SSRF-checked. Classifies the terminal status by code only (no body sniffing):
+  403/429/503 are treated as a bot block. Throws ex-info
+  {:type :scrape :reason ...} on failure (:blocked-url, :bot-blocked,
+  :fetch-failed)."
   [url]
   (loop [uri (URI/create url) hops 0]
     (when (> hops max-redirects)
       (throw (ex-info "Too many redirects" {:type :scrape :reason :fetch-failed})))
     (when-let [reason (safe-url? uri)]
       (throw (ex-info "Blocked URL" {:type :scrape :reason (if (= reason :blocked-address) :blocked-url :fetch-failed)})))
-    (let [response (fetch-once uri)
-          status   (.statusCode response)]
+    (let [{:keys [status headers body]} (fetch-once (str uri))]
       (cond
         (and (>= status 300) (< status 400))
-        (if-let [loc (-> response .headers (.firstValue "location") (.orElse nil))]
+        (if-let [loc (location-header headers)]
           (recur (.resolve uri (URI/create loc)) (inc hops))
           (throw (ex-info "Redirect without location" {:type :scrape :reason :fetch-failed})))
 
+        (#{403 429 503} status)
+        (do
+          (log/warnf "Fetch bot-blocked: status %d" status)
+          (throw (ex-info (format "Bot-blocked: %d" status) {:type :scrape :reason :bot-blocked})))
+
         (not= status 200)
-        (throw (ex-info (format "Fetch failed: %d" status) {:type :scrape :reason :fetch-failed}))
+        (do
+          (log/errorf "Fetch failed: status %d" status)
+          (throw (ex-info (format "Fetch failed: %d" status) {:type :scrape :reason :fetch-failed})))
 
         :else
-        (let [body (.body response)]
+        (let [body (or body "")]
           (if (> (count body) max-body-bytes)
             (subs body 0 max-body-bytes)
             body))))))
+
+(defn- fetch-html
+  "Fetch tiers: direct fetch first (free); on a bot block, retry through the
+  rendering `fetcher` when one is configured. Any other failure — and a bot
+  block with no fetcher — propagates."
+  [fetcher url]
+  (try
+    (fetch-direct url)
+    (catch clojure.lang.ExceptionInfo e
+      (if (and (= :bot-blocked (:reason (ex-data e))) fetcher)
+        (do (log/infof "Direct fetch bot-blocked; retrying %s via rendering fetcher" url)
+            (firecrawl/fetch-rendered fetcher url))
+        (throw e)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; JSON-LD extraction
@@ -217,12 +242,14 @@
 ;; Entry point
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn scrape
-  "Fetch and extract a recipe draft from `url`. JSON-LD first, LLM fallback
-  when an api-key is available. Throws ex-info {:type :scrape :reason ...} on
-  failure (:fetch-failed, :no-recipe-found, :blocked-url)."
-  [{:keys [api-key]} url]
+  "Fetch and extract a recipe draft from `url`. Fetch tiers: direct first, then
+  the rendering `fetcher` (when supplied) if the site bot-blocks the direct
+  fetch. Extraction: JSON-LD first, LLM fallback when an api-key is available.
+  Throws ex-info {:type :scrape :reason ...} on failure (:fetch-failed,
+  :bot-blocked, :no-recipe-found, :blocked-url, :render-failed)."
+  [{:keys [api-key fetcher]} url]
   (log/infof "Scraping recipe from %s" url)
-  (let [html (fetch-html url)]
+  (let [html (fetch-html fetcher url)]
     (or (parse-json-ld html)
         (if api-key
           (extract-with-llm api-key html)

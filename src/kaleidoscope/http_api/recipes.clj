@@ -71,11 +71,17 @@
             :parameters {:body [:map [:url :string]]}
             :handler    (fn [{:keys [components parameters] :as _request}]
                           (let [url     (get-in parameters [:body :url])
-                                api-key (:api-key (:workflow-executor components))]
+                                api-key (:api-key (:workflow-executor components))
+                                fetcher (:recipe-fetcher components)]
+                            ;; Expected scrape outcomes become a 422 the client
+                            ;; can act on. Anything else — including a Firecrawl
+                            ;; :render-failed — propagates to the Bugsnag
+                            ;; exception-reporter middleware, which reports it.
                             (try
-                              (ok (scraper/scrape {:api-key api-key} url))
+                              (ok (scraper/scrape {:api-key api-key :fetcher fetcher} url))
                               (catch clojure.lang.ExceptionInfo e
-                                (if (= :scrape (:type (ex-data e)))
+                                (if (#{:fetch-failed :bot-blocked :no-recipe-found :blocked-url}
+                                     (:reason (ex-data e)))
                                   (unprocessable-entity {:reason (name (:reason (ex-data e)))})
                                   (throw e))))))}}]
 

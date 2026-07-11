@@ -1,10 +1,25 @@
 # Recipe Scrape — Cloudflare Fallback + Clojure HTTP Client
 
-> **Status (2026-07-11):** design approved in brainstorming; spec pending user
-> review before an implementation plan is written. Builds on the shipped
-> recipes feature (`plans/2026-07-10-recipes-feature/PLAN.md`) — this only
-> touches the scraper's fetch tier, the HTTP client, and the scrape handler's
-> error handling. Extraction (JSON-LD + LLM) is unchanged.
+> **Status (2026-07-11): IMPLEMENTED + tested.** Builds on the shipped recipes
+> feature (`plans/2026-07-10-recipes-feature/PLAN.md`) — touches only the
+> scraper's fetch tier, the HTTP client, the scrape handler's error handling,
+> and env wiring. Extraction (JSON-LD + LLM) is unchanged. Full suite green
+> (202 tests, 888 assertions).
+>
+> **Two deviations from the spec below, both intentional:**
+> 1. `fetcher` is passed *inside* the scrape opts map — `scrape {:api-key …
+>    :fetcher …} url` — rather than as a separate positional arg. Keeps
+>    `scrape`'s 2-arity intact so existing route-test mocks (`(fn [_ _] …)`)
+>    stay valid.
+> 2. **Pre-existing migration bug fixed as a prerequisite:** the recipes
+>    migration had `-;;` (one dash) where a Migratus separator `--;;` was meant,
+>    which made every recipes *route* test error on H2 (Postgres tolerated it,
+>    so the api-level tests looked green). Corrected to `--;;`; those route
+>    tests now run, including this feature's 422 test.
+>
+> **Deploy step (not done here — needs the user's key):** set the Fly secret
+> `FIRECRAWL_API_KEY` and `KALEIDOSCOPE_RECIPE_FETCHER_TYPE=firecrawl` on the
+> target env (at minimum `kal-eph-recipes`, where the bug was seen).
 
 ## Problem
 
@@ -46,10 +61,10 @@ are not a browser," not client ergonomics.
 
 No layer boundaries move. The scraper stays in `api/recipe_scraper.clj`
 (domain logic that already performs an outbound fetch, mirroring the Anthropic
-client in `workflows/llm_executor.clj`). The Firecrawl client is an external
-data-access concern and lives under `persistence/`. Wiring is via
-`init/env.clj` boot-instructions, exactly like `scorer` and
-`workflow-executor`.
+client in `workflows/llm_executor.clj`). The Firecrawl client lives in
+`api/firecrawl.clj`, alongside the scraper and mirroring `llm_executor`'s
+own outbound-API-from-`api` precedent. Wiring is via `init/env.clj`
+boot-instructions, exactly like `scorer` and `workflow-executor`.
 
 ```
 scrape(fetcher, {:api-key ...}, url)
@@ -88,7 +103,7 @@ maturity and familiarity.
 
 ## Components
 
-### `persistence/firecrawl.clj` — the fetcher
+### `api/firecrawl.clj` — the fetcher
 - A `RecipeFetcher` protocol with one method, `fetch-rendered [this url] → html`,
   plus a real Firecrawl record and a mock record. Protocol so tests inject a
   mock and never hit the network (same pattern as scorer/executor).
@@ -215,7 +230,8 @@ status/body) so no test makes a real outbound request.
 - **Block detection: status code only** — `403/429/503` → `:bot-blocked`, no
   body/challenge-marker sniffing (user: "treat 403 as blocked").
 
-## Open decisions for user review
+## Resolved (continued)
 
-1. **Fetcher location** — `persistence/firecrawl.clj`. Alternative: alongside
-   the scraper in `api/`. Recommending `persistence/` (external data access).
+- **Fetcher location: `api/firecrawl.clj`** (alongside the scraper), per user
+  directive — matches `workflows/llm_executor.clj`, which likewise makes an
+  outbound API call from a non-persistence namespace.
