@@ -61,6 +61,10 @@ tasks:
     desc: Tear down an ephemeral Fly.io test environment (NAME defaults to the git branch)
     cmd: ./scripts/ephemeral/down {{if .NAME}}--name={{.NAME}}{{end}}
 
+  env:test:
+    desc: Unit-test the ephemeral slug helpers (no services required)
+    cmd: ./scripts/ephemeral/lib_test.sh
+
   env:checkly:
     desc: Run the recipes Checkly check against an ephemeral env (NAME defaults to the git branch)
     summary: |

@@ -18,6 +18,7 @@ load_staging_env
 require_cmd fly
 require_cmd neonctl
 require_cmd sed
+require_cmd aws
 : "${AWS_ACCESS_KEY_ID:?set AWS_ACCESS_KEY_ID in $STAGING_ENV_FILE}"
 : "${AWS_SECRET_ACCESS_KEY:?set AWS_SECRET_ACCESS_KEY in $STAGING_ENV_FILE}"
 : "${KALEIDOSCOPE_BUGSNAG_KEY:?set KALEIDOSCOPE_BUGSNAG_KEY in $STAGING_ENV_FILE}"
@@ -68,6 +69,16 @@ parse_conn_string "$(neon_conn_string "$BRANCH")"
 #   KALEIDOSCOPE_CLIENT_BUCKET/_PREFIX  -> /, /index.html, /assets/* (the SPA shell)
 #   KALEIDOSCOPE_EPHEMERAL_HOST_*       -> this host's /static/*, /media/*
 PREFIX="$(s3_prefix "$SLUG")"
+
+# Guard: the backend is about to serve /, /index.html, /assets/* from this exact
+# S3 prefix. If build-frontend pushed the SPA somewhere else (a slug mismatch
+# between an unnamed and a --name'd run, or build-frontend never ran), '/' would
+# 404 silently. Fail loudly here, before touching Fly, instead of shipping a
+# backend pointed at an empty prefix.
+log "Verifying frontend build exists at s3://$EPHEMERAL_BUCKET/${PREFIX}index.html ..."
+aws s3 ls "s3://$EPHEMERAL_BUCKET/${PREFIX}index.html" >/dev/null 2>&1 \
+  || die "No index.html at s3://$EPHEMERAL_BUCKET/$PREFIX — run 'build-frontend --name=$SLUG' first (frontend/backend slug mismatch?)."
+
 log "Setting secrets on '$APP'..."
 fly secrets set --app "$APP" --stage \
   KALEIDOSCOPE_DB_HOST="$DB_HOST" \

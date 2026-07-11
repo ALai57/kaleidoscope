@@ -42,17 +42,25 @@ STAGING_BRANCH="${STAGING_BRANCH:-staging}"
 FRONTEND_DIR="${FRONTEND_DIR:-$REPO_ROOT/../kaleidoscope-ui}"
 
 # Slug: from the first argument, else the current git branch. Lowercased,
-# non-alphanumerics collapsed to '-', trimmed, truncated to 20 chars.
+# non-alphanumerics collapsed to '-', trimmed, capped at 30 chars. Truncation
+# silently renaming the slug is how the frontend (build-frontend) and backend
+# (deploy-app) once ended up pointing at different prefixes, so warn loudly when
+# it happens — the fix is always to pass an explicit --name=<slug>.
+SLUG_MAX_LEN="${SLUG_MAX_LEN:-30}"
 derive_slug() {
   local raw="${1:-}"
   if [ -z "$raw" ]; then
     raw="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "eph")"
   fi
-  printf '%s' "$raw" \
+  local normalized slug
+  normalized="$(printf '%s' "$raw" \
     | tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
-    | cut -c1-20 \
-    | sed -E 's/-+$//'
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+  slug="$(printf '%s' "$normalized" | cut -c1-"$SLUG_MAX_LEN" | sed -E 's/-+$//')"
+  if [ "$slug" != "$normalized" ]; then
+    warn "Slug '$normalized' truncated to '$slug' (max $SLUG_MAX_LEN chars) — pass --name=<slug> to control it."
+  fi
+  printf '%s' "$slug"
 }
 
 # Pull --name=<slug> out of an argument list; echoes the value (possibly empty).
@@ -68,10 +76,18 @@ parse_name_flag() {
 }
 
 # Resolve the slug for a script invocation: --name flag wins, else git branch.
+# When there's no --name, announce the branch-derived slug on stderr so an
+# unnamed run can't quietly target a different prefix than a --name'd one (the
+# frontend/backend mismatch this tooling is meant to avoid). up resolves once
+# and passes --name to every sub-script, so only a bare top-level run warns.
 resolve_slug() {
-  local slug
-  slug="$(derive_slug "$(parse_name_flag "$@")")"
+  local name slug
+  name="$(parse_name_flag "$@")"
+  slug="$(derive_slug "$name")"
   [ -n "$slug" ] || die "Could not derive a slug — pass --name=<slug>."
+  if [ -z "$name" ]; then
+    warn "No --name given; using git-branch slug '$slug'. Pass --name=<slug> for a stable, explicit name."
+  fi
   printf '%s' "$slug"
 }
 
