@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-const BASE_URL = 'https://sahiltalkingcents.com'
+import { BASE_URL } from './config'
 
 // Verifies the auth wall is running and returning 401, not crashing with 500.
 test('Unauthenticated users cannot access protected resources', async ({ request }) => {

@@ -3,19 +3,22 @@
 #
 #   scripts/ephemeral/up --name=<slug>     # or omit --name to use the git branch
 #
-# Orchestrates: provision-db -> build-frontend -> deploy-app -> smoke-test.
-# build-frontend runs before deploy-app so the SPA is already in S3 when the app
-# boots and the first smoke-test request hits /.
+# Orchestrates: provision-db -> build-frontend -> deploy-app -> smoke-test ->
+# checkly-test. build-frontend runs before deploy-app so the SPA is already in
+# S3 when the app boots and the first smoke-test request hits /. checkly-test
+# runs the recipes Monitoring-as-Code check against the live env (skipped with a
+# warning when Checkly/Auth0 creds are absent).
 set -euo pipefail
 # shellcheck source=scripts/ephemeral/lib.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
 
-SLUG="$(resolve)_slug "$@")"
+SLUG="$(resolve_slug "$@")"
 log "Bringing up ephemeral environment for slug '$SLUG' (Fly: $(fly_app_name "$SLUG"), Neon: $(neon_branch_name "$SLUG"))"
 
 "$EPHEMERAL_DIR/provision-db"    --name="$SLUG"
 "$EPHEMERAL_DIR/build-frontend"  --name="$SLUG"
 "$EPHEMERAL_DIR/deploy-app"      --name="$SLUG"
 "$EPHEMERAL_DIR/smoke-test"      --name="$SLUG"
+"$EPHEMERAL_DIR/checkly-test"    --name="$SLUG"
 
 log "Ephemeral environment ready: https://$(fly_app_name "$SLUG").fly.dev"

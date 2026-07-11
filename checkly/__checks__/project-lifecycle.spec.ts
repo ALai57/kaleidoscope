@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
+import { BASE_URL } from './config'
 
-const BASE_URL    = 'https://sahiltalkingcents.com'
 const AUTH0_DOMAIN = 'dev-722l4eivlaenj2h1.us.auth0.com'
 const AUDIENCE    = 'https://api.andrewslai.com'
 

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Run the recipes Checkly check against a deployed ephemeral environment.
+#
+#   scripts/ephemeral/checkly-test --name=<slug>
+#
+# Points the Monitoring-as-Code checks at https://kal-eph-<slug>.fly.dev by
+# passing ENVIRONMENT_URL (see checkly/__checks__/config.ts) and runs a one-off
+# `checkly test` session in Checkly's cloud runners.
+#
+# Requires (all read from the environment / .env.fly.staging):
+#   CHECKLY_API_KEY, CHECKLY_ACCOUNT_ID   — to talk to Checkly's cloud
+#   AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET  — for the authenticated lifecycle steps
+# When any are missing the check is SKIPPED with a warning (non-fatal), so
+# `up` still succeeds for environments where Checkly isn't configured.
+set -euo pipefail
+# shellcheck source=scripts/ephemeral/lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
+
+SLUG="$(resolve_slug "$@")"
+APP="$(fly_app_name "$SLUG")"
+BASE_URL="https://$APP.fly.dev"
+
+# Pick up AUTH0_* / CHECKLY_* if they live in the staging env file.
+# shellcheck disable=SC1090
+[ -f "$STAGING_ENV_FILE" ] && { set -a; source "$STAGING_ENV_FILE"; set +a; }
+
+missing=""
+[ -n "${CHECKLY_API_KEY:-}" ]     || missing="$missing CHECKLY_API_KEY"
+[ -n "${CHECKLY_ACCOUNT_ID:-}" ]  || missing="$missing CHECKLY_ACCOUNT_ID"
+[ -n "${AUTH0_CLIENT_ID:-}" ]     || missing="$missing AUTH0_CLIENT_ID"
+[ -n "${AUTH0_CLIENT_SECRET:-}" ] || missing="$missing AUTH0_CLIENT_SECRET"
+
+if [ -n "$missing" ]; then
+  warn "SKIP  Checkly recipes check — missing:$missing"
+  warn "      Set these (e.g. in $STAGING_ENV_FILE) to run the check against $BASE_URL."
+  exit 0
+fi
+
+require_cmd npx
+
+log "Running Checkly recipes check against $BASE_URL"
+# ENVIRONMENT_URL is exported (shell env) so construct-parse-time reads it, and
+# passed via --env so it reaches the spec runtime in Checkly's cloud runners.
+( cd "$REPO_ROOT/checkly" \
+    && ENVIRONMENT_URL="$BASE_URL" CHECKLY_API_KEY="$CHECKLY_API_KEY" CHECKLY_ACCOUNT_ID="$CHECKLY_ACCOUNT_ID" \
+       npx checkly test recipes.spec.ts \
+         --env ENVIRONMENT_URL="$BASE_URL" \
+         --env AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" \
+         --env AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET" ) \
+  || die "Checkly recipes check failed against $BASE_URL"
+
+log "Checkly recipes check passed."

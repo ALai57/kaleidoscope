@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-const BASE_URL = 'https://sahiltalkingcents.com'
+import { BASE_URL } from './config'
 
 test('Readers can list and open articles', async ({ request }) => {
   let first: { 'article-url': string }

@@ -48,16 +48,26 @@ tasks:
       - ./bin/deploy-image
 
   env:up:
-    desc: Provision an ephemeral Fly.io test environment (backend only; NAME defaults to the git branch)
+    desc: Provision an ephemeral Fly.io test environment (backend + frontend; NAME defaults to the git branch)
     summary: |
       Creates a Neon branch (eph-<slug>), deploys a Fly app (kal-eph-<slug>) against
-      real dependencies, and smoke-tests it. Requires .env.fly.staging.
-      Name it explicitly: task env:up NAME=pr-42
+      real dependencies, smoke-tests it, and runs the recipes Checkly check against
+      the live env. Requires .env.fly.staging; the Checkly step is skipped with a
+      warning unless CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID and AUTH0_CLIENT_ID/SECRET
+      are set. Name it explicitly: task env:up NAME=pr-42
     cmd: ./scripts/ephemeral/up {{if .NAME}}--name={{.NAME}}{{end}}
 
   env:down:
     desc: Tear down an ephemeral Fly.io test environment (NAME defaults to the git branch)
     cmd: ./scripts/ephemeral/down {{if .NAME}}--name={{.NAME}}{{end}}
+
+  env:checkly:
+    desc: Run the recipes Checkly check against an ephemeral env (NAME defaults to the git branch)
+    summary: |
+      Points the Monitoring-as-Code checks at https://kal-eph-<slug>.fly.dev and runs
+      a one-off `checkly test` in Checkly's cloud. Needs CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID
+      and AUTH0_CLIENT_ID/SECRET (skipped with a warning otherwise).
+    cmd: ./scripts/ephemeral/checkly-test {{if .NAME}}--name={{.NAME}}{{end}}
 
   deploy:otel-collector:
     desc: Deploy the OTEL collector to Fly.io

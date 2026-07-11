@@ -68,7 +68,7 @@ CREATE TABLE recipe_label_assignments (        -- recipe <-> label join
 
 CREATE TABLE recipe_audiences (                -- who a recipe is shared with
   id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  group_id   VARCHAR(36) NOT NULL REFERENCES groups(id) ON DELETE CASCADE,  -- VARCHAR(36) matches legacy groups(id)
+  group_id   VARCHAR NOT NULL,  -- VARCHAR(36) matches legacy groups(id)
   recipe_id  UUID NOT NULL,
   hostname   VARCHAR NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -76,7 +76,7 @@ CREATE TABLE recipe_audiences (                -- who a recipe is shared with
   FOREIGN KEY (recipe_id, hostname) REFERENCES recipes (id, hostname) ON DELETE CASCADE
 );
 
---;;
+-;;
 
 CREATE INDEX idx_recipes_hostname ON recipes (hostname);
 --;;
