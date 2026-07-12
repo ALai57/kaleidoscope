@@ -54,18 +54,18 @@
     (handle-map m s i)))
 
 ;; if a SQL parameter is a Clojure hash map or vector, it'll be transformed
-;; to a PGobject for JSON/JSONB:
+;; to a PGobject for JSON/JSONB (or a plain JSON string on H2, via handle-map):
 (extend-protocol prepare/SettableParameter
   clojure.lang.IPersistentVector
   (set-parameter [v ^PreparedStatement s i]
-    (.setObject s i (->pgobject v))))
+    (handle-map v s i)))
 
 ;; Cheshire can return LazySeq (not IPersistentVector) when decoding JSON arrays
 ;; from JSONB columns. Catch any ISeq so round-tripped JSONB arrays don't fail.
 (extend-protocol prepare/SettableParameter
   clojure.lang.ISeq
   (set-parameter [s ^PreparedStatement stmt i]
-    (.setObject stmt i (->pgobject (vec s)))))
+    (handle-map (vec s) stmt i)))
 
 ;; if a row contains a PGobject then we'll convert them to Clojure data
 ;; while reading (if column is either "json" or "jsonb" type):
