@@ -145,6 +145,27 @@
                              as-writer
                              (mock/json-body {:url "http://example.com/r"})))))))))
 
+(deftest scrape-then-create-links-lineage-http-test
+  (let [app (make-app "custom-authenticated-user")
+        json-ld "<script type=\"application/ld+json\">{\"@type\":\"Recipe\",\"name\":\"Chana Masala\",\"recipeIngredient\":[\"2 cups chickpeas\"],\"recipeInstructions\":\"Cook\"}</script>"]
+    (with-redefs [scraper/fetch-direct (fn [_] {:raw-html json-ld :final-url "http://x/r" :http-status 200})]
+      (let [{scrape-body :body} (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                                         as-writer
+                                         (mock/json-body {:url "http://x/r"})))
+            run-id (:scrape-processing-run-id scrape-body)]
+        (testing "the scrape response carries a run-id"
+          (is (string? run-id)))
+        (testing "creating a recipe with the run-id persists the FK; it round-trips via GET"
+          (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                   as-writer
+                   (mock/json-body {:content {:title "Chana Masala"
+                                              :sections [{:ingredients ["2 cups chickpeas"] :steps ["Cook"]}]}
+                                    :public-visibility true
+                                    :scrape-processing-run-id run-id})))
+          (is (match? {:status 200 :body {:recipe-url "chana-masala"
+                                          :scrape-processing-run-id run-id}}
+                      (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))))
+
 (deftest one-per-group-returns-400-test
   (let [app (make-app "custom-authenticated-user")]
     (let [{gid :body} (app (-> (mock/request :post "https://andrewslai.com/recipe-label-groups")
