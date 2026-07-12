@@ -94,19 +94,34 @@ CREATE TABLE processing_runs (
 --;;
 
 -- Lineage link. Nullable because manually-created recipes have no scrape.
--- ON DELETE SET NULL so deleting a run never cascades away a recipe.
 ALTER TABLE recipes ADD COLUMN scrape_processing_run_id UUID;
 
 --;;
 
+-- Single-column FK to the run's PK — NOT composite with hostname. ON DELETE SET
+-- NULL must null ONLY the link column; a composite (id, hostname) FK would also
+-- null recipes.hostname (NOT NULL), hard-failing the delete instead of unlinking.
+-- Tenant match is left unenforced at the DB (the run-id is an opaque UUID set at
+-- scrape time) so deleting a run never cascades away a recipe — the corpus
+-- intentionally outlives recipe deletes.
 ALTER TABLE recipes ADD CONSTRAINT fk_recipes_scrape_processing_run
-  FOREIGN KEY (scrape_processing_run_id, hostname)
-  REFERENCES processing_runs (id, hostname) ON DELETE SET NULL;
+  FOREIGN KEY (scrape_processing_run_id)
+  REFERENCES processing_runs (id) ON DELETE SET NULL;
 
 --;;
 
 CREATE INDEX idx_processing_runs_raw_scrape_id ON processing_runs (raw_scrape_id);
+
+--;;
+
+CREATE INDEX idx_recipes_scrape_processing_run_id ON recipes (scrape_processing_run_id);
 ```
+
+> **Note (correction applied during execution):** an earlier draft used a
+> composite `(scrape_processing_run_id, hostname)` FK with `ON DELETE SET NULL`,
+> which nulls *both* columns and hard-fails on `recipes.hostname NOT NULL`. Fixed
+> to a single-column FK to the run's PK. The SET-NULL behavior is verified in
+> Task 7's `create-recipe-links-to-processing-run-test`.
 
 - [ ] **Step 2: Write the down migration**
 
@@ -1150,7 +1165,11 @@ Add:
     (testing "a recipe created without a run-id has a nil link"
       (recipes/create-recipe! db (example-recipe :recipe-url "no-link"))
       (is (match? {:scrape-processing-run-id nil?}
-                  (recipes/get-recipe db host "no-link"))))))
+                  (recipes/get-recipe db host "no-link"))))
+    (testing "deleting the linked run does NOT delete the recipe — the link is nulled (ON DELETE SET NULL)"
+      (next/execute! db ["DELETE FROM processing_runs WHERE id = ?" run-id])
+      (is (match? {:recipe-url "chana-masala" :scrape-processing-run-id nil?}
+                  (recipes/get-recipe db host "chana-masala"))))))
 ```
 
 - [ ] **Step 2: Run to verify it fails**

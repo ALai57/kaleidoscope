@@ -31,22 +31,31 @@ CREATE TABLE processing_runs (
   outcome           VARCHAR NOT NULL,     -- 'success' | failure reason (bot-blocked, no-recipe-found, ...)
   error_detail      JSONB,                -- {message, reason} on failure (NULL on success)
   created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  UNIQUE (id, hostname),                  -- composite FK target for recipes.scrape_processing_run_id
+  UNIQUE (id, hostname),
   FOREIGN KEY (raw_scrape_id, hostname) REFERENCES raw_scrapes (id, hostname) ON DELETE CASCADE
 );
 
 --;;
 
 -- Lineage link. Nullable because manually-created recipes have no scrape.
--- ON DELETE SET NULL so deleting a run never cascades away a recipe.
 ALTER TABLE recipes ADD COLUMN scrape_processing_run_id UUID;
 
 --;;
 
+-- Single-column FK to the run's PK — NOT composite with hostname. ON DELETE SET
+-- NULL must null ONLY the link column; a composite (id, hostname) FK would also
+-- null recipes.hostname, which is NOT NULL, hard-failing the delete instead of
+-- unlinking. Tenant match on this link is left unenforced at the DB (the run-id
+-- is an opaque UUID set at scrape time) so that deleting a run never cascades
+-- away a recipe — the corpus intentionally outlives recipe deletes.
 ALTER TABLE recipes ADD CONSTRAINT fk_recipes_scrape_processing_run
-  FOREIGN KEY (scrape_processing_run_id, hostname)
-  REFERENCES processing_runs (id, hostname) ON DELETE SET NULL;
+  FOREIGN KEY (scrape_processing_run_id)
+  REFERENCES processing_runs (id) ON DELETE SET NULL;
 
 --;;
 
 CREATE INDEX idx_processing_runs_raw_scrape_id ON processing_runs (raw_scrape_id);
+
+--;;
+
+CREATE INDEX idx_recipes_scrape_processing_run_id ON recipes (scrape_processing_run_id);
