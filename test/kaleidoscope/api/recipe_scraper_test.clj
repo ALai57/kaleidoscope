@@ -141,3 +141,63 @@
         (is (match? {:reason :render-failed}
                     (try (scraper/scrape {:api-key nil :fetcher failing} "http://example.com/blocked")
                          (catch clojure.lang.ExceptionInfo e (ex-data e)))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Section signals + LLM grouping
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def sectioned-json-ld-html
+  "<script type='application/ld+json'>
+   {\"@type\":\"Recipe\",\"name\":\"Layer Cake\",
+    \"recipeIngredient\":[\"2 cups flour\",\"1 cup sugar\",\"1 cup butter\"],
+    \"recipeInstructions\":[
+      {\"@type\":\"HowToSection\",\"name\":\"Cake\",\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"Mix\"},{\"@type\":\"HowToStep\",\"text\":\"Bake\"}]},
+      {\"@type\":\"HowToSection\",\"name\":\"Frosting\",\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"Whip\"}]}]}
+   </script>")
+
+(def valid-grouping-json
+  "{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[0,1],\"steps\":[0,1]},{\"name\":\"Frosting\",\"ingredients\":[2],\"steps\":[2]}]}")
+
+(deftest sectioned-scrape-groups-with-llm-test
+  (testing "HowToSections route through the grouping call; text is preserved verbatim by index"
+    (with-redefs [scraper/fetch-direct    (fn [_] sectioned-json-ld-html)
+                  llm/post-anthropic-sync (fn [_ _] {:content [{:text valid-grouping-json}]})]
+      (is (match? {:recipe {:title    "Layer Cake"
+                            :sections [{:name "Cake"     :ingredients ["2 cups flour" "1 cup sugar"] :steps ["Mix" "Bake"]}
+                                       {:name "Frosting" :ingredients ["1 cup butter"]               :steps ["Whip"]}]}
+                   :extraction-method "json-ld+llm-sections"
+                   :warnings          []}
+                  (scraper/scrape {:api-key "sk-test"} public-url))))))
+
+(deftest invalid-grouping-falls-back-test
+  (testing "a grouping that is not a partition (missing/duplicate/out-of-range index, bad JSON) flattens with a warning"
+    (doseq [bad ["{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[0,1],\"steps\":[0,1]}]}"          ;; missing step+ingredient
+                 "{\"sections\":[{\"name\":\"A\",\"ingredients\":[0,1,2,2],\"steps\":[0,1,2]}]}"       ;; duplicate ingredient
+                 "{\"sections\":[{\"name\":\"A\",\"ingredients\":[0,1,2],\"steps\":[0,1,2,99]}]}"      ;; out of range
+                 "not json at all"]]
+      (with-redefs [scraper/fetch-direct    (fn [_] sectioned-json-ld-html)
+                    llm/post-anthropic-sync (fn [_ _] {:content [{:text bad}]})]
+        (is (match? {:recipe            {:sections [{:name        nil?
+                                                     :ingredients ["2 cups flour" "1 cup sugar" "1 cup butter"]
+                                                     :steps       ["Mix" "Bake" "Whip"]}]}
+                     :extraction-method "json-ld"
+                     :warnings          [#"grouping failed"]}
+                    (scraper/scrape {:api-key "sk-test"} public-url)))))))
+
+(deftest header-ingredient-lines-trigger-grouping-test
+  (testing "header-shaped ingredient lines are a sectioning signal even with flat instructions,
+            and header lines are consumed as names, not ingredients"
+    (let [html "<script type='application/ld+json'>{\"@type\":\"Recipe\",\"name\":\"Cake\",\"recipeIngredient\":[\"For the cake:\",\"2 cups flour\",\"For the frosting:\",\"1 cup butter\"],\"recipeInstructions\":[{\"@type\":\"HowToStep\",\"text\":\"Mix\"},{\"@type\":\"HowToStep\",\"text\":\"Whip\"}]}</script>"
+          grouping "{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[1],\"steps\":[0]},{\"name\":\"Frosting\",\"ingredients\":[3],\"steps\":[1]}]}"]
+      (with-redefs [scraper/fetch-direct    (fn [_] html)
+                    llm/post-anthropic-sync (fn [_ _] {:content [{:text grouping}]})]
+        (is (match? {:recipe {:sections [{:name "Cake"     :ingredients ["2 cups flour"]  :steps ["Mix"]}
+                                         {:name "Frosting" :ingredients ["1 cup butter"] :steps ["Whip"]}]}
+                     :extraction-method "json-ld+llm-sections"}
+                    (scraper/scrape {:api-key "sk-test"} public-url)))))))
+
+(deftest sectioned-without-api-key-flattens-with-warning-test
+  (with-redefs [scraper/fetch-direct (fn [_] sectioned-json-ld-html)]
+    (is (match? {:recipe            {:sections [{:name nil?}]}
+                 :extraction-method "json-ld"
+                 :warnings          [#"no LLM"]}
+                (scraper/scrape {:api-key nil} public-url)))))

@@ -232,6 +232,83 @@
    :warnings          warnings})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Section signals + LLM grouping
+;;
+;; The LLM never rewrites content: it returns section names plus indexes into
+;; the verbatim ingredient/step lists, the merge is deterministic, and the
+;; grouping is mechanically validated. See DESIGN.md §3.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def ^:private header-line-re
+  ;; "For the frosting:", "Cake:" — short label lines sites embed in
+  ;; recipeIngredient because JSON-LD cannot express ingredient sections.
+  ;; A false positive only costs one unnecessary grouping call.
+  #"(?i)\s*(for\s+the\s+.{1,60}|[^,;]{1,60}:)\s*")
+
+(defn- header-like?
+  [line]
+  (boolean (re-matches header-line-re (or line ""))))
+
+(defn- sectioned?
+  [{:keys [section-names ingredients]}]
+  (boolean (or (seq section-names)
+               (some header-like? ingredients))))
+
+(def ^:private grouping-prompt
+  "You are given a recipe's ingredient lines and instruction steps as numbered lists, and possibly candidate section names. Group them into the recipe's components (e.g. cake vs frosting). Return ONLY strict JSON: {\"sections\": [{\"name\": string or null, \"ingredients\": [ingredient indexes], \"steps\": [step indexes]}]}. Rules: use only the given indexes; never rewrite text; every step index appears in exactly one section; every ingredient index appears in exactly one section EXCEPT lines that are section headers (like \"For the frosting:\") — omit header indexes entirely; if the recipe has no real components, return one section with name null containing all indexes.")
+
+(defn- valid-grouping?
+  "Steps must be an exact partition of the step indexes; ingredient indexes
+  must be in-range and unique, and every non-header ingredient line must be
+  assigned (headers may be omitted — they become names, not ingredients)."
+  [{:keys [ingredients steps]} sections]
+  (let [ing-idxs  (vec (mapcat :ingredients sections))
+        step-idxs (vec (mapcat :steps sections))
+        required  (set (keep-indexed (fn [i line] (when-not (header-like? line) i))
+                                     ingredients))]
+    (and (sequential? sections)
+         (seq sections)
+         (every? #(and (int? %) (<= 0 %) (< % (count ingredients))) ing-idxs)
+         (= (count ing-idxs) (count (set ing-idxs)))
+         (every? (set ing-idxs) required)
+         (every? int? step-idxs)
+         (= (sort step-idxs) (vec (range (count steps)))))))
+
+(defn- grouping->sections
+  [{:keys [ingredients steps]} sections]
+  (mapv (fn [{:keys [name] :as s}]
+          {:name        (when-not (str/blank? (or name "")) name)
+           :ingredients (mapv ingredients (:ingredients s))
+           :steps       (mapv steps (:steps s))})
+        sections))
+
+(defn- numbered
+  [lines]
+  (str/join "\n" (map-indexed (fn [i l] (str i ". " l)) lines)))
+
+(defn- group-sections-with-llm
+  "Ask for a grouping and merge it deterministically. Returns a sections
+  vector, or nil when the response is unusable — the caller falls back."
+  [api-key {:keys [ingredients steps section-names] :as facts}]
+  (try
+    (let [user     (str "INGREDIENTS:\n" (numbered ingredients)
+                        "\n\nSTEPS:\n" (numbered steps)
+                        (when (seq section-names)
+                          (str "\n\nCANDIDATE SECTION NAMES:\n"
+                               (str/join "\n" section-names))))
+          response (llm/post-anthropic-sync
+                    api-key
+                    {:model      fallback-model
+                     :max_tokens 1024
+                     :system     grouping-prompt
+                     :messages   [{:role "user" :content user}]})
+          parsed   (json/decode (llm/extract-json (-> response :content first :text)) true)]
+      (when (valid-grouping? facts (:sections parsed))
+        (grouping->sections facts (:sections parsed))))
+    (catch Exception e
+      (log/warnf "Section grouping failed: %s" (ex-message e))
+      nil)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LLM fallback
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- html->text
@@ -281,7 +358,15 @@
   (log/infof "Scraping recipe from %s" url)
   (let [html (fetch-html fetcher url)]
     (if-let [facts (parse-json-ld html)]
-      (facts->result facts (single-section facts) "json-ld" [])
+      (if (sectioned? facts)
+        (or (when api-key
+              (when-let [sections (group-sections-with-llm api-key facts)]
+                (facts->result facts sections "json-ld+llm-sections" [])))
+            (facts->result facts (single-section facts) "json-ld"
+                           [(if api-key
+                              "Sectioned recipe but grouping failed; flattened to one section"
+                              "Sectioned recipe but no LLM available; flattened to one section")]))
+        (facts->result facts (single-section facts) "json-ld" []))
       (if api-key
         (extract-with-llm api-key html)
         (throw (ex-info "No recipe found and no LLM available"
