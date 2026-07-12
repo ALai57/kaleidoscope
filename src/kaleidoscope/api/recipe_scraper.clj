@@ -328,7 +328,7 @@
       str/trim))
 
 (def ^:private extract-prompt
-  "Extract the recipe from the page text as strict JSON with keys: title (string), ingredients (array of strings, one per ingredient line), instructions_html (string, an <ol> of steps), servings (string or null), prep_time_minutes (integer or null), cook_time_minutes (integer or null), suggested_labels (array of strings). Return ONLY the JSON object, no prose. Strip all blog exposition — keep only the recipe.")
+  "Extract the recipe from the page text as strict JSON with keys: title (string), sections (array of {name: string or null, ingredients: array of strings one per ingredient line, steps: array of strings one per instruction step}), servings (string or null), prep_time_minutes (integer or null), cook_time_minutes (integer or null), suggested_labels (array of strings). Use a single section with name null unless the recipe has real components (e.g. cake and frosting). Preserve ingredient lines and step text verbatim. Return ONLY the JSON object, no prose. Strip all blog exposition — keep only the recipe.")
 
 (defn extract-with-llm
   "LLM fallback when JSON-LD is absent. Requires an api-key; returns a draft."
@@ -342,15 +342,22 @@
                    :messages   [{:role "user" :content text}]})
         raw      (-> response :content first :text)
         parsed   (json/decode (llm/extract-json raw) true)]
-    {:recipe {:title             (:title parsed)
-              :ingredients       (vec (:ingredients parsed))
-              :instructions-html (:instructions_html parsed)
-              :servings          (:servings parsed)
-              :prep-time-minutes (:prep_time_minutes parsed)
-              :cook-time-minutes (:cook_time_minutes parsed)}
-     :suggested-labels  (vec (:suggested_labels parsed))
-     :extraction-method "llm"
-     :warnings          []}))
+    (let [sections (mapv (fn [{:keys [name ingredients steps]}]
+                           {:name        name
+                            :ingredients (vec ingredients)
+                            :steps       (vec steps)})
+                         (:sections parsed))
+          empty?   (empty? sections)]
+      {:recipe {:title             (:title parsed)
+                :sections          (if empty?
+                                     [{:name nil :ingredients [] :steps []}]
+                                     sections)
+                :servings          (:servings parsed)
+                :prep-time-minutes (:prep_time_minutes parsed)
+                :cook-time-minutes (:cook_time_minutes parsed)}
+       :suggested-labels  (vec (:suggested_labels parsed))
+       :extraction-method "llm"
+       :warnings          (if empty? ["LLM returned no sections"] [])})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Entry point

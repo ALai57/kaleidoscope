@@ -102,14 +102,25 @@
                        (catch clojure.lang.ExceptionInfo e (ex-data e))))))))
 
 (deftest llm-fallback-invoked-test
-  (testing "when JSON-LD is absent and an api-key is present, the LLM path runs and its JSON is mapped"
+  (testing "when JSON-LD is absent and an api-key is present, the LLM path returns sectioned JSON"
     (with-redefs [scraper/fetch-direct (fn [_] "<html><body>Grandma's stew: carrots, beef. Simmer 2 hours.</body></html>")
                   llm/post-anthropic-sync
-                  (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"ingredients\":[\"carrots\",\"beef\"],\"instructions_html\":\"<ol><li>Simmer</li></ol>\",\"servings\":\"4\",\"prep_time_minutes\":10,\"cook_time_minutes\":120,\"suggested_labels\":[\"comfort\"]}"}]})]
-      (is (match? {:recipe {:title "Stew" :ingredients ["carrots" "beef"] :cook-time-minutes 120}
-                   :suggested-labels ["comfort"]
+                  (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"sections\":[{\"name\":null,\"ingredients\":[\"carrots\",\"beef\"],\"steps\":[\"Simmer\"]}],\"servings\":\"4\",\"prep_time_minutes\":10,\"cook_time_minutes\":120,\"suggested_labels\":[\"comfort\"]}"}]})]
+      (is (match? {:recipe {:title    "Stew"
+                            :sections [{:name nil? :ingredients ["carrots" "beef"] :steps ["Simmer"]}]
+                            :cook-time-minutes 120}
+                   :suggested-labels  ["comfort"]
                    :extraction-method "llm"}
                   (scraper/scrape {:api-key "sk-test"} "http://example.com/stew"))))))
+
+(deftest llm-fallback-empty-sections-guard-test
+  (testing "an LLM response with no sections still satisfies the min-1-section shape"
+    (with-redefs [scraper/fetch-direct (fn [_] "<html><body>vague food blog</body></html>")
+                  llm/post-anthropic-sync
+                  (fn [_ _] {:content [{:text "{\"title\":\"Mystery\",\"sections\":[],\"suggested_labels\":[]}"}]})]
+      (is (match? {:recipe {:title "Mystery" :sections [{:ingredients [] :steps []}]}
+                   :warnings [#"no sections"]}
+                  (scraper/scrape {:api-key "sk-test"} "http://example.com/mystery"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Bot-block fallback to the rendering fetcher
