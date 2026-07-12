@@ -51,7 +51,7 @@ tasks:
     desc: Provision an ephemeral Fly.io test environment (backend + frontend; NAME defaults to the git branch)
     summary: |
       Creates a Neon branch (eph-<slug>), deploys a Fly app (kal-eph-<slug>) against
-      real dependencies, smoke-tests it, and runs the recipes Checkly check against
+      real dependencies, smoke-tests it, and runs the full Checkly spec suite against
       the live env. Requires .env.fly.staging; the Checkly step is skipped with a
       warning unless CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID and AUTH0_CLIENT_ID/SECRET
       are set. Name it explicitly: task env:up NAME=pr-42
@@ -66,7 +66,7 @@ tasks:
     cmd: ./scripts/ephemeral/lib_test.sh
 
   env:checkly:
-    desc: Run the recipes Checkly check against an ephemeral env (NAME defaults to the git branch)
+    desc: Run the full Checkly spec suite against an ephemeral env (NAME defaults to the git branch)
     summary: |
       Points the Monitoring-as-Code checks at https://kal-eph-<slug>.fly.dev and runs
       a one-off `checkly test` in Checkly's cloud. Needs CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID
@@ -80,7 +80,7 @@ tasks:
     summary: |
       Like env:up but pinned to an explicit NAME instead of the git branch.
       Creates a Neon branch (eph-<NAME>), deploys a Fly app (kal-eph-<NAME>) against
-      real dependencies, smoke-tests it, and runs the recipes Checkly check. Requires
+      real dependencies, smoke-tests it, and runs the full Checkly spec suite. Requires
       .env.fly.staging; the Checkly step is skipped with a warning unless
       CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID and AUTH0_CLIENT_ID/SECRET are set.
       Usage: task ephemeral:up NAME=pr-42
@@ -119,7 +119,7 @@ tasks:
     cmd: ./scripts/ephemeral/smoke-test --name={{.NAME}}
 
   ephemeral:checkly-test:
-    desc: Run the recipes Checkly check against a named ephemeral env (requires NAME)
+    desc: Run the full Checkly spec suite against a named ephemeral env (requires NAME)
     summary: |
       Points the Monitoring-as-Code checks at https://kal-eph-<NAME>.fly.dev and runs
       a one-off `checkly test` in Checkly's cloud. Needs CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID

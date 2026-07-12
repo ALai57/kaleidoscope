@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Run the recipes Checkly check against a deployed ephemeral environment.
+# Run the full Checkly spec suite against a deployed ephemeral environment as a
+# regression catcher.
 #
 #   scripts/ephemeral/checkly-test --name=<slug>
 #
@@ -31,22 +32,22 @@ missing=""
 [ -n "${AUTH0_CLIENT_SECRET:-}" ] || missing="$missing AUTH0_CLIENT_SECRET"
 
 if [ -n "$missing" ]; then
-  warn "SKIP  Checkly recipes check — missing:$missing"
+  warn "SKIP  Checkly spec suite — missing:$missing"
   warn "      Set these (e.g. in $STAGING_ENV_FILE) to run the check against $BASE_URL."
   exit 0
 fi
 
 require_cmd npx
 
-log "Running Checkly recipes check against $BASE_URL"
+log "Running full Checkly spec suite against $BASE_URL"
 # ENVIRONMENT_URL is exported (shell env) so construct-parse-time reads it, and
 # passed via --env so it reaches the spec runtime in Checkly's cloud runners.
 ( cd "$REPO_ROOT/checkly" \
     && ENVIRONMENT_URL="$BASE_URL" CHECKLY_API_KEY="$CHECKLY_API_KEY" CHECKLY_ACCOUNT_ID="$CHECKLY_ACCOUNT_ID" \
-       npx checkly test recipes.spec.ts \
+       npx checkly test \
          --env ENVIRONMENT_URL="$BASE_URL" \
          --env AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" \
          --env AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET" ) \
-  || die "Checkly recipes check failed against $BASE_URL"
+  || die "Checkly spec suite failed against $BASE_URL"
 
-log "Checkly recipes check passed."
+log "Checkly spec suite passed."
