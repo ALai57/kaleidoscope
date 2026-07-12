@@ -3,9 +3,11 @@
   visibility rule via `api.access`. See plans/2026-07-10-recipes-feature/PLAN.md.
 
   Identity is a single opaque UUID; `recipe-url` is the slug/address. A recipe's
-  content (title, ingredients, instructions, servings, times) is one JSONB value
-  under `:content`; the immutable scrape is the same shape under
-  `:original-content`."
+  content is one JSONB value under `:content`: {title, sections [{name?,
+  ingredients [string], steps [string]}], servings?, times?} — sections pair a
+  component's ingredients with its steps (see
+  plans/2026-07-11-recipe-sections/DESIGN.md). The immutable scrape is the same
+  shape under `:original-content`."
   (:require [cheshire.core :as json]
             [kaleidoscope.api.access :as access]
             [kaleidoscope.persistence.rdbms :as rdbms]
@@ -138,7 +140,7 @@
 (defn get-recipes
   "Recipes for a tenant, labels attached. Optional filters:
    - :recipe-url  exact slug
-   - :ingredient  text-contains over the ingredients array (Postgres only)
+   - :ingredient  text-contains over every section's ingredients array (Postgres only)
    - :label-id    recipes assigned that label
 
   NOTE: :ingredient uses `jsonb_array_elements_text`, a Postgres function — it
@@ -148,7 +150,8 @@
   (let [where (cond-> [:and [:= :hostname hostname]]
                 recipe-url (conj [:= :recipe-url recipe-url])
                 ingredient (conj [:exists {:select [[[:inline 1]]]
-                                           :from   [[[:raw "jsonb_array_elements_text(content -> 'ingredients')"] :i]]
+                                           :from   [[[:raw "jsonb_array_elements(content -> 'sections')"] :s]
+                                                    [[:raw "jsonb_array_elements_text(s.value -> 'ingredients')"] :i]]
                                            :where  [:ilike :i (str "%" ingredient "%")]}])
                 label-id   (conj [:exists {:select [[[:inline 1]]]
                                            :from   [[:recipe-label-assignments :a]]

@@ -19,8 +19,9 @@
 
 (def example-content
   {:title             "Chana Masala"
-   :ingredients       ["2 cups chickpeas" "1 tbsp flour" "1 onion"]
-   :instructions-html "<ol><li>Cook</li></ol>"
+   :sections          [{:name        nil
+                        :ingredients ["2 cups chickpeas" "1 tbsp flour" "1 onion"]
+                        :steps       ["Soak the chickpeas" "Cook"]}]
    :servings          "4"
    :prep-time-minutes 15
    :cook-time-minutes 30})
@@ -154,14 +155,27 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (deftest ingredient-search-test
   (let [db (embedded-pg/fresh-db!)]
-    (recipes/create-recipe! db (example-recipe :recipe-url "chana"
-                                               :content (assoc example-content :ingredients ["chickpeas" "flour"])))
-    (recipes/create-recipe! db (example-recipe :recipe-url "salad"
-                                               :content (assoc example-content :ingredients ["lettuce" "tomato"])))
-    (testing "text-contains match over ingredients"
-      (is (match? [{:recipe-url "chana"}]
-                  (recipes/get-recipes db {:hostname host :ingredient "flour"})))
-      (is (= 2 (count (recipes/get-recipes db {:hostname host :ingredient "o"}))))
+    (recipes/create-recipe! db (example-recipe
+                                :recipe-url "cake"
+                                :content {:title    "Layer Cake"
+                                          :sections [{:name        "Cake"
+                                                      :ingredients ["2 cups flour" "1 cup sugar"]
+                                                      :steps       ["Mix" "Bake"]}
+                                                     {:name        "Frosting"
+                                                      :ingredients ["1 cup butter" "powdered sugar"]
+                                                      :steps       ["Whip"]}]}))
+    (recipes/create-recipe! db (example-recipe
+                                :recipe-url "salad"
+                                :content {:title    "Salad"
+                                          :sections [{:name        nil
+                                                      :ingredients ["lettuce" "tomato"]
+                                                      :steps       ["Toss"]}]}))
+    (testing "matches an ingredient line inside the SECOND section"
+      (is (match? [{:recipe-url "cake"}]
+                  (recipes/get-recipes db {:hostname host :ingredient "butter"}))))
+    (testing "text-contains match across all sections and recipes"
+      (is (= 2 (count (recipes/get-recipes db {:hostname host :ingredient "o"})))))
+    (testing "no match returns empty"
       (is (empty? (recipes/get-recipes db {:hostname host :ingredient "beef"}))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

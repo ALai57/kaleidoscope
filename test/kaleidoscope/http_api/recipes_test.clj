@@ -35,9 +35,9 @@
   (mock/header request "Authorization" "Bearer x"))
 
 (def example-body
-  {:content {:title             "Chana Masala"
-             :ingredients       ["2 cups chickpeas" "1 tbsp flour"]
-             :instructions-html "<ol><li>Cook</li></ol>"}
+  {:content {:title    "Chana Masala"
+             :sections [{:ingredients ["2 cups chickpeas" "1 tbsp flour"]
+                         :steps       ["Cook"]}]}
    :public-visibility true})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -118,7 +118,10 @@
                        (mock/json-body {:url "http://example.com/r"}))))))
 
     (testing "a writer gets a draft back (scrape mocked to avoid network)"
-      (with-redefs [scraper/scrape (fn [_ _] {:recipe {:title "Mocked" :ingredients ["a"]}
+      (with-redefs [scraper/scrape (fn [_ _] {:recipe {:title    "Mocked"
+                                                       :sections [{:name        nil
+                                                                   :ingredients ["a"]
+                                                                   :steps       ["Mix"]}]}
                                               :suggested-labels []
                                               :extraction-method "json-ld"
                                               :warnings []})]

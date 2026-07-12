@@ -2,12 +2,18 @@
 
 ;; The single recipe-content value shape. Both the current recipe (`content`)
 ;; and the immutable scrape (`original-content`) validate against this, so they
-;; cannot drift.
+;; cannot drift. Sections are the ONLY representation: a simple recipe is one
+;; unnamed section. Steps are plain text — HTML rendering belongs to the UI.
+(def RecipeSection
+  [:map
+   [:name        {:optional true} [:maybe :string]] ;; absent/nil ⇒ unnamed
+   [:ingredients [:sequential :string]]             ;; verbatim freeform lines
+   [:steps       [:sequential :string]]])           ;; plain text, one per step
+
 (def RecipeContent
   [:map
    [:title             :string]
-   [:ingredients       [:sequential :string]] ;; freeform lines, e.g. "2 cups flour"
-   [:instructions-html {:optional true} :string] ;; HTML (TipTap)
+   [:sections          [:sequential {:min 1} RecipeSection]]
    [:servings          {:optional true} [:maybe :string]]
    [:prep-time-minutes {:optional true} [:maybe :int]]
    [:cook-time-minutes {:optional true} [:maybe :int]]])
@@ -53,5 +59,5 @@
   [:map
    [:recipe            RecipeContent]
    [:suggested-labels  [:sequential :string]]
-   [:extraction-method [:enum "json-ld" "llm"]]
+   [:extraction-method [:enum "json-ld" "json-ld+llm-sections" "llm"]]
    [:warnings          [:sequential :string]]])
