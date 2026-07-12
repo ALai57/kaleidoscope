@@ -239,26 +239,28 @@
 
 (defn create-recipe!
   "Create a recipe. `:content` is the current recipe; `:original-content`, if
-  given, is the immutable scrape (never modified after). Accepts `:label-ids`;
-  validates one-per-group before writing."
+  given, is the immutable scrape (never modified after). `:scrape-processing-run-id`,
+  if given, links to the pipeline run that produced the scrape. Accepts
+  `:label-ids`; validates one-per-group before writing."
   [db {:keys [hostname recipe-url content original-content source-url author
-              public-visibility label-ids] :as recipe}]
+              public-visibility label-ids scrape-processing-run-id] :as recipe}]
   (log/infof "Creating recipe %s for %s" recipe-url hostname)
   (next/with-transaction [tx db]
     (let [labels (validate-label-set! tx label-ids hostname)
           now    (utils/now)
           [{:keys [id] :as created}]
           (rdbms/insert! tx :recipes
-                         {:id                (utils/uuid)
-                          :recipe-url        recipe-url
-                          :hostname          hostname
-                          :content           content
-                          :original-content  original-content
-                          :source-url        source-url
-                          :author            author
-                          :public-visibility (boolean public-visibility)
-                          :created-at        now
-                          :modified-at       now}
+                         {:id                       (utils/uuid)
+                          :recipe-url               recipe-url
+                          :hostname                 hostname
+                          :content                  content
+                          :original-content         original-content
+                          :source-url               source-url
+                          :author                   author
+                          :public-visibility        (boolean public-visibility)
+                          :scrape-processing-run-id scrape-processing-run-id
+                          :created-at               now
+                          :modified-at              now}
                          :ex-subtype :UnableToCreateRecipe)]
       (replace-label-assignments! tx id hostname labels)
       (get-recipe tx hostname recipe-url))))
