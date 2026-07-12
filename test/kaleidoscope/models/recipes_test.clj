@@ -21,10 +21,15 @@
     (is (m/validate models/ExtractedFacts
                     {:title "Cake" :ingredients ["flour" "sugar"] :steps ["Mix"]
                      :section-signals [] :labels ["dessert"]
-                     :grouping [{:name "Cake" :ingredients [0 1] :steps [0]}]}))))
+                     :grouping [{:name "Cake" :ingredients [0 1] :steps [0]}]}))
+    (is (not (m/validate models/ExtractedFacts
+                         {:title "x" :steps ["a"] :section-signals [] :labels []})))))
 
 (deftest scrape-result-carries-run-id-test
   (is (m/validate models/ScrapeResult
                   {:recipe {:title "X" :sections [{:ingredients [] :steps []}]}
                    :suggested-labels [] :extraction-method "json-ld" :warnings []
-                   :scrape-processing-run-id (random-uuid)})))
+                   :scrape-processing-run-id (random-uuid)}))
+  (is (not (m/validate models/ScrapeResult
+                       {:recipe {:title "X" :sections [{:ingredients [] :steps []}]}
+                        :suggested-labels [] :extraction-method "json-ld" :warnings []}))))

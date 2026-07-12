@@ -57,6 +57,20 @@
                    :outcome "success"}
                   (pipeline-db/get-processing-run db run-id host))))))
 
+(deftest non-ascii-round-trip-test
+  (let [db (embedded-h2/fresh-db!)
+        text "jalapeño — café crème brûlée — 日本語"
+        {raw-id :id} (seed-raw! db :raw-html text)
+        {run-id :id} (pipeline-db/create-processing-run!
+                      db {:hostname host :raw-scrape-id raw-id :pipeline-version "v"
+                          :techniques {} :facts {:title text :labels [text]}
+                          :outcome :success})]
+    (testing "multi-byte UTF-8 survives a TEXT (raw_html) round-trip"
+      (is (match? {:raw-html text} (pipeline-db/get-raw-scrape db raw-id host))))
+    (testing "multi-byte UTF-8 survives a JSONB (facts) round-trip"
+      (is (match? {:facts {:title text :labels [text]}}
+                  (pipeline-db/get-processing-run db run-id host))))))
+
 (deftest processing-run-links-to-raw-scrape-test
   (let [db (embedded-h2/fresh-db!)
         {raw-id :id} (seed-raw! db)
