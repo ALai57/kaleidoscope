@@ -70,9 +70,10 @@
                  :as                 :string}))
 
 (defn fetch-direct
-  "Directly fetch the page body, following redirects manually so each hop is
+  "Directly fetch the page, following redirects manually so each hop is
   SSRF-checked. Classifies the terminal status by code only (no body sniffing):
-  403/429/503 are treated as a bot block. Throws ex-info
+  403/429/503 are treated as a bot block. Returns
+  {:raw-html :final-url :http-status} on success. Throws ex-info
   {:type :scrape :reason ...} on failure (:blocked-url, :bot-blocked,
   :fetch-failed)."
   [url]
@@ -99,22 +100,25 @@
           (throw (ex-info (format "Fetch failed: %d" status) {:type :scrape :reason :fetch-failed})))
 
         :else
-        (let [body (or body "")]
-          (if (> (count body) max-body-bytes)
-            (subs body 0 max-body-bytes)
-            body))))))
+        (let [body (or body "")
+              html (if (> (count body) max-body-bytes) (subs body 0 max-body-bytes) body)]
+          {:raw-html html :final-url (str uri) :http-status status})))))
 
 (defn- fetch-html
   "Fetch tiers: direct fetch first (free); on a bot block, retry through the
-  rendering `fetcher` when one is configured. Any other failure — and a bot
+  rendering `fetcher` when one is configured. Returns
+  {:raw-html :final-url :http-status :fetch-tier}. Any other failure — and a bot
   block with no fetcher — propagates."
   [fetcher url]
   (try
-    (fetch-direct url)
+    (assoc (fetch-direct url) :fetch-tier "direct")
     (catch clojure.lang.ExceptionInfo e
       (if (and (= :bot-blocked (:reason (ex-data e))) fetcher)
         (do (log/infof "Direct fetch bot-blocked; retrying %s via rendering fetcher" url)
-            (firecrawl/fetch-rendered fetcher url))
+            {:raw-html    (firecrawl/fetch-rendered fetcher url)
+             :final-url   url
+             :http-status 200
+             :fetch-tier  "firecrawl"})
         (throw e)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -363,6 +367,31 @@
        :warnings          (if no-sections? ["LLM returned no sections"] [])})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ACQUIRE stage
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn acquire
+  "ACQUIRE: fetch the page (SSRF-guarded), direct then rendering fallback.
+  StageResult on success: {:artifact RawScrape-data :technique :direct|:firecrawl}.
+  On a :type :scrape failure: {:outcome reason :error-detail {..} :raw {:request-url url}}
+  so the orchestrator still records an abandoned scrape. Other exceptions propagate."
+  [{:keys [fetcher url]}]
+  (try
+    (let [{:keys [raw-html final-url http-status fetch-tier]} (fetch-html fetcher url)]
+      {:artifact  {:request-url url
+                   :final-url   final-url
+                   :http-status http-status
+                   :fetch-tier  fetch-tier
+                   :raw-html    raw-html}
+       :technique (keyword fetch-tier)})
+    (catch clojure.lang.ExceptionInfo e
+      (let [{:keys [type reason]} (ex-data e)]
+        (if (= :scrape type)
+          {:outcome      reason
+           :error-detail {:message (ex-message e) :reason reason}
+           :raw          {:request-url url}}
+          (throw e))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Entry point
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn scrape
@@ -373,7 +402,7 @@
   :bot-blocked, :no-recipe-found, :blocked-url, :render-failed)."
   [{:keys [api-key fetcher]} url]
   (log/infof "Scraping recipe from %s" url)
-  (let [html (fetch-html fetcher url)]
+  (let [{html :raw-html} (fetch-html fetcher url)]
     (if-let [facts (parse-json-ld html)]
       (if (sectioned? facts)
         (or (when api-key

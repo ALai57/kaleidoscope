@@ -11,10 +11,16 @@
 ;; and we reach the stubbed HTTP boundary without a network dependency.
 (def ^:private public-url "http://203.0.113.5/recipe")
 
+(defn- direct
+  "Build the map fetch-direct now returns, for stubbing at the fetch boundary."
+  [html]
+  {:raw-html html :final-url public-url :http-status 200})
+
 (deftest fetch-direct-status-classification-test
   (testing "fetch-direct maps HTTP status to scrape reasons at the clj-http boundary"
     (with-redefs [http/get (fn [_ _] {:status 200 :headers {} :body "<html>ok</html>"})]
-      (is (= "<html>ok</html>" (scraper/fetch-direct public-url))))
+      (is (match? {:raw-html "<html>ok</html>" :http-status 200}
+                  (scraper/fetch-direct public-url))))
     (doseq [blocked-status [403 429 503]]
       (with-redefs [http/get (fn [_ _] {:status blocked-status :headers {} :body "nope"})]
         (is (match? {:reason :bot-blocked}
@@ -34,6 +40,20 @@
     \"recipeYield\":\"4\",\"prepTime\":\"PT15M\",\"cookTime\":\"PT30M\",
     \"recipeCuisine\":\"Indian\",\"keywords\":\"vegan, curry\"}
    </script></head><body>Blog exposition here.</body></html>")
+
+(deftest acquire-produces-raw-scrape-artifact-test
+  (testing "a successful direct fetch yields a RawScrape artifact tagged :direct"
+    (with-redefs [scraper/fetch-direct (fn [_] (direct json-ld-html))]
+      (is (match? {:artifact  {:request-url public-url :fetch-tier "direct"
+                               :http-status 200 :raw-html json-ld-html}
+                   :technique :direct}
+                  (scraper/acquire {:fetcher nil :url public-url})))))
+  (testing "an SSRF block yields an :outcome + partial raw (request-url only)"
+    (with-redefs [scraper/fetch-direct (fn [_] (throw (ex-info "blocked" {:type :scrape :reason :blocked-url})))]
+      (is (match? {:outcome :blocked-url
+                   :error-detail {:reason :blocked-url}
+                   :raw {:request-url "http://169.254.169.254/"}}
+                  (scraper/acquire {:fetcher nil :url "http://169.254.169.254/"}))))))
 
 (deftest json-ld-happy-path-test
   (is (match? {:title             "Chana Masala"
@@ -59,7 +79,7 @@
 
 (deftest unsectioned-scrape-assembles-single-section-test
   (testing "an unsectioned JSON-LD scrape yields one unnamed section and NO LLM call"
-    (with-redefs [scraper/fetch-direct (fn [_] json-ld-html)
+    (with-redefs [scraper/fetch-direct (fn [_] (direct json-ld-html))
                   llm/post-anthropic-sync (fn [_ _] (throw (ex-info "LLM must not be called" {})))]
       (is (match? {:recipe {:title    "Chana Masala"
                             :sections [{:name        nil?
@@ -100,14 +120,14 @@
 
 (deftest llm-fallback-signal-test
   (testing "scrape with no JSON-LD and no api-key surfaces :no-recipe-found without a network fetch"
-    (with-redefs [scraper/fetch-direct (fn [_] "<html><body>no structured data</body></html>")]
+    (with-redefs [scraper/fetch-direct (fn [_] (direct "<html><body>no structured data</body></html>"))]
       (is (match? {:reason :no-recipe-found}
                   (try (scraper/scrape {:api-key nil} "http://example.com/recipe")
                        (catch clojure.lang.ExceptionInfo e (ex-data e))))))))
 
 (deftest llm-fallback-invoked-test
   (testing "when JSON-LD is absent and an api-key is present, the LLM path returns sectioned JSON"
-    (with-redefs [scraper/fetch-direct (fn [_] "<html><body>Grandma's stew: carrots, beef. Simmer 2 hours.</body></html>")
+    (with-redefs [scraper/fetch-direct (fn [_] (direct "<html><body>Grandma's stew: carrots, beef. Simmer 2 hours.</body></html>"))
                   llm/post-anthropic-sync
                   (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"sections\":[{\"name\":null,\"ingredients\":[\"carrots\",\"beef\"],\"steps\":[\"Simmer\"]}],\"servings\":\"4\",\"prep_time_minutes\":10,\"cook_time_minutes\":120,\"suggested_labels\":[\"comfort\"]}"}]})]
       (is (match? {:recipe {:title    "Stew"
@@ -120,7 +140,7 @@
 (deftest llm-fallback-empty-sections-guard-test
   (testing "an LLM response with no (or non-array) sections still satisfies the min-1-section shape"
     (doseq [sections-json ["\"sections\":[]" "\"sections\":\"none\""]]
-      (with-redefs [scraper/fetch-direct (fn [_] "<html><body>vague food blog</body></html>")
+      (with-redefs [scraper/fetch-direct (fn [_] (direct "<html><body>vague food blog</body></html>"))
                     llm/post-anthropic-sync
                     (fn [_ _] {:content [{:text (str "{\"title\":\"Mystery\"," sections-json ",\"suggested_labels\":[]}")}]})]
         (is (match? {:recipe {:title "Mystery" :sections [{:ingredients [] :steps []}]}
@@ -175,7 +195,7 @@
 
 (deftest sectioned-scrape-groups-with-llm-test
   (testing "HowToSections route through the grouping call; text is preserved verbatim by index"
-    (with-redefs [scraper/fetch-direct    (fn [_] sectioned-json-ld-html)
+    (with-redefs [scraper/fetch-direct    (fn [_] (direct sectioned-json-ld-html))
                   llm/post-anthropic-sync (fn [_ _] {:content [{:text valid-grouping-json}]})]
       (is (match? {:recipe {:title    "Layer Cake"
                             :sections [{:name "Cake"     :ingredients ["2 cups flour" "1 cup sugar"] :steps ["Mix" "Bake"]}
@@ -190,7 +210,7 @@
                  "{\"sections\":[{\"name\":\"A\",\"ingredients\":[0,1,2,2],\"steps\":[0,1,2]}]}"       ;; duplicate ingredient
                  "{\"sections\":[{\"name\":\"A\",\"ingredients\":[0,1,2],\"steps\":[0,1,2,99]}]}"      ;; out of range
                  "not json at all"]]
-      (with-redefs [scraper/fetch-direct    (fn [_] sectioned-json-ld-html)
+      (with-redefs [scraper/fetch-direct    (fn [_] (direct sectioned-json-ld-html))
                     llm/post-anthropic-sync (fn [_ _] {:content [{:text bad}]})]
         (is (match? {:recipe            {:sections [{:name        nil?
                                                      :ingredients ["2 cups flour" "1 cup sugar" "1 cup butter"]
@@ -204,7 +224,7 @@
             and header lines are consumed as names, not ingredients"
     (let [html "<script type='application/ld+json'>{\"@type\":\"Recipe\",\"name\":\"Cake\",\"recipeIngredient\":[\"For the cake:\",\"2 cups flour\",\"For the frosting:\",\"1 cup butter\"],\"recipeInstructions\":[{\"@type\":\"HowToStep\",\"text\":\"Mix\"},{\"@type\":\"HowToStep\",\"text\":\"Whip\"}]}</script>"
           grouping "{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[1],\"steps\":[0]},{\"name\":\"Frosting\",\"ingredients\":[3],\"steps\":[1]}]}"]
-      (with-redefs [scraper/fetch-direct    (fn [_] html)
+      (with-redefs [scraper/fetch-direct    (fn [_] (direct html))
                     llm/post-anthropic-sync (fn [_ _] {:content [{:text grouping}]})]
         (is (match? {:recipe {:sections [{:name "Cake"     :ingredients ["2 cups flour"]  :steps ["Mix"]}
                                          {:name "Frosting" :ingredients ["1 cup butter"] :steps ["Whip"]}]}
@@ -213,7 +233,7 @@
                     (scraper/scrape {:api-key "sk-test"} public-url)))))))
 
 (deftest sectioned-without-api-key-flattens-with-warning-test
-  (with-redefs [scraper/fetch-direct (fn [_] sectioned-json-ld-html)]
+  (with-redefs [scraper/fetch-direct (fn [_] (direct sectioned-json-ld-html))]
     (is (match? {:recipe            {:sections [{:name nil?}]}
                  :extraction-method "json-ld"
                  :warnings          [#"no LLM"]}
@@ -224,7 +244,7 @@
             a header-like false positive can't silently lose an ingredient"
     (let [html "<script type='application/ld+json'>{\"@type\":\"Recipe\",\"name\":\"Cake\",\"recipeIngredient\":[\"For the cake:\",\"2 cups flour\",\"Kosher salt to taste:\"],\"recipeInstructions\":[{\"@type\":\"HowToStep\",\"text\":\"Mix\"}]}</script>"
           grouping "{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[1],\"steps\":[0]}]}"]
-      (with-redefs [scraper/fetch-direct    (fn [_] html)
+      (with-redefs [scraper/fetch-direct    (fn [_] (direct html))
                     llm/post-anthropic-sync (fn [_ _] {:content [{:text grouping}]})]
         (is (match? {:recipe            {:sections [{:name "Cake" :ingredients ["2 cups flour"] :steps ["Mix"]}]}
                      :extraction-method "json-ld+llm-sections"
