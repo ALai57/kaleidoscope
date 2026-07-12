@@ -77,6 +77,14 @@
                         role
                         (:roles identity))))))
 
+(defn writer?
+  "Boolean form of `require-*-writer` for publicly-readable routes that still
+  grant writers a wider view (recipes' writer-sees-all). Returns true only when
+  the request's identity holds the host's :writer or :admin role; false for
+  anonymous/reader callers."
+  [request]
+  (true? (require-*-writer request)))
+
 (defn require-*-reader
   "Require the user to have the *-reader role, where * is the server-name (or
   `ephemeral` for any *.fly.dev host — see `role-domain`). For example, when

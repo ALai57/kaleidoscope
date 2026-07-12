@@ -177,15 +177,19 @@
         _           (recipes/add-audience-to-recipe! db (assoc shared :recipe-url "shared") {:id gid})]
     (testing "a group member sees public + shared, not hidden"
       (is (match? #{"public" "shared"}
-                  (set (map :recipe-url (recipes/get-visible-recipes db {:hostname host} {:email "member@x.com"}))))))
+                  (set (map :recipe-url (recipes/get-visible-recipes db {:hostname host} {:email "member@x.com"} false))))))
 
     (testing "a non-member sees only public"
       (is (match? #{"public"}
-                  (set (map :recipe-url (recipes/get-visible-recipes db {:hostname host} {:email "stranger@x.com"}))))))
+                  (set (map :recipe-url (recipes/get-visible-recipes db {:hostname host} {:email "stranger@x.com"} false))))))
 
     (testing "an anonymous caller (no email) sees only public"
       (is (match? #{"public"}
-                  (set (map :recipe-url (recipes/get-visible-recipes db {:hostname host} {}))))))))
+                  (set (map :recipe-url (recipes/get-visible-recipes db {:hostname host} {} false))))))
+
+    (testing "a writer sees every recipe for the tenant, including hidden drafts"
+      (is (match? #{"public" "shared" "hidden"}
+                  (set (map :recipe-url (recipes/get-visible-recipes db {:hostname host} {:email "stranger@x.com"} true))))))))
 
 (deftest audience-idempotency-test
   (let [db        (embedded-pg/fresh-db!)

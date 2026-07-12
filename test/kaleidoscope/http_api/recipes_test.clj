@@ -85,6 +85,30 @@
       (is (match? {:status 200 :body {:recipe-url "chana-masala"}}
                   (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))
 
+(deftest writer-sees-own-private-recipe-http-test
+  (let [app (make-app "custom-authenticated-user")]
+    (testing "a writer creates a PRIVATE (non-public) recipe"
+      (is (match? {:status 200 :body {:recipe-url "chana-masala"}}
+                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                           as-writer
+                           (mock/json-body (assoc example-body :public-visibility false)))))))
+
+    (testing "the writer can read their own private draft back (writer-sees-all)"
+      (is (match? {:status 200 :body {:recipe-url "chana-masala"}}
+                  (app (-> (mock/request :get "https://andrewslai.com/recipes/chana-masala")
+                           as-writer)))))
+
+    (testing "the private draft is in the writer's list view"
+      (is (match? {:status 200 :body [{:recipe-url "chana-masala"}]}
+                  (app (-> (mock/request :get "https://andrewslai.com/recipes")
+                           as-writer)))))
+
+    (testing "an anonymous caller cannot see the private draft"
+      (is (match? {:status 404}
+                  (app (mock/request :get "https://andrewslai.com/recipes/chana-masala"))))
+      (is (match? {:status 200 :body []}
+                  (app (mock/request :get "https://andrewslai.com/recipes")))))))
+
 (deftest scrape-endpoint-test
   (let [app (make-app "custom-authenticated-user")]
     (testing "anonymous scrape is rejected"

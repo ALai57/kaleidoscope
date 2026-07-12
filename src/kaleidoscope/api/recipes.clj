@@ -173,24 +173,28 @@
   (rdbms/find-by-keys db :recipe-audiences query))
 
 (defn get-visible-recipes
-  "Recipes the caller may view: public ∪ shared-with-a-group-they're-in.
-  Optional :recipe-url narrows to one. Uses the shared `api.access` rule."
-  [db {:keys [hostname recipe-url] :as query} {:keys [email] :as _user}]
-  (let [users-groups (access/user-group-ids db email)
-        audiences    (get-recipe-audiences db {:hostname hostname})
-        public-ids   (mapv :id (rdbms/find-by-keys db :recipes {:hostname hostname
-                                                                :public-visibility true}))
-        allowed      (access/visible-ids {:public-ids   public-ids
-                                          :audiences    audiences
-                                          :users-groups users-groups
-                                          :id-key       :recipe-id})]
-    (log/infof "User `%s` may view recipe-ids %s" email allowed)
-    (cond
-      (empty? allowed) []
-      recipe-url       (filterv #(contains? allowed (:id %))
-                                (get-recipes db {:hostname hostname :recipe-url recipe-url}))
-      :else            (filterv #(contains? allowed (:id %))
-                                (get-recipes db (select-keys query [:hostname :ingredient :label-id]))))))
+  "Recipes the caller may view: public ∪ shared-with-a-group-they're-in ∪
+  (writer-sees-all). A writer/admin for the tenant sees every recipe for that
+  host, including their own not-yet-public drafts — without this a freshly
+  created private recipe would be invisible even to its author (see PLAN.md,
+  `writer-sees-all`). Optional :recipe-url narrows to one. Uses the shared
+  `api.access` rule for the non-writer case."
+  [db {:keys [hostname recipe-url] :as query} {:keys [email] :as _user} writer?]
+  (let [matching (delay (get-recipes db (select-keys query [:hostname :recipe-url :ingredient :label-id])))]
+    (if writer?
+      @matching
+      (let [users-groups (access/user-group-ids db email)
+            audiences    (get-recipe-audiences db {:hostname hostname})
+            public-ids   (mapv :id (rdbms/find-by-keys db :recipes {:hostname hostname
+                                                                    :public-visibility true}))
+            allowed      (access/visible-ids {:public-ids   public-ids
+                                              :audiences    audiences
+                                              :users-groups users-groups
+                                              :id-key       :recipe-id})]
+        (log/infof "User `%s` may view recipe-ids %s" email allowed)
+        (if (empty? allowed)
+          []
+          (filterv #(contains? allowed (:id %)) @matching))))))
 
 (defn- one-per-group-violation
   "Return the offending group-id if two labels share a non-null group, else nil."

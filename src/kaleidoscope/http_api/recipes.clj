@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.recipes
   (:require [clojure.string :as str]
+            [kaleidoscope.api.authorization :as authz]
             [kaleidoscope.api.recipes :as recipes-api]
             [kaleidoscope.api.recipe-scraper :as scraper]
             [kaleidoscope.http-api.http-utils :as hu]
@@ -48,7 +49,8 @@
                                   (:database components)
                                   (merge {:hostname (hu/get-host request)}
                                          (:query parameters))
-                                  (:identity request))))}
+                                  (:identity request)
+                                  (authz/writer? request))))}
         :post {:summary    "Create a recipe"
                :responses  {200 {:body models.recipes/GetRecipeResponse}}
                :parameters {:body models.recipes/CreateRecipeRequest}
@@ -94,7 +96,8 @@
                                                     (:database components)
                                                     {:hostname   (hu/get-host request)
                                                      :recipe-url (get-in parameters [:path :recipe-url])}
-                                                    (:identity request)))]
+                                                    (:identity request)
+                                                    (authz/writer? request)))]
                               (ok recipe)
                               (not-found {:reason "Missing"})))}
      :put    {:summary    "Update a recipe's editable fields and labels"
