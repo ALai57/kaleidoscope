@@ -2,6 +2,9 @@
   (:require [kaleidoscope.api.recipe-scraper :as scraper]
             [kaleidoscope.api.firecrawl :as firecrawl]
             [kaleidoscope.workflows.llm-executor :as llm]
+            [kaleidoscope.persistence.rdbms]
+            [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
             [clj-http.client :as http]
             [clojure.test :refer [deftest is testing]]
             [matcher-combinators.test :refer [match?]]))
@@ -10,6 +13,7 @@
 ;; no DNS on a literal, and it is not site/link-local, so the SSRF guard passes
 ;; and we reach the stubbed HTTP boundary without a network dependency.
 (def ^:private public-url "http://203.0.113.5/recipe")
+(def ^:private host "andrewslai.com")
 
 (defn- direct
   "Build the map fetch-direct now returns, for stubbing at the fetch boundary."
@@ -134,7 +138,7 @@
                             :servings "4"}
                    :extraction-method "json-ld"
                    :warnings          []}
-                  (scraper/scrape {:api-key "sk-test"} public-url))))))
+                  (scraper/extract {:api-key "sk-test"} public-url))))))
 
 (deftest json-ld-type-as-array-test
   (let [html "<script type='application/ld+json'>{\"@type\":[\"Recipe\",\"Thing\"],\"name\":\"Y\",\"recipeIngredient\":[\"salt\"],\"recipeInstructions\":\"Mix\"}</script>"]
@@ -168,7 +172,7 @@
   (testing "scrape with no JSON-LD and no api-key surfaces :no-recipe-found without a network fetch"
     (with-redefs [scraper/fetch-direct (fn [_] (direct "<html><body>no structured data</body></html>"))]
       (is (match? {:reason :no-recipe-found}
-                  (try (scraper/scrape {:api-key nil} "http://example.com/recipe")
+                  (try (scraper/extract {:api-key nil} "http://example.com/recipe")
                        (catch clojure.lang.ExceptionInfo e (ex-data e))))))))
 
 (deftest llm-fallback-invoked-test
@@ -181,7 +185,7 @@
                             :cook-time-minutes 120}
                    :suggested-labels  ["comfort"]
                    :extraction-method "llm"}
-                  (scraper/scrape {:api-key "sk-test"} "http://example.com/stew"))))))
+                  (scraper/extract {:api-key "sk-test"} "http://example.com/stew"))))))
 
 (deftest llm-fallback-empty-sections-guard-test
   (testing "an LLM response with no (or non-array) sections still satisfies the min-1-section shape"
@@ -191,7 +195,7 @@
                     (fn [_ _] {:content [{:text (str "{\"title\":\"Mystery\"," sections-json ",\"suggested_labels\":[]}")}]})]
         (is (match? {:recipe {:title "Mystery" :sections [{:ingredients [] :steps []}]}
                      :warnings [#"no sections"]}
-                    (scraper/scrape {:api-key "sk-test"} "http://example.com/mystery")))))))
+                    (scraper/extract {:api-key "sk-test"} "http://example.com/mystery")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Bot-block fallback to the rendering fetcher
@@ -204,14 +208,14 @@
   (testing "a direct 403 with a fetcher present retries via the fetcher and extracts its HTML"
     (with-redefs [scraper/fetch-direct (fn [_] (throw (ex-info "blocked" {:type :scrape :reason :bot-blocked})))]
       (is (match? {:recipe {:title "Chana Masala"} :extraction-method "json-ld"}
-                  (scraper/scrape {:api-key nil :fetcher (fetcher-returning json-ld-html)}
+                  (scraper/extract {:api-key nil :fetcher (fetcher-returning json-ld-html)}
                                   "http://example.com/blocked"))))))
 
 (deftest bot-blocked-without-fetcher-surfaces-test
   (testing "a direct bot block with no fetcher configured surfaces :bot-blocked"
     (with-redefs [scraper/fetch-direct (fn [_] (throw (ex-info "blocked" {:type :scrape :reason :bot-blocked})))]
       (is (match? {:reason :bot-blocked}
-                  (try (scraper/scrape {:api-key nil :fetcher nil} "http://example.com/blocked")
+                  (try (scraper/extract {:api-key nil :fetcher nil} "http://example.com/blocked")
                        (catch clojure.lang.ExceptionInfo e (ex-data e))))))))
 
 (deftest fetcher-render-failure-propagates-test
@@ -221,7 +225,7 @@
                       (throw (ex-info "firecrawl 500" {:type :scrape :reason :render-failed}))))]
       (with-redefs [scraper/fetch-direct (fn [_] (throw (ex-info "blocked" {:type :scrape :reason :bot-blocked})))]
         (is (match? {:reason :render-failed}
-                    (try (scraper/scrape {:api-key nil :fetcher failing} "http://example.com/blocked")
+                    (try (scraper/extract {:api-key nil :fetcher failing} "http://example.com/blocked")
                          (catch clojure.lang.ExceptionInfo e (ex-data e)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -245,7 +249,7 @@
                                        {:name "Frosting" :ingredients ["1 cup butter"]               :steps ["Whip"]}]}
                    :extraction-method "json-ld+llm-sections"
                    :warnings          []}
-                  (scraper/scrape {:api-key "sk-test"} public-url))))))
+                  (scraper/extract {:api-key "sk-test"} public-url))))))
 
 (deftest invalid-grouping-falls-back-test
   (testing "a grouping that is not a partition (missing/duplicate/out-of-range index, bad JSON) flattens with a warning"
@@ -260,7 +264,7 @@
                                                      :steps       ["Mix" "Bake" "Whip"]}]}
                      :extraction-method "json-ld"
                      :warnings          [#"grouping failed"]}
-                    (scraper/scrape {:api-key "sk-test"} public-url)))))))
+                    (scraper/extract {:api-key "sk-test"} public-url)))))))
 
 (deftest header-ingredient-lines-trigger-grouping-test
   (testing "header-shaped ingredient lines are a sectioning signal even with flat instructions,
@@ -273,14 +277,14 @@
                                          {:name "Frosting" :ingredients ["1 cup butter"] :steps ["Whip"]}]}
                      :extraction-method "json-ld+llm-sections"
                      :warnings          [#"For the cake:.*For the frosting:"]}
-                    (scraper/scrape {:api-key "sk-test"} public-url)))))))
+                    (scraper/extract {:api-key "sk-test"} public-url)))))))
 
 (deftest sectioned-without-api-key-flattens-with-warning-test
   (with-redefs [scraper/fetch-direct (fn [_] (direct sectioned-json-ld-html))]
     (is (match? {:recipe            {:sections [{:name nil?}]}
                  :extraction-method "json-ld"
                  :warnings          [#"no LLM"]}
-                (scraper/scrape {:api-key nil} public-url)))))
+                (scraper/extract {:api-key nil} public-url)))))
 
 (deftest dropped-header-lines-surface-as-warning-test
   (testing "every ingredient line the grouping omits is surfaced in warnings —
@@ -292,4 +296,55 @@
         (is (match? {:recipe            {:sections [{:name "Cake" :ingredients ["2 cups flour"] :steps ["Mix"]}]}
                      :extraction-method "json-ld+llm-sections"
                      :warnings          [#"For the cake:.*Kosher salt to taste:"]}
-                    (scraper/scrape {:api-key "sk-test"} public-url)))))))
+                    (scraper/extract {:api-key "sk-test"} public-url)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Orchestrator — run-pipeline persistence
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(deftest run-pipeline-persists-success-test
+  (testing "a successful scrape persists raw + run and returns a resolvable run-id"
+    (let [db (embedded-h2/fresh-db!)]
+      (with-redefs [scraper/fetch-direct (fn [_] (direct json-ld-html))]
+        (let [{:keys [scrape-processing-run-id] :as result}
+              (scraper/run-pipeline {:database db :hostname host :api-key nil :fetcher nil} public-url)]
+          (is (match? {:recipe {:title "Chana Masala"}
+                       :extraction-method "json-ld"
+                       :scrape-processing-run-id uuid?}
+                      result))
+          (testing "the run is stored with a non-null pipeline_version, technique tags, and content"
+            (let [run (pipeline-db/get-processing-run db scrape-processing-run-id host)]
+              (is (match? {:pipeline-version string?
+                           :techniques {:acquire "direct" :parse "json-ld" :normalize "single-section"}
+                           :content {:title "Chana Masala"}
+                           :outcome "success"}
+                          run))
+              (testing "its raw_scrape_id resolves to the stored HTML"
+                (is (match? {:raw-html json-ld-html}
+                            (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))))))
+
+(deftest run-pipeline-records-llm-calls-test
+  (testing "the pre-grouped LLM path records :pre-grouped with a populated llm_calls storing the full request"
+    (let [db (embedded-h2/fresh-db!)]
+      (with-redefs [scraper/fetch-direct    (fn [_] (direct "<html>Grandma's stew: carrots, beef. Simmer.</html>"))
+                    llm/post-anthropic-sync (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"sections\":[{\"name\":null,\"ingredients\":[\"carrots\"],\"steps\":[\"Simmer\"]}],\"suggested_labels\":[]}"}]})]
+        (let [{:keys [scrape-processing-run-id]}
+              (scraper/run-pipeline {:database db :hostname host :api-key "sk-test" :fetcher nil} public-url)
+              run (pipeline-db/get-processing-run db scrape-processing-run-id host)]
+          (is (match? {:techniques {:parse "llm" :normalize "pre-grouped"}
+                       :llm-calls [{:purpose "parse" :model "claude-haiku-4-5"
+                                    :request {:system string? :model "claude-haiku-4-5"}}]}
+                      run)))))))
+
+(deftest run-pipeline-persists-failure-and-rethrows-test
+  (testing "a fetch failure persists a run with the outcome and no content, then re-throws for the handler"
+    (let [db (embedded-h2/fresh-db!)]
+      (with-redefs [scraper/fetch-direct (fn [_] (throw (ex-info "blocked" {:type :scrape :reason :bot-blocked})))]
+        (is (match? {:reason :bot-blocked}
+                    (try (scraper/run-pipeline {:database db :hostname host :api-key nil :fetcher nil} public-url)
+                         (catch clojure.lang.ExceptionInfo e (ex-data e)))))
+        (testing "the failed run is in the corpus: outcome set, content null, request-url recorded"
+          (let [runs (kaleidoscope.persistence.rdbms/find-by-keys db :processing-runs {:hostname host})
+                run  (first runs)]
+            (is (match? {:outcome "bot-blocked" :content nil?} run))
+            (is (match? {:request-url public-url :raw-html nil?}
+                        (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))))

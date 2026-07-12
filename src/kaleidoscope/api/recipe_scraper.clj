@@ -10,6 +10,8 @@
             [clj-http.client :as http]
             [clojure.string :as str]
             [kaleidoscope.api.firecrawl :as firecrawl]
+            [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
+            [kaleidoscope.utils.versioning :as vu]
             [kaleidoscope.workflows.llm-executor :as llm]
             [taoensso.timbre :as log])
   (:import (java.net URI InetAddress)
@@ -225,18 +227,6 @@
   [{:keys [ingredients steps]}]
   [{:name nil :ingredients ingredients :steps steps}])
 
-(defn- facts->result
-  [{:keys [title servings prep-time-minutes cook-time-minutes suggested-labels]}
-   sections extraction-method warnings]
-  {:recipe            {:title             title
-                       :sections          sections
-                       :servings          servings
-                       :prep-time-minutes prep-time-minutes
-                       :cook-time-minutes cook-time-minutes}
-   :suggested-labels  suggested-labels
-   :extraction-method extraction-method
-   :warnings          warnings})
-
 (defn- facts->content
   [{:keys [title servings prep-time-minutes cook-time-minutes]} sections]
   {:title             title
@@ -344,43 +334,13 @@
 (def ^:private extract-prompt
   "Extract the recipe from the page text as strict JSON with keys: title (string), sections (array of {name: string or null, ingredients: array of strings one per ingredient line, steps: array of strings one per instruction step}), servings (string or null), prep_time_minutes (integer or null), cook_time_minutes (integer or null), suggested_labels (array of strings). Use a single section with name null unless the recipe has real components (e.g. cake and frosting). Preserve ingredient lines and step text verbatim. Return ONLY the JSON object, no prose. Strip all blog exposition — keep only the recipe.")
 
-(defn extract-with-llm
-  "LLM fallback when JSON-LD is absent. Requires an api-key; returns a draft."
-  [api-key html]
-  (let [text     (subs (html->text html) 0 (min 50000 (count (html->text html))))
-        response (llm/post-anthropic-sync
-                  api-key
-                  {:model      fallback-model
-                   :max_tokens 2048
-                   :system     extract-prompt
-                   :messages   [{:role "user" :content text}]})
-        raw      (-> response :content first :text)
-        parsed   (json/decode (llm/extract-json raw) true)]
-    (let [raw-sections (:sections parsed)
-          sections     (when (sequential? raw-sections)
-                         (mapv (fn [{:keys [name ingredients steps]}]
-                                 {:name        name
-                                  :ingredients (vec ingredients)
-                                  :steps       (vec steps)})
-                               raw-sections))
-          no-sections? (empty? sections)]
-      {:recipe {:title             (:title parsed)
-                :sections          (if no-sections?
-                                     [{:name nil :ingredients [] :steps []}]
-                                     sections)
-                :servings          (:servings parsed)
-                :prep-time-minutes (:prep_time_minutes parsed)
-                :cook-time-minutes (:cook_time_minutes parsed)}
-       :suggested-labels  (vec (:suggested_labels parsed))
-       :extraction-method "llm"
-       :warnings          (if no-sections? ["LLM returned no sections"] [])})))
-
 (defn- parse-with-llm
   "LLM PARSE: ask for sections, then flatten to ExtractedFacts (flat ingredient/
   step lists + a :grouping of index ranges NORMALIZE merges deterministically).
   The full request is recorded so the technique's version is recoverable."
   [api-key html]
-  (let [text     (subs (html->text html) 0 (min 50000 (count (html->text html))))
+  (let [plain    (html->text html)
+        text     (subs plain 0 (min 50000 (count plain)))
         request  {:model      fallback-model
                   :max_tokens 2048
                   :system     extract-prompt
@@ -490,33 +450,91 @@
           (throw e))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Entry point
+;; Orchestrator
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn scrape
-  "Fetch and extract a recipe draft from `url`. Fetch tiers: direct first, then
-  the rendering `fetcher` (when supplied) if the site bot-blocks the direct
-  fetch. Extraction: JSON-LD first, LLM fallback when an api-key is available.
-  Throws ex-info {:type :scrape :reason ...} on failure (:fetch-failed,
-  :bot-blocked, :no-recipe-found, :blocked-url, :render-failed)."
+(defn- ledger-entry
+  "Fold one StageResult's provenance (technique + calls + warnings) into the
+  accumulating ledger under `stage`."
+  [ledger stage {:keys [technique llm-calls warnings]}]
+  (-> ledger
+      (assoc-in [:techniques stage] technique)
+      (update :llm-calls into (or llm-calls []))
+      (update :warnings  into (or warnings []))))
+
+(defn- process
+  "Run ACQUIRE -> PARSE -> NORMALIZE, short-circuiting at the first stage that
+  returns an :outcome. Pure: no persistence; a :type :scrape failure is encoded
+  as an :outcome (real bugs still throw). Returns {:artifacts :ledger}."
+  [{:keys [api-key fetcher url]}]
+  (let [empty-ledger {:techniques {} :llm-calls [] :warnings []}
+        acq          (acquire {:fetcher fetcher :url url})]
+    (if-let [outcome (:outcome acq)]
+      {:artifacts {:raw (:raw acq)}
+       :ledger    (assoc empty-ledger :outcome outcome :error-detail (:error-detail acq))}
+      (let [raw (:artifact acq)
+            l1  (ledger-entry empty-ledger :acquire acq)
+            prs (parse {:api-key api-key :raw-html (:raw-html raw)})]
+        (if-let [outcome (:outcome prs)]
+          {:artifacts {:raw raw}
+           :ledger    (assoc l1 :outcome outcome :error-detail (:error-detail prs))}
+          (let [facts (:artifact prs)
+                l2    (ledger-entry l1 :parse prs)
+                nrm   (normalize {:api-key api-key :facts facts})]
+            {:artifacts {:raw raw :facts facts :content (:artifact nrm)}
+             :ledger    (assoc (ledger-entry l2 :normalize nrm) :outcome :success)}))))))
+
+(defn- extraction-method
+  "Derive the client-facing extraction-method from the recorded technique kinds."
+  [{:keys [parse normalize]}]
+  (cond
+    (= parse :llm)              "llm"
+    (= normalize :llm-grouping) "json-ld+llm-sections"
+    :else                       "json-ld"))
+
+(defn- build-scrape-result
+  "Reconstruct the ScrapeResult view from the artifacts + ledger."
+  [{:keys [content facts]} {:keys [techniques warnings]}]
+  {:recipe            content
+   :suggested-labels  (vec (:labels facts))
+   :extraction-method (extraction-method techniques)
+   :warnings          (vec warnings)})
+
+(defn- ->scrape-failure
+  [{:keys [outcome error-detail]}]
+  (throw (ex-info (or (:message error-detail) "Scrape failed")
+                  {:type :scrape :reason outcome})))
+
+(defn extract
+  "Run the pipeline WITHOUT persistence; return the ScrapeResult (no run-id) or
+  throw {:type :scrape :reason ..}. For extraction where no DB is wired."
   [{:keys [api-key fetcher]} url]
-  (log/infof "Scraping recipe from %s" url)
-  (let [{html :raw-html} (fetch-html fetcher url)]
-    (if-let [facts (parse-json-ld html)]
-      (if (sectioned? facts)
-        (or (when api-key
-              (let [{:keys [sections dropped]} (group-sections-with-llm api-key facts)]
-                (when sections
-                  (facts->result facts sections "json-ld+llm-sections"
-                                 (if (seq dropped)
-                                   [(str "Ingredient lines treated as section headers, not ingredients: "
-                                         (str/join " | " dropped))]
-                                   [])))))
-            (facts->result facts (single-section facts) "json-ld"
-                           [(if api-key
-                              "Sectioned recipe but grouping failed; flattened to one section"
-                              "Sectioned recipe but no LLM available; flattened to one section")]))
-        (facts->result facts (single-section facts) "json-ld" []))
-      (if api-key
-        (extract-with-llm api-key html)
-        (throw (ex-info "No recipe found and no LLM available"
-                        {:type :scrape :reason :no-recipe-found}))))))
+  (let [{:keys [artifacts ledger]} (process {:api-key api-key :fetcher fetcher :url url})]
+    (if (= :success (:outcome ledger))
+      (build-scrape-result artifacts ledger)
+      (->scrape-failure ledger))))
+
+(defn run-pipeline
+  "Acquire -> parse -> normalize over `url`; persist one raw_scrapes row and one
+  processing_runs row on BOTH the success and short-circuited-failure paths;
+  return the ScrapeResult augmented with :scrape-processing-run-id. On a
+  :type :scrape failure the failed run is persisted, then the original ex-info is
+  re-thrown so the handler's 422 mapping is unchanged."
+  [{:keys [database hostname api-key fetcher]} url]
+  (log/infof "Running recipe pipeline for %s" url)
+  (let [{:keys [artifacts ledger]} (process {:api-key api-key :fetcher fetcher :url url})
+        {raw-id :id} (pipeline-db/create-raw-scrape! database (assoc (:raw artifacts) :hostname hostname))
+        {run-id :id} (pipeline-db/create-processing-run!
+                      database
+                      {:hostname         hostname
+                       :raw-scrape-id    raw-id
+                       :pipeline-version (:revision (vu/get-version-details))
+                       :techniques       (:techniques ledger)
+                       :facts            (:facts artifacts)
+                       :content          (:content artifacts)
+                       :llm-calls        (:llm-calls ledger)
+                       :warnings         (:warnings ledger)
+                       :outcome          (:outcome ledger)
+                       :error-detail     (:error-detail ledger)})]
+    (if (= :success (:outcome ledger))
+      (assoc (build-scrape-result artifacts ledger) :scrape-processing-run-id run-id)
+      (->scrape-failure ledger))))

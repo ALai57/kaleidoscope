@@ -117,28 +117,29 @@
                    (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
                        (mock/json-body {:url "http://example.com/r"}))))))
 
-    (testing "a writer gets a draft back (scrape mocked to avoid network)"
-      (with-redefs [scraper/scrape (fn [_ _] {:recipe {:title    "Mocked"
-                                                       :sections [{:name        nil
-                                                                   :ingredients ["a"]
-                                                                   :steps       ["Mix"]}]}
-                                              :suggested-labels []
-                                              :extraction-method "json-ld"
-                                              :warnings []})]
-        (is (match? {:status 200 :body {:recipe {:title "Mocked"} :extraction-method "json-ld"}}
+    (testing "a writer gets a draft back with a run-id (pipeline mocked to avoid network)"
+      (with-redefs [scraper/run-pipeline (fn [_ _] {:recipe {:title "Mocked"
+                                                             :sections [{:name nil :ingredients ["a"] :steps ["Mix"]}]}
+                                                    :suggested-labels []
+                                                    :extraction-method "json-ld"
+                                                    :warnings []
+                                                    :scrape-processing-run-id (random-uuid)})]
+        (is (match? {:status 200 :body {:recipe {:title "Mocked"}
+                                        :extraction-method "json-ld"
+                                        :scrape-processing-run-id string?}}
                     (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
                              as-writer
                              (mock/json-body {:url "http://example.com/r"})))))))
 
     (testing "a scrape failure surfaces as 422 with a reason"
-      (with-redefs [scraper/scrape (fn [_ _] (throw (ex-info "blocked" {:type :scrape :reason :blocked-url})))]
+      (with-redefs [scraper/run-pipeline (fn [_ _] (throw (ex-info "blocked" {:type :scrape :reason :blocked-url})))]
         (is (match? {:status 422 :body {:reason "blocked-url"}}
                     (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
                              as-writer
                              (mock/json-body {:url "http://169.254.169.254/"})))))))
 
     (testing "a rendering-fetcher failure is NOT a 422 — it propagates to the exception reporter (500)"
-      (with-redefs [scraper/scrape (fn [_ _] (throw (ex-info "firecrawl 500" {:type :scrape :reason :render-failed})))]
+      (with-redefs [scraper/run-pipeline (fn [_ _] (throw (ex-info "firecrawl 500" {:type :scrape :reason :render-failed})))]
         (is (match? {:status 500}
                     (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
                              as-writer

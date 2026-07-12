@@ -70,12 +70,13 @@
 ;; if a row contains a PGobject then we'll convert them to Clojure data
 ;; while reading (if column is either "json" or "jsonb" type):
 (extend-protocol rs/ReadableColumn
-  ;; H2 returns JSON B as a byte array
+  ;; H2 returns JSON B as a byte array of the UTF-8-encoded JSON text. Decode as
+  ;; UTF-8 — a per-byte (char b) cast corrupts (and throws on) multi-byte chars.
   (Class/forName "[B")
   (read-column-by-label [v _]
-    (json/decode (apply str (map char v)) true))
+    (json/decode (String. ^bytes v java.nio.charset.StandardCharsets/UTF_8) true))
   (read-column-by-index [v _2 _3]
-    (json/decode (apply str (map char v)) true))
+    (json/decode (String. ^bytes v java.nio.charset.StandardCharsets/UTF_8) true))
 
   org.postgresql.util.PGobject
   (read-column-by-label [^org.postgresql.util.PGobject v _]
