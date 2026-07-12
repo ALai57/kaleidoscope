@@ -286,8 +286,11 @@
   (str/join "\n" (map-indexed (fn [i l] (str i ". " l)) lines)))
 
 (defn- group-sections-with-llm
-  "Ask for a grouping and merge it deterministically. Returns a sections
-  vector, or nil when the response is unusable — the caller falls back."
+  "Ask for a grouping and merge it deterministically. Returns
+  {:sections [...] :dropped [omitted-ingredient-line ...]}, or nil when the
+  response is unusable — the caller falls back. Dropped lines are header lines
+  consumed as names — surfaced as a warning so a header false positive can't
+  silently lose an ingredient."
   [api-key {:keys [ingredients steps section-names] :as facts}]
   (try
     (let [user     (str "INGREDIENTS:\n" (numbered ingredients)
@@ -303,7 +306,11 @@
                      :messages   [{:role "user" :content user}]})
           parsed   (json/decode (llm/extract-json (-> response :content first :text)) true)]
       (when (valid-grouping? facts (:sections parsed))
-        (grouping->sections facts (:sections parsed))))
+        (let [assigned (set (mapcat :ingredients (:sections parsed)))
+              dropped  (vec (keep-indexed (fn [i line] (when-not (assigned i) line))
+                                          ingredients))]
+          {:sections (grouping->sections facts (:sections parsed))
+           :dropped  dropped})))
     (catch Exception e
       (log/warnf "Section grouping failed: %s" (ex-message e))
       nil)))
@@ -360,8 +367,12 @@
     (if-let [facts (parse-json-ld html)]
       (if (sectioned? facts)
         (or (when api-key
-              (when-let [sections (group-sections-with-llm api-key facts)]
-                (facts->result facts sections "json-ld+llm-sections" [])))
+              (when-let [{:keys [sections dropped]} (group-sections-with-llm api-key facts)]
+                (facts->result facts sections "json-ld+llm-sections"
+                               (if (seq dropped)
+                                 [(str "Ingredient lines treated as section headers, not ingredients: "
+                                       (str/join " | " dropped))]
+                                 []))))
             (facts->result facts (single-section facts) "json-ld"
                            [(if api-key
                               "Sectioned recipe but grouping failed; flattened to one section"

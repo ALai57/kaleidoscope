@@ -201,3 +201,15 @@
                  :extraction-method "json-ld"
                  :warnings          [#"no LLM"]}
                 (scraper/scrape {:api-key nil} public-url)))))
+
+(deftest dropped-header-lines-surface-as-warning-test
+  (testing "every ingredient line the grouping omits is surfaced in warnings —
+            a header-like false positive can't silently lose an ingredient"
+    (let [html "<script type='application/ld+json'>{\"@type\":\"Recipe\",\"name\":\"Cake\",\"recipeIngredient\":[\"For the cake:\",\"2 cups flour\",\"Kosher salt to taste:\"],\"recipeInstructions\":[{\"@type\":\"HowToStep\",\"text\":\"Mix\"}]}</script>"
+          grouping "{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[1],\"steps\":[0]}]}"]
+      (with-redefs [scraper/fetch-direct    (fn [_] html)
+                    llm/post-anthropic-sync (fn [_ _] {:content [{:text grouping}]})]
+        (is (match? {:recipe            {:sections [{:name "Cake" :ingredients ["2 cups flour"] :steps ["Mix"]}]}
+                     :extraction-method "json-ld+llm-sections"
+                     :warnings          [#"For the cake:.*Kosher salt to taste:"]}
+                    (scraper/scrape {:api-key "sk-test"} public-url)))))))
