@@ -9,12 +9,16 @@
             [next.jdbc.result-set :as rs]
             [cheshire.core :as json]
             [kaleidoscope.persistence.rdbms :as rdbms])
-  (:import (java.sql PreparedStatement Types)))
+  (:import (java.sql PreparedStatement)
+           (org.h2.value ValueJson)))
 
 
 (defmethod rdbms/handle-map org.h2.jdbc.JdbcPreparedStatement
   [m ^PreparedStatement s i]
-  (.setObject s i (json/encode m) Types/OTHER))
+  ;; H2's JSON column type re-quotes a plain String parameter as a JSON
+  ;; string scalar (double-encoding). Passing an explicit org.h2.value.ValueJson
+  ;; tells the driver the text is already JSON, so it's stored as-is.
+  (.setObject s i (ValueJson/fromJson (json/encode m))))
 
 (defmethod rdbms/insert-impl! org.h2.jdbc.JdbcConnection
   [database table m & {:keys [ex-subtype]}]

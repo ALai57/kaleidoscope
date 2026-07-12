@@ -54,28 +54,29 @@
     (handle-map m s i)))
 
 ;; if a SQL parameter is a Clojure hash map or vector, it'll be transformed
-;; to a PGobject for JSON/JSONB:
+;; to a PGobject for JSON/JSONB (or a plain JSON string on H2, via handle-map):
 (extend-protocol prepare/SettableParameter
   clojure.lang.IPersistentVector
   (set-parameter [v ^PreparedStatement s i]
-    (.setObject s i (->pgobject v))))
+    (handle-map v s i)))
 
 ;; Cheshire can return LazySeq (not IPersistentVector) when decoding JSON arrays
 ;; from JSONB columns. Catch any ISeq so round-tripped JSONB arrays don't fail.
 (extend-protocol prepare/SettableParameter
   clojure.lang.ISeq
   (set-parameter [s ^PreparedStatement stmt i]
-    (.setObject stmt i (->pgobject (vec s)))))
+    (handle-map (vec s) stmt i)))
 
 ;; if a row contains a PGobject then we'll convert them to Clojure data
 ;; while reading (if column is either "json" or "jsonb" type):
 (extend-protocol rs/ReadableColumn
-  ;; H2 returns JSON B as a byte array
+  ;; H2 returns JSON B as a byte array of the UTF-8-encoded JSON text. Decode as
+  ;; UTF-8 — a per-byte (char b) cast corrupts (and throws on) multi-byte chars.
   (Class/forName "[B")
   (read-column-by-label [v _]
-    (json/decode (apply str (map char v)) true))
+    (json/decode (String. ^bytes v java.nio.charset.StandardCharsets/UTF_8) true))
   (read-column-by-index [v _2 _3]
-    (json/decode (apply str (map char v)) true))
+    (json/decode (String. ^bytes v java.nio.charset.StandardCharsets/UTF_8) true))
 
   org.postgresql.util.PGobject
   (read-column-by-label [^org.postgresql.util.PGobject v _]

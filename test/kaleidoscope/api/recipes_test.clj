@@ -2,6 +2,7 @@
   (:require [kaleidoscope.api.recipes :as recipes]
             [kaleidoscope.api.groups :as groups]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
+            [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [matcher-combinators.test :refer [match?]]
             [next.jdbc :as next]
@@ -84,6 +85,30 @@
     (recipes/create-recipe! db (example-recipe))
     (recipes/delete-recipe! db host "chana-masala")
     (is (nil? (recipes/get-recipe db host "chana-masala")))))
+
+(deftest create-recipe-links-to-processing-run-test
+  (let [db (embedded-pg/fresh-db!)
+        {raw-id :id} (pipeline-db/create-raw-scrape!
+                      db {:hostname host :request-url "http://x/r"
+                          :final-url "http://x/r" :http-status 200
+                          :fetch-tier "direct" :raw-html "<html/>"})
+        {run-id :id} (pipeline-db/create-processing-run!
+                      db {:hostname host :raw-scrape-id raw-id :pipeline-version "v"
+                          :techniques {:acquire :direct :parse :json-ld :normalize :single-section}
+                          :content example-content :facts {:labels []}
+                          :outcome :success})]
+    (testing "a recipe created with a run-id persists the FK and returns it on read"
+      (recipes/create-recipe! db (example-recipe :scrape-processing-run-id run-id))
+      (is (match? {:scrape-processing-run-id run-id}
+                  (recipes/get-recipe db host "chana-masala"))))
+    (testing "a recipe created without a run-id has a nil link"
+      (recipes/create-recipe! db (example-recipe :recipe-url "no-link"))
+      (is (match? {:scrape-processing-run-id nil?}
+                  (recipes/get-recipe db host "no-link"))))
+    (testing "deleting the linked run does NOT delete the recipe — the link is nulled (ON DELETE SET NULL)"
+      (next/execute! db ["DELETE FROM processing_runs WHERE id = ?" run-id])
+      (is (match? {:recipe-url "chana-masala" :scrape-processing-run-id nil?}
+                  (recipes/get-recipe db host "chana-masala"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Labels + groups

@@ -66,21 +66,23 @@
                                           :author     (or (:name identity) (:user-id identity))})))))}}]
 
    ["/scrape"
-    {:post {:summary    "Fetch + extract a recipe draft from a URL (does not save)"
+    {:post {:summary    "Fetch + extract a recipe draft from a URL (persists the raw scrape + processing run)"
             :responses  (merge hu/openapi-401
                                {200 {:body models.recipes/ScrapeResult}
                                 422 {:body [:map [:reason :string]]}})
             :parameters {:body [:map [:url :string]]}
-            :handler    (fn [{:keys [components parameters] :as _request}]
-                          (let [url     (get-in parameters [:body :url])
-                                api-key (:api-key (:workflow-executor components))
-                                fetcher (:recipe-fetcher components)]
+            :handler    (fn [{:keys [components parameters] :as request}]
+                          (let [url (get-in parameters [:body :url])
+                                ctx {:database (:database components)
+                                     :hostname (hu/get-host request)
+                                     :api-key  (:api-key (:workflow-executor components))
+                                     :fetcher  (:recipe-fetcher components)}]
                             ;; Expected scrape outcomes become a 422 the client
                             ;; can act on. Anything else — including a Firecrawl
                             ;; :render-failed — propagates to the Bugsnag
                             ;; exception-reporter middleware, which reports it.
                             (try
-                              (ok (scraper/scrape {:api-key api-key :fetcher fetcher} url))
+                              (ok (scraper/run-pipeline ctx url))
                               (catch clojure.lang.ExceptionInfo e
                                 (if (#{:fetch-failed :bot-blocked :no-recipe-found :blocked-url}
                                      (:reason (ex-data e)))
