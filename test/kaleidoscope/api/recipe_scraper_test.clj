@@ -41,6 +41,9 @@
     \"recipeCuisine\":\"Indian\",\"keywords\":\"vegan, curry\"}
    </script></head><body>Blog exposition here.</body></html>")
 
+(def valid-grouping-json
+  "{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[0,1],\"steps\":[0,1]},{\"name\":\"Frosting\",\"ingredients\":[2],\"steps\":[2]}]}")
+
 (deftest acquire-produces-raw-scrape-artifact-test
   (testing "a successful direct fetch yields a RawScrape artifact tagged :direct"
     (with-redefs [scraper/fetch-direct (fn [_] (direct json-ld-html))]
@@ -59,23 +62,66 @@
   (is (match? {:title             "Chana Masala"
                :ingredients       ["2 cups chickpeas" "1 tbsp flour"]
                :steps             ["Soak" "Cook"]
-               :section-names     []
+               :section-signals   []
+               :grouping          nil?
                :servings          "4"
                :prep-time-minutes 15
                :cook-time-minutes 30
-               :suggested-labels  #(contains? (set %) "Indian")}
+               :labels            #(contains? (set %) "Indian")}
               (scraper/parse-json-ld json-ld-html))))
 
 (deftest json-ld-graph-wrapper-test
   (let [html "<script type='application/ld+json'>{\"@graph\":[{\"@type\":\"WebPage\"},{\"@type\":\"Recipe\",\"name\":\"Soup\",\"recipeIngredient\":[\"water\"],\"recipeInstructions\":\"Boil water\"}]}</script>"]
-    (is (match? {:title "Soup" :steps ["Boil water"] :section-names []}
+    (is (match? {:title "Soup" :steps ["Boil water"] :section-signals []}
                 (scraper/parse-json-ld html)))))
 
 (deftest json-ld-howto-section-test
-  (testing "HowToSection names become candidate section-names; steps stay verbatim and ordered"
+  (testing "HowToSection names become candidate section-signals; steps stay verbatim and ordered"
     (let [html "<script type='application/ld+json'>{\"@type\":\"Recipe\",\"name\":\"X\",\"recipeIngredient\":[],\"recipeInstructions\":[{\"@type\":\"HowToSection\",\"name\":\"Cake\",\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"A\"},{\"@type\":\"HowToStep\",\"text\":\"B\"}]},{\"@type\":\"HowToSection\",\"name\":\"Frosting\",\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"C\"}]}]}</script>"]
-      (is (match? {:steps ["A" "B" "C"] :section-names ["Cake" "Frosting"]}
+      (is (match? {:steps ["A" "B" "C"] :section-signals ["Cake" "Frosting"]}
                   (scraper/parse-json-ld html))))))
+
+(deftest parse-stage-json-ld-then-llm-test
+  (testing "PARSE prefers JSON-LD; without JSON-LD and without an api-key it fails"
+    (is (match? {:technique :json-ld :artifact {:title "Chana Masala"}}
+                (scraper/parse {:api-key "sk-test" :raw-html json-ld-html})))
+    (is (match? {:outcome :no-recipe-found}
+                (scraper/parse {:api-key nil :raw-html "<html>no structured data</html>"}))))
+  (testing "without JSON-LD but with an api-key, PARSE returns :llm facts with flat lists + grouping + the call"
+    (with-redefs [llm/post-anthropic-sync
+                  (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"sections\":[{\"name\":null,\"ingredients\":[\"carrots\",\"beef\"],\"steps\":[\"Simmer\"]}],\"suggested_labels\":[\"comfort\"]}"}]})]
+      (is (match? {:technique :llm
+                   :artifact  {:title "Stew" :ingredients ["carrots" "beef"] :steps ["Simmer"]
+                               :grouping [{:name nil? :ingredients [0 1] :steps [0]}]
+                               :labels ["comfort"]}
+                   :llm-calls [{:purpose :parse :model "claude-haiku-4-5"
+                                :request map? :response map?}]}
+                  (scraper/parse {:api-key "sk-test" :raw-html "<html>stew</html>"}))))))
+
+(deftest normalize-stage-dispatch-test
+  (let [flat {:title "Cake" :ingredients ["2 cups flour" "1 cup sugar" "1 cup butter"]
+              :steps ["Mix" "Bake" "Whip"] :section-signals [] :labels []}]
+    (testing "grouping present -> :pre-grouped deterministic merge, no LLM call"
+      (with-redefs [llm/post-anthropic-sync (fn [_ _] (throw (ex-info "must not call" {})))]
+        (is (match? {:technique :pre-grouped
+                     :artifact  {:sections [{:name "Cake"     :ingredients ["2 cups flour" "1 cup sugar"] :steps ["Mix" "Bake"]}
+                                            {:name "Frosting" :ingredients ["1 cup butter"]               :steps ["Whip"]}]}}
+                    (scraper/normalize {:api-key nil
+                                        :facts (assoc flat :grouping
+                                                      [{:name "Cake" :ingredients [0 1] :steps [0 1]}
+                                                       {:name "Frosting" :ingredients [2] :steps [2]}])})))))
+    (testing "no signals -> :single-section, no LLM call"
+      (with-redefs [llm/post-anthropic-sync (fn [_ _] (throw (ex-info "must not call" {})))]
+        (is (match? {:technique :single-section
+                     :artifact  {:sections [{:name nil? :ingredients ["2 cups flour" "1 cup sugar" "1 cup butter"]}]}}
+                    (scraper/normalize {:api-key "sk-test" :facts flat})))))
+    (testing "section-signals + api-key -> :llm-grouping, records the call"
+      (with-redefs [llm/post-anthropic-sync (fn [_ _] {:content [{:text valid-grouping-json}]})]
+        (is (match? {:technique :llm-grouping
+                     :llm-calls [{:purpose :normalize :request map? :response map?}]
+                     :artifact  {:sections [{:name "Cake"} {:name "Frosting"}]}}
+                    (scraper/normalize {:api-key "sk-test"
+                                        :facts (assoc flat :section-signals ["Cake" "Frosting"])})))))))
 
 (deftest unsectioned-scrape-assembles-single-section-test
   (testing "an unsectioned JSON-LD scrape yields one unnamed section and NO LLM call"
@@ -189,9 +235,6 @@
       {\"@type\":\"HowToSection\",\"name\":\"Cake\",\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"Mix\"},{\"@type\":\"HowToStep\",\"text\":\"Bake\"}]},
       {\"@type\":\"HowToSection\",\"name\":\"Frosting\",\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"Whip\"}]}]}
    </script>")
-
-(def valid-grouping-json
-  "{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[0,1],\"steps\":[0,1]},{\"name\":\"Frosting\",\"ingredients\":[2],\"steps\":[2]}]}")
 
 (deftest sectioned-scrape-groups-with-llm-test
   (testing "HowToSections route through the grouping call; text is preserved verbatim by index"

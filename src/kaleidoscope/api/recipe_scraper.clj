@@ -205,8 +205,8 @@
        vec))
 
 (defn parse-json-ld
-  "Extract verbatim recipe facts from JSON-LD, or nil if no Recipe (or none with
-  a name) found. Facts, not a draft: `scrape` decides how facts become sections."
+  "Extract verbatim ExtractedFacts from JSON-LD, or nil if no Recipe (or none
+  with a name). Facts, not a draft: NORMALIZE decides how facts become sections."
   [html]
   (when-let [node (find-recipe-node (ld-json-blocks html))]
     (when-not (str/blank? (:name node))
@@ -214,11 +214,12 @@
         {:title             (:name node)
          :ingredients       (vec (:recipeIngredient node))
          :steps             steps
-         :section-names     section-names
+         :section-signals   section-names
+         :grouping          nil
          :servings          (some-> (first-or-self (:recipeYield node)) str)
          :prep-time-minutes (iso-duration->minutes (:prepTime node))
          :cook-time-minutes (iso-duration->minutes (:cookTime node))
-         :suggested-labels  (->suggested-labels node)}))))
+         :labels            (->suggested-labels node)}))))
 
 (defn- single-section
   [{:keys [ingredients steps]}]
@@ -235,6 +236,14 @@
    :suggested-labels  suggested-labels
    :extraction-method extraction-method
    :warnings          warnings})
+
+(defn- facts->content
+  [{:keys [title servings prep-time-minutes cook-time-minutes]} sections]
+  {:title             title
+   :sections          sections
+   :servings          servings
+   :prep-time-minutes prep-time-minutes
+   :cook-time-minutes cook-time-minutes})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Section signals + LLM grouping
@@ -254,8 +263,8 @@
   (boolean (re-matches header-line-re (or line ""))))
 
 (defn- sectioned?
-  [{:keys [section-names ingredients]}]
-  (boolean (or (seq section-names)
+  [{:keys [section-signals ingredients]}]
+  (boolean (or (seq section-signals)
                (some header-like? ingredients))))
 
 (def ^:private grouping-prompt
@@ -292,30 +301,30 @@
 
 (defn- group-sections-with-llm
   "Ask for a grouping and merge it deterministically. Returns
-  {:sections [...] :dropped [omitted-ingredient-line ...]}, or nil when the
-  response is unusable — the caller falls back. Dropped lines are header lines
-  consumed as names — surfaced as a warning so a header false positive can't
-  silently lose an ingredient."
-  [api-key {:keys [ingredients steps section-names] :as facts}]
+  {:sections [..] :dropped [omitted-line ..] :llm-call {..}} on a valid grouping;
+  {:sections nil :llm-call {..}} when the call succeeded but the grouping was
+  unusable (caller flattens but the call is still recorded); nil on exception."
+  [api-key {:keys [ingredients steps section-signals] :as facts}]
   (try
     (let [user     (str "INGREDIENTS:\n" (numbered ingredients)
                         "\n\nSTEPS:\n" (numbered steps)
-                        (when (seq section-names)
+                        (when (seq section-signals)
                           (str "\n\nCANDIDATE SECTION NAMES:\n"
-                               (str/join "\n" section-names))))
-          response (llm/post-anthropic-sync
-                    api-key
-                    {:model      fallback-model
-                     :max_tokens 1024
-                     :system     grouping-prompt
-                     :messages   [{:role "user" :content user}]})
-          parsed   (json/decode (llm/extract-json (-> response :content first :text)) true)]
-      (when (valid-grouping? facts (:sections parsed))
+                               (str/join "\n" section-signals))))
+          request  {:model      fallback-model
+                    :max_tokens 1024
+                    :system     grouping-prompt
+                    :messages   [{:role "user" :content user}]}
+          response (llm/post-anthropic-sync api-key request)
+          parsed   (json/decode (llm/extract-json (-> response :content first :text)) true)
+          llm-call {:purpose :normalize :model fallback-model :request request :response response}]
+      (if (valid-grouping? facts (:sections parsed))
         (let [assigned (set (mapcat :ingredients (:sections parsed)))
-              dropped  (vec (keep-indexed (fn [i line] (when-not (assigned i) line))
-                                          ingredients))]
+              dropped  (vec (keep-indexed (fn [i line] (when-not (assigned i) line)) ingredients))]
           {:sections (grouping->sections facts (:sections parsed))
-           :dropped  dropped})))
+           :dropped  dropped
+           :llm-call llm-call})
+        {:sections nil :llm-call llm-call}))
     (catch Exception e
       (log/warnf "Section grouping failed: %s" (ex-message e))
       nil)))
@@ -366,6 +375,95 @@
        :extraction-method "llm"
        :warnings          (if no-sections? ["LLM returned no sections"] [])})))
 
+(defn- parse-with-llm
+  "LLM PARSE: ask for sections, then flatten to ExtractedFacts (flat ingredient/
+  step lists + a :grouping of index ranges NORMALIZE merges deterministically).
+  The full request is recorded so the technique's version is recoverable."
+  [api-key html]
+  (let [text     (subs (html->text html) 0 (min 50000 (count (html->text html))))
+        request  {:model      fallback-model
+                  :max_tokens 2048
+                  :system     extract-prompt
+                  :messages   [{:role "user" :content text}]}
+        response (llm/post-anthropic-sync api-key request)
+        parsed   (json/decode (llm/extract-json (-> response :content first :text)) true)
+        raw-secs (:sections parsed)
+        sections (if (sequential? raw-secs)
+                   (mapv (fn [{:keys [name ingredients steps]}]
+                           {:name name :ingredients (vec ingredients) :steps (vec steps)})
+                         raw-secs)
+                   [])
+        flat-ing (vec (mapcat :ingredients sections))
+        flat-stp (vec (mapcat :steps sections))
+        grouping (loop [secs sections, i 0, j 0, acc []]
+                   (if (empty? secs)
+                     acc
+                     (let [{:keys [name ingredients steps]} (first secs)
+                           ni (count ingredients) ns (count steps)]
+                       (recur (rest secs) (+ i ni) (+ j ns)
+                              (conj acc {:name        name
+                                         :ingredients (vec (range i (+ i ni)))
+                                         :steps       (vec (range j (+ j ns)))})))))
+        no-secs? (empty? sections)]
+    {:artifact  {:title             (:title parsed)
+                 :ingredients       flat-ing
+                 :steps             flat-stp
+                 :section-signals   []
+                 :grouping          (if no-secs? [{:name nil :ingredients [] :steps []}] grouping)
+                 :servings          (:servings parsed)
+                 :prep-time-minutes (:prep_time_minutes parsed)
+                 :cook-time-minutes (:cook_time_minutes parsed)
+                 :labels            (vec (:suggested_labels parsed))}
+     :technique :llm
+     :llm-calls [{:purpose :parse :model fallback-model :request request :response response}]
+     :warnings  (if no-secs? ["LLM returned no sections"] [])}))
+
+(defn parse
+  "PARSE: RawScrape html -> ExtractedFacts. JSON-LD first; LLM fallback when an
+  api-key is present; :no-recipe-found when neither yields facts."
+  [{:keys [api-key raw-html]}]
+  (if-let [facts (parse-json-ld raw-html)]
+    {:artifact facts :technique :json-ld}
+    (if api-key
+      (parse-with-llm api-key raw-html)
+      {:outcome      :no-recipe-found
+       :error-detail {:message "No recipe found and no LLM available"
+                      :reason  :no-recipe-found}})))
+
+(defn normalize
+  "NORMALIZE: ExtractedFacts -> RecipeContent. Dispatch: grouping present ->
+  :pre-grouped (deterministic index merge); section signals + api-key ->
+  :llm-grouping (constrained LLM grouping, flattening on failure); else ->
+  :single-section. Always produces content."
+  [{:keys [api-key facts]}]
+  (let [content (fn [sections] (facts->content facts sections))]
+    (cond
+      (:grouping facts)
+      {:artifact (content (grouping->sections facts (:grouping facts)))
+       :technique :pre-grouped}
+
+      (sectioned? facts)
+      (if api-key
+        (let [{:keys [sections dropped llm-call]} (group-sections-with-llm api-key facts)]
+          (if sections
+            {:artifact  (content sections)
+             :technique :llm-grouping
+             :llm-calls (vec (when llm-call [llm-call]))
+             :warnings  (when (seq dropped)
+                          [(str "Ingredient lines treated as section headers, not ingredients: "
+                                (str/join " | " dropped))])}
+            {:artifact  (content (single-section facts))
+             :technique :single-section
+             :llm-calls (vec (when llm-call [llm-call]))
+             :warnings  ["Sectioned recipe but grouping failed; flattened to one section"]}))
+        {:artifact  (content (single-section facts))
+         :technique :single-section
+         :warnings  ["Sectioned recipe but no LLM available; flattened to one section"]})
+
+      :else
+      {:artifact  (content (single-section facts))
+       :technique :single-section})))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ACQUIRE stage
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -406,12 +504,13 @@
     (if-let [facts (parse-json-ld html)]
       (if (sectioned? facts)
         (or (when api-key
-              (when-let [{:keys [sections dropped]} (group-sections-with-llm api-key facts)]
-                (facts->result facts sections "json-ld+llm-sections"
-                               (if (seq dropped)
-                                 [(str "Ingredient lines treated as section headers, not ingredients: "
-                                       (str/join " | " dropped))]
-                                 []))))
+              (let [{:keys [sections dropped]} (group-sections-with-llm api-key facts)]
+                (when sections
+                  (facts->result facts sections "json-ld+llm-sections"
+                                 (if (seq dropped)
+                                   [(str "Ingredient lines treated as section headers, not ingredients: "
+                                         (str/join " | " dropped))]
+                                   [])))))
             (facts->result facts (single-section facts) "json-ld"
                            [(if api-key
                               "Sectioned recipe but grouping failed; flattened to one section"
