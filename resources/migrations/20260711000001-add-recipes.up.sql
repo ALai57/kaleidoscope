@@ -1,14 +1,15 @@
 -- Recipes: scrape/edit/search/share domain. See plans/2026-07-10-recipes-feature/PLAN.md.
 --
 -- Identity is a single opaque UUID; recipe_url is the address (slug), not a
--- second identity. Recipe content (title, ingredients, instructions, servings,
--- times) is one JSONB value shape; `content` is the current recipe and
--- `original_content` is the immutable scrape — same shape, cannot drift.
+-- second identity. Recipe content is one JSONB value shape: {title, sections
+-- [{name?, ingredients [string], steps [string]}], servings?, times?} (see
+-- plans/2026-07-11-recipe-sections/DESIGN.md); `content` is the current recipe
+-- and `original_content` is the immutable scrape — same shape, cannot drift.
 CREATE TABLE recipes (
   id                UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   recipe_url        VARCHAR NOT NULL,          -- address (slug)
   hostname          VARCHAR NOT NULL,          -- tenant
-  content           JSONB NOT NULL,            -- {title, ingredients[], instructions_html, servings?, prep_time_minutes?, cook_time_minutes?}
+  content           JSONB NOT NULL,            -- {title, sections[{name?, ingredients[], steps[]}], servings?, prep_time_minutes?, cook_time_minutes?}
   original_content  JSONB,                     -- immutable scrape; same shape as `content`
   source_url        VARCHAR,
   author            VARCHAR,

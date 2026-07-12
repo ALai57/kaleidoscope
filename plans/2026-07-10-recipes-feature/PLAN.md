@@ -1,5 +1,9 @@
 # Recipes Feature — Scrape, Edit, Search, Share
 
+> **Superseded in part:** `RecipeContent` was reshaped to paired sections with
+> steps-as-data (no `instructions-html`) before first release — see
+> `plans/2026-07-11-recipe-sections/DESIGN.md`. Shape details below are historical.
+
 > **Implementation status (2026-07-11)** — built on branch `plans/recipes-feature` in both repos.
 > **Backend (kaleidoscope), done + tested:** migration (5 tables, one-per-group + composite-tenant constraints), `api/access` shared visibility, `api/recipes` (CRUD, labels/groups, one-per-group validation, ingredient search, audiences), `api/recipe_scraper` (SSRF-guarded fetch, JSON-LD, LLM fallback), `http_api/recipes` routes + ACL. Full suite green (196 tests). Phases 1, 3, 4, 5 complete.
 > **Frontend (kaleidoscope-ui), done + tested:** `types/recipe`, `api/recipes` (+13 tests), `LabelPicker` (+7 tests), `RecipesPage`/`RecipePage`/`RecipeEditorPage` (+ list-filter and scrape→save tests), routes/nav/manager card. Typecheck + lint clean; 24 recipe tests green. Phase 2 complete.
