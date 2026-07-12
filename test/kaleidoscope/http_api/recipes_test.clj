@@ -162,3 +162,19 @@
                              as-writer
                              (mock/json-body (assoc example-body
                                                     :label-ids [(:id l1) (:id l2)]))))))))))
+
+(deftest named-sections-round-trip-http-test
+  (let [app  (make-app "custom-authenticated-user")
+        body {:content {:title    "Layer Cake"
+                        :sections [{:name "Cake" :ingredients ["2 cups flour"] :steps ["Mix" "Bake"]}
+                                   {:name "Frosting" :ingredients ["1 cup butter"] :steps ["Whip"]}]}
+              :public-visibility true}]
+    (testing "named sections survive create → retrieve through the router"
+      (is (match? {:status 200 :body {:recipe-url "layer-cake"}}
+                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                           as-writer
+                           (mock/json-body body)))))
+      (is (match? {:status 200
+                   :body   {:content {:sections [{:name "Cake" :ingredients ["2 cups flour"] :steps ["Mix" "Bake"]}
+                                                 {:name "Frosting" :ingredients ["1 cup butter"] :steps ["Whip"]}]}}}
+                  (app (mock/request :get "https://andrewslai.com/recipes/layer-cake")))))))

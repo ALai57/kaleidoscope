@@ -201,19 +201,20 @@
        vec))
 
 (defn parse-json-ld
-  "Extract verbatim recipe facts from JSON-LD, or nil if no Recipe found.
-  Facts, not a draft: `scrape` decides how facts become sections."
+  "Extract verbatim recipe facts from JSON-LD, or nil if no Recipe (or none with
+  a name) found. Facts, not a draft: `scrape` decides how facts become sections."
   [html]
   (when-let [node (find-recipe-node (ld-json-blocks html))]
-    (let [{:keys [steps section-names]} (parse-instructions (:recipeInstructions node))]
-      {:title             (:name node)
-       :ingredients       (vec (:recipeIngredient node))
-       :steps             steps
-       :section-names     section-names
-       :servings          (some-> (first-or-self (:recipeYield node)) str)
-       :prep-time-minutes (iso-duration->minutes (:prepTime node))
-       :cook-time-minutes (iso-duration->minutes (:cookTime node))
-       :suggested-labels  (->suggested-labels node)})))
+    (when-not (str/blank? (:name node))
+      (let [{:keys [steps section-names]} (parse-instructions (:recipeInstructions node))]
+        {:title             (:name node)
+         :ingredients       (vec (:recipeIngredient node))
+         :steps             steps
+         :section-names     section-names
+         :servings          (some-> (first-or-self (:recipeYield node)) str)
+         :prep-time-minutes (iso-duration->minutes (:prepTime node))
+         :cook-time-minutes (iso-duration->minutes (:cookTime node))
+         :suggested-labels  (->suggested-labels node)}))))
 
 (defn- single-section
   [{:keys [ingredients steps]}]
@@ -342,14 +343,16 @@
                    :messages   [{:role "user" :content text}]})
         raw      (-> response :content first :text)
         parsed   (json/decode (llm/extract-json raw) true)]
-    (let [sections (mapv (fn [{:keys [name ingredients steps]}]
-                           {:name        name
-                            :ingredients (vec ingredients)
-                            :steps       (vec steps)})
-                         (:sections parsed))
-          empty?   (empty? sections)]
+    (let [raw-sections (:sections parsed)
+          sections     (when (sequential? raw-sections)
+                         (mapv (fn [{:keys [name ingredients steps]}]
+                                 {:name        name
+                                  :ingredients (vec ingredients)
+                                  :steps       (vec steps)})
+                               raw-sections))
+          no-sections? (empty? sections)]
       {:recipe {:title             (:title parsed)
-                :sections          (if empty?
+                :sections          (if no-sections?
                                      [{:name nil :ingredients [] :steps []}]
                                      sections)
                 :servings          (:servings parsed)
@@ -357,7 +360,7 @@
                 :cook-time-minutes (:cook_time_minutes parsed)}
        :suggested-labels  (vec (:suggested_labels parsed))
        :extraction-method "llm"
-       :warnings          (if empty? ["LLM returned no sections"] [])})))
+       :warnings          (if no-sections? ["LLM returned no sections"] [])})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Entry point

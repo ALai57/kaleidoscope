@@ -79,6 +79,10 @@
     (is (nil? (scraper/parse-json-ld "<html><body>just a blog</body></html>")))
     (is (nil? (scraper/parse-json-ld "<script type='application/ld+json'>{not valid json</script>")))))
 
+(deftest json-ld-without-name-is-not-a-recipe-test
+  (testing "a Recipe node with no name yields nil facts — falls through to the LLM path"
+    (is (nil? (scraper/parse-json-ld "<script type='application/ld+json'>{\"@type\":\"Recipe\",\"recipeIngredient\":[\"salt\"],\"recipeInstructions\":\"Mix\"}</script>")))))
+
 (deftest ssrf-rejection-test
   (testing "loopback, private, link-local, metadata, and non-http schemes are rejected"
     (is (match? {:reason :blocked-url}
@@ -114,13 +118,14 @@
                   (scraper/scrape {:api-key "sk-test"} "http://example.com/stew"))))))
 
 (deftest llm-fallback-empty-sections-guard-test
-  (testing "an LLM response with no sections still satisfies the min-1-section shape"
-    (with-redefs [scraper/fetch-direct (fn [_] "<html><body>vague food blog</body></html>")
-                  llm/post-anthropic-sync
-                  (fn [_ _] {:content [{:text "{\"title\":\"Mystery\",\"sections\":[],\"suggested_labels\":[]}"}]})]
-      (is (match? {:recipe {:title "Mystery" :sections [{:ingredients [] :steps []}]}
-                   :warnings [#"no sections"]}
-                  (scraper/scrape {:api-key "sk-test"} "http://example.com/mystery"))))))
+  (testing "an LLM response with no (or non-array) sections still satisfies the min-1-section shape"
+    (doseq [sections-json ["\"sections\":[]" "\"sections\":\"none\""]]
+      (with-redefs [scraper/fetch-direct (fn [_] "<html><body>vague food blog</body></html>")
+                    llm/post-anthropic-sync
+                    (fn [_ _] {:content [{:text (str "{\"title\":\"Mystery\"," sections-json ",\"suggested_labels\":[]}")}]})]
+        (is (match? {:recipe {:title "Mystery" :sections [{:ingredients [] :steps []}]}
+                     :warnings [#"no sections"]}
+                    (scraper/scrape {:api-key "sk-test"} "http://example.com/mystery")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Bot-block fallback to the rendering fetcher
@@ -203,7 +208,8 @@
                     llm/post-anthropic-sync (fn [_ _] {:content [{:text grouping}]})]
         (is (match? {:recipe {:sections [{:name "Cake"     :ingredients ["2 cups flour"]  :steps ["Mix"]}
                                          {:name "Frosting" :ingredients ["1 cup butter"] :steps ["Whip"]}]}
-                     :extraction-method "json-ld+llm-sections"}
+                     :extraction-method "json-ld+llm-sections"
+                     :warnings          [#"For the cake:.*For the frosting:"]}
                     (scraper/scrape {:api-key "sk-test"} public-url)))))))
 
 (deftest sectioned-without-api-key-flattens-with-warning-test
