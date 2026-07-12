@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.recipe-scraper-test
   (:require [kaleidoscope.api.recipe-scraper :as scraper]
             [kaleidoscope.api.firecrawl :as firecrawl]
+            [kaleidoscope.workflows.llm-executor :as llm]
             [clj-http.client :as http]
             [clojure.test :refer [deftest is testing]]
             [matcher-combinators.test :refer [match?]]))
@@ -35,29 +36,43 @@
    </script></head><body>Blog exposition here.</body></html>")
 
 (deftest json-ld-happy-path-test
-  (is (match? {:recipe {:title             "Chana Masala"
-                        :ingredients       ["2 cups chickpeas" "1 tbsp flour"]
-                        :instructions-html "<ol><li>Soak</li><li>Cook</li></ol>"
-                        :servings          "4"
-                        :prep-time-minutes 15
-                        :cook-time-minutes 30}
-               :suggested-labels  #(contains? (set %) "Indian")
-               :extraction-method "json-ld"}
+  (is (match? {:title             "Chana Masala"
+               :ingredients       ["2 cups chickpeas" "1 tbsp flour"]
+               :steps             ["Soak" "Cook"]
+               :section-names     []
+               :servings          "4"
+               :prep-time-minutes 15
+               :cook-time-minutes 30
+               :suggested-labels  #(contains? (set %) "Indian")}
               (scraper/parse-json-ld json-ld-html))))
 
 (deftest json-ld-graph-wrapper-test
   (let [html "<script type='application/ld+json'>{\"@graph\":[{\"@type\":\"WebPage\"},{\"@type\":\"Recipe\",\"name\":\"Soup\",\"recipeIngredient\":[\"water\"],\"recipeInstructions\":\"Boil water\"}]}</script>"]
-    (is (match? {:recipe {:title "Soup" :instructions-html "<p>Boil water</p>"}}
+    (is (match? {:title "Soup" :steps ["Boil water"] :section-names []}
                 (scraper/parse-json-ld html)))))
 
 (deftest json-ld-howto-section-test
-  (let [html "<script type='application/ld+json'>{\"@type\":\"Recipe\",\"name\":\"X\",\"recipeIngredient\":[],\"recipeInstructions\":[{\"@type\":\"HowToSection\",\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"A\"},{\"@type\":\"HowToStep\",\"text\":\"B\"}]}]}</script>"]
-    (is (match? {:recipe {:instructions-html "<ol><li>A</li><li>B</li></ol>"}}
-                (scraper/parse-json-ld html)))))
+  (testing "HowToSection names become candidate section-names; steps stay verbatim and ordered"
+    (let [html "<script type='application/ld+json'>{\"@type\":\"Recipe\",\"name\":\"X\",\"recipeIngredient\":[],\"recipeInstructions\":[{\"@type\":\"HowToSection\",\"name\":\"Cake\",\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"A\"},{\"@type\":\"HowToStep\",\"text\":\"B\"}]},{\"@type\":\"HowToSection\",\"name\":\"Frosting\",\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"C\"}]}]}</script>"]
+      (is (match? {:steps ["A" "B" "C"] :section-names ["Cake" "Frosting"]}
+                  (scraper/parse-json-ld html))))))
+
+(deftest unsectioned-scrape-assembles-single-section-test
+  (testing "an unsectioned JSON-LD scrape yields one unnamed section and NO LLM call"
+    (with-redefs [scraper/fetch-direct (fn [_] json-ld-html)
+                  llm/post-anthropic-sync (fn [_ _] (throw (ex-info "LLM must not be called" {})))]
+      (is (match? {:recipe {:title    "Chana Masala"
+                            :sections [{:name        nil?
+                                        :ingredients ["2 cups chickpeas" "1 tbsp flour"]
+                                        :steps       ["Soak" "Cook"]}]
+                            :servings "4"}
+                   :extraction-method "json-ld"
+                   :warnings          []}
+                  (scraper/scrape {:api-key "sk-test"} public-url))))))
 
 (deftest json-ld-type-as-array-test
   (let [html "<script type='application/ld+json'>{\"@type\":[\"Recipe\",\"Thing\"],\"name\":\"Y\",\"recipeIngredient\":[\"salt\"],\"recipeInstructions\":\"Mix\"}</script>"]
-    (is (match? {:recipe {:title "Y"}} (scraper/parse-json-ld html)))))
+    (is (match? {:title "Y"} (scraper/parse-json-ld html)))))
 
 (deftest json-ld-absent-test
   (testing "malformed JSON-LD and pages with no Recipe return nil (fallback signal)"
@@ -89,7 +104,7 @@
 (deftest llm-fallback-invoked-test
   (testing "when JSON-LD is absent and an api-key is present, the LLM path runs and its JSON is mapped"
     (with-redefs [scraper/fetch-direct (fn [_] "<html><body>Grandma's stew: carrots, beef. Simmer 2 hours.</body></html>")
-                  kaleidoscope.workflows.llm-executor/post-anthropic-sync
+                  llm/post-anthropic-sync
                   (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"ingredients\":[\"carrots\",\"beef\"],\"instructions_html\":\"<ol><li>Simmer</li></ol>\",\"servings\":\"4\",\"prep_time_minutes\":10,\"cook_time_minutes\":120,\"suggested_labels\":[\"comfort\"]}"}]})]
       (is (match? {:recipe {:title "Stew" :ingredients ["carrots" "beef"] :cook-time-minutes 120}
                    :suggested-labels ["comfort"]

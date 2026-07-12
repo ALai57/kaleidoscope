@@ -155,24 +155,37 @@
     (try (.toMinutes (Duration/parse s))
          (catch Exception _ nil))))
 
-(defn- instructions->html
-  "schema.org recipeInstructions come as a plain string, an array of HowToStep
-  (with :text), or HowToSection (with nested :itemListElement). Render to HTML."
+(defn- parse-instructions
+  "schema.org recipeInstructions → {:steps [string] :section-names [string]}.
+  Steps are verbatim HowToStep text in document order; section-names are
+  non-blank HowToSection names in order — the sectioning signal consumed by
+  the grouping step. Accepts a plain string, HowToStep[], or HowToSection[]."
   [instructions]
-  (cond
-    (string? instructions)
-    (str "<p>" instructions "</p>")
+  (let [add-step (fn [acc s]
+                   (cond-> acc (not (str/blank? (or s ""))) (update :steps conj s)))]
+    (cond
+      (string? instructions)
+      (add-step {:steps [] :section-names []} instructions)
 
-    (sequential? instructions)
-    (let [steps (mapcat (fn [item]
-                          (cond
-                            (string? item)                                       [item]
-                            (= "HowToSection" (get item (keyword "@type")))      (map :text (:itemListElement item))
-                            :else                                                [(:text item)]))
-                        instructions)]
-      (str "<ol>" (str/join (map #(str "<li>" % "</li>") (remove str/blank? steps))) "</ol>"))
+      (sequential? instructions)
+      (reduce (fn [acc item]
+                (cond
+                  (string? item)
+                  (add-step acc item)
 
-    :else ""))
+                  (= "HowToSection" (get item (keyword "@type")))
+                  (reduce add-step
+                          (cond-> acc
+                            (not (str/blank? (or (:name item) "")))
+                            (update :section-names conj (:name item)))
+                          (map :text (:itemListElement item)))
+
+                  :else
+                  (add-step acc (:text item))))
+              {:steps [] :section-names []}
+              instructions)
+
+      :else {:steps [] :section-names []})))
 
 (defn- first-or-self [x] (if (sequential? x) (first x) x))
 
@@ -188,18 +201,35 @@
        vec))
 
 (defn parse-json-ld
-  "Extract a RecipeContent draft from JSON-LD, or nil if no Recipe found."
+  "Extract verbatim recipe facts from JSON-LD, or nil if no Recipe found.
+  Facts, not a draft: `scrape` decides how facts become sections."
   [html]
   (when-let [node (find-recipe-node (ld-json-blocks html))]
-    {:recipe {:title             (:name node)
-              :ingredients       (vec (:recipeIngredient node))
-              :instructions-html (instructions->html (:recipeInstructions node))
-              :servings          (some-> (first-or-self (:recipeYield node)) str)
-              :prep-time-minutes (iso-duration->minutes (:prepTime node))
-              :cook-time-minutes (iso-duration->minutes (:cookTime node))}
-     :suggested-labels  (->suggested-labels node)
-     :extraction-method "json-ld"
-     :warnings          []}))
+    (let [{:keys [steps section-names]} (parse-instructions (:recipeInstructions node))]
+      {:title             (:name node)
+       :ingredients       (vec (:recipeIngredient node))
+       :steps             steps
+       :section-names     section-names
+       :servings          (some-> (first-or-self (:recipeYield node)) str)
+       :prep-time-minutes (iso-duration->minutes (:prepTime node))
+       :cook-time-minutes (iso-duration->minutes (:cookTime node))
+       :suggested-labels  (->suggested-labels node)})))
+
+(defn- single-section
+  [{:keys [ingredients steps]}]
+  [{:name nil :ingredients ingredients :steps steps}])
+
+(defn- facts->result
+  [{:keys [title servings prep-time-minutes cook-time-minutes suggested-labels]}
+   sections extraction-method warnings]
+  {:recipe            {:title             title
+                       :sections          sections
+                       :servings          servings
+                       :prep-time-minutes prep-time-minutes
+                       :cook-time-minutes cook-time-minutes}
+   :suggested-labels  suggested-labels
+   :extraction-method extraction-method
+   :warnings          warnings})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LLM fallback
@@ -250,8 +280,9 @@
   [{:keys [api-key fetcher]} url]
   (log/infof "Scraping recipe from %s" url)
   (let [html (fetch-html fetcher url)]
-    (or (parse-json-ld html)
-        (if api-key
-          (extract-with-llm api-key html)
-          (throw (ex-info "No recipe found and no LLM available"
-                          {:type :scrape :reason :no-recipe-found}))))))
+    (if-let [facts (parse-json-ld html)]
+      (facts->result facts (single-section facts) "json-ld" [])
+      (if api-key
+        (extract-with-llm api-key html)
+        (throw (ex-info "No recipe found and no LLM available"
+                        {:type :scrape :reason :no-recipe-found}))))))
