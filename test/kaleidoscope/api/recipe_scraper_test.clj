@@ -102,6 +102,17 @@
                                 :request map? :response map?}]}
                   (scraper/parse {:api-key "sk-test" :raw-html "<html>stew</html>"}))))))
 
+(deftest parse-text-interprets-plain-text-test
+  (testing "parse-text turns already-plain text into flat facts + grouping via the LLM"
+    (with-redefs [llm/post-anthropic-sync
+                  (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"sections\":[{\"name\":null,\"ingredients\":[\"carrots\",\"beef\"],\"steps\":[\"Simmer\"]}],\"suggested_labels\":[\"comfort\"]}"}]})]
+      (is (match? {:technique :llm
+                   :artifact  {:title "Stew" :ingredients ["carrots" "beef"] :steps ["Simmer"]
+                               :grouping [{:name nil? :ingredients [0 1] :steps [0]}]
+                               :labels ["comfort"]}
+                   :llm-calls [{:purpose :parse :model "claude-haiku-4-5"}]}
+                  (#'scraper/parse-text "sk-test" "Grandma's stew: carrots, beef. Simmer 2 hours."))))))
+
 (deftest normalize-stage-dispatch-test
   (let [flat {:title "Cake" :ingredients ["2 cups flour" "1 cup sugar" "1 cup butter"]
               :steps ["Mix" "Bake" "Whip"] :section-signals [] :labels []}]

@@ -335,13 +335,13 @@
 (def ^:private extract-prompt
   "Extract the recipe from the page text as strict JSON with keys: title (string), sections (array of {name: string or null, ingredients: array of strings one per ingredient line, steps: array of strings one per instruction step}), servings (string or null), prep_time_minutes (integer or null), cook_time_minutes (integer or null), suggested_labels (array of strings). Use a single section with name null unless the recipe has real components (e.g. cake and frosting). Preserve ingredient lines and step text verbatim. Return ONLY the JSON object, no prose. Strip all blog exposition — keep only the recipe.")
 
-(defn- parse-with-llm
-  "LLM PARSE: ask for sections, then flatten to ExtractedFacts (flat ingredient/
-  step lists + a :grouping of index ranges NORMALIZE merges deterministically).
-  The full request is recorded so the technique's version is recoverable."
-  [api-key html]
-  (let [plain    (html->text html)
-        text     (subs plain 0 (min 50000 (count plain)))
+(defn- parse-text
+  "Interpret already-plain source text into ExtractedFacts via the LLM. Shared by
+  the URL html path (over `html->text`) and the photo transcript path. Asks for
+  sections, then flattens to flat ingredient/step lists + a :grouping of index
+  ranges NORMALIZE merges deterministically."
+  [api-key source-text]
+  (let [text     (subs source-text 0 (min 50000 (count source-text)))
         request  {:model      fallback-model
                   :max_tokens 2048
                   :system     extract-prompt
@@ -378,6 +378,11 @@
      :technique :llm
      :llm-calls [{:purpose :parse :model fallback-model :request request :response response}]
      :warnings  (if no-secs? ["LLM returned no sections"] [])}))
+
+(defn- parse-with-llm
+  "URL html path: strip to text, then interpret. Thin wrapper over `parse-text`."
+  [api-key html]
+  (parse-text api-key (html->text html)))
 
 (defn parse
   "PARSE: RawScrape html -> ExtractedFacts. JSON-LD first; LLM fallback when an
