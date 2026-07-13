@@ -7,6 +7,7 @@
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.http-api.recipes :as recipes-http]
             [kaleidoscope.init.env :as env]
+            [kaleidoscope.workflows.llm-executor :as llm]
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
             [matcher-combinators.test :refer [match?]]
@@ -19,15 +20,17 @@
       (f))))
 
 (defn make-app
-  [auth-type]
-  (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
-        "KALEIDOSCOPE_AUTH_TYPE"           auth-type
-        "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
-        "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
-       (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
-       env/prepare-kaleidoscope
-       kaleidoscope/kaleidoscope-app
-       tu/wrap-clojure-response))
+  ([auth-type] (make-app auth-type {}))
+  ([auth-type extra-env]
+   (->> (merge {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                "KALEIDOSCOPE_AUTH_TYPE"           auth-type
+                "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+               extra-env)
+        (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+        env/prepare-kaleidoscope
+        kaleidoscope/kaleidoscope-app
+        tu/wrap-clojure-response)))
 
 (defn as-writer
   "custom-authenticated-user fakes a logged-in writer/admin, but authentication
@@ -231,3 +234,65 @@
       (is (match? {:reason :too-many-images}
                   (try (recipes-http/multipart-images six)
                        (catch clojure.lang.ExceptionInfo e (ex-data e))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Photo import — end-to-end through the router
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(deftest scrape-photo-endpoint-test
+  (testing "anonymous scrape-photo is rejected"
+    (is (match? {:status 401}
+                ((make-app "always-unauthenticated")
+                 (mock/request :post "https://andrewslai.com/recipes/scrape-photo")))))
+  (let [app (make-app "custom-authenticated-user")]
+    (testing "a writer gets a draft back with a run-id (transcriber+LLM mocked)"
+      (with-redefs [recipes-http/multipart-images
+                    (fn [_] [{:content-type "image/jpeg" :bytes (.getBytes "img")}])
+                    scraper/scrape-photo
+                    (fn [_ _] {:recipe {:title "Mocked" :sections [{:name nil :ingredients ["a"] :steps ["Mix"]}]}
+                               :suggested-labels []
+                               :techniques {:acquire :claude-vision :parse :llm :normalize :single-section}
+                               :warnings []
+                               :scrape-processing-run-id (random-uuid)})]
+        (is (match? {:status 200 :body {:recipe {:title "Mocked"}
+                                        :techniques {:acquire "claude-vision" :parse "llm"}
+                                        :scrape-processing-run-id string?}}
+                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))))))
+    (testing "no-recipe-found surfaces as 422"
+      (with-redefs [recipes-http/multipart-images (fn [_] [{:content-type "image/jpeg" :bytes (.getBytes "img")}])
+                    scraper/scrape-photo (fn [_ _] (throw (ex-info "no recipe" {:type :scrape :reason :no-recipe-found})))]
+        (is (match? {:status 422 :body {:reason "no-recipe-found"}}
+                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))))))
+    (testing "an invalid upload surfaces as 400"
+      (with-redefs [recipes-http/multipart-images
+                    (fn [_] (throw (ex-info "no image" {:type :validation :reason :no-image})))]
+        (is (match? {:status 400 :body {:reason "no-image"}}
+                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))))))))
+
+(deftest scrape-photo-then-create-links-lineage-http-test
+  ;; Boot the llm workflow executor so the pipeline has an api-key (the photo path
+  ;; always interprets via the LLM — there is no JSON-LD shortcut). The Anthropic
+  ;; call itself is mocked below, so no network access occurs.
+  (let [app (make-app "custom-authenticated-user"
+                      {"KALEIDOSCOPE_WORKFLOW_EXECUTOR_TYPE" "llm"
+                       "ANTHROPIC_API_KEY"                   "sk-test"})]
+    (with-redefs [recipes-http/multipart-images
+                  (fn [_] [{:content-type "image/jpeg" :bytes (.getBytes "img")}])
+                  ;; default mock transcriber returns a canned transcript; the LLM
+                  ;; interpretation is mocked here to yield structured facts.
+                  llm/post-anthropic-sync
+                  (fn [_ _] {:content [{:text "{\"title\":\"Chana Masala\",\"sections\":[{\"name\":null,\"ingredients\":[\"2 cups chickpeas\"],\"steps\":[\"Cook\"]}],\"suggested_labels\":[]}"}]})]
+      (let [{scrape-body :body} (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))
+            run-id (:scrape-processing-run-id scrape-body)]
+        (testing "the scrape-photo response carries a run-id and techniques"
+          (is (match? {:recipe {:title "Chana Masala"} :techniques {:acquire "claude-vision" :parse "llm"}}
+                      scrape-body))
+          (is (string? run-id)))
+        (testing "creating a recipe with the run-id persists the FK; round-trips via GET"
+          (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                   as-writer
+                   (mock/json-body {:content (:recipe scrape-body)
+                                    :public-visibility true
+                                    :scrape-processing-run-id run-id})))
+          (is (match? {:status 200 :body {:recipe-url "chana-masala"
+                                          :scrape-processing-run-id run-id}}
+                      (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))))
