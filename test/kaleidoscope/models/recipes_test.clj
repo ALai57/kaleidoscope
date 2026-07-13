@@ -4,14 +4,16 @@
             [malli.core :as m]))
 
 (deftest raw-scrape-schema-test
-  (testing "a full raw scrape validates; a pre-fetch-failure (only request-url) validates too"
+  (testing "a full url scrape validates; a minimal one (source-kind + hostname) validates too"
     (is (m/validate models/RawScrape
-                    {:hostname "andrewslai.com" :request-url "http://x/r"
+                    {:hostname "andrewslai.com" :source-kind "url" :request-url "http://x/r"
                      :final-url "http://x/r" :http-status 200
-                     :fetch-tier "direct" :raw-html "<html/>"}))
+                     :fetch-tier "direct" :raw-content "<html/>"}))
     (is (m/validate models/RawScrape
-                    {:hostname "andrewslai.com" :request-url "http://x/r"}))
-    (is (not (m/validate models/RawScrape {:request-url "http://x/r"})))))
+                    {:hostname "andrewslai.com" :source-kind "photo"}))
+    (testing "source-kind is required and enumerated"
+      (is (not (m/validate models/RawScrape {:hostname "andrewslai.com"})))
+      (is (not (m/validate models/RawScrape {:hostname "andrewslai.com" :source-kind "audio"}))))))
 
 (deftest extracted-facts-schema-test
   (testing "json-ld facts (no grouping) and llm facts (with grouping) both validate"
@@ -28,8 +30,11 @@
 (deftest scrape-result-carries-run-id-test
   (is (m/validate models/ScrapeResult
                   {:recipe {:title "X" :sections [{:ingredients [] :steps []}]}
-                   :suggested-labels [] :extraction-method "json-ld" :warnings []
+                   :suggested-labels [] :warnings []
+                   :techniques {:acquire :direct :parse :json-ld :normalize :single-section}
                    :scrape-processing-run-id (random-uuid)}))
-  (is (not (m/validate models/ScrapeResult
-                       {:recipe {:title "X" :sections [{:ingredients [] :steps []}]}
-                        :suggested-labels [] :extraction-method "json-ld" :warnings []}))))
+  (testing "the run-id is required"
+    (is (not (m/validate models/ScrapeResult
+                         {:recipe {:title "X" :sections [{:ingredients [] :steps []}]}
+                          :suggested-labels [] :warnings []
+                          :techniques {:acquire :direct :parse :json-ld :normalize :single-section}})))))

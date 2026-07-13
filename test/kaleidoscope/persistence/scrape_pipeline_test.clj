@@ -8,18 +8,18 @@
 
 (defn- seed-raw! [db & {:as overrides}]
   (pipeline-db/create-raw-scrape!
-   db (merge {:hostname host :request-url "http://example.com/r"
+   db (merge {:hostname host :source-kind "url" :request-url "http://example.com/r"
               :final-url "http://example.com/r" :http-status 200
-              :fetch-tier "direct" :raw-html "<html>recipe</html>"}
+              :fetch-tier "direct" :raw-content "<html>recipe</html>"}
              overrides)))
 
 (deftest raw-scrape-round-trip-test
   (let [db (embedded-h2/fresh-db!)
-        big (apply str (repeat 200000 "x"))          ;; large raw_html (~200 KB)
-        {:keys [id]} (seed-raw! db :raw-html big)]
-    (testing "reads back by id+hostname, incl. a large raw_html and all fetch fields"
+        big (apply str (repeat 200000 "x"))          ;; large raw_content (~200 KB)
+        {:keys [id]} (seed-raw! db :raw-content big)]
+    (testing "reads back by id+hostname, incl. a large raw_content and all fetch fields"
       (is (match? {:request-url "http://example.com/r" :final-url "http://example.com/r"
-                   :http-status 200 :fetch-tier "direct" :raw-html big}
+                   :http-status 200 :fetch-tier "direct" :raw-content big}
                   (pipeline-db/get-raw-scrape db id host))))
     (testing "scoped to hostname"
       (is (nil? (pipeline-db/get-raw-scrape db id "other.com"))))))
@@ -27,10 +27,10 @@
 (deftest pre-fetch-failure-raw-scrape-test
   (let [db (embedded-h2/fresh-db!)
         {:keys [id]} (pipeline-db/create-raw-scrape!
-                      db {:hostname host :request-url "http://169.254.169.254/"})]
+                      db {:hostname host :source-kind "url" :request-url "http://169.254.169.254/"})]
     (testing "a raw scrape with only request-url persists (fetch fields null)"
       (is (match? {:request-url "http://169.254.169.254/"
-                   :final-url nil? :http-status nil? :raw-html nil?}
+                   :final-url nil? :http-status nil? :raw-content nil?}
                   (pipeline-db/get-raw-scrape db id host))))))
 
 (deftest processing-run-round-trip-test
@@ -60,13 +60,13 @@
 (deftest non-ascii-round-trip-test
   (let [db (embedded-h2/fresh-db!)
         text "jalapeño — café crème brûlée — 日本語"
-        {raw-id :id} (seed-raw! db :raw-html text)
+        {raw-id :id} (seed-raw! db :raw-content text)
         {run-id :id} (pipeline-db/create-processing-run!
                       db {:hostname host :raw-scrape-id raw-id :pipeline-version "v"
                           :techniques {} :facts {:title text :labels [text]}
                           :outcome :success})]
-    (testing "multi-byte UTF-8 survives a TEXT (raw_html) round-trip"
-      (is (match? {:raw-html text} (pipeline-db/get-raw-scrape db raw-id host))))
+    (testing "multi-byte UTF-8 survives a TEXT (raw_content) round-trip"
+      (is (match? {:raw-content text} (pipeline-db/get-raw-scrape db raw-id host))))
     (testing "multi-byte UTF-8 survives a JSONB (facts) round-trip"
       (is (match? {:facts {:title text :labels [text]}}
                   (pipeline-db/get-processing-run db run-id host))))))

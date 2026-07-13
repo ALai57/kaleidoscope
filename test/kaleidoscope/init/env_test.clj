@@ -1,5 +1,6 @@
 (ns kaleidoscope.init.env-test
   (:require [clojure.test :refer :all]
+            [kaleidoscope.api.image-transcriber :as transcriber]
             [kaleidoscope.init.env :as sut]
             [kaleidoscope.main :as main]
             [malli.instrument :as mi]))
@@ -72,3 +73,13 @@
                                       "KALEIDOSCOPE_CLIENT_PREFIX" "eph-foo/"}) "kaleidoscope.client")]
         (is (= "kal-ephemeral" (:storage-root client)))
         (is (= "eph-foo/" (:prefix client)))))))
+
+(deftest image-transcriber-boots-mock-by-default-test
+  (testing "the default launcher yields a MockTranscriber under :kaleidoscope-image-transcriber"
+    (let [system (sut/start-system! [sut/kaleidoscope-image-transcriber-boot-instructions] {})]
+      (is (satisfies? transcriber/ImageTranscriber (:kaleidoscope-image-transcriber system)))))
+  (testing "claude-vision launcher builds a Claude transcriber from ANTHROPIC_API_KEY"
+    (let [system (sut/start-system! [sut/kaleidoscope-image-transcriber-boot-instructions]
+                                    {"KALEIDOSCOPE_IMAGE_TRANSCRIBER_TYPE" "claude-vision"
+                                     "ANTHROPIC_API_KEY" "sk-test"})]
+      (is (satisfies? transcriber/ImageTranscriber (:kaleidoscope-image-transcriber system))))))

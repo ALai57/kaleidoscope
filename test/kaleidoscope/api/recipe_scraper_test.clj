@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.recipe-scraper-test
   (:require [kaleidoscope.api.recipe-scraper :as scraper]
             [kaleidoscope.api.firecrawl :as firecrawl]
+            [kaleidoscope.api.image-transcriber :as transcriber]
             [kaleidoscope.workflows.llm-executor :as llm]
             [kaleidoscope.persistence.rdbms]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
@@ -48,19 +49,18 @@
 (def valid-grouping-json
   "{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[0,1],\"steps\":[0,1]},{\"name\":\"Frosting\",\"ingredients\":[2],\"steps\":[2]}]}")
 
-(deftest acquire-produces-raw-scrape-artifact-test
-  (testing "a successful direct fetch yields a RawScrape artifact tagged :direct"
+(deftest acquire-url-produces-raw-source-test
+  (testing "a successful direct fetch yields a :url RawSource with raw-content"
     (with-redefs [scraper/fetch-direct (fn [_] (direct json-ld-html))]
-      (is (match? {:artifact  {:request-url public-url :fetch-tier "direct"
-                               :http-status 200 :raw-html json-ld-html}
-                   :technique :direct}
-                  (scraper/acquire {:fetcher nil :url public-url})))))
-  (testing "an SSRF block yields an :outcome + partial raw (request-url only)"
+      (is (match? {:source-kind :url :request-url public-url :fetch-tier "direct"
+                   :http-status 200 :raw-content json-ld-html :acquire-technique :direct}
+                  (scraper/acquire-url {:fetcher nil :url public-url})))))
+  (testing "an SSRF block yields a short-circuit RawSource (outcome + request-url)"
     (with-redefs [scraper/fetch-direct (fn [_] (throw (ex-info "blocked" {:type :scrape :reason :blocked-url})))]
-      (is (match? {:outcome :blocked-url
+      (is (match? {:source-kind :url :outcome :blocked-url
                    :error-detail {:reason :blocked-url}
-                   :raw {:request-url "http://169.254.169.254/"}}
-                  (scraper/acquire {:fetcher nil :url "http://169.254.169.254/"}))))))
+                   :request-url "http://169.254.169.254/"}
+                  (scraper/acquire-url {:fetcher nil :url "http://169.254.169.254/"}))))))
 
 (deftest json-ld-happy-path-test
   (is (match? {:title             "Chana Masala"
@@ -88,9 +88,9 @@
 (deftest parse-stage-json-ld-then-llm-test
   (testing "PARSE prefers JSON-LD; without JSON-LD and without an api-key it fails"
     (is (match? {:technique :json-ld :artifact {:title "Chana Masala"}}
-                (scraper/parse {:api-key "sk-test" :raw-html json-ld-html})))
+                (scraper/parse {:api-key "sk-test" :raw-source {:source-kind :url :raw-content json-ld-html}})))
     (is (match? {:outcome :no-recipe-found}
-                (scraper/parse {:api-key nil :raw-html "<html>no structured data</html>"}))))
+                (scraper/parse {:api-key nil :raw-source {:source-kind :url :raw-content "<html>no structured data</html>"}}))))
   (testing "without JSON-LD but with an api-key, PARSE returns :llm facts with flat lists + grouping + the call"
     (with-redefs [llm/post-anthropic-sync
                   (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"sections\":[{\"name\":null,\"ingredients\":[\"carrots\",\"beef\"],\"steps\":[\"Simmer\"]}],\"suggested_labels\":[\"comfort\"]}"}]})]
@@ -100,7 +100,18 @@
                                :labels ["comfort"]}
                    :llm-calls [{:purpose :parse :model "claude-haiku-4-5"
                                 :request map? :response map?}]}
-                  (scraper/parse {:api-key "sk-test" :raw-html "<html>stew</html>"}))))))
+                  (scraper/parse {:api-key "sk-test" :raw-source {:source-kind :url :raw-content "<html>stew</html>"}}))))))
+
+(deftest parse-text-interprets-plain-text-test
+  (testing "parse-text turns already-plain text into flat facts + grouping via the LLM"
+    (with-redefs [llm/post-anthropic-sync
+                  (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"sections\":[{\"name\":null,\"ingredients\":[\"carrots\",\"beef\"],\"steps\":[\"Simmer\"]}],\"suggested_labels\":[\"comfort\"]}"}]})]
+      (is (match? {:technique :llm
+                   :artifact  {:title "Stew" :ingredients ["carrots" "beef"] :steps ["Simmer"]
+                               :grouping [{:name nil? :ingredients [0 1] :steps [0]}]
+                               :labels ["comfort"]}
+                   :llm-calls [{:purpose :parse :model "claude-haiku-4-5"}]}
+                  (#'scraper/parse-text "sk-test" "Grandma's stew: carrots, beef. Simmer 2 hours."))))))
 
 (deftest normalize-stage-dispatch-test
   (let [flat {:title "Cake" :ingredients ["2 cups flour" "1 cup sugar" "1 cup butter"]
@@ -136,8 +147,8 @@
                                         :ingredients ["2 cups chickpeas" "1 tbsp flour"]
                                         :steps       ["Soak" "Cook"]}]
                             :servings "4"}
-                   :extraction-method "json-ld"
-                   :warnings          []}
+                   :techniques {:parse :json-ld :normalize :single-section}
+                   :warnings   []}
                   (scraper/extract {:api-key "sk-test"} public-url))))))
 
 (deftest json-ld-type-as-array-test
@@ -184,7 +195,7 @@
                             :sections [{:name nil? :ingredients ["carrots" "beef"] :steps ["Simmer"]}]
                             :cook-time-minutes 120}
                    :suggested-labels  ["comfort"]
-                   :extraction-method "llm"}
+                   :techniques {:parse :llm}}
                   (scraper/extract {:api-key "sk-test"} "http://example.com/stew"))))))
 
 (deftest llm-fallback-empty-sections-guard-test
@@ -207,7 +218,7 @@
 (deftest bot-blocked-falls-back-to-fetcher-test
   (testing "a direct 403 with a fetcher present retries via the fetcher and extracts its HTML"
     (with-redefs [scraper/fetch-direct (fn [_] (throw (ex-info "blocked" {:type :scrape :reason :bot-blocked})))]
-      (is (match? {:recipe {:title "Chana Masala"} :extraction-method "json-ld"}
+      (is (match? {:recipe {:title "Chana Masala"} :techniques {:parse :json-ld}}
                   (scraper/extract {:api-key nil :fetcher (fetcher-returning json-ld-html)}
                                   "http://example.com/blocked"))))))
 
@@ -247,8 +258,8 @@
       (is (match? {:recipe {:title    "Layer Cake"
                             :sections [{:name "Cake"     :ingredients ["2 cups flour" "1 cup sugar"] :steps ["Mix" "Bake"]}
                                        {:name "Frosting" :ingredients ["1 cup butter"]               :steps ["Whip"]}]}
-                   :extraction-method "json-ld+llm-sections"
-                   :warnings          []}
+                   :techniques {:parse :json-ld :normalize :llm-grouping}
+                   :warnings   []}
                   (scraper/extract {:api-key "sk-test"} public-url))))))
 
 (deftest invalid-grouping-falls-back-test
@@ -262,8 +273,8 @@
         (is (match? {:recipe            {:sections [{:name        nil?
                                                      :ingredients ["2 cups flour" "1 cup sugar" "1 cup butter"]
                                                      :steps       ["Mix" "Bake" "Whip"]}]}
-                     :extraction-method "json-ld"
-                     :warnings          [#"grouping failed"]}
+                     :techniques {:parse :json-ld :normalize :single-section}
+                     :warnings   [#"grouping failed"]}
                     (scraper/extract {:api-key "sk-test"} public-url)))))))
 
 (deftest header-ingredient-lines-trigger-grouping-test
@@ -275,15 +286,15 @@
                     llm/post-anthropic-sync (fn [_ _] {:content [{:text grouping}]})]
         (is (match? {:recipe {:sections [{:name "Cake"     :ingredients ["2 cups flour"]  :steps ["Mix"]}
                                          {:name "Frosting" :ingredients ["1 cup butter"] :steps ["Whip"]}]}
-                     :extraction-method "json-ld+llm-sections"
-                     :warnings          [#"For the cake:.*For the frosting:"]}
+                     :techniques {:parse :json-ld :normalize :llm-grouping}
+                     :warnings   [#"For the cake:.*For the frosting:"]}
                     (scraper/extract {:api-key "sk-test"} public-url)))))))
 
 (deftest sectioned-without-api-key-flattens-with-warning-test
   (with-redefs [scraper/fetch-direct (fn [_] (direct sectioned-json-ld-html))]
-    (is (match? {:recipe            {:sections [{:name nil?}]}
-                 :extraction-method "json-ld"
-                 :warnings          [#"no LLM"]}
+    (is (match? {:recipe     {:sections [{:name nil?}]}
+                 :techniques {:parse :json-ld :normalize :single-section}
+                 :warnings   [#"no LLM"]}
                 (scraper/extract {:api-key nil} public-url)))))
 
 (deftest dropped-header-lines-surface-as-warning-test
@@ -293,9 +304,9 @@
           grouping "{\"sections\":[{\"name\":\"Cake\",\"ingredients\":[1],\"steps\":[0]}]}"]
       (with-redefs [scraper/fetch-direct    (fn [_] (direct html))
                     llm/post-anthropic-sync (fn [_ _] {:content [{:text grouping}]})]
-        (is (match? {:recipe            {:sections [{:name "Cake" :ingredients ["2 cups flour"] :steps ["Mix"]}]}
-                     :extraction-method "json-ld+llm-sections"
-                     :warnings          [#"For the cake:.*Kosher salt to taste:"]}
+        (is (match? {:recipe     {:sections [{:name "Cake" :ingredients ["2 cups flour"] :steps ["Mix"]}]}
+                     :techniques {:parse :json-ld :normalize :llm-grouping}
+                     :warnings   [#"For the cake:.*Kosher salt to taste:"]}
                     (scraper/extract {:api-key "sk-test"} public-url)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -306,9 +317,9 @@
     (let [db (embedded-h2/fresh-db!)]
       (with-redefs [scraper/fetch-direct (fn [_] (direct json-ld-html))]
         (let [{:keys [scrape-processing-run-id] :as result}
-              (scraper/run-pipeline {:database db :hostname host :api-key nil :fetcher nil} public-url)]
+              (scraper/scrape-url {:database db :hostname host :api-key nil :fetcher nil} public-url)]
           (is (match? {:recipe {:title "Chana Masala"}
-                       :extraction-method "json-ld"
+                       :techniques {:parse :json-ld}
                        :scrape-processing-run-id uuid?}
                       result))
           (testing "the run is stored with a non-null pipeline_version, technique tags, and content"
@@ -319,7 +330,7 @@
                            :outcome "success"}
                           run))
               (testing "its raw_scrape_id resolves to the stored HTML"
-                (is (match? {:raw-html json-ld-html}
+                (is (match? {:raw-content json-ld-html}
                             (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))))))
 
 (deftest run-pipeline-records-llm-calls-test
@@ -328,7 +339,7 @@
       (with-redefs [scraper/fetch-direct    (fn [_] (direct "<html>Grandma's stew: carrots, beef. Simmer.</html>"))
                     llm/post-anthropic-sync (fn [_ _] {:content [{:text "{\"title\":\"Stew\",\"sections\":[{\"name\":null,\"ingredients\":[\"carrots\"],\"steps\":[\"Simmer\"]}],\"suggested_labels\":[]}"}]})]
         (let [{:keys [scrape-processing-run-id]}
-              (scraper/run-pipeline {:database db :hostname host :api-key "sk-test" :fetcher nil} public-url)
+              (scraper/scrape-url {:database db :hostname host :api-key "sk-test" :fetcher nil} public-url)
               run (pipeline-db/get-processing-run db scrape-processing-run-id host)]
           (is (match? {:techniques {:parse "llm" :normalize "pre-grouped"}
                        :llm-calls [{:purpose "parse" :model "claude-haiku-4-5"
@@ -340,11 +351,56 @@
     (let [db (embedded-h2/fresh-db!)]
       (with-redefs [scraper/fetch-direct (fn [_] (throw (ex-info "blocked" {:type :scrape :reason :bot-blocked})))]
         (is (match? {:reason :bot-blocked}
-                    (try (scraper/run-pipeline {:database db :hostname host :api-key nil :fetcher nil} public-url)
+                    (try (scraper/scrape-url {:database db :hostname host :api-key nil :fetcher nil} public-url)
                          (catch clojure.lang.ExceptionInfo e (ex-data e)))))
         (testing "the failed run is in the corpus: outcome set, content null, request-url recorded"
           (let [runs (kaleidoscope.persistence.rdbms/find-by-keys db :processing-runs {:hostname host})
                 run  (first runs)]
             (is (match? {:outcome "bot-blocked" :content nil?} run))
-            (is (match? {:request-url public-url :raw-html nil?}
+            (is (match? {:request-url public-url :raw-content nil?}
                         (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Photo pipeline path
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- stub-transcriber [text]
+  (reify transcriber/ImageTranscriber
+    (transcribe [_ _images]
+      {:transcript text :technique :claude-vision
+       :llm-calls  [{:purpose :transcribe :model "claude-haiku-4-5" :request {} :response {}}]})))
+
+(def ^:private one-image [{:content-type "image/jpeg" :bytes (.getBytes "img")}])
+
+(deftest photo-pipeline-persists-success-test
+  (testing "a photo import transcribes -> interprets -> persists raw(photo) + run"
+    (let [db (embedded-h2/fresh-db!)]
+      (with-redefs [llm/post-anthropic-sync
+                    (fn [_ _] {:content [{:text "{\"title\":\"Chana Masala\",\"sections\":[{\"name\":null,\"ingredients\":[\"2 cups chickpeas\"],\"steps\":[\"Cook\"]}],\"suggested_labels\":[\"indian\"]}"}]})]
+        (let [{:keys [scrape-processing-run-id] :as result}
+              (scraper/scrape-photo {:database db :hostname host :api-key "sk-test"
+                                     :transcriber (stub-transcriber "Chana Masala\n2 cups chickpeas\nCook.")}
+                                    one-image)]
+          (is (match? {:recipe {:title "Chana Masala"}
+                       :techniques {:acquire :claude-vision :parse :llm}
+                       :scrape-processing-run-id uuid?}
+                      result))
+          (let [run (pipeline-db/get-processing-run db scrape-processing-run-id host)]
+            (is (match? {:techniques {:acquire "claude-vision" :parse "llm"}
+                         :content {:title "Chana Masala"} :outcome "success"}
+                        run))
+            (is (match? {:source-kind "photo" :raw-content "Chana Masala\n2 cups chickpeas\nCook."
+                         :fetch-tier nil? :request-url nil?}
+                        (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))))
+
+(deftest photo-pipeline-empty-transcript-fails-test
+  (testing "an empty transcript is :no-recipe-found (verdict in interpretation) + persisted failed run"
+    (let [db (embedded-h2/fresh-db!)]
+      (is (match? {:reason :no-recipe-found}
+                  (try (scraper/scrape-photo {:database db :hostname host :api-key "sk-test"
+                                              :transcriber (stub-transcriber "")}
+                                             one-image)
+                       (catch clojure.lang.ExceptionInfo e (ex-data e)))))
+      (let [run (first (kaleidoscope.persistence.rdbms/find-by-keys db :processing-runs {:hostname host}))]
+        (is (match? {:outcome "no-recipe-found" :content nil?} run))
+        (is (match? {:source-kind "photo" :raw-content ""}
+                    (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))

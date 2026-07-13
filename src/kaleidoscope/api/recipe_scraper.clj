@@ -10,6 +10,7 @@
             [clj-http.client :as http]
             [clojure.string :as str]
             [kaleidoscope.api.firecrawl :as firecrawl]
+            [kaleidoscope.api.image-transcriber :as transcriber]
             [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
             [kaleidoscope.utils.versioning :as vu]
             [kaleidoscope.workflows.llm-executor :as llm]
@@ -334,13 +335,13 @@
 (def ^:private extract-prompt
   "Extract the recipe from the page text as strict JSON with keys: title (string), sections (array of {name: string or null, ingredients: array of strings one per ingredient line, steps: array of strings one per instruction step}), servings (string or null), prep_time_minutes (integer or null), cook_time_minutes (integer or null), suggested_labels (array of strings). Use a single section with name null unless the recipe has real components (e.g. cake and frosting). Preserve ingredient lines and step text verbatim. Return ONLY the JSON object, no prose. Strip all blog exposition — keep only the recipe.")
 
-(defn- parse-with-llm
-  "LLM PARSE: ask for sections, then flatten to ExtractedFacts (flat ingredient/
-  step lists + a :grouping of index ranges NORMALIZE merges deterministically).
-  The full request is recorded so the technique's version is recoverable."
-  [api-key html]
-  (let [plain    (html->text html)
-        text     (subs plain 0 (min 50000 (count plain)))
+(defn- parse-text
+  "Interpret already-plain source text into ExtractedFacts via the LLM. Shared by
+  the URL html path (over `html->text`) and the photo transcript path. Asks for
+  sections, then flattens to flat ingredient/step lists + a :grouping of index
+  ranges NORMALIZE merges deterministically."
+  [api-key source-text]
+  (let [text     (subs source-text 0 (min 50000 (count source-text)))
         request  {:model      fallback-model
                   :max_tokens 2048
                   :system     extract-prompt
@@ -378,17 +379,30 @@
      :llm-calls [{:purpose :parse :model fallback-model :request request :response response}]
      :warnings  (if no-secs? ["LLM returned no sections"] [])}))
 
+(defn- parse-with-llm
+  "URL html path: strip to text, then interpret. Thin wrapper over `parse-text`."
+  [api-key html]
+  (parse-text api-key (html->text html)))
+
 (defn parse
-  "PARSE: RawScrape html -> ExtractedFacts. JSON-LD first; LLM fallback when an
-  api-key is present; :no-recipe-found when neither yields facts."
-  [{:keys [api-key raw-html]}]
-  (if-let [facts (parse-json-ld raw-html)]
-    {:artifact facts :technique :json-ld}
-    (if api-key
-      (parse-with-llm api-key raw-html)
-      {:outcome      :no-recipe-found
-       :error-detail {:message "No recipe found and no LLM available"
-                      :reason  :no-recipe-found}})))
+  "PARSE: RawSource -> ExtractedFacts StageResult. :url tries JSON-LD then
+  LLM-over-html-text; :photo interprets the transcript directly via `parse-text`.
+  :no-recipe-found when neither yields facts (verdict lives here for both sources)."
+  [{:keys [api-key raw-source]}]
+  (let [{:keys [source-kind raw-content]} raw-source]
+    (case source-kind
+      :url   (if-let [facts (parse-json-ld raw-content)]
+               {:artifact facts :technique :json-ld}
+               (if api-key
+                 (parse-with-llm api-key raw-content)
+                 {:outcome      :no-recipe-found
+                  :error-detail {:message "No recipe found and no LLM available"
+                                 :reason  :no-recipe-found}}))
+      :photo (if (and api-key (not (str/blank? raw-content)))
+               (parse-text api-key raw-content)
+               {:outcome      :no-recipe-found
+                :error-detail {:message "No recipe text found in images"
+                               :reason  :no-recipe-found}}))))
 
 (defn normalize
   "NORMALIZE: ExtractedFacts -> RecipeContent. Dispatch: grouping present ->
@@ -427,26 +441,29 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ACQUIRE stage
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn acquire
-  "ACQUIRE: fetch the page (SSRF-guarded), direct then rendering fallback.
-  StageResult on success: {:artifact RawScrape-data :technique :direct|:firecrawl}.
-  On a :type :scrape failure: {:outcome reason :error-detail {..} :raw {:request-url url}}
-  so the orchestrator still records an abandoned scrape. Other exceptions propagate."
+(defn acquire-url
+  "ACQUIRE (url): fetch the page (SSRF-guarded), direct then rendering fallback,
+  into a :url RawSource. On a :type :scrape failure returns a short-circuit
+  RawSource {:outcome reason :error-detail {..} :request-url url}. Other
+  exceptions propagate."
   [{:keys [fetcher url]}]
   (try
     (let [{:keys [raw-html final-url http-status fetch-tier]} (fetch-html fetcher url)]
-      {:artifact  {:request-url url
-                   :final-url   final-url
-                   :http-status http-status
-                   :fetch-tier  fetch-tier
-                   :raw-html    raw-html}
-       :technique (keyword fetch-tier)})
+      {:source-kind       :url
+       :raw-content       raw-html
+       :request-url       url
+       :final-url         final-url
+       :http-status       http-status
+       :fetch-tier        fetch-tier
+       :acquire-technique (keyword fetch-tier)
+       :llm-calls         []})
     (catch clojure.lang.ExceptionInfo e
       (let [{:keys [type reason]} (ex-data e)]
         (if (= :scrape type)
-          {:outcome      reason
+          {:source-kind  :url
+           :outcome      reason
            :error-detail {:message (ex-message e) :reason reason}
-           :raw          {:request-url url}}
+           :request-url  url}
           (throw e))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -462,42 +479,35 @@
       (update :warnings  into (or warnings []))))
 
 (defn- process
-  "Run ACQUIRE -> PARSE -> NORMALIZE, short-circuiting at the first stage that
-  returns an :outcome. Pure: no persistence; a :type :scrape failure is encoded
-  as an :outcome (real bugs still throw). Returns {:artifacts :ledger}."
-  [{:keys [api-key fetcher url]}]
-  (let [empty-ledger {:techniques {} :llm-calls [] :warnings []}
-        acq          (acquire {:fetcher fetcher :url url})]
-    (if-let [outcome (:outcome acq)]
-      {:artifacts {:raw (:raw acq)}
-       :ledger    (assoc empty-ledger :outcome outcome :error-detail (:error-detail acq))}
-      (let [raw (:artifact acq)
-            l1  (ledger-entry empty-ledger :acquire acq)
-            prs (parse {:api-key api-key :raw-html (:raw-html raw)})]
+  "Run PARSE -> NORMALIZE over an already-acquired RawSource, short-circuiting on
+  the RawSource's own :outcome or PARSE's :outcome. Pure: no persistence. The
+  acquire technique is folded from the RawSource. Returns {:artifacts :ledger}."
+  [{:keys [api-key raw-source]}]
+  (let [empty-ledger {:techniques {} :llm-calls (vec (:llm-calls raw-source)) :warnings []}
+        raw          (select-keys raw-source [:source-kind :request-url :final-url
+                                              :http-status :fetch-tier :raw-content])
+        l0           (assoc-in empty-ledger [:techniques :acquire] (:acquire-technique raw-source))]
+    (if-let [outcome (:outcome raw-source)]
+      {:artifacts {:raw (select-keys raw-source [:source-kind :request-url])}
+       :ledger    (assoc empty-ledger :outcome outcome :error-detail (:error-detail raw-source))}
+      (let [prs (parse {:api-key api-key :raw-source raw-source})]
         (if-let [outcome (:outcome prs)]
           {:artifacts {:raw raw}
-           :ledger    (assoc l1 :outcome outcome :error-detail (:error-detail prs))}
+           :ledger    (assoc (ledger-entry l0 :parse prs) :outcome outcome :error-detail (:error-detail prs))}
           (let [facts (:artifact prs)
-                l2    (ledger-entry l1 :parse prs)
+                l2    (ledger-entry l0 :parse prs)
                 nrm   (normalize {:api-key api-key :facts facts})]
             {:artifacts {:raw raw :facts facts :content (:artifact nrm)}
              :ledger    (assoc (ledger-entry l2 :normalize nrm) :outcome :success)}))))))
 
-(defn- extraction-method
-  "Derive the client-facing extraction-method from the recorded technique kinds."
-  [{:keys [parse normalize]}]
-  (cond
-    (= parse :llm)              "llm"
-    (= normalize :llm-grouping) "json-ld+llm-sections"
-    :else                       "json-ld"))
-
 (defn- build-scrape-result
-  "Reconstruct the ScrapeResult view from the artifacts + ledger."
+  "Reconstruct the ScrapeResult view. Surfaces the decomplected `techniques` map
+  (acquire × parse × normalize) rather than a flattened method string."
   [{:keys [content facts]} {:keys [techniques warnings]}]
-  {:recipe            content
-   :suggested-labels  (vec (:labels facts))
-   :extraction-method (extraction-method techniques)
-   :warnings          (vec warnings)})
+  {:recipe           content
+   :suggested-labels (vec (:labels facts))
+   :techniques       techniques
+   :warnings         (vec warnings)})
 
 (defn- ->scrape-failure
   [{:keys [outcome error-detail]}]
@@ -508,21 +518,23 @@
   "Run the pipeline WITHOUT persistence; return the ScrapeResult (no run-id) or
   throw {:type :scrape :reason ..}. For extraction where no DB is wired."
   [{:keys [api-key fetcher]} url]
-  (let [{:keys [artifacts ledger]} (process {:api-key api-key :fetcher fetcher :url url})]
+  (let [{:keys [artifacts ledger]} (process {:api-key    api-key
+                                             :raw-source (acquire-url {:fetcher fetcher :url url})})]
     (if (= :success (:outcome ledger))
       (build-scrape-result artifacts ledger)
       (->scrape-failure ledger))))
 
 (defn run-pipeline
-  "Acquire -> parse -> normalize over `url`; persist one raw_scrapes row and one
-  processing_runs row on BOTH the success and short-circuited-failure paths;
-  return the ScrapeResult augmented with :scrape-processing-run-id. On a
-  :type :scrape failure the failed run is persisted, then the original ex-info is
-  re-thrown so the handler's 422 mapping is unchanged."
-  [{:keys [database hostname api-key fetcher]} url]
-  (log/infof "Running recipe pipeline for %s" url)
-  (let [{:keys [artifacts ledger]} (process {:api-key api-key :fetcher fetcher :url url})
-        {raw-id :id} (pipeline-db/create-raw-scrape! database (assoc (:raw artifacts) :hostname hostname))
+  "Process + persist a RawSource (from any acquirer): one raw_scrapes row + one
+  processing_runs row on BOTH success and short-circuit-failure; returns the
+  ScrapeResult augmented with :scrape-processing-run-id, or re-throws
+  {:type :scrape :reason ..} on failure. The single, source-agnostic pipeline."
+  [{:keys [database hostname api-key]} raw-source]
+  (let [{:keys [artifacts ledger]} (process {:api-key api-key :raw-source raw-source})
+        {raw-id :id} (pipeline-db/create-raw-scrape!
+                      database (-> (:raw artifacts)
+                                   (assoc :hostname hostname)
+                                   (update :source-kind name)))
         {run-id :id} (pipeline-db/create-processing-run!
                       database
                       {:hostname         hostname
@@ -538,3 +550,25 @@
     (if (= :success (:outcome ledger))
       (assoc (build-scrape-result artifacts ledger) :scrape-processing-run-id run-id)
       (->scrape-failure ledger))))
+
+(defn scrape-url
+  "URL entry point: acquire the page, then run the one pipeline."
+  [{:keys [fetcher] :as ctx} url]
+  (log/infof "Running recipe pipeline for %s" url)
+  (run-pipeline ctx (acquire-url {:fetcher fetcher :url url})))
+
+(defn acquire-photo
+  "ACQUIRE (photo): transcribe images into a :photo RawSource. The transcriber's
+  technique + llm-calls become the acquire provenance. No image bytes retained."
+  [{:keys [transcriber images]}]
+  (let [{:keys [transcript technique llm-calls]} (transcriber/transcribe transcriber images)]
+    {:source-kind       :photo
+     :raw-content       transcript
+     :acquire-technique technique
+     :llm-calls         (vec llm-calls)}))
+
+(defn scrape-photo
+  "Photo entry point: transcribe the images, then run the one pipeline."
+  [{:keys [transcriber] :as ctx} images]
+  (log/infof "Running recipe photo pipeline for %d image(s)" (count images))
+  (run-pipeline ctx (acquire-photo {:transcriber transcriber :images images})))

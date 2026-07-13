@@ -89,9 +89,9 @@
 (deftest create-recipe-links-to-processing-run-test
   (let [db (embedded-pg/fresh-db!)
         {raw-id :id} (pipeline-db/create-raw-scrape!
-                      db {:hostname host :request-url "http://x/r"
+                      db {:hostname host :source-kind "url" :request-url "http://x/r"
                           :final-url "http://x/r" :http-status 200
-                          :fetch-tier "direct" :raw-html "<html/>"})
+                          :fetch-tier "direct" :raw-content "<html/>"})
         {run-id :id} (pipeline-db/create-processing-run!
                       db {:hostname host :raw-scrape-id raw-id :pipeline-version "v"
                           :techniques {:acquire :direct :parse :json-ld :normalize :single-section}

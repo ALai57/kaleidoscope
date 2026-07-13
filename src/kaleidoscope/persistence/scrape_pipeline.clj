@@ -9,16 +9,18 @@
 
 (defn create-raw-scrape!
   "Insert one immutable raw_scrapes row; return the created row (incl. :id).
-  Fetch fields are optional — a pre-fetch failure records request-url only."
-  [db {:keys [hostname request-url final-url http-status fetch-tier raw-html]}]
+  `source-kind` is 'url' | 'photo'. Fetch fields are optional — a pre-fetch
+  failure (url) or a photo import records only what it has."
+  [db {:keys [hostname source-kind request-url final-url http-status fetch-tier raw-content]}]
   (first (rdbms/insert! db :raw-scrapes
                         {:id          (utils/uuid)
                          :hostname    hostname
+                         :source-kind source-kind
                          :request-url request-url
                          :final-url   final-url
                          :http-status http-status
                          :fetch-tier  fetch-tier
-                         :raw-html    raw-html
+                         :raw-content raw-content
                          :created-at  (utils/now)}
                         :ex-subtype :UnableToCreateRawScrape)))
 
