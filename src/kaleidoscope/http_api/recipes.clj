@@ -35,6 +35,35 @@
         (bad-request {:error (ex-message e)})
         (throw e)))))
 
+(def ^:private max-images 5)
+(def ^:private max-image-bytes (* 5 1024 1024))
+(def ^:private allowed-image-types #{"image/jpeg" "image/png" "image/webp" "image/gif"})
+
+(defn- file-upload?
+  [x] (and (map? x) (:tempfile x) (:filename x)))
+
+(defn multipart-images
+  "Extract uploaded image files from multipart `params` into
+  [{:content-type string :bytes byte-array}]. Throws ex-info {:type :validation
+  :reason ..} on no image / too many / unsupported type / oversize."
+  [params]
+  (let [files (->> params vals (filter file-upload?))]
+    (when (empty? files)
+      (throw (ex-info "No image uploaded" {:type :validation :reason :no-image})))
+    (when (> (count files) max-images)
+      (throw (ex-info (str "At most " max-images " images per import")
+                      {:type :validation :reason :too-many-images})))
+    (mapv (fn [{:keys [content-type tempfile]}]
+            (when-not (contains? allowed-image-types content-type)
+              (throw (ex-info (str "Unsupported image type: " content-type)
+                              {:type :validation :reason :unsupported-type})))
+            (let [bytes (java.nio.file.Files/readAllBytes (.toPath ^java.io.File tempfile))]
+              (when (> (alength bytes) max-image-bytes)
+                (throw (ex-info "Image too large (max 5 MB)"
+                                {:type :validation :reason :image-too-large})))
+              {:content-type content-type :bytes bytes}))
+          files)))
+
 (def reitit-recipes-routes
   ["/recipes" {:tags     ["recipes"]
                :security [{:andrewslai-pkce ["roles" "profile"]}]}
@@ -88,6 +117,30 @@
                                      (:reason (ex-data e)))
                                   (unprocessable-entity {:reason (name (:reason (ex-data e)))})
                                   (throw e))))))}}]
+
+   ["/scrape-photo"
+    {:post {:summary    "Extract a recipe draft from uploaded photo(s) (persists raw + processing run)"
+            :responses  (merge hu/openapi-401
+                               {200 {:body models.recipes/ScrapeResult}
+                                400 {:body [:map [:reason :string]]}
+                                422 {:body [:map [:reason :string]]}})
+            :handler    (fn [{:keys [components params] :as request}]
+                          (try
+                            (let [images (multipart-images params)
+                                  ctx    {:database    (:database components)
+                                          :hostname    (hu/get-host request)
+                                          :api-key     (:api-key (:workflow-executor components))
+                                          :transcriber (:image-transcriber components)}]
+                              (try
+                                (ok (scraper/scrape-photo ctx images))
+                                (catch clojure.lang.ExceptionInfo e
+                                  (if (= :no-recipe-found (:reason (ex-data e)))
+                                    (unprocessable-entity {:reason (name (:reason (ex-data e)))})
+                                    (throw e)))))
+                            (catch clojure.lang.ExceptionInfo e
+                              (if (= :validation (:type (ex-data e)))
+                                (bad-request {:reason (name (:reason (ex-data e)))})
+                                (throw e)))))}}]
 
    ["/:recipe-url"
     {:get    {:summary    "Get a single recipe (access-checked)"

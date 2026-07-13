@@ -5,6 +5,7 @@
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.api.recipe-scraper :as scraper]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
+            [kaleidoscope.http-api.recipes :as recipes-http]
             [kaleidoscope.init.env :as env]
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
@@ -200,3 +201,33 @@
                    :body   {:content {:sections [{:name "Cake" :ingredients ["2 cups flour"] :steps ["Mix" "Bake"]}
                                                  {:name "Frosting" :ingredients ["1 cup butter"] :steps ["Whip"]}]}}}
                   (app (mock/request :get "https://andrewslai.com/recipes/layer-cake")))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Photo import — multipart validation
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- temp-file-of [bytes]
+  (let [f (java.io.File/createTempFile "recipe-img" ".bin")]
+    (with-open [o (java.io.FileOutputStream. f)] (.write o ^bytes bytes))
+    (.deleteOnExit f)
+    f))
+
+(defn- upload [content-type bytes]
+  {:filename "x" :content-type content-type :tempfile (temp-file-of bytes) :size (alength bytes)})
+
+(deftest multipart-images-validation-test
+  (testing "reads uploaded images into {:content-type :bytes}"
+    (is (match? [{:content-type "image/jpeg" :bytes bytes?}]
+                (recipes-http/multipart-images {"file0" (upload "image/jpeg" (.getBytes "img"))}))))
+  (testing "no image -> :no-image"
+    (is (match? {:reason :no-image}
+                (try (recipes-http/multipart-images {"desc" "not-a-file"})
+                     (catch clojure.lang.ExceptionInfo e (ex-data e))))))
+  (testing "unsupported type -> :unsupported-type"
+    (is (match? {:reason :unsupported-type}
+                (try (recipes-http/multipart-images {"f" (upload "application/pdf" (.getBytes "x"))})
+                     (catch clojure.lang.ExceptionInfo e (ex-data e))))))
+  (testing "too many images -> :too-many-images"
+    (let [six (into {} (for [i (range 6)] [(str "f" i) (upload "image/png" (.getBytes "x"))]))]
+      (is (match? {:reason :too-many-images}
+                  (try (recipes-http/multipart-images six)
+                       (catch clojure.lang.ExceptionInfo e (ex-data e))))))))
