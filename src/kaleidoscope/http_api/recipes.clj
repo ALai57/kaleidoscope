@@ -82,7 +82,7 @@
                             ;; :render-failed — propagates to the Bugsnag
                             ;; exception-reporter middleware, which reports it.
                             (try
-                              (ok (scraper/run-pipeline ctx url))
+                              (ok (scraper/scrape-url ctx url))
                               (catch clojure.lang.ExceptionInfo e
                                 (if (#{:fetch-failed :bot-blocked :no-recipe-found :blocked-url}
                                      (:reason (ex-data e)))

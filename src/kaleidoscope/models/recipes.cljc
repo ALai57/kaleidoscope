@@ -91,8 +91,11 @@
 
 (def ScrapeResult
   [:map
-   [:recipe            RecipeContent]
-   [:suggested-labels  [:sequential :string]]
-   [:extraction-method [:enum "json-ld" "json-ld+llm-sections" "llm"]]
-   [:warnings          [:sequential :string]]
+   [:recipe           RecipeContent]
+   [:suggested-labels [:sequential :string]]
+   [:techniques       [:map
+                       [:acquire   :keyword]
+                       [:parse     :keyword]
+                       [:normalize :keyword]]]
+   [:warnings         [:sequential :string]]
    [:scrape-processing-run-id :uuid]])
