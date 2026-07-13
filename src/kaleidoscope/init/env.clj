@@ -14,6 +14,7 @@
             [kaleidoscope.persistence.filesystem.s3-impl :as s3-storage]
             [kaleidoscope.http-api.auth.access-control :as ac]
             [kaleidoscope.api.firecrawl :as firecrawl]
+            [kaleidoscope.api.image-transcriber :as transcriber]
             [kaleidoscope.scoring.mock :as scoring-mock]
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
             [kaleidoscope.workflows.mock :as workflow-mock]
@@ -285,6 +286,20 @@
                               {:api-key (get env "FIRECRAWL_API_KEY")}))}
    :default   "none"})
 
+(def kaleidoscope-image-transcriber-boot-instructions
+  "OCR for recipe photo import. `mock` (default) returns a canned transcript for
+  local dev / tests. `claude-vision` transcribes via Claude (needs
+  ANTHROPIC_API_KEY). `google-vision` is the committed handwriting/dense-layout
+  backend (needs GOOGLE_VISION_API_KEY)."
+  {:name      :kaleidoscope-image-transcriber
+   :path      "KALEIDOSCOPE_IMAGE_TRANSCRIBER_TYPE"
+   :launchers {"mock"          (fn [_env] (transcriber/make-mock-transcriber))
+               "claude-vision" (fn [env] (transcriber/make-claude-vision-transcriber
+                                          {:api-key (get env "ANTHROPIC_API_KEY")}))
+               "google-vision" (fn [env] (transcriber/make-google-vision-transcriber
+                                          {:api-key (get env "GOOGLE_VISION_API_KEY")}))}
+   :default   "mock"})
+
 (def exception-reporter-boot-instructions
   {:name      :exception-reporter
    :path      "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"
@@ -310,7 +325,8 @@
    kaleidoscope-notify-image-resizer-boot-instructions
    kaleidoscope-scorer-boot-instructions
    kaleidoscope-workflow-executor-boot-instructions
-   kaleidoscope-recipe-fetcher-boot-instructions])
+   kaleidoscope-recipe-fetcher-boot-instructions
+   kaleidoscope-image-transcriber-boot-instructions])
 
 (def BootInstruction
   [:map
@@ -355,7 +371,8 @@
            kaleidoscope-notify-image-resizer
            kaleidoscope-scorer
            kaleidoscope-workflow-executor
-           kaleidoscope-recipe-fetcher]
+           kaleidoscope-recipe-fetcher
+           kaleidoscope-image-transcriber]
     :as   system}]
   {:database                database-connection
    :exception-reporter      (partial er/report! exception-reporter)
@@ -368,7 +385,8 @@
    :notify-image-resizer!   kaleidoscope-notify-image-resizer
    :scorer                  kaleidoscope-scorer
    :workflow-executor       kaleidoscope-workflow-executor
-   :recipe-fetcher          kaleidoscope-recipe-fetcher})
+   :recipe-fetcher          kaleidoscope-recipe-fetcher
+   :image-transcriber       kaleidoscope-image-transcriber})
 
 (defn make-http-handler
   [system]
