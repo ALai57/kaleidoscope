@@ -19,15 +19,16 @@
    [:cook-time-minutes {:optional true} [:maybe :int]]])
 
 (def RawScrape
-  ;; Validated before persistence. All fetch fields are nullable so a pre-fetch
-  ;; failure (SSRF block) still records request-url + hostname in the corpus.
+  ;; Validated before persistence. Fetch fields are nullable so a pre-fetch
+  ;; failure (url) or a photo import still records source-kind + hostname.
   [:map
    [:hostname    :string]
-   [:request-url :string]
+   [:source-kind [:enum "url" "photo"]]
+   [:request-url {:optional true} [:maybe :string]]
    [:final-url   {:optional true} [:maybe :string]]
    [:http-status {:optional true} [:maybe :int]]
    [:fetch-tier  {:optional true} [:maybe :string]]
-   [:raw-html    {:optional true} [:maybe :string]]])
+   [:raw-content {:optional true} [:maybe :string]]])
 
 ;; The unified PARSE artifact. Both techniques emit this shape; NORMALIZE
 ;; dispatches on what it carries. `:grouping` (section name + indexes into the

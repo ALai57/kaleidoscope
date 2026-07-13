@@ -8,6 +8,7 @@
   reviews and edits before POSTing."
   (:require [cheshire.core :as json]
             [clj-http.client :as http]
+            [clojure.set]
             [clojure.string :as str]
             [kaleidoscope.api.firecrawl :as firecrawl]
             [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
@@ -522,7 +523,10 @@
   [{:keys [database hostname api-key fetcher]} url]
   (log/infof "Running recipe pipeline for %s" url)
   (let [{:keys [artifacts ledger]} (process {:api-key api-key :fetcher fetcher :url url})
-        {raw-id :id} (pipeline-db/create-raw-scrape! database (assoc (:raw artifacts) :hostname hostname))
+        {raw-id :id} (pipeline-db/create-raw-scrape!
+                      database (-> (:raw artifacts)
+                                   (assoc :hostname hostname :source-kind "url")
+                                   (clojure.set/rename-keys {:raw-html :raw-content})))
         {run-id :id} (pipeline-db/create-processing-run!
                       database
                       {:hostname         hostname

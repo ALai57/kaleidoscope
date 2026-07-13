@@ -319,7 +319,7 @@
                            :outcome "success"}
                           run))
               (testing "its raw_scrape_id resolves to the stored HTML"
-                (is (match? {:raw-html json-ld-html}
+                (is (match? {:raw-content json-ld-html}
                             (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))))))
 
 (deftest run-pipeline-records-llm-calls-test
@@ -346,5 +346,5 @@
           (let [runs (kaleidoscope.persistence.rdbms/find-by-keys db :processing-runs {:hostname host})
                 run  (first runs)]
             (is (match? {:outcome "bot-blocked" :content nil?} run))
-            (is (match? {:request-url public-url :raw-html nil?}
+            (is (match? {:request-url public-url :raw-content nil?}
                         (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))))
