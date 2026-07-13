@@ -10,6 +10,7 @@
             [clj-http.client :as http]
             [clojure.string :as str]
             [kaleidoscope.api.firecrawl :as firecrawl]
+            [kaleidoscope.api.image-transcriber :as transcriber]
             [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
             [kaleidoscope.utils.versioning :as vu]
             [kaleidoscope.workflows.llm-executor :as llm]
@@ -555,3 +556,19 @@
   [{:keys [fetcher] :as ctx} url]
   (log/infof "Running recipe pipeline for %s" url)
   (run-pipeline ctx (acquire-url {:fetcher fetcher :url url})))
+
+(defn acquire-photo
+  "ACQUIRE (photo): transcribe images into a :photo RawSource. The transcriber's
+  technique + llm-calls become the acquire provenance. No image bytes retained."
+  [{:keys [transcriber images]}]
+  (let [{:keys [transcript technique llm-calls]} (transcriber/transcribe transcriber images)]
+    {:source-kind       :photo
+     :raw-content       transcript
+     :acquire-technique technique
+     :llm-calls         (vec llm-calls)}))
+
+(defn scrape-photo
+  "Photo entry point: transcribe the images, then run the one pipeline."
+  [{:keys [transcriber] :as ctx} images]
+  (log/infof "Running recipe photo pipeline for %d image(s)" (count images))
+  (run-pipeline ctx (acquire-photo {:transcriber transcriber :images images})))

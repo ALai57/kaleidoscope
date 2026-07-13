@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.recipe-scraper-test
   (:require [kaleidoscope.api.recipe-scraper :as scraper]
             [kaleidoscope.api.firecrawl :as firecrawl]
+            [kaleidoscope.api.image-transcriber :as transcriber]
             [kaleidoscope.workflows.llm-executor :as llm]
             [kaleidoscope.persistence.rdbms]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
@@ -358,3 +359,48 @@
             (is (match? {:outcome "bot-blocked" :content nil?} run))
             (is (match? {:request-url public-url :raw-content nil?}
                         (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Photo pipeline path
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- stub-transcriber [text]
+  (reify transcriber/ImageTranscriber
+    (transcribe [_ _images]
+      {:transcript text :technique :claude-vision
+       :llm-calls  [{:purpose :transcribe :model "claude-haiku-4-5" :request {} :response {}}]})))
+
+(def ^:private one-image [{:content-type "image/jpeg" :bytes (.getBytes "img")}])
+
+(deftest photo-pipeline-persists-success-test
+  (testing "a photo import transcribes -> interprets -> persists raw(photo) + run"
+    (let [db (embedded-h2/fresh-db!)]
+      (with-redefs [llm/post-anthropic-sync
+                    (fn [_ _] {:content [{:text "{\"title\":\"Chana Masala\",\"sections\":[{\"name\":null,\"ingredients\":[\"2 cups chickpeas\"],\"steps\":[\"Cook\"]}],\"suggested_labels\":[\"indian\"]}"}]})]
+        (let [{:keys [scrape-processing-run-id] :as result}
+              (scraper/scrape-photo {:database db :hostname host :api-key "sk-test"
+                                     :transcriber (stub-transcriber "Chana Masala\n2 cups chickpeas\nCook.")}
+                                    one-image)]
+          (is (match? {:recipe {:title "Chana Masala"}
+                       :techniques {:acquire :claude-vision :parse :llm}
+                       :scrape-processing-run-id uuid?}
+                      result))
+          (let [run (pipeline-db/get-processing-run db scrape-processing-run-id host)]
+            (is (match? {:techniques {:acquire "claude-vision" :parse "llm"}
+                         :content {:title "Chana Masala"} :outcome "success"}
+                        run))
+            (is (match? {:source-kind "photo" :raw-content "Chana Masala\n2 cups chickpeas\nCook."
+                         :fetch-tier nil? :request-url nil?}
+                        (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))))
+
+(deftest photo-pipeline-empty-transcript-fails-test
+  (testing "an empty transcript is :no-recipe-found (verdict in interpretation) + persisted failed run"
+    (let [db (embedded-h2/fresh-db!)]
+      (is (match? {:reason :no-recipe-found}
+                  (try (scraper/scrape-photo {:database db :hostname host :api-key "sk-test"
+                                              :transcriber (stub-transcriber "")}
+                                             one-image)
+                       (catch clojure.lang.ExceptionInfo e (ex-data e)))))
+      (let [run (first (kaleidoscope.persistence.rdbms/find-by-keys db :processing-runs {:hostname host}))]
+        (is (match? {:outcome "no-recipe-found" :content nil?} run))
+        (is (match? {:source-kind "photo" :raw-content ""}
+                    (pipeline-db/get-raw-scrape db (:raw-scrape-id run) host)))))))
