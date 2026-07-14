@@ -5,7 +5,7 @@
             [kaleidoscope.api.recipe-scraper :as scraper]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.models.recipes :as models.recipes]
-            [ring.util.http-response :refer [bad-request not-found ok unprocessable-entity]]
+            [ring.util.http-response :refer [bad-request conflict not-found ok unprocessable-entity]]
             [taoensso.timbre :as log]))
 
 (defn ->slug
@@ -19,20 +19,17 @@
       (str/replace #"[^a-z0-9]+" "-")
       (str/replace #"^-+|-+$" "")))
 
-(defn- validation-error?
-  [e]
-  (= :validation (:type (ex-data e))))
-
 (defn- handle-write
   "Run a recipe write, turning validation failures (one-per-group, unknown
-  label) into a 400 rather than a 500."
+  label) into a 400 and slug collisions into a 409 rather than a 500."
   [f]
   (try
     (let [result (f)]
       (if result (ok result) (not-found {:reason "Missing"})))
     (catch clojure.lang.ExceptionInfo e
-      (if (validation-error? e)
-        (bad-request {:error (ex-message e)})
+      (case (:type (ex-data e))
+        :validation (bad-request {:error (ex-message e)})
+        :conflict   (conflict {:error (ex-message e)})
         (throw e)))))
 
 (def ^:private max-images 5)

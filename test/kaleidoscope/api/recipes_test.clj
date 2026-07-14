@@ -4,7 +4,7 @@
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
             [clojure.test :refer [deftest is testing use-fixtures]]
-            [matcher-combinators.test :refer [match?]]
+            [matcher-combinators.test :refer [match? thrown-match?]]
             [next.jdbc :as next]
             [taoensso.timbre :as log]))
 
@@ -95,6 +95,18 @@
     (testing "old slug no longer resolves; new one does; identity is preserved"
       (is (nil? (recipes/get-recipe db host "chana-masala")))
       (is (match? {:recipe-url "chana-masala-v2"} (recipes/get-recipe db host "chana-masala-v2"))))))
+
+(deftest rename-to-existing-slug-conflicts-test
+  (let [db (embedded-pg/fresh-db!)]
+    (recipes/create-recipe! db (example-recipe :recipe-url "chana-masala"))
+    (recipes/create-recipe! db (example-recipe :recipe-url "pad-thai"))
+    (testing "renaming onto another recipe's slug throws a :conflict"
+      (is (thrown-match? clojure.lang.ExceptionInfo
+                         {:type :conflict}
+                         (recipes/update-recipe! db host "chana-masala" {:recipe-url "pad-thai"}))))
+    (testing "renaming a slug to itself is allowed (no-op collision)"
+      (is (match? {:recipe-url "chana-masala"}
+                  (recipes/update-recipe! db host "chana-masala" {:recipe-url "chana-masala"}))))))
 
 (deftest create-recipe-links-to-processing-run-test
   (let [db (embedded-pg/fresh-db!)

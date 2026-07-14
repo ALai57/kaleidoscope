@@ -197,6 +197,23 @@
                              (mock/json-body (assoc example-body
                                                     :label-ids [(:id l1) (:id l2)]))))))))))
 
+(deftest put-recipe-slug-collision-returns-409
+  (let [app (make-app "custom-authenticated-user")]
+    (testing "create two recipes for the tenant"
+      (is (match? {:status 200 :body {:recipe-url "chana-masala"}}
+                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                           as-writer
+                           (mock/json-body example-body)))))
+      (is (match? {:status 200 :body {:recipe-url "pad-thai"}}
+                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                           as-writer
+                           (mock/json-body (assoc example-body :recipe-url "pad-thai")))))))
+    (testing "renaming one onto the other's slug is a 409"
+      (is (match? {:status 409 :body {:error string?}}
+                  (app (-> (mock/request :put "https://andrewslai.com/recipes/chana-masala")
+                           as-writer
+                           (mock/json-body {:recipe-url "pad-thai"}))))))))
+
 (deftest named-sections-round-trip-http-test
   (let [app  (make-app "custom-authenticated-user")
         body {:content {:title    "Layer Cake"

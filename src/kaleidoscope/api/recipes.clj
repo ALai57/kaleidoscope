@@ -302,7 +302,12 @@
   (log/infof "Updating recipe %s for %s" recipe-url hostname)
   (next/with-transaction [tx db]
     (if-let [{:keys [id]} (get-recipe tx hostname recipe-url)]
-      (let [labels        (validate-label-set! tx label-ids hostname)
+      (let [_ (when (and (contains? patch :recipe-url)
+                         (not= new-url recipe-url)
+                         (get-recipe tx hostname new-url))
+                (throw (ex-info (format "URL '%s' is already in use" new-url)
+                                {:type :conflict :reason :slug-taken})))
+            labels        (validate-label-set! tx label-ids hostname)
             effective-url (if (contains? patch :recipe-url) new-url recipe-url)
             set-map       (cond-> {:modified-at (utils/now)}
                             (contains? patch :content)           (assoc :content content)
