@@ -34,7 +34,8 @@
   "Parse Claude's JSON into {:components …}. Throws ex-info {:type :generation}
   on malformed output."
   [text]
-  (let [clean (-> text str/trim
+  (let [clean (-> (or text "")
+                  str/trim
                   (str/replace #"(?s)^```(?:json)?\s*" "")
                   (str/replace #"\s*```$" "") str/trim)]
     (try

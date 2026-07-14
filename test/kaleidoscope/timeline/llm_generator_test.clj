@@ -12,4 +12,12 @@
                   (llm/parse-segment-response text)))))
   (testing "malformed JSON throws a generation error"
     (is (thrown-match? clojure.lang.ExceptionInfo {:type :generation}
-                       (llm/parse-segment-response "not json at all")))))
+                       (llm/parse-segment-response "not json at all"))))
+  (testing "valid JSON whose :components is missing or not sequential throws a generation error"
+    (is (thrown-match? clojure.lang.ExceptionInfo {:type :generation}
+                       (llm/parse-segment-response "{\"components\":\"nope\"}")))
+    (is (thrown-match? clojure.lang.ExceptionInfo {:type :generation}
+                       (llm/parse-segment-response "{\"foo\":1}"))))
+  (testing "nil text throws a generation error, not an NPE"
+    (is (thrown-match? clojure.lang.ExceptionInfo {:type :generation}
+                       (llm/parse-segment-response nil)))))
