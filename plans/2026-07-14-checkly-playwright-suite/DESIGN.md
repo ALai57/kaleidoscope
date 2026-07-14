@@ -300,3 +300,26 @@ Per CLAUDE.md Sharp edge #6, deployment/ops changes are reflected in
 - **`checkly deploy` cadence.** The scheduled monitors only exist once
   `checkly deploy` runs. If that is manual today, adding suite 8 requires a deploy
   to take effect. (Confirm whether deploy is wired into CI or run by hand.)
+
+---
+
+## 10. Post-implementation corrections
+
+Two premises in this design proved wrong against the live backend during the
+final review and were corrected in the implementation:
+
+1. **Recipe content shape.** §3 suite 6 assumed the old flat `content`
+   (`{ ingredients, instructions-html }`). The current `RecipeContent` model
+   (`models/recipes.cljc`) requires `sections: [{ ingredients, steps }]` as the
+   sole representation; the flat shape returns 400. The recipes suite now sends
+   and asserts the sections shape.
+
+2. **Project-creation is not free.** §2.5/§6 assumed only the `scoring` suite
+   spends. In fact `POST /projects` (`api/projects.clj` `create-project!`) fans
+   out to default-definition scoring **and** the default workflow, so in an `llm`
+   environment the `projects` suite also makes paid Claude calls. The `projects`
+   suite is therefore tagged **`spends`**, not `no-spend`. Net tags: six
+   `no-spend` (liveness, homepage, auth-boundary, auth0-login, articles, recipes)
+   and two `spends` (projects, scoring). The ephemeral `--tags no-spend` run
+   covers six suites; project CRUD is exercised by the production monitors and
+   on-demand `--tags spends` runs. `docs/operations.md` reflects this.
