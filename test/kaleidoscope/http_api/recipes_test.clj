@@ -410,3 +410,17 @@
     (testing "non-writer POST timeline ⇒ 401 (ACL blocks before the handler)"
       (is (match? {:status 401}
                   (app (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")))))))
+
+(deftest timeline-generation-failure-leaves-recipe-saved-test
+  (let [app (make-app "custom-authenticated-user"
+                      {"KALEIDOSCOPE_TIMELINE_GENERATOR_TYPE" "mock"})]
+    (create-recipe! app)
+    (with-redefs [kaleidoscope.api.recipe-timeline/generate!
+                  (fn [_] (throw (ex-info "boom" {:type :generation})))]
+      (testing "generator failure ⇒ 502, recipe untouched"
+        (is (match? {:status 502 :body {:reason "generation-failed"}}
+                    (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")
+                             as-writer))))))
+    (testing "the recipe itself is still retrievable and un-timelined"
+      (is (match? {:status 200 :body {:recipe-url "chana-masala" :timeline nil?}}
+                  (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))
