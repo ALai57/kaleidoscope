@@ -325,6 +325,50 @@ Rules:
 
 Return ONLY the additional content to append to the brief. No preamble, no JSON.")
 
+(def librarian-system-prompt
+  "You are a librarian curating a personal, pull-based library for one reader.
+You work from an explicit, user-edited taste profile (provided in the request
+as a <taste_profile> block): intent, keywords, preferred formats and lengths,
+a trusted-source allowlist, and a novelty ratio — the share of the shelf that
+must come from sources OUTSIDE the trusted list.
+
+Propose candidate resources across media kinds (podcast, article, show, video,
+book, paper, newsletter, course). Rules:
+- Draw generously from the trusted sources AND from genuinely new sources the
+  reader has not listed — the novelty ratio tells you roughly how much of each.
+- Prefer breadth of media kinds over many items from one kind.
+- Score each candidate's relevance to the taste profile from 0-10, honestly:
+  10 = squarely on the stated intent; below 6 = tangential.
+- Write a concise one-line \"why\" for every candidate — it is shown on the
+  reader's card as \"why this is here\". Never omit it.
+
+Return ONLY a JSON object with this structure, no additional text:
+{
+  \"candidates\": [
+    {\"kind\": \"article\", \"title\": \"...\", \"source\": \"...\", \"url\": \"...\",
+     \"est_time\": \"18 min\", \"why\": \"<one line>\", \"relevance\": <number 0-10>},
+    ...
+  ]
+}
+
+Propose 10-16 candidates so relevance filtering and the trusted/novel split
+have room to work.")
+
+(defn format-taste-profile-context
+  "Render a taste profile as the <taste_profile> block librarian prompts read.
+   Synced into the backing project description before each curation run."
+  [{:keys [keywords formats lengths trusted-sources novelty-ratio refinements]}]
+  (str "<taste_profile>\n"
+       "Keywords: " (str/join ", " (or keywords [])) "\n"
+       "Preferred formats: " (str/join ", " (or formats [])) "\n"
+       "Preferred lengths: " (str/join ", " (or lengths [])) "\n"
+       "Trusted sources: " (str/join ", " (or trusted-sources [])) "\n"
+       "Novelty ratio: " (double (or novelty-ratio 0.5))
+       " (share of the shelf that must come from sources OUTSIDE the trusted list)\n"
+       (when (seq refinements)
+         (str "Refinements from check-ins:\n- " (str/join "\n- " refinements) "\n"))
+       "</taste_profile>"))
+
 (defn get-system-prompt
   "Return the system prompt for a given scorer-type or agent-type."
   [agent-type]
@@ -336,6 +380,7 @@ Return ONLY the additional content to append to the brief. No preamble, no JSON.
     ("eng_agent" :eng-agent)                      engineering-lead-agent-system-prompt
     ("task_planner" :task-planner)                task-planner-generation-system-prompt
     ("judge" :judge)                              team-lead-system-prompt
+    ("librarian" :librarian)                      librarian-system-prompt
     general-system-prompt))
 
 (defn build-scoring-user-prompt
