@@ -292,34 +292,43 @@
       (replace-label-assignments! tx id hostname labels)
       (get-recipe tx hostname recipe-url))))
 
+(def ^:private editable-recipe-fields
+  "Columns update-recipe! may write from a patch. Identity and the immutable
+  :original-content are deliberately absent."
+  [:content :recipe-url :source-url :public-visibility])
+
+(defn- recipe-change-set
+  "The column writes implied by `patch`, as data: the editable keys actually
+  present (so untouched columns are never written), :public-visibility coerced
+  to a real boolean, and :modified-at stamped from `now`."
+  [patch now]
+  (cond-> (select-keys patch editable-recipe-fields)
+    (contains? patch :public-visibility) (update :public-visibility boolean)
+    :always                              (assoc :modified-at now)))
+
 (defn update-recipe!
   "Update a recipe's editable fields (content, recipe-url, source-url, visibility)
   and its label set, scoped to hostname. Never touches `:original-content`.
   Renaming `:recipe-url` changes the address, not identity. Returns nil if no
-  recipe with that slug exists for the tenant."
-  [db hostname recipe-url {:keys [content source-url public-visibility label-ids]
-                           new-url :recipe-url :as patch}]
-  (log/infof "Updating recipe %s for %s" recipe-url hostname)
-  (next/with-transaction [tx db]
-    (if-let [{:keys [id]} (get-recipe tx hostname recipe-url)]
-      (let [_ (when (and (contains? patch :recipe-url)
-                         (not= new-url recipe-url)
-                         (get-recipe tx hostname new-url))
-                (throw (ex-info (format "URL '%s' is already in use" new-url)
-                                {:type :conflict :reason :slug-taken})))
-            labels        (validate-label-set! tx label-ids hostname)
-            effective-url (if (contains? patch :recipe-url) new-url recipe-url)
-            set-map       (cond-> {:modified-at (utils/now)}
-                            (contains? patch :content)           (assoc :content content)
-                            (contains? patch :recipe-url)        (assoc :recipe-url new-url)
-                            (contains? patch :source-url)        (assoc :source-url source-url)
-                            (contains? patch :public-visibility) (assoc :public-visibility (boolean public-visibility)))]
-        (rdbms/scoped-update! tx :recipes {:id id :hostname hostname} set-map)
-        (when (contains? patch :label-ids)
-          (replace-label-assignments! tx id hostname labels))
-        (get-recipe tx hostname effective-url))
-      (do (log/warnf "No recipe %s for %s" recipe-url hostname)
-          nil))))
+  recipe with that slug exists for the tenant. `now` defaults to wall-clock."
+  ([db hostname recipe-url patch]
+   (update-recipe! db hostname recipe-url patch (utils/now)))
+  ([db hostname recipe-url {new-url :recipe-url label-ids :label-ids :as patch} now]
+   (log/infof "Updating recipe %s for %s" recipe-url hostname)
+   (next/with-transaction [tx db]
+     (if-let [{:keys [id]} (get-recipe tx hostname recipe-url)]
+       (let [renaming? (and (contains? patch :recipe-url) (not= new-url recipe-url))]
+         (when (and renaming? (get-recipe tx hostname new-url))
+           (throw (ex-info (format "URL '%s' is already in use" new-url)
+                           {:type :conflict :reason :slug-taken})))
+         (rdbms/scoped-update! tx :recipes {:id id :hostname hostname}
+                               (recipe-change-set patch now))
+         (when (contains? patch :label-ids)
+           (replace-label-assignments! tx id hostname
+                                       (validate-label-set! tx label-ids hostname)))
+         (get-recipe tx hostname (if renaming? new-url recipe-url)))
+       (do (log/warnf "No recipe %s for %s" recipe-url hostname)
+           nil)))))
 
 (defn delete-recipe!
   "Delete a recipe (cascades to assignments + audiences), scoped to hostname."
