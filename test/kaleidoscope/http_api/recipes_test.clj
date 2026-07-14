@@ -370,3 +370,43 @@
       (is (match? {:status 404}
                   ((make-app "always-unauthenticated")
                    (mock/request :get "https://andrewslai.com/recipes/chana-masala/lineage")))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Cook timeline — generate + override
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn create-recipe! [app]
+  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+           as-writer
+           (mock/json-body example-body))))
+
+(deftest timeline-generate-and-override-test
+  (let [app (make-app "custom-authenticated-user")]
+    (create-recipe! app)
+    (testing "POST generates + persists a packed timeline"
+      (let [resp (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")
+                          as-writer))]
+        (is (match? {:status 200
+                     :body {:timeline {:total-minutes pos? :overrides []
+                                       :components [{:name "Section 1"}]}}}
+                    resp))))
+    (testing "GET returns the persisted timeline"
+      (is (match? {:status 200 :body {:timeline {:total-minutes pos?}}}
+                  (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))
+    (testing "PUT overrides re-packs without regenerating"
+      (is (match? {:status 200 :body {:timeline {:overrides [{:phase "Section 1/Section 1" :minutes 99}]
+                                                 :total-minutes 99}}}
+                  (app (-> (mock/request :put "https://andrewslai.com/recipes/chana-masala/timeline")
+                           as-writer
+                           (mock/json-body {:overrides [{:phase "Section 1/Section 1" :minutes 99}]}))))))))
+
+(deftest timeline-writer-only-test
+  (let [app (make-app "always-unauthenticated")]
+    ;; Every POST/PUT under /recipes* is gated writer-only at the ACL layer
+    ;; (KALEIDOSCOPE-ACCESS-CONTROL-LIST), which rejects with 401 before the
+    ;; handler ever runs — same as anonymous-writes-rejected-test above. The
+    ;; handler's own `authz/writer?` check is defense-in-depth (matches the
+    ;; brief/DESIGN's stated 404-no-leak intent) but is unreachable via HTTP
+    ;; while that ACL rule is in place.
+    (testing "non-writer POST timeline ⇒ 401 (ACL blocks before the handler)"
+      (is (match? {:status 401}
+                  (app (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")))))))

@@ -3,9 +3,10 @@
             [kaleidoscope.api.authorization :as authz]
             [kaleidoscope.api.recipes :as recipes-api]
             [kaleidoscope.api.recipe-scraper :as scraper]
+            [kaleidoscope.api.recipe-timeline :as timeline-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.models.recipes :as models.recipes]
-            [ring.util.http-response :refer [bad-request conflict not-found ok unprocessable-entity]]
+            [ring.util.http-response :refer [bad-gateway bad-request conflict not-found ok unprocessable-entity]]
             [taoensso.timbre :as log]))
 
 (defn ->slug
@@ -189,7 +190,51 @@
                                              (get-in parameters [:path :recipe-url])
                                              (boolean (get-in parameters [:query :include-raw])))]
                              (ok lineage)
-                             (not-found {:reason "Missing"}))))}}]])
+                             (not-found {:reason "Missing"}))))}}]
+
+   ["/:recipe-url/timeline"
+    {:post {:summary    "Regenerate the cook timeline from current content (writer-only)"
+            :responses  (merge hu/openapi-401 hu/openapi-404
+                               {200 {:body [:map [:timeline models.recipes/Timeline]]}
+                                502 {:body [:map [:reason :string]]}})
+            :parameters {:path {:recipe-url :string}}
+            :handler    (fn [{:keys [components parameters] :as request}]
+                          (if-not (authz/writer? request)
+                            (not-found {:reason "Missing"})
+                            (let [db        (:database components)
+                                  host      (hu/get-host request)
+                                  url       (get-in parameters [:path :recipe-url])]
+                              (if-let [recipe (recipes-api/get-recipe db host url)]
+                                (try
+                                  (let [timeline (timeline-api/generate!
+                                                  {:generator         (:timeline-generator components)
+                                                   :content           (:content recipe)
+                                                   :stored            (:timeline recipe)
+                                                   :generator-version timeline-api/default-generator-version
+                                                   :now               (str (java.time.Instant/now))})]
+                                    (ok {:timeline (:timeline (recipes-api/save-timeline! db host url timeline))}))
+                                  (catch clojure.lang.ExceptionInfo e
+                                    (if (= :generation (:type (ex-data e)))
+                                      (bad-gateway {:reason "generation-failed"})
+                                      (throw e))))
+                                (not-found {:reason "Missing"})))))}
+     :put  {:summary    "Apply duration overrides and re-pack (writer-only; no LLM)"
+            :responses  (merge hu/openapi-401 hu/openapi-404
+                               {200 {:body [:map [:timeline models.recipes/Timeline]]}})
+            :parameters {:path {:recipe-url :string}
+                         :body models.recipes/TimelineOverridesRequest}
+            :handler    (fn [{:keys [components parameters] :as request}]
+                          (if-not (authz/writer? request)
+                            (not-found {:reason "Missing"})
+                            (let [db     (:database components)
+                                  host   (hu/get-host request)
+                                  url    (get-in parameters [:path :recipe-url])
+                                  recipe (recipes-api/get-recipe db host url)]
+                              (if-let [stored (:timeline recipe)]
+                                (let [updated (timeline-api/with-overrides
+                                               stored (get-in parameters [:body :overrides]))]
+                                  (ok {:timeline (:timeline (recipes-api/save-timeline! db host url updated))}))
+                                (not-found {:reason "Missing"})))))}}]])
 
 (def reitit-recipe-labels-routes
   ["/recipe-labels" {:tags     ["recipe-labels"]
