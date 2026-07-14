@@ -66,6 +66,7 @@
 
 (deftest component-id-falls-back-to-ordinal-test
   (is (= "Section 1" (tl/component-id {:name nil :steps []} 0)))
+  (is (= "Section 2" (tl/component-id {:name "  " :steps []} 1)))
   (is (= "Salmon" (tl/component-id {:name "Salmon" :steps []} 0))))
 
 (deftest changed-ids-test
@@ -98,3 +99,27 @@
         out   (tl/with-overrides tline [{:phase "C/a" :minutes 4}])]
     (is (= [{:phase "C/a" :minutes 4}] (:overrides out)))
     (is (= 9 (:total-minutes out)))))
+
+(deftest assemble-trust-boundary-test
+  (let [content  {:title "R"
+                  :sections [{:name "Salmon" :ingredients [] :steps ["marinate" "sear"]}
+                             {:name "Rice"   :ingredients [] :steps ["rinse" "simmer"]}]}
+        stored   {:components
+                  [{:name "Salmon" :steps-hash "STALE"
+                    :phases [{:id "Salmon/cached" :label "cached" :kind "active" :steps [] :estimate 1 :deps []}]}
+                   {:name "Rice" :steps-hash "STALE"
+                    :phases [{:id "Rice/cached" :label "cached" :kind "active" :steps [] :estimate 1 :deps []}]}]}
+        proposal {:components
+                  [{:name "Salmon"
+                    :phases [{:id "Salmon/fresh" :label "fresh" :kind "active" :steps [] :estimate 2 :deps []}]}
+                   {:name "Rice"
+                    :phases [{:id "Rice/fresh" :label "fresh" :kind "active" :steps [] :estimate 2 :deps []}]}]}
+        out      (tl/assemble content proposal stored #{"Salmon"})
+        by-name  (into {} (map (juxt :name identity)) out)]
+    (testing "changed component takes the proposal's phases"
+      (is (= ["Salmon/fresh"] (mapv :id (:phases (by-name "Salmon"))))))
+    (testing "unchanged component keeps the CACHED phases (proposal ignored)"
+      (is (= ["Rice/cached"] (mapv :id (:phases (by-name "Rice"))))))
+    (testing "steps-hash is refreshed from current content, not the stale stored hash"
+      (is (= (tl/steps-hash ["marinate" "sear"]) (:steps-hash (by-name "Salmon"))))
+      (is (not= "STALE" (:steps-hash (by-name "Rice")))))))

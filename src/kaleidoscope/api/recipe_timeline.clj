@@ -49,9 +49,12 @@
      :total-minutes total}))
 
 (defn component-id
-  "A component's stable id (lane label): its :name, else 1-based ordinal."
+  "A component's stable id (lane label): its :name, else 1-based ordinal.
+  A nil, empty, or whitespace-only name falls back to the ordinal."
   [section index]
-  (or (not-empty (:name section)) (str "Section " (inc index))))
+  (if (str/blank? (:name section))
+    (str "Section " (inc index))
+    (:name section)))
 
 (defn steps-hash
   "Hex SHA-256 of a component's steps — the content fingerprint that decides
