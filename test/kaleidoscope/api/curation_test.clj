@@ -1,7 +1,13 @@
 (ns kaleidoscope.api.curation-test
   (:require [cheshire.core :as json]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.api.curation :as curation]
+            [kaleidoscope.api.interests :as interests-api]
+            [kaleidoscope.persistence.interests :as interests-persistence]
+            [kaleidoscope.persistence.projects :as projects-persistence]
+            [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.workflows.mock :as workflow-mock]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
 
@@ -83,3 +89,86 @@
     (is (= 6.0 (:relevance-threshold (curation/relevance-config "standard"))))
     (is (= 7.0 (:relevance-threshold (curation/relevance-config "rigorous"))))
     (is (= 6.0 (:relevance-threshold (curation/relevance-config nil))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Curation orchestration (mock executor)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def user-id "reader@example.com")
+
+(defn- make-interest!
+  [db & {:as taste-overrides}]
+  (interests-api/create-interest!
+   db user-id
+   {:intent        "Investigative journalism about technology and power"
+    :taste-profile (merge {:trusted-sources ["PBS Frontline" "The Hill"]
+                           :novelty-ratio   0.5
+                           :formats         ["article" "podcast"]}
+                          taste-overrides)}))
+
+(deftest seed-curation-workflow-test
+  (let [db (embedded-h2/fresh-db!)]
+    (curation/seed-curation-workflow! db user-id)
+    (let [wf (curation/get-curation-workflow db user-id)]
+      (testing "the Interest Curation workflow is live with clarify → discover steps"
+        (is (match? {:name   "Interest Curation"
+                     :status "live"
+                     :steps  [{:name "Refine Interest" :agent-type "librarian" :output-kind "clarify"}
+                              {:name "Discover Resources" :agent-type "librarian" :output-kind "text"}]}
+                    wf)))
+      (testing "re-seeding is idempotent"
+        (curation/seed-curation-workflow! db user-id)
+        (is (= (:id wf) (:id (curation/get-curation-workflow db user-id))))))))
+
+(deftest run-curation-shelves-with-novelty-split-test
+  (let [db       (embedded-h2/fresh-db!)
+        executor (workflow-mock/make-mock-executor)
+        interest (make-interest! db)
+        result   (curation/run-curation! db executor user-id (:id interest) {})]
+    (testing "the run completes and reports the finite shelf's composition"
+      (is (match? {:status  "completed"
+                   :summary {:total 6 :trusted 3 :novel 3}}
+                  result)))
+    (testing "shelved cards persist with a why rationale and origin tags"
+      (let [shelf (interests-api/get-shelf db user-id (:id interest) {:status "shelved"})]
+        (is (= 6 (count shelf)))
+        (is (every? (comp seq :why) shelf))
+        (is (= 3 (count (filter #(= "trusted" (:origin %)) shelf))))
+        (is (= 3 (count (filter #(= "novel" (:origin %)) shelf))))
+        (is (every? #(contains? #{"PBS Frontline" "The Hill"} (:source %))
+                    (filter #(= "trusted" (:origin %)) shelf)))))
+    (testing "below-threshold candidates are dropped (Noise Weekly scores 2.0 in the mock pool)"
+      (is (empty? (filter #(= "Noise Weekly" (:source %))
+                          (interests-api/get-shelf db user-id (:id interest) {})))))
+    (testing "the backing project description carries the taste-profile context for LLM prompts"
+      (is (str/includes?
+           (:description (projects-persistence/get-project db (:project-id interest) user-id))
+           "<taste_profile>")))))
+
+(deftest run-curation-ownership-test
+  (let [db       (embedded-h2/fresh-db!)
+        executor (workflow-mock/make-mock-executor)
+        interest (make-interest! db)]
+    (testing "a non-owner cannot curate someone else's interest"
+      (is (nil? (curation/run-curation! db executor "attacker@example.com" (:id interest) {}))))))
+
+(deftest re-curation-replaces-the-shelf-test
+  (let [db       (embedded-h2/fresh-db!)
+        executor (workflow-mock/make-mock-executor)
+        interest (make-interest! db)]
+    (curation/run-curation! db executor user-id (:id interest) {})
+    (curation/run-curation! db executor user-id (:id interest) {})
+    (testing "the shelf stays finite: the previous run's items are archived, not accumulated"
+      (is (= 6 (count (interests-api/get-shelf db user-id (:id interest) {:status "shelved"}))))
+      (is (= 6 (count (interests-api/get-shelf db user-id (:id interest) {:status "archived"})))))))
+
+(deftest run-curation-respects-shelf-size-and-scrutiny-test
+  (let [db       (embedded-h2/fresh-db!)
+        executor (workflow-mock/make-mock-executor)
+        interest (make-interest! db)
+        result   (curation/run-curation! db executor user-id (:id interest)
+                                         {:shelf-size 4 :scrutiny "rigorous"})]
+    (testing "shelf size is honored and rigorous threshold (7.0) drops the 6.x novel candidates"
+      (is (match? {:summary {:total 4 :trusted 2 :novel 2}} result))
+      (is (every? #(not (contains? #{"Asterisk Magazine" "The Browser" "Noise Weekly"} (:source %)))
+                  (interests-api/get-shelf db user-id (:id interest) {:status "shelved"}))))))
