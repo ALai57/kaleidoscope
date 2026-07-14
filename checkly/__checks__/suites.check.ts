@@ -18,7 +18,7 @@ const SUITES: Array<{
   { project: 'auth0-login',   name: 'The synthetic user can obtain an Auth0 access token.',                           frequency: 360,  locations: ['us-east-1'],              tags: ['no-spend'] },
   { project: 'articles',      name: 'Published articles can be listed and opened, and missing articles return 404.',  frequency: 360,  locations: ['us-east-1'],              tags: ['no-spend'] },
   { project: 'recipes',       name: 'Recipes can be created, labeled, read, and deleted, and their invariants hold.', frequency: 360,  locations: ['us-east-1'],              tags: ['no-spend'] },
-  { project: 'projects',      name: 'Authenticated users can create, read, update, and delete a project.',            frequency: 360,  locations: ['us-east-1'],              tags: ['no-spend'] },
+  { project: 'projects',      name: 'Authenticated users can create, read, update, and delete a project.',            frequency: 360,  locations: ['us-east-1'],              tags: ['spends'] },
   { project: 'scoring',       name: 'Scoring a project returns a score from Claude.',                                 frequency: 1440, locations: ['us-east-1'],              tags: ['spends'] },
 ]
 

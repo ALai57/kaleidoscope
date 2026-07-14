@@ -15,8 +15,10 @@ test.afterAll('Delete the synthetic project and score definition', async ({ requ
 })
 
 // Suite 8 — proves the whole AI scoring chain: key valid, model reachable,
-// scorer wired as `llm`, response parsed. Cost is bounded to ONE Claude call by
-// using a single-dimension definition.
+// scorer wired as `llm`, response parsed. The single-dimension definition bounds
+// only the EXPLICIT scoring call to one Claude call; project creation
+// (POST /projects) additionally fans out to default-definition scoring and the
+// default workflow, which is why this suite (and the projects suite) is tagged `spends`.
 test('Scoring a project returns a score from Claude', async ({ request }) => {
   await test.step('Create a synthetic project', async () => {
     const res = await request.post('/projects', {
@@ -28,7 +30,7 @@ test('Scoring a project returns a score from Claude', async ({ request }) => {
     expect(projectId).toBeTruthy()
   })
 
-  await test.step('Create a single-dimension score definition (bounds cost to one Claude call)', async () => {
+  await test.step('Create a single-dimension score definition (bounds the explicit scoring call to one Claude call)', async () => {
     const res = await request.post('/score-definitions', {
       headers,
       data: { name: `checkly-synthetic-scoredef-${Date.now()}`, dimensions: [{ name: 'Clarity', criteria: 'Is the project description clear?' }] },

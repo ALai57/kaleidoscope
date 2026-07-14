@@ -28,8 +28,9 @@ test('Recipes can be created, labeled, read, and deleted, and their invariants h
         'recipe-url': slug,
         content: {
           title: 'Checkly Synthetic Recipe',
-          ingredients: ['1 cup flour', '2 eggs'],
-          'instructions-html': '<ol><li>Mix</li><li>Bake</li></ol>',
+          sections: [
+            { ingredients: ['1 cup flour', '2 eggs'], steps: ['Mix', 'Bake'] },
+          ],
         },
         'public-visibility': true,
       },
@@ -44,7 +45,7 @@ test('Recipes can be created, labeled, read, and deleted, and their invariants h
     expect(res.status()).toBe(200)
     const recipe = await res.json()
     expect(recipe.content.title).toBe('Checkly Synthetic Recipe')
-    expect(recipe.content.ingredients).toContain('1 cup flour')
+    expect(recipe.content.sections[0].ingredients).toContain('1 cup flour')
   })
 
   await test.step('At most one label from a group can apply to a recipe', async () => {
