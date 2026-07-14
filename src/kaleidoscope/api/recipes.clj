@@ -293,22 +293,26 @@
       (get-recipe tx hostname recipe-url))))
 
 (defn update-recipe!
-  "Update a recipe's editable fields (content, source-url, visibility) and its
-  label set, scoped to hostname. Never touches `:original-content`. Returns nil
-  if no recipe with that slug exists for the tenant."
-  [db hostname recipe-url {:keys [content source-url public-visibility label-ids] :as patch}]
+  "Update a recipe's editable fields (content, recipe-url, source-url, visibility)
+  and its label set, scoped to hostname. Never touches `:original-content`.
+  Renaming `:recipe-url` changes the address, not identity. Returns nil if no
+  recipe with that slug exists for the tenant."
+  [db hostname recipe-url {:keys [content source-url public-visibility label-ids]
+                           new-url :recipe-url :as patch}]
   (log/infof "Updating recipe %s for %s" recipe-url hostname)
   (next/with-transaction [tx db]
     (if-let [{:keys [id]} (get-recipe tx hostname recipe-url)]
-      (let [labels (validate-label-set! tx label-ids hostname)
-            set-map (cond-> {:modified-at (utils/now)}
-                      (contains? patch :content)           (assoc :content content)
-                      (contains? patch :source-url)        (assoc :source-url source-url)
-                      (contains? patch :public-visibility) (assoc :public-visibility (boolean public-visibility)))]
+      (let [labels        (validate-label-set! tx label-ids hostname)
+            effective-url (if (contains? patch :recipe-url) new-url recipe-url)
+            set-map       (cond-> {:modified-at (utils/now)}
+                            (contains? patch :content)           (assoc :content content)
+                            (contains? patch :recipe-url)        (assoc :recipe-url new-url)
+                            (contains? patch :source-url)        (assoc :source-url source-url)
+                            (contains? patch :public-visibility) (assoc :public-visibility (boolean public-visibility)))]
         (rdbms/scoped-update! tx :recipes {:id id :hostname hostname} set-map)
         (when (contains? patch :label-ids)
           (replace-label-assignments! tx id hostname labels))
-        (get-recipe tx hostname recipe-url))
+        (get-recipe tx hostname effective-url))
       (do (log/warnf "No recipe %s for %s" recipe-url hostname)
           nil))))
 

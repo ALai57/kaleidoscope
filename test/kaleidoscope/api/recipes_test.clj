@@ -86,6 +86,16 @@
     (recipes/delete-recipe! db host "chana-masala")
     (is (nil? (recipes/get-recipe db host "chana-masala")))))
 
+(deftest rename-recipe-url-test
+  (let [db (embedded-pg/fresh-db!)]
+    (recipes/create-recipe! db (example-recipe))
+    (testing "renaming the slug returns the recipe at its new address"
+      (is (match? {:recipe-url "chana-masala-v2" :content example-content}
+                  (recipes/update-recipe! db host "chana-masala" {:recipe-url "chana-masala-v2"}))))
+    (testing "old slug no longer resolves; new one does; identity is preserved"
+      (is (nil? (recipes/get-recipe db host "chana-masala")))
+      (is (match? {:recipe-url "chana-masala-v2"} (recipes/get-recipe db host "chana-masala-v2"))))))
+
 (deftest create-recipe-links-to-processing-run-test
   (let [db (embedded-pg/fresh-db!)
         {raw-id :id} (pipeline-db/create-raw-scrape!
