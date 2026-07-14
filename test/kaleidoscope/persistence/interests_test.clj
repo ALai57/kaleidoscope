@@ -1,10 +1,12 @@
 (ns kaleidoscope.persistence.interests-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
+            [kaleidoscope.persistence.interests :as interests-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.utils.core :as utils]
             [matcher-combinators.test :refer [match?]]
+            [next.jdbc :as next]
             [taoensso.timbre :as log]))
 
 (use-fixtures :once
@@ -46,3 +48,46 @@
                                            :est-time    "18 min"
                                            :why         "Directly on your stated intent."
                                            :added-at    now}))))))))
+
+(deftest interest-crud-test
+  (let [db       (embedded-h2/fresh-db!)
+        user-id  "reader@example.com"
+        interest (interests-persistence/create-interest!
+                  db {:user-id       user-id
+                      :intent        "Long-form journalism about technology and power"
+                      :taste-profile {:trusted-sources ["PBS Frontline" "The Hill"]
+                                      :novelty-ratio   0.5}})]
+    (testing "create-interest! returns the interest with a backing project"
+      (is (match? {:user-id       user-id
+                   :intent        "Long-form journalism about technology and power"
+                   :taste-profile {:novelty-ratio 0.5}}
+                  interest))
+      (is (uuid? (:project-id interest)))
+      (is (some? (projects-persistence/get-project db (:project-id interest) user-id))))
+
+    (testing "get-interest is scoped to the owner"
+      (is (match? {:id (:id interest)} (interests-persistence/get-interest db (:id interest) user-id)))
+      (is (nil? (interests-persistence/get-interest db (:id interest) "attacker@example.com"))))
+
+    (testing "get-interests lists only the user's interests"
+      (is (= 1 (count (interests-persistence/get-interests db user-id))))
+      (is (empty? (interests-persistence/get-interests db "attacker@example.com"))))
+
+    (testing "get-interest-by-project-id resolves the backing project"
+      (is (match? {:id (:id interest)}
+                  (interests-persistence/get-interest-by-project-id db (:project-id interest)))))
+
+    (testing "update-interest! merges nothing implicitly — it sets what it is given, scoped to owner"
+      (is (nil? (interests-persistence/update-interest! db (:id interest) "attacker@example.com"
+                                                        {:intent "hijacked"})))
+      (is (match? {:intent        "Refined intent"
+                   :taste-profile {:novelty-ratio 1.0}}
+                  (interests-persistence/update-interest! db (:id interest) user-id
+                                                          {:intent        "Refined intent"
+                                                           :taste-profile {:novelty-ratio 1.0}}))))
+
+    (testing "delete-interest! is scoped and tears down the backing project"
+      (is (nil? (interests-persistence/delete-interest! db (:id interest) "attacker@example.com")))
+      (is (some? (interests-persistence/delete-interest! db (:id interest) user-id)))
+      (is (nil? (interests-persistence/get-interest db (:id interest) user-id)))
+      (is (nil? (projects-persistence/get-project db (:project-id interest) user-id))))))
