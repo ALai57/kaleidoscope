@@ -97,12 +97,18 @@
 
 (defn ->h2-param
   "Match hsql-upsert's value coercion so scoped statements behave the same
-  way as the existing upsert path on this H2 compatibility mode."
+  way as the existing upsert path on this H2 compatibility mode. Maps and
+  vectors are passed through unchanged (rather than pre-encoded to a JSON
+  string) so the shared `SettableParameter` protocol extensions dispatch to
+  `handle-map`, which stores them via `ValueJson` — the same trick
+  `insert-impl!` relies on to avoid double-encoding JSON columns on H2. If
+  hsql-upsert's own map coercion (used by non-scoped `update!`) ever needs
+  the same fix, this is the pattern to follow."
   [v]
   (cond
-    (nil? v) nil
-    (map? v) (json/encode v)
-    :else    (str v)))
+    (nil? v)                  nil
+    (or (map? v) (vector? v) (seq? v)) v
+    :else                     (str v)))
 
 (defn hsql-scoped-update
   "A plain (non-upsert) UPDATE scoped by an arbitrary where-map, returning the
