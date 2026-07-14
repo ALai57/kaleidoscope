@@ -18,6 +18,45 @@
    [:prep-time-minutes {:optional true} [:maybe :int]]
    [:cook-time-minutes {:optional true} [:maybe :int]]])
 
+;; ---- Cook timeline (derived; see recipe-cook-timeline DESIGN.md) ----
+
+(def Phase
+  [:map
+   [:id       :string]                 ;; "{component-id}/{label}"
+   [:label    :string]                 ;; unique within its component
+   [:kind     [:enum "active" "passive"]]
+   [:steps    [:sequential :int]]      ;; indices into the component's steps
+   [:estimate :int]                    ;; LLM minutes
+   [:deps     [:sequential :string]]   ;; phase ids this phase waits on
+   [:start    {:optional true} [:maybe :int]]]) ;; packer output (minutes from t0)
+
+(def TimelineComponent
+  [:map
+   [:name       :string]               ;; the component-id (lane label)
+   [:steps-hash :string]
+   [:phases     [:sequential Phase]]])
+
+;; java.lang.Override is auto-imported into every ns; unmap it so this name
+;; is free for our schema var instead.
+(ns-unmap *ns* 'Override)
+
+(def Override
+  [:map
+   [:phase   :string]                  ;; a Phase :id
+   [:minutes :int]])
+
+(def Timeline
+  [:map
+   [:version           :int]
+   [:generator-version :int]
+   [:generated-at      some?]
+   [:total-minutes     :int]
+   [:overrides         [:sequential Override]]
+   [:components        [:sequential TimelineComponent]]])
+
+(def TimelineOverridesRequest
+  [:map [:overrides [:sequential Override]]])
+
 (def RawScrape
   ;; Validated before persistence. Fetch fields are nullable so a pre-fetch
   ;; failure (url) or a photo import still records source-kind + hostname.
@@ -70,7 +109,8 @@
    [:public-visibility :boolean]
    [:created-at        some?]
    [:modified-at       some?]
-   [:scrape-processing-run-id {:optional true} [:maybe :uuid]]])
+   [:scrape-processing-run-id {:optional true} [:maybe :uuid]]
+   [:timeline {:optional true} [:maybe Timeline]]])
 
 (def CreateRecipeRequest
   [:map
