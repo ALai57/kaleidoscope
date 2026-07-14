@@ -322,6 +322,35 @@
                                           :scrape-processing-run-id run-id}}
                       (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))))
 
+(deftest lineage-llm-calls-survive-response-coercion-http-test
+  ;; Regression: `LlmCall`'s :request/:response must pass through reitit's
+  ;; strip-extra-keys response coercion intact. A bare `:map` schema has no
+  ;; declared entries, so coercion would empty both to `{}` over HTTP even
+  ;; though the DB row stores the full bodies.
+  (let [app (make-app "custom-authenticated-user"
+                      {"KALEIDOSCOPE_WORKFLOW_EXECUTOR_TYPE" "llm"
+                       "ANTHROPIC_API_KEY"                   "sk-test"})]
+    (with-redefs [recipes-http/multipart-images
+                  (fn [_] [{:content-type "image/jpeg" :bytes (.getBytes "img")}])
+                  llm/post-anthropic-sync
+                  (fn [_ _] {:content [{:text "{\"title\":\"Chana Masala\",\"sections\":[{\"name\":null,\"ingredients\":[\"2 cups chickpeas\"],\"steps\":[\"Cook\"]}],\"suggested_labels\":[]}"}]})]
+      (let [{scrape-body :body} (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))
+            run-id (:scrape-processing-run-id scrape-body)]
+        (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                 as-writer
+                 (mock/json-body {:content (:recipe scrape-body)
+                                  :public-visibility true
+                                  :scrape-processing-run-id run-id})))
+        (testing "the lineage endpoint returns fully-populated llm-call request/response bodies"
+          (is (match? {:status 200
+                       :body   {:run {:llm-calls [{:purpose  "parse"
+                                                   :model    string?
+                                                   :request  {:model    string?
+                                                              :messages vector?}
+                                                   :response {:content vector?}}]}}}
+                      (app (-> (mock/request :get "https://andrewslai.com/recipes/chana-masala/lineage")
+                               as-writer)))))))))
+
 (deftest import-lineage-http-test
   (let [app (make-app "custom-authenticated-user")]
     (with-redefs [scraper/fetch-direct (fn [_] {:raw-html json-ld-html

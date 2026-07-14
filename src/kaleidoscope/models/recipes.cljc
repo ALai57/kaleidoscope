@@ -103,12 +103,15 @@
 
 (def LlmCall
   ;; A stored Anthropic call. `purpose` round-trips from JSONB as a string;
-  ;; request/response are stored verbatim, so they stay opaque maps here.
+  ;; request/response are stored verbatim. They must stay opaque *and* survive
+  ;; response coercion: a bare `:map` has no declared entries, so the router's
+  ;; strip-extra-keys transformer empties it to `{}`. `:map-of` isn't subject to
+  ;; that stripping, so the full bodies pass through intact.
   [:map
    [:purpose  some?]
    [:model    :string]
-   [:request  :map]
-   [:response :map]])
+   [:request  [:map-of :any :any]]
+   [:response [:map-of :any :any]]])
 
 (def RecipeLineage
   ;; Read-only view assembled from processing_runs + raw_scrapes for one recipe.
