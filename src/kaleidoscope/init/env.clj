@@ -19,6 +19,8 @@
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
             [kaleidoscope.workflows.mock :as workflow-mock]
             [kaleidoscope.workflows.llm-executor :as llm-executor]
+            [kaleidoscope.timeline.mock :as timeline-mock]
+            [kaleidoscope.timeline.llm-generator :as timeline-llm]
             [kaleidoscope.utils.versioning :as vu]
             [malli.core :as m]
             [malli.dev.pretty :as pretty]
@@ -300,6 +302,16 @@
                                           {:api-key (get env "GOOGLE_VISION_API_KEY")}))}
    :default   "mock"})
 
+(def kaleidoscope-timeline-generator-boot-instructions
+  "Cook-timeline segmentation. `mock` (default) returns deterministic phases for
+  local dev / tests. `llm` segments via Claude (needs ANTHROPIC_API_KEY)."
+  {:name      :kaleidoscope-timeline-generator
+   :path      "KALEIDOSCOPE_TIMELINE_GENERATOR_TYPE"
+   :launchers {"mock" (fn [_env] (timeline-mock/make-mock-generator))
+               "llm"  (fn [env] (timeline-llm/make-llm-generator
+                                 {:api-key (get env "ANTHROPIC_API_KEY")}))}
+   :default   "mock"})
+
 (def exception-reporter-boot-instructions
   {:name      :exception-reporter
    :path      "KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE"
@@ -326,7 +338,8 @@
    kaleidoscope-scorer-boot-instructions
    kaleidoscope-workflow-executor-boot-instructions
    kaleidoscope-recipe-fetcher-boot-instructions
-   kaleidoscope-image-transcriber-boot-instructions])
+   kaleidoscope-image-transcriber-boot-instructions
+   kaleidoscope-timeline-generator-boot-instructions])
 
 (def BootInstruction
   [:map
@@ -372,7 +385,8 @@
            kaleidoscope-scorer
            kaleidoscope-workflow-executor
            kaleidoscope-recipe-fetcher
-           kaleidoscope-image-transcriber]
+           kaleidoscope-image-transcriber
+           kaleidoscope-timeline-generator]
     :as   system}]
   {:database                database-connection
    :exception-reporter      (partial er/report! exception-reporter)
@@ -386,7 +400,8 @@
    :scorer                  kaleidoscope-scorer
    :workflow-executor       kaleidoscope-workflow-executor
    :recipe-fetcher          kaleidoscope-recipe-fetcher
-   :image-transcriber       kaleidoscope-image-transcriber})
+   :image-transcriber       kaleidoscope-image-transcriber
+   :timeline-generator      kaleidoscope-timeline-generator})
 
 (defn make-http-handler
   [system]
