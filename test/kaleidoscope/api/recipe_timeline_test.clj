@@ -123,3 +123,38 @@
     (testing "steps-hash is refreshed from current content, not the stale stored hash"
       (is (= (tl/steps-hash ["marinate" "sear"]) (:steps-hash (by-name "Salmon"))))
       (is (not= "STALE" (:steps-hash (by-name "Rice")))))))
+
+(require '[kaleidoscope.timeline.mock :as mock])
+
+(deftest generate!-first-time-test
+  (let [tline (tl/generate! {:generator (mock/make-mock-generator)
+                             :content content-a :stored nil
+                             :generator-version 1 :now "t0"})]
+    (testing "blob shape + packed"
+      (is (match? {:version 1 :generator-version 1 :generated-at "t0" :overrides []}
+                  tline))
+      (is (= ["Salmon" "Rice"] (mapv :name (:components tline))))
+      (is (every? (fn [c] (every? #(some? (:start %)) (:phases c))) (:components tline))))))
+
+(deftest generate!-short-circuits-when-unchanged-test
+  (let [stored (tl/generate! {:generator (mock/make-mock-generator)
+                              :content content-a :stored nil
+                              :generator-version 1 :now "t0"})]
+    (testing "no changes + current version ⇒ returns stored untouched (no regen)"
+      (is (identical? stored (tl/generate! {:generator (reify kaleidoscope.timeline.protocol/ITimelineGenerator
+                                                         (segment [_ _ _ _] (throw (ex-info "should not run" {}))))
+                                            :content content-a :stored stored
+                                            :generator-version 1 :now "t1"}))))))
+
+(deftest generate!-keeps-override-on-unchanged-component-test
+  (let [gen    (mock/make-mock-generator)
+        base   (tl/generate! {:generator gen :content content-a :stored nil
+                              :generator-version 1 :now "t0"})
+        nudged (tl/with-overrides base [{:phase "Rice/Rice" :minutes 40}])
+        edited (assoc-in content-a [:sections 0 :steps] ["marinate" "sear" "rest"])
+        regen  (tl/generate! {:generator gen :content edited :stored nudged
+                              :generator-version 1 :now "t2"})]
+    (testing "editing Salmon regenerates only Salmon; Rice override survives"
+      (is (= [{:phase "Rice/Rice" :minutes 40}] (:overrides regen)))
+      ;; Salmon re-estimated: 3 steps ⇒ 2 + 3*3 = 11
+      (is (= 11 (->> regen :components (filter #(= "Salmon" (:name %))) first :phases first :estimate))))))

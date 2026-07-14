@@ -2,7 +2,8 @@
   "Cook-timeline domain logic: pure scheduling + fingerprint/merge, plus the
   `generate!` orchestration over a pluggable timeline generator. No HTTP; no SQL
   beyond what callers pass in. See plans/2026-07-14-recipe-cook-timeline/DESIGN.md."
-  (:require [clojure.string :as str])
+  (:require [clojure.string :as str]
+            [kaleidoscope.timeline.protocol :as protocol])
   (:import [java.security MessageDigest]))
 
 (defn- topo-sort
@@ -122,3 +123,27 @@
            :overrides (vec overrides)
            :components (:components packed)
            :total-minutes (:total-minutes packed))))
+
+(def default-generator-version 1)
+
+(defn generate!
+  "(Re)generate a recipe's timeline. Per-component: unchanged components keep
+  their cached phases (the generator's re-segmentation of them is discarded);
+  changed components get fresh phases and lose their overrides. Short-circuits
+  when nothing changed and the generator-version is current."
+  [{:keys [generator content stored generator-version now]}]
+  (let [changed (changed-ids content stored)]
+    (if (and (empty? changed)
+             stored
+             (= generator-version (:generator-version stored)))
+      stored
+      (let [proposal   (protocol/segment generator {:content content} changed (:components stored))
+            components  (-> (assemble content proposal stored changed) resolve-deps)
+            overrides   (surviving-overrides stored changed)
+            packed      (pack components overrides)]
+        {:version           1
+         :generator-version generator-version
+         :generated-at      now
+         :total-minutes     (:total-minutes packed)
+         :overrides         (vec overrides)
+         :components        (:components packed)}))))
