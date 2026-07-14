@@ -2,6 +2,7 @@
   (:require [cheshire.core :as json]
             [clojure.set :as set]
             [clojure.string :as str]
+            [kaleidoscope.api.interests :as interests-api]
             [kaleidoscope.api.workflows :as workflows-api]
             [kaleidoscope.persistence.interests :as interests-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
@@ -217,3 +218,34 @@
             run    (workflows-persistence/create-workflow-run!
                     db (:project-id interest) (:id wf) "autonomous" config)]
         (advance-and-shelve! db executor user-id interest-id (:id run))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Clarify answers: fold into the taste profile, then resume
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn respond-to-curation-step!
+  "Handle a user's answers to a curation clarify step. Unlike the generic
+  workflows respond path (which appends answers to project.description and
+  resumes in a background future), this folds the answers into the interest's
+  editable taste profile, re-syncs the backing project, and resumes the run
+  synchronously through to shelving so the caller gets the shelf summary.
+  Returns nil unless the interest is owned, the run belongs to the interest's
+  backing project, and the step is awaiting input on that run."
+  [db executor user-id interest-id run-id step-run-id answers]
+  (span/with-span! {:name "kaleidoscope.curation.respond"}
+    (when-let [interest (interests-persistence/get-interest db interest-id user-id)]
+      (when-let [run (workflows-persistence/get-workflow-run db run-id)]
+        (when (= (:project-id run) (:project-id interest))
+          (let [step-run (workflows-persistence/get-step-run db step-run-id)]
+            (when (and step-run
+                       (= run-id (:workflow-run-id step-run))
+                       (= "awaiting_input" (:status step-run)))
+              (interests-api/fold-refinement! db user-id interest-id answers)
+              (sync-backing-project! db (interests-persistence/get-interest db interest-id user-id))
+              (workflows-persistence/update-step-run! db step-run-id
+                                                      {:status       "completed"
+                                                       :completed-at (utils/now)})
+              (workflows-persistence/update-workflow-run! db run-id
+                                                          {:status       "in_progress"
+                                                           :current-step (inc (:current-step run))})
+              (advance-and-shelve! db executor user-id interest-id run-id))))))))

@@ -7,6 +7,7 @@
             [kaleidoscope.persistence.interests :as interests-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.workflows :as workflows-persistence]
             [kaleidoscope.workflows.mock :as workflow-mock]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
@@ -172,3 +173,81 @@
       (is (match? {:summary {:total 4 :trusted 2 :novel 2}} result))
       (is (every? #(not (contains? #{"Asterisk Magazine" "The Browser" "Noise Weekly"} (:source %)))
                   (interests-api/get-shelf db user-id (:id interest) {:status "shelved"}))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Clarify answers: fold into taste profile, then resume
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- paused-curation-run!
+  "Create a curation run whose clarify step is awaiting input. The mock
+  planner always reports ready, so pause the step manually to exercise the
+  respond path deterministically."
+  [db interest]
+  (curation/seed-curation-workflow! db user-id)
+  (let [wf   (curation/get-curation-workflow db user-id)
+        run  (workflows-persistence/create-workflow-run!
+              db (:project-id interest) (:id wf) "autonomous"
+              (assoc (curation/relevance-config nil) :shelf-size 6))
+        step (->> (:steps run) (filter #(= "Refine Interest" (:name %))) first)]
+    (workflows-persistence/update-step-run!
+     db (:id step) {:status "awaiting_input"
+                    :output (json/encode {:reply "Which beats matter most to you?"})})
+    (workflows-persistence/update-workflow-run! db (:id run) {:status "awaiting_input"})
+    {:run run :step step}))
+
+(deftest respond-to-curation-step-folds-answers-and-resumes-test
+  (let [db         (embedded-h2/fresh-db!)
+        executor   (workflow-mock/make-mock-executor)
+        interest   (make-interest! db)
+        {:keys [run step]} (paused-curation-run! db interest)
+        result     (curation/respond-to-curation-step!
+                    db executor user-id (:id interest) (:id run) (:id step)
+                    ["Prefer primary reporting over commentary"])]
+    (testing "the answer is folded into the taste profile's refinements"
+      (is (match? {:taste-profile {:refinements ["Prefer primary reporting over commentary"]}}
+                  (interests-api/get-interest db user-id (:id interest)))))
+    (testing "the run resumes through discovery and shelves synchronously"
+      (is (match? {:status "completed" :summary {:total 6}} result)))
+    (testing "the clarify step is completed, not re-runnable"
+      (is (match? {:status "completed"}
+                  (workflows-persistence/get-step-run db (:id step)))))))
+
+(deftest respond-to-curation-step-guards-test
+  (let [db       (embedded-h2/fresh-db!)
+        executor (workflow-mock/make-mock-executor)
+        interest (make-interest! db)
+        {:keys [run step]} (paused-curation-run! db interest)]
+    (testing "non-owners get nil"
+      (is (nil? (curation/respond-to-curation-step!
+                 db executor "attacker@example.com" (:id interest) (:id run) (:id step) ["x"]))))
+    (testing "a run that doesn't belong to the interest gets nil"
+      (let [other (make-interest! db)]
+        (is (nil? (curation/respond-to-curation-step!
+                   db executor user-id (:id other) (:id run) (:id step) ["x"])))))
+    (testing "a step that isn't awaiting input gets nil"
+      (workflows-persistence/update-step-run! db (:id step) {:status "completed"})
+      (is (nil? (curation/respond-to-curation-step!
+                 db executor user-id (:id interest) (:id run) (:id step) ["x"]))))))
+
+(deftest taste-profile-retune-changes-composition-test
+  (let [db       (embedded-h2/fresh-db!)
+        executor (workflow-mock/make-mock-executor)
+        interest (make-interest! db)]
+    (testing "novelty 1.0 — the next shelf is entirely novel"
+      (interests-api/update-interest! db user-id (:id interest)
+                                      {:taste-profile {:novelty-ratio 1.0}})
+      (is (match? {:summary {:total 6 :trusted 0 :novel 6}}
+                  (curation/run-curation! db executor user-id (:id interest) {}))))
+    (testing "novelty 0.0 — the next shelf is entirely trusted"
+      (interests-api/update-interest! db user-id (:id interest)
+                                      {:taste-profile {:novelty-ratio 0.0}})
+      (is (match? {:summary {:total 6 :trusted 6 :novel 0}}
+                  (curation/run-curation! db executor user-id (:id interest) {}))))
+    (testing "shrinking the allowlist changes what counts as trusted"
+      (interests-api/update-interest! db user-id (:id interest)
+                                      {:taste-profile {:novelty-ratio   0.0
+                                                       :trusted-sources ["The Hill"]}})
+      (let [result (curation/run-curation! db executor user-id (:id interest) {})]
+        ;; only 3 mock candidates come from the single trusted source; the
+        ;; rest of the shelf backfills from novel candidates
+        (is (match? {:summary {:total 6 :trusted 3 :novel 3}} result))))))
