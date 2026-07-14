@@ -10,6 +10,9 @@ log.txt
 node_modules
 package-lock.json
 package.json
+# checkly/ is a real (checked-in) npm project — track its manifest/lockfile.
+!checkly/package.json
+!checkly/package-lock.json
 resources/public/js/compiled/
 resources/public/js/test/
 *eb-default-vpc.json
