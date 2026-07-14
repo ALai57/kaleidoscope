@@ -1,0 +1,1004 @@
+<meta charset="utf-8">
+<title>Stacks — a personal recommender</title>
+<style>
+  :root {
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Code", monospace;
+
+    --paper: #e7e6df;
+    --paper-2: #efeee8;
+    --paper-3: #f4f3ee;
+    --ink: #1b1d24;
+    --ink-2: #55565f;
+    --ink-3: #83848c;
+    --line: rgba(27, 29, 36, .14);
+    --line-2: rgba(27, 29, 36, .07);
+    --trust: #2e3a63;
+    --trust-soft: rgba(46, 58, 99, .12);
+    --novel: #a2661e;
+    --novel-soft: rgba(162, 102, 30, .13);
+    --shadow: 0 1px 2px rgba(27, 29, 36, .06), 0 6px 20px rgba(27, 29, 36, .05);
+    --focus: #2e3a63;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #131418;
+      --paper-2: #1b1d22;
+      --paper-3: #22242b;
+      --ink: #e9e7de;
+      --ink-2: #a3a3a9;
+      --ink-3: #74757c;
+      --line: rgba(233, 231, 222, .13);
+      --line-2: rgba(233, 231, 222, .06);
+      --trust: #97a5da;
+      --trust-soft: rgba(151, 165, 218, .15);
+      --novel: #d6a05b;
+      --novel-soft: rgba(214, 160, 91, .15);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .35);
+      --focus: #97a5da;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #e7e6df; --paper-2: #efeee8; --paper-3: #f4f3ee;
+    --ink: #1b1d24; --ink-2: #55565f; --ink-3: #83848c;
+    --line: rgba(27, 29, 36, .14); --line-2: rgba(27, 29, 36, .07);
+    --trust: #2e3a63; --trust-soft: rgba(46, 58, 99, .12);
+    --novel: #a2661e; --novel-soft: rgba(162, 102, 30, .13);
+    --shadow: 0 1px 2px rgba(27, 29, 36, .06), 0 6px 20px rgba(27, 29, 36, .05);
+    --focus: #2e3a63;
+  }
+  :root[data-theme="dark"] {
+    --paper: #131418; --paper-2: #1b1d22; --paper-3: #22242b;
+    --ink: #e9e7de; --ink-2: #a3a3a9; --ink-3: #74757c;
+    --line: rgba(233, 231, 222, .13); --line-2: rgba(233, 231, 222, .06);
+    --trust: #97a5da; --trust-soft: rgba(151, 165, 218, .15);
+    --novel: #d6a05b; --novel-soft: rgba(214, 160, 91, .15);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .35);
+    --focus: #97a5da;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--trust-soft); }
+  a { color: inherit; }
+  button { font-family: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- Masthead ---------- */
+  .masthead {
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .masthead-inner {
+    display: flex; align-items: center; gap: 22px;
+    padding: 16px 24px; max-width: 1180px; margin: 0 auto;
+  }
+  .wordmark { display: flex; align-items: baseline; gap: 12px; }
+  .wordmark h1 {
+    font-family: var(--serif);
+    font-size: 25px; font-weight: 600; letter-spacing: -.01em;
+    margin: 0; line-height: 1;
+  }
+  .wordmark .tag {
+    font-family: var(--mono);
+    font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ink-3); border-left: 1px solid var(--line); padding-left: 12px;
+  }
+  .nav { display: flex; gap: 4px; margin-left: auto; }
+  .nav button {
+    background: none; border: 1px solid transparent; color: var(--ink-2);
+    font-size: 13px; padding: 7px 13px; border-radius: 7px; font-weight: 500;
+    transition: background .15s, color .15s;
+  }
+  .nav button:hover { background: var(--paper-2); color: var(--ink); }
+  .nav button[aria-current="true"] { background: var(--ink); color: var(--paper); }
+  .icon-btn {
+    background: none; border: 1px solid var(--line); color: var(--ink-2);
+    width: 34px; height: 34px; border-radius: 8px; font-size: 15px;
+    display: grid; place-items: center; transition: background .15s;
+  }
+  .icon-btn:hover { background: var(--paper-2); color: var(--ink); }
+  .new-btn {
+    background: var(--trust); color: #fff; border: none;
+    font-size: 13px; font-weight: 600; padding: 8px 15px; border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  :root[data-theme="dark"] .new-btn, .new-btn { color: #fff; }
+  @media (prefers-color-scheme: dark) { .new-btn { color: #10131c; } }
+  :root[data-theme="dark"] .new-btn { color: #10131c; }
+  :root[data-theme="light"] .new-btn { color: #fff; }
+  .new-btn:hover { filter: brightness(1.08); }
+
+  /* ---------- Layout ---------- */
+  .layout {
+    display: grid; grid-template-columns: 264px 1fr; gap: 34px;
+    padding: 30px 24px 80px; max-width: 1180px; margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; gap: 20px; } }
+
+  /* ---------- Rail ---------- */
+  .rail-label {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-3); margin: 2px 0 12px 4px;
+  }
+  .shelf-list { display: flex; flex-direction: column; gap: 4px; }
+  .shelf-item {
+    text-align: left; width: 100%; background: none; border: 1px solid transparent;
+    border-radius: 10px; padding: 11px 13px; display: flex; flex-direction: column; gap: 5px;
+    transition: background .15s, border-color .15s;
+  }
+  .shelf-item:hover { background: var(--paper-2); }
+  .shelf-item[aria-current="true"] {
+    background: var(--paper-2); border-color: var(--line);
+  }
+  .shelf-item .name {
+    font-family: var(--serif); font-size: 16px; color: var(--ink); line-height: 1.25;
+  }
+  .shelf-item .meta {
+    display: flex; align-items: center; gap: 9px;
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+  }
+  .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--ink-3); }
+  .mix-mini { height: 4px; border-radius: 2px; overflow: hidden; display: flex; margin-top: 3px; background: var(--line-2); }
+  .mix-mini .t { background: var(--trust); }
+  .mix-mini .n { background: var(--novel); }
+
+  .rail-note {
+    margin-top: 18px; padding: 13px; border: 1px dashed var(--line);
+    border-radius: 10px; font-size: 12px; color: var(--ink-2); line-height: 1.55;
+  }
+  .rail-note b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Main ---------- */
+  .view { min-width: 0; }
+  .interest-head { margin-bottom: 22px; }
+  .interest-head .kicker {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px;
+  }
+  .interest-head h2 {
+    font-family: var(--serif); font-weight: 600; font-size: 30px; letter-spacing: -.015em;
+    margin: 0 0 8px; line-height: 1.1; text-wrap: balance;
+  }
+  .interest-head .intent {
+    font-family: var(--serif); font-size: 16.5px; color: var(--ink-2);
+    max-width: 62ch; line-height: 1.5; font-style: italic;
+  }
+  .stat-row {
+    display: flex; flex-wrap: wrap; gap: 22px; margin-top: 16px;
+    padding-top: 15px; border-top: 1px solid var(--line);
+  }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat .n { font-family: var(--mono); font-size: 18px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 11px; color: var(--ink-3); letter-spacing: .02em; }
+
+  /* ---------- Chips ---------- */
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 20px 0 18px; }
+  .chip {
+    background: var(--paper-2); border: 1px solid var(--line); color: var(--ink-2);
+    font-size: 12px; padding: 5px 11px; border-radius: 20px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px; transition: all .14s;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--ink-3); }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .chip.trust[aria-pressed="true"] { background: var(--trust); border-color: var(--trust); color: #fff; }
+  .chip.novel[aria-pressed="true"] { background: var(--novel); border-color: var(--novel); color: #fff; }
+  @media (prefers-color-scheme: dark) {
+    .chip.trust[aria-pressed="true"], .chip.novel[aria-pressed="true"] { color: #14151a; }
+  }
+  :root[data-theme="dark"] .chip.trust[aria-pressed="true"],
+  :root[data-theme="dark"] .chip.novel[aria-pressed="true"] { color: #14151a; }
+  :root[data-theme="light"] .chip.trust[aria-pressed="true"],
+  :root[data-theme="light"] .chip.novel[aria-pressed="true"] { color: #fff; }
+
+  /* ---------- Cards ---------- */
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 17px; display: flex; flex-direction: column; gap: 11px;
+    position: relative; transition: transform .16s, box-shadow .16s, border-color .16s;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--ink-3); }
+  .card-top { display: flex; align-items: center; gap: 10px; }
+  .callno {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .06em; font-weight: 600;
+    color: var(--ink-2); border: 1px solid var(--line); border-radius: 5px;
+    padding: 3px 6px; background: var(--paper-3);
+  }
+  .src { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .tag {
+    margin-left: auto; font-family: var(--mono); font-size: 9.5px; letter-spacing: .05em;
+    text-transform: uppercase; padding: 3px 7px; border-radius: 20px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .tag.trusted { background: var(--trust-soft); color: var(--trust); }
+  .tag.novel { background: var(--novel-soft); color: var(--novel); }
+  .tag .tdot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .card h3 {
+    font-family: var(--serif); font-weight: 600; font-size: 18.5px; line-height: 1.22;
+    margin: 0; letter-spacing: -.01em; text-wrap: balance;
+  }
+  .why {
+    font-size: 13px; color: var(--ink-2); line-height: 1.5; display: flex; gap: 8px;
+  }
+  .why::before {
+    content: "why"; font-family: var(--mono); font-size: 9px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--line);
+    border-radius: 4px; padding: 2px 4px; height: fit-content; margin-top: 1px; flex-shrink: 0;
+  }
+  .card-foot {
+    display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 4px;
+    font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+  }
+  .card-foot .time { font-variant-numeric: tabular-nums; }
+  .card-actions { margin-left: auto; display: flex; gap: 4px; }
+  .card-actions button {
+    background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--ink-2);
+    font-size: 11px; padding: 4px 9px; font-family: var(--sans); transition: all .14s;
+  }
+  .card-actions button:hover { background: var(--paper-3); color: var(--ink); border-color: var(--ink-3); }
+
+  .empty { padding: 40px; text-align: center; color: var(--ink-3); font-style: italic; font-family: var(--serif); }
+
+  /* ---------- Acquisitions ---------- */
+  .panel {
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 14px; padding: 22px;
+  }
+  .panel + .panel { margin-top: 16px; }
+  .panel-title {
+    font-family: var(--serif); font-size: 20px; font-weight: 600; margin: 0 0 4px;
+  }
+  .panel-sub { font-size: 13px; color: var(--ink-2); margin: 0 0 18px; max-width: 64ch; }
+  .pipeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 720px) { .pipeline { grid-template-columns: 1fr; } }
+  .stage {
+    border: 1px solid var(--line); border-radius: 11px; padding: 15px; background: var(--paper-3);
+    display: flex; flex-direction: column; gap: 10px; position: relative; opacity: .55;
+    transition: opacity .4s, border-color .4s;
+  }
+  .stage.active { opacity: 1; border-color: var(--ink-3); }
+  .stage.done { opacity: 1; }
+  .stage-head { display: flex; align-items: center; gap: 9px; }
+  .agent-badge {
+    width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+    font-size: 15px; background: var(--paper); border: 1px solid var(--line);
+  }
+  .stage-head .st { font-weight: 600; font-size: 14px; }
+  .stage-head .who { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+  .stage-status {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-2); min-height: 17px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cand-track { display: flex; flex-wrap: wrap; gap: 4px; min-height: 40px; align-content: flex-start; }
+  .cand {
+    width: 14px; height: 18px; border-radius: 3px; border: 1px solid var(--line);
+    opacity: 0; transform: translateY(4px); transition: opacity .3s, transform .3s, background .3s;
+  }
+  .cand.show { opacity: 1; transform: none; }
+  .cand.t { background: var(--trust-soft); border-color: var(--trust); }
+  .cand.n { background: var(--novel-soft); border-color: var(--novel); }
+  .cand.dropped { background: transparent; border-style: dashed; opacity: .3; }
+  .pipe-foot { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+  .run-btn {
+    background: var(--trust); color: #fff; border: none; font-size: 13px; font-weight: 600;
+    padding: 9px 18px; border-radius: 9px; display: inline-flex; align-items: center; gap: 8px;
+  }
+  :root[data-theme="light"] .run-btn { color: #fff; }
+  :root[data-theme="dark"] .run-btn { color: #12141b; }
+  @media (prefers-color-scheme: dark) { .run-btn { color: #12141b; } }
+  :root[data-theme="light"] .run-btn { color: #fff; }
+  .run-btn:hover { filter: brightness(1.08); }
+  .run-btn:disabled { opacity: .5; cursor: default; filter: none; }
+  .legend { display: flex; gap: 16px; font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 3px; }
+  .sw.t { background: var(--trust); } .sw.n { background: var(--novel); }
+
+  /* ---------- Taste profile ---------- */
+  .field { margin-bottom: 22px; }
+  .field > label {
+    display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 9px;
+  }
+  .pills { display: flex; flex-wrap: wrap; gap: 7px; }
+  .pill {
+    background: var(--paper-3); border: 1px solid var(--line); border-radius: 7px;
+    font-size: 12.5px; padding: 5px 10px; color: var(--ink); display: inline-flex; align-items: center; gap: 7px;
+  }
+  .pill .x { color: var(--ink-3); font-size: 13px; line-height: 1; cursor: pointer; }
+  .pill .x:hover { color: var(--novel); }
+  .pill.add { border-style: dashed; color: var(--ink-2); background: none; cursor: pointer; }
+  .pill.add:hover { color: var(--ink); border-color: var(--ink-3); }
+  .pill.trusted { border-color: var(--trust); background: var(--trust-soft); color: var(--trust); font-family: var(--mono); font-size: 12px; }
+
+  .dial-wrap {
+    display: grid; grid-template-columns: 1fr 190px; gap: 26px; align-items: center;
+    background: var(--paper-3); border: 1px solid var(--line); border-radius: 12px; padding: 20px;
+  }
+  @media (max-width: 620px) { .dial-wrap { grid-template-columns: 1fr; } }
+  .dial-read { font-family: var(--serif); font-size: 15px; color: var(--ink-2); line-height: 1.55; }
+  .dial-read b { color: var(--ink); font-weight: 600; }
+  .dial-num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .dial-num.t { color: var(--trust); } .dial-num.n { color: var(--novel); }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 4px;
+    background: linear-gradient(90deg, var(--trust) var(--pct, 50%), var(--novel) var(--pct, 50%));
+    outline-offset: 4px; margin: 16px 0 8px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--paper); border: 2px solid var(--ink); box-shadow: var(--shadow); cursor: grab;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--paper);
+    border: 2px solid var(--ink); box-shadow: var(--shadow); cursor: grab;
+  }
+  .dial-ends { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
+  .dial-ends .l { color: var(--trust); } .dial-ends .r { color: var(--novel); }
+  .mix-bar { height: 30px; border-radius: 8px; overflow: hidden; display: flex; border: 1px solid var(--line); }
+  .mix-bar .t, .mix-bar .n { display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: #fff; transition: width .25s; }
+  .mix-bar .t { background: var(--trust); }
+  .mix-bar .n { background: var(--novel); }
+  :root[data-theme="dark"] .mix-bar .t, :root[data-theme="dark"] .mix-bar .n { color: #14151a; }
+  @media (prefers-color-scheme: dark) { .mix-bar .t, .mix-bar .n { color: #14151a; } }
+  :root[data-theme="light"] .mix-bar .t, :root[data-theme="light"] .mix-bar .n { color: #fff; }
+  .save-row { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+  .save-note { font-size: 12px; color: var(--ink-3); font-style: italic; }
+
+  /* ---------- Modal ---------- */
+  .scrim {
+    position: fixed; inset: 0; background: rgba(10, 11, 14, .5); backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center; z-index: 50; padding: 24px;
+  }
+  .scrim.open { display: flex; }
+  .modal {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
+    width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow);
+    padding: 26px;
+  }
+  .modal h3 { font-family: var(--serif); font-size: 23px; font-weight: 600; margin: 0 0 6px; }
+  .modal p.lede { font-size: 13.5px; color: var(--ink-2); margin: 0 0 20px; }
+  textarea, .txt {
+    width: 100%; background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; font-family: var(--serif); font-size: 15px; color: var(--ink); resize: vertical;
+  }
+  textarea:focus, .txt:focus { border-color: var(--trust); outline: none; }
+  .modal-step { display: none; }
+  .modal-step.on { display: block; }
+  .q {
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 11px; padding: 15px; margin-bottom: 12px;
+  }
+  .q .qtext { font-family: var(--serif); font-size: 15.5px; margin-bottom: 10px; display: flex; gap: 9px; }
+  .q .qtext .who { font-size: 17px; }
+  .modal-foot { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+  .btn-ghost { background: none; border: 1px solid var(--line); color: var(--ink-2); font-size: 13px; padding: 9px 15px; border-radius: 9px; font-weight: 500; }
+  .btn-ghost:hover { background: var(--paper-2); color: var(--ink); }
+  .btn-primary { background: var(--trust); color: #fff; border: none; font-size: 13px; font-weight: 600; padding: 9px 17px; border-radius: 9px; margin-left: auto; }
+  :root[data-theme="light"] .btn-primary { color: #fff; }
+  :root[data-theme="dark"] .btn-primary { color: #12141b; }
+  @media (prefers-color-scheme: dark) { .btn-primary { color: #12141b; } }
+  :root[data-theme="light"] .btn-primary { color: #fff; }
+  .btn-primary:hover { filter: brightness(1.08); }
+
+  .checkin-item {
+    display: flex; align-items: center; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--line-2);
+  }
+  .checkin-item:last-child { border-bottom: none; }
+  .checkin-item .ci-body { min-width: 0; }
+  .checkin-item .ci-body .t { font-family: var(--serif); font-size: 15.5px; line-height: 1.25; }
+  .checkin-item .ci-body .s { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+  .ci-actions { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
+  .ci-actions button {
+    border: 1px solid var(--line); background: var(--paper-2); border-radius: 7px; padding: 6px 12px; font-size: 12px; color: var(--ink-2); font-weight: 600;
+  }
+  .ci-actions button[data-on="keep"][aria-pressed="true"] { background: var(--trust); border-color: var(--trust); color: #fff; }
+  .ci-actions button[data-on="pass"][aria-pressed="true"] { background: var(--paper-3); border-color: var(--ink-3); color: var(--ink); }
+  :root[data-theme="dark"] .ci-actions button[data-on="keep"][aria-pressed="true"] { color: #14151a; }
+  @media (prefers-color-scheme: dark) { .ci-actions button[data-on="keep"][aria-pressed="true"] { color: #14151a; } }
+  :root[data-theme="light"] .ci-actions button[data-on="keep"][aria-pressed="true"] { color: #fff; }
+  .promote {
+    margin-top: 16px; padding: 14px; border: 1px solid var(--novel); background: var(--novel-soft);
+    border-radius: 11px; font-size: 13px; color: var(--ink); display: flex; align-items: center; gap: 12px;
+  }
+  .promote b { color: var(--novel); }
+  .promote button { margin-left: auto; flex-shrink: 0; background: var(--novel); color: #fff; border: none; border-radius: 7px; padding: 6px 12px; font-size: 12px; font-weight: 600; }
+  :root[data-theme="dark"] .promote button { color: #14151a; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="masthead">
+  <div class="masthead-inner">
+    <div class="wordmark">
+      <h1>Stacks</h1>
+      <span class="tag">pull, don't get pushed</span>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-view="shelf" aria-current="true">Shelves</button>
+      <button data-view="acq">Acquisitions</button>
+      <button data-view="taste">Taste profile</button>
+    </nav>
+    <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle light/dark">◐</button>
+    <button class="new-btn" id="newBtn">＋ New interest</button>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="rail">
+    <div class="rail-label">Your shelves</div>
+    <div class="shelf-list" id="shelfList"></div>
+    <div class="rail-note">
+      <b>No feed.</b> Shelves are finite and refresh quietly. You decide how much is
+      familiar and how much is new — nothing is pushed at you.
+    </div>
+  </aside>
+
+  <main class="view" id="main"></main>
+</div>
+
+<!-- New interest modal -->
+<div class="scrim" id="newScrim">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newTitle">
+    <div class="modal-step on" id="step1">
+      <h3 id="newTitle">Start a shelf</h3>
+      <p class="lede">Say what you're interested in — in your own words. The Librarian reads it and asks a question or two before curating.</p>
+      <textarea id="intentInput" rows="3" placeholder="e.g. I want to follow investigative reporting on U.S. politics and money in policy…"></textarea>
+      <div class="modal-foot">
+        <button class="btn-ghost" data-close>Cancel</button>
+        <button class="btn-primary" id="toRefine">Continue →</button>
+      </div>
+    </div>
+    <div class="modal-step" id="step2">
+      <h3>A couple of questions</h3>
+      <p class="lede"><span style="font-size:16px">📚</span> The Librarian wants to sharpen your shelf before pulling anything.</p>
+      <div class="q">
+        <div class="qtext"><span class="who">📚</span> How deep do you want to go — quick reads, or long-form investigations too?</div>
+        <input class="txt" id="ans1" value="Both, but I lean toward long-form when the topic is worth it." style="font-family:var(--serif)">
+      </div>
+      <div class="q">
+        <div class="qtext"><span class="who">📚</span> Any sources you already trust that I should prioritize?</div>
+        <input class="txt" id="ans2" value="PBS Frontline and The Hill." style="font-family:var(--serif)">
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="backToIntent">← Back</button>
+        <button class="btn-primary" id="createShelf">Curate my shelf</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Check-in modal -->
+<div class="scrim" id="checkScrim">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="checkTitle">
+    <h3 id="checkTitle">Weekly check-in</h3>
+    <p class="lede">Five from this week. Mark what landed — that's the only signal we use. No thumbs, no tracking.</p>
+    <div id="checkList"></div>
+    <div class="promote" id="promoteBox">
+      You've kept three from <b id="promoteSrc">The Lever</b> lately.
+      <span style="color:var(--ink-2)">Promote it to a trusted source?</span>
+      <button id="promoteBtn">Promote</button>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" data-close>Later</button>
+      <button class="btn-primary" data-close>Save calibration</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var KIND = {
+    podcast:    { code: "POD", label: "Podcast" },
+    article:    { code: "ART", label: "Article" },
+    show:       { code: "SHW", label: "Show" },
+    video:      { code: "VID", label: "Video" },
+    book:       { code: "BK·", label: "Book" },
+    paper:      { code: "PAP", label: "Paper" },
+    newsletter: { code: "NWS", label: "Newsletter" },
+    course:     { code: "CRS", label: "Course" }
+  };
+
+  var interests = [
+    {
+      id: "journalism",
+      name: "Investigative journalism & U.S. policy",
+      intent: "I want to follow rigorous investigative reporting on U.S. politics and the money that shapes policy — without the cable-news noise.",
+      keywords: ["investigative", "campaign finance", "regulatory policy", "accountability"],
+      formats: ["show", "article", "podcast", "paper"],
+      lengths: ["quick reads", "long-form OK"],
+      trusted: ["PBS Frontline", "The Hill"],
+      novelty: 0.5,
+      cadence: "Weekly",
+      items: [
+        { kind: "show", title: "The Power of the Fed", source: "PBS Frontline", time: "1h 54m", origin: "trusted", why: "Long-form investigation from a source you already trust — central-bank power is squarely your lane." },
+        { kind: "article", title: "Whip Count: Inside the Spending Fight", source: "The Hill", time: "7 min", origin: "trusted", why: "Procedural detail on the appropriations bill from your trusted desk." },
+        { kind: "podcast", title: "Lever Time: Following the Dark Money", source: "The Lever", time: "48 min", origin: "novel", why: "New source — investigative reporting on campaign finance, adjacent to what you follow." },
+        { kind: "paper", title: "Regulatory Capture, Revisited", source: "Brookings", time: "22 min", origin: "novel", why: "New source giving academic grounding to the reporting you read." },
+        { kind: "article", title: "How Redistricting Really Works", source: "ProPublica", time: "14 min", origin: "novel", why: "New source with a strong accountability reputation — first pull for you." },
+        { kind: "show", title: "America and the Taliban", source: "PBS Frontline", time: "1h 30m", origin: "trusted", why: "Trusted source; foreign-policy accountability sits next to your interests." }
+      ]
+    },
+    {
+      id: "espresso",
+      name: "Home espresso",
+      intent: "Getting genuinely good at pulling espresso at home — technique, gear that's worth it, and the science behind the shot.",
+      keywords: ["extraction", "grind", "puck prep", "gear reviews"],
+      formats: ["video", "article", "book"],
+      lengths: ["under 25 min"],
+      trusted: ["James Hoffmann", "Sprudge"],
+      novelty: 0.35,
+      cadence: "Every 2 weeks",
+      items: [
+        { kind: "video", title: "The Espresso Distribution Myth", source: "James Hoffmann", time: "18 min", origin: "trusted", why: "Your trusted source tests the puck-prep step you asked about." },
+        { kind: "article", title: "2026 Home Grinder Buyer's Guide", source: "Sprudge", time: "12 min", origin: "trusted", why: "Trusted buying guide — matches your gear-reviews interest." },
+        { kind: "book", title: "The World Atlas of Coffee", source: "James Hoffmann", time: "book", origin: "trusted", why: "By an author you trust; a reference you'll keep returning to." },
+        { kind: "article", title: "Lever vs. Pump: A Pressure Study", source: "Barista Hustle", time: "16 min", origin: "novel", why: "New source — the extraction science behind machine choice." },
+        { kind: "video", title: "Dialing In on a Flair 58", source: "Lance Hedrick", time: "24 min", origin: "novel", why: "New creator focused on manual machines — worth a look." }
+      ]
+    },
+    {
+      id: "deepsea",
+      name: "Deep-sea biology",
+      intent: "The strange life of the deep ocean — I want to be surprised, so lean toward things I'd never find on my own.",
+      keywords: ["bioluminescence", "hadal zone", "adaptation", "discovery"],
+      formats: ["article", "video", "paper", "podcast", "show", "course"],
+      lengths: ["any"],
+      trusted: ["Nautilus", "MBARI"],
+      novelty: 0.7,
+      cadence: "Weekly",
+      items: [
+        { kind: "article", title: "Taking the Bioluminescence Census", source: "Nautilus", time: "15 min", origin: "trusted", why: "Trusted magazine, squarely on your topic." },
+        { kind: "video", title: "Midnight Zone: Dive Highlights", source: "MBARI", time: "11 min", origin: "trusted", why: "Trusted institution's own remotely-operated footage." },
+        { kind: "paper", title: "Pressure Adaptation in Hadal Amphipods", source: "Nature", time: "26 min", origin: "novel", why: "New source — primary literature on life in the trenches." },
+        { kind: "podcast", title: "Whale Fall Ecosystems", source: "Ologies", time: "1h 02m", origin: "novel", why: "New podcast — accessible science, a genre you don't usually pull." },
+        { kind: "show", title: "Blue Planet II: The Deep", source: "BBC Earth", time: "50 min", origin: "novel", why: "New source with canonical footage you shouldn't miss." },
+        { kind: "course", title: "Oceanography of the Deep", source: "MIT OpenCourseWare", time: "6 weeks", origin: "novel", why: "New source — structured depth, since you want to be stretched." },
+        { kind: "article", title: "A Newly Described Anglerfish", source: "Smithsonian", time: "8 min", origin: "novel", why: "New source surfacing a fresh discovery — exactly the surprise you asked for." }
+      ]
+    }
+  ];
+
+  var state = { view: "shelf", active: "journalism", kindFilter: "all", originFilter: "all" };
+  var el = function (id) { return document.getElementById(id); };
+  var main = el("main");
+
+  function activeInterest() {
+    return interests.filter(function (i) { return i.id === state.active; })[0];
+  }
+  function counts(it) {
+    var t = 0, n = 0;
+    it.items.forEach(function (x) { x.origin === "trusted" ? t++ : n++; });
+    return { t: t, n: n, total: it.items.length };
+  }
+
+  /* ---------- Rail ---------- */
+  function renderRail() {
+    var list = el("shelfList");
+    list.innerHTML = "";
+    interests.forEach(function (it) {
+      var c = counts(it);
+      var b = document.createElement("button");
+      b.className = "shelf-item";
+      b.setAttribute("aria-current", it.id === state.active ? "true" : "false");
+      var tp = c.total ? Math.round((c.t / c.total) * 100) : 50;
+      b.innerHTML =
+        '<span class="name">' + esc(it.name) + '</span>' +
+        '<span class="meta">' + c.total + ' shelved <span class="dot"></span> ' +
+        Math.round(it.novelty * 100) + '% novel</span>' +
+        '<span class="mix-mini"><span class="t" style="width:' + tp + '%"></span>' +
+        '<span class="n" style="width:' + (100 - tp) + '%"></span></span>';
+      b.addEventListener("click", function () {
+        state.active = it.id; state.kindFilter = "all"; state.originFilter = "all";
+        renderRail(); renderMain();
+      });
+      list.appendChild(b);
+    });
+  }
+
+  /* ---------- Views ---------- */
+  function renderMain() {
+    if (state.view === "shelf") renderShelf();
+    else if (state.view === "acq") renderAcq();
+    else renderTaste();
+    document.querySelectorAll("#nav button").forEach(function (b) {
+      b.setAttribute("aria-current", b.dataset.view === state.view ? "true" : "false");
+    });
+  }
+
+  function interestHead(it) {
+    var c = counts(it);
+    return '' +
+      '<div class="interest-head">' +
+        '<div class="kicker">Shelf · ' + esc(it.cadence) + ' refresh</div>' +
+        '<h2>' + esc(it.name) + '</h2>' +
+        '<p class="intent">“' + esc(it.intent) + '”</p>' +
+        '<div class="stat-row">' +
+          stat(c.total, "on the shelf") +
+          stat(c.t, "from trusted") +
+          stat(c.n, "newly discovered") +
+          stat(Math.round(it.novelty * 100) + "%", "novelty dial") +
+        '</div>' +
+      '</div>';
+  }
+  function stat(n, l) { return '<div class="stat"><span class="n">' + n + '</span><span class="l">' + l + '</span></div>'; }
+
+  function renderShelf() {
+    var it = activeInterest();
+    var kinds = uniqueKinds(it);
+    var chips = '<button class="chip' + (state.originFilter === "all" && state.kindFilter === "all" ? "" : "") + '" data-f="all" aria-pressed="' + (state.kindFilter === "all" && state.originFilter === "all") + '">All</button>' +
+      '<button class="chip trust" data-o="trusted" aria-pressed="' + (state.originFilter === "trusted") + '"><span class="tdot"></span>Trusted</button>' +
+      '<button class="chip novel" data-o="novel" aria-pressed="' + (state.originFilter === "novel") + '"><span class="tdot"></span>Novel</button>';
+    kinds.forEach(function (k) {
+      chips += '<button class="chip" data-k="' + k + '" aria-pressed="' + (state.kindFilter === k) + '">' + KIND[k].label + '</button>';
+    });
+
+    var visible = it.items.filter(function (x) {
+      var okKind = state.kindFilter === "all" || x.kind === state.kindFilter;
+      var okOrigin = state.originFilter === "all" || x.origin === state.originFilter;
+      return okKind && okOrigin;
+    });
+
+    var cards = visible.map(cardHTML).join("");
+    if (!cards) cards = '<div class="empty" style="grid-column:1/-1">Nothing matches that filter yet.</div>';
+
+    main.innerHTML = interestHead(it) +
+      '<div class="chips" id="chips">' + chips + '</div>' +
+      '<div class="grid">' + cards + '</div>';
+
+    el("chips").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.f === "all") { state.kindFilter = "all"; state.originFilter = "all"; }
+      else if (b.dataset.o) { state.originFilter = state.originFilter === b.dataset.o ? "all" : b.dataset.o; }
+      else if (b.dataset.k) { state.kindFilter = state.kindFilter === b.dataset.k ? "all" : b.dataset.k; }
+      renderShelf();
+    });
+  }
+
+  function cardHTML(x) {
+    var k = KIND[x.kind];
+    var tag = x.origin === "trusted"
+      ? '<span class="tag trusted"><span class="tdot"></span>Trusted</span>'
+      : '<span class="tag novel"><span class="tdot"></span>New source</span>';
+    return '' +
+      '<article class="card">' +
+        '<div class="card-top">' +
+          '<span class="callno">' + k.code + '</span>' +
+          '<span class="src">' + esc(x.source) + '</span>' + tag +
+        '</div>' +
+        '<h3>' + esc(x.title) + '</h3>' +
+        '<p class="why">' + esc(x.why) + '</p>' +
+        '<div class="card-foot">' +
+          '<span class="time">' + esc(x.time) + '</span>' +
+          '<div class="card-actions">' +
+            '<button>Queue</button><button>Archive</button><button>Open</button>' +
+          '</div>' +
+        '</div>' +
+      '</article>';
+  }
+
+  /* ---------- Acquisitions ---------- */
+  function renderAcq() {
+    var it = activeInterest();
+    var c = counts(it);
+    var target = Math.round(it.novelty * 100);
+    main.innerHTML = interestHead(it) +
+      '<div class="panel">' +
+        '<h3 class="panel-title">Acquisitions pipeline</h3>' +
+        '<p class="panel-sub">How this shelf gets built. The Librarian discovers candidates honoring your ' +
+          '<b>' + target + '% novelty</b> dial, the Scorer drops anything below your relevance threshold, ' +
+          'and what survives is shelved. This runs quietly in the background — shown here so nothing is a black box.</p>' +
+        '<div class="pipeline" id="pipeline">' +
+          stageHTML("discover", "📚", "Discover", "Librarian", "Idle — press Run") +
+          stageHTML("score", "🎯", "Relevance score", "Scorer", "Waiting") +
+          stageHTML("shelve", "📑", "Shelve", "Library", "Waiting") +
+        '</div>' +
+        '<div class="pipe-foot">' +
+          '<button class="run-btn" id="runBtn">▶ Run curation</button>' +
+          '<div class="legend"><span><span class="sw t"></span>Trusted source</span>' +
+          '<span><span class="sw n"></span>Novel source</span></div>' +
+        '</div>' +
+      '</div>';
+    el("runBtn").addEventListener("click", runPipeline);
+  }
+  function stageHTML(id, icon, title, who, status) {
+    return '<div class="stage" id="stage-' + id + '">' +
+      '<div class="stage-head"><span class="agent-badge">' + icon + '</span>' +
+      '<span><span class="st">' + title + '</span><br><span class="who">' + who + '</span></span></div>' +
+      '<div class="stage-status" id="status-' + id + '">' + status + '</div>' +
+      '<div class="cand-track" id="track-' + id + '"></div></div>';
+  }
+
+  function runPipeline() {
+    var it = activeInterest();
+    var btn = el("runBtn"); btn.disabled = true;
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // candidate pool: shelved count doubled, split by novelty dial
+    var keep = it.items.length;
+    var pool = keep + Math.max(4, Math.round(keep * 0.9));
+    var novelN = Math.round(pool * it.novelty);
+    var trustN = pool - novelN;
+    var cand = [];
+    for (var a = 0; a < trustN; a++) cand.push("t");
+    for (var b = 0; b < novelN; b++) cand.push("n");
+    // survivors match the real shelf split
+    var c = counts(it);
+    var survive = shuffleKeep(cand, c.t, c.n);
+
+    ["discover", "score", "shelve"].forEach(function (s) {
+      el("stage-" + s).className = "stage";
+      el("track-" + s).innerHTML = "";
+      if (s !== "discover") el("status-" + s).textContent = "Waiting";
+    });
+
+    var step = reduce ? 0 : 55;
+
+    // Stage 1: discover
+    activate("discover");
+    el("status-discover").textContent = "Searching sources…";
+    var track1 = el("track-discover");
+    cand.forEach(function (t, i) {
+      var d = mkCand(t);
+      track1.appendChild(d);
+      setTimeout(function () { d.classList.add("show"); }, step * i);
+    });
+    var t1 = step * cand.length + 250;
+    setTimeout(function () {
+      el("status-discover").textContent = pool + " candidates · " + trustN + " trusted · " + novelN + " novel";
+      markDone("discover");
+      // Stage 2: score
+      activate("score");
+      el("status-score").textContent = "Scoring against your taste profile…";
+      var track2 = el("track-score");
+      cand.forEach(function (t, i) {
+        var d = mkCand(t);
+        if (!survive[i]) d.classList.add("dropped");
+        track2.appendChild(d);
+        setTimeout(function () { d.classList.add("show"); }, step * i);
+      });
+      var dropped = pool - keep;
+      setTimeout(function () {
+        el("status-score").textContent = keep + " passed · " + dropped + " below threshold, dropped";
+        markDone("score");
+        // Stage 3: shelve
+        activate("shelve");
+        var track3 = el("track-shelve");
+        var kept = cand.filter(function (t, i) { return survive[i]; });
+        kept.forEach(function (t, i) {
+          var d = mkCand(t);
+          track3.appendChild(d);
+          setTimeout(function () { d.classList.add("show"); }, step * i);
+        });
+        setTimeout(function () {
+          el("status-shelve").textContent = c.total + " shelved · " + c.t + " trusted · " + c.n + " novel";
+          markDone("shelve");
+          btn.disabled = false; btn.textContent = "↺ Run again";
+        }, step * kept.length + 200);
+      }, t1 > 0 ? t1 : 0);
+    }, t1);
+  }
+  function mkCand(t) { var d = document.createElement("span"); d.className = "cand " + t; return d; }
+  function activate(s) { el("stage-" + s).classList.add("active"); }
+  function markDone(s) { var e = el("stage-" + s); e.classList.remove("active"); e.classList.add("done"); }
+  function shuffleKeep(cand, keepT, keepN) {
+    var res = cand.map(function () { return false; });
+    var it2 = 0, in2 = 0;
+    for (var i = 0; i < cand.length; i++) {
+      if (cand[i] === "t" && it2 < keepT) { res[i] = true; it2++; }
+      else if (cand[i] === "n" && in2 < keepN) { res[i] = true; in2++; }
+    }
+    return res;
+  }
+
+  /* ---------- Taste profile ---------- */
+  function renderTaste() {
+    var it = activeInterest();
+    var pct = Math.round(it.novelty * 100);
+    main.innerHTML = interestHead(it) +
+      '<div class="panel">' +
+        '<h3 class="panel-title">Taste profile</h3>' +
+        '<p class="panel-sub">The single source of truth for this shelf. You edit it directly — the curation honors exactly what you set here.</p>' +
+
+        '<div class="field"><label>Keywords</label><div class="pills">' +
+          it.keywords.map(function (k) { return pillHTML(k); }).join("") +
+          '<button class="pill add">＋ add</button></div></div>' +
+
+        '<div class="field"><label>Preferred formats</label><div class="pills">' +
+          it.formats.map(function (f) { return '<span class="pill">' + KIND[f].label + '</span>'; }).join("") +
+          '</div></div>' +
+
+        '<div class="field"><label>Length</label><div class="pills">' +
+          it.lengths.map(function (l) { return '<span class="pill">' + esc(l) + '</span>'; }).join("") +
+          '</div></div>' +
+
+        '<div class="field"><label>Trusted sources — your exploit set</label><div class="pills">' +
+          it.trusted.map(function (s) { return '<span class="pill trusted">' + esc(s) + ' <span class="x" title="remove">×</span></span>'; }).join("") +
+          '<button class="pill add">＋ add source</button></div></div>' +
+
+        '<div class="field"><label>Novelty dial — explore vs. exploit</label>' +
+          '<div class="dial-wrap">' +
+            '<div>' +
+              '<div class="dial-read" id="dialRead"></div>' +
+              '<input type="range" id="dial" min="0" max="100" step="5" value="' + pct + '" style="--pct:' + pct + '%">' +
+              '<div class="dial-ends"><span class="l">All familiar</span><span class="r">All new</span></div>' +
+            '</div>' +
+            '<div class="mix-bar" id="mixBar"></div>' +
+          '</div>' +
+          '<div class="save-row"><button class="btn-primary" style="margin:0" id="saveDial">Save profile</button>' +
+          '<span class="save-note" id="saveNote">Changes apply on the next refresh.</span></div>' +
+        '</div>' +
+      '</div>';
+
+    var dial = el("dial");
+    function paint(v) {
+      it.novelty = v / 100;
+      dial.style.setProperty("--pct", v + "%");
+      var n = v, t = 100 - v;
+      el("dialRead").innerHTML = 'Next refresh: about <b class="dial-num t">' + t + '%</b> from sources you ' +
+        'trust and <b class="dial-num n">' + n + '%</b> from <b>new</b> sources the Librarian goes and finds.';
+      el("mixBar").innerHTML =
+        '<span class="t" style="width:' + t + '%">' + (t >= 15 ? t + "%" : "") + '</span>' +
+        '<span class="n" style="width:' + n + '%">' + (n >= 15 ? n + "%" : "") + '</span>';
+    }
+    paint(pct);
+    dial.addEventListener("input", function () { paint(+dial.value); });
+    el("saveDial").addEventListener("click", function () {
+      el("saveNote").textContent = "Saved ✓ the dial now reads " + Math.round(it.novelty * 100) + "% novel.";
+      renderRail();
+    });
+  }
+  function pillHTML(k) { return '<span class="pill">' + esc(k) + ' <span class="x" title="remove">×</span></span>'; }
+
+  function uniqueKinds(it) {
+    var seen = {}, out = [];
+    it.items.forEach(function (x) { if (!seen[x.kind]) { seen[x.kind] = 1; out.push(x.kind); } });
+    return out;
+  }
+
+  /* ---------- Nav + theme ---------- */
+  el("nav").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    state.view = b.dataset.view; renderMain();
+  });
+
+  var themeBtn = el("themeBtn");
+  themeBtn.addEventListener("click", function () {
+    var root = document.documentElement;
+    var cur = root.getAttribute("data-theme");
+    if (!cur) cur = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  });
+
+  /* ---------- New interest modal ---------- */
+  var newScrim = el("newScrim");
+  function openNew() { newScrim.classList.add("open"); showStep(1); el("intentInput").focus(); }
+  function showStep(n) {
+    el("step1").classList.toggle("on", n === 1);
+    el("step2").classList.toggle("on", n === 2);
+  }
+  el("newBtn").addEventListener("click", openNew);
+  el("toRefine").addEventListener("click", function () { showStep(2); });
+  el("backToIntent").addEventListener("click", function () { showStep(1); });
+  el("createShelf").addEventListener("click", function () {
+    var intent = el("intentInput").value.trim() ||
+      "Investigative reporting on U.S. politics and money in policy.";
+    var newIt = {
+      id: "new" + interests.length,
+      name: deriveName(intent),
+      intent: intent,
+      keywords: ["investigative", "policy", "accountability"],
+      formats: ["show", "article", "podcast"],
+      lengths: [el("ans1").value.trim() || "long-form OK"],
+      trusted: parseSources(el("ans2").value),
+      novelty: 0.5,
+      cadence: "Weekly",
+      items: [
+        { kind: "show", title: "The Power of the Fed", source: "PBS Frontline", time: "1h 54m", origin: "trusted", why: "From a source you named as trusted — long-form investigation on your topic." },
+        { kind: "article", title: "Whip Count: Inside the Spending Fight", source: "The Hill", time: "7 min", origin: "trusted", why: "Your trusted desk, on the policy fight of the week." },
+        { kind: "podcast", title: "Lever Time: Following the Money", source: "The Lever", time: "48 min", origin: "novel", why: "A new source the Librarian found to fill your 50% novelty." },
+        { kind: "article", title: "How Redistricting Really Works", source: "ProPublica", time: "14 min", origin: "novel", why: "New source with an accountability reputation — first pull for this shelf." }
+      ]
+    };
+    interests.push(newIt);
+    state.active = newIt.id; state.view = "shelf";
+    newScrim.classList.remove("open");
+    renderRail(); renderMain();
+  });
+  function deriveName(t) {
+    var s = t.replace(/^i want to|^i'd like to|^i'm interested in/i, "").trim();
+    s = s.charAt(0).toUpperCase() + s.slice(1);
+    return s.length > 46 ? s.slice(0, 44).trim() + "…" : s;
+  }
+  function parseSources(t) {
+    return t.replace(/\.$/, "").split(/\s+and\s+|,\s*/).map(function (x) { return x.trim(); })
+      .filter(Boolean).slice(0, 4);
+  }
+
+  /* ---------- Check-in modal ---------- */
+  var checkScrim = el("checkScrim");
+  var checkItems = [
+    { t: "The Power of the Fed", s: "PBS Frontline · Trusted" },
+    { t: "Lever Time: Following the Dark Money", s: "The Lever · New source" },
+    { t: "Regulatory Capture, Revisited", s: "Brookings · New source" },
+    { t: "How Redistricting Really Works", s: "ProPublica · New source" },
+    { t: "Whip Count: Inside the Spending Fight", s: "The Hill · Trusted" }
+  ];
+  function openCheck() {
+    var list = el("checkList");
+    list.innerHTML = checkItems.map(function (c, i) {
+      return '<div class="checkin-item"><div class="ci-body">' +
+        '<div class="t">' + esc(c.t) + '</div><div class="s">' + esc(c.s) + '</div></div>' +
+        '<div class="ci-actions" data-i="' + i + '">' +
+        '<button data-on="keep" aria-pressed="false">Landed</button>' +
+        '<button data-on="pass" aria-pressed="false">Pass</button></div></div>';
+    }).join("");
+    list.querySelectorAll(".ci-actions").forEach(function (grp) {
+      grp.addEventListener("click", function (e) {
+        var b = e.target.closest("button"); if (!b) return;
+        grp.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", "false"); });
+        b.setAttribute("aria-pressed", "true");
+      });
+    });
+    checkScrim.classList.add("open");
+  }
+  el("promoteBtn").addEventListener("click", function () {
+    var it = activeInterest();
+    if (it && it.trusted.indexOf("The Lever") === -1) it.trusted.push("The Lever");
+    el("promoteBox").innerHTML = '<b>✓ The Lever is now a trusted source.</b> ' +
+      '<span style="color:var(--ink-2)">It’ll be prioritized on your next refresh.</span>';
+    renderRail();
+  });
+
+  // expose check-in via the rail note (click) for discoverability
+  document.querySelector(".rail-note").addEventListener("click", openCheck);
+  document.querySelector(".rail-note").style.cursor = "pointer";
+  document.querySelector(".rail-note").title = "Open this week's check-in";
+
+  document.querySelectorAll("[data-close]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      newScrim.classList.remove("open"); checkScrim.classList.remove("open");
+    });
+  });
+  document.querySelectorAll(".scrim").forEach(function (s) {
+    s.addEventListener("click", function (e) { if (e.target === s) s.classList.remove("open"); });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { newScrim.classList.remove("open"); checkScrim.classList.remove("open"); }
+  });
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // A subtle way to reach the weekly check-in from the header area
+  var checkLink = document.createElement("button");
+  checkLink.className = "icon-btn";
+  checkLink.title = "Weekly check-in";
+  checkLink.setAttribute("aria-label", "Open weekly check-in");
+  checkLink.textContent = "✓";
+  el("themeBtn").insertAdjacentElement("beforebegin", checkLink);
+  checkLink.addEventListener("click", openCheck);
+
+  renderRail();
+  renderMain();
+})();
+</script>
