@@ -91,3 +91,18 @@
       (is (some? (interests-persistence/delete-interest! db (:id interest) user-id)))
       (is (nil? (interests-persistence/get-interest db (:id interest) user-id)))
       (is (nil? (projects-persistence/get-project db (:project-id interest) user-id))))))
+
+(deftest get-projects-excludes-interest-backing-projects-test
+  (let [db       (embedded-h2/fresh-db!)
+        user-id  "reader@example.com"
+        project  (projects-persistence/create-project! db {:user-id user-id :title "A normal project"})
+        interest (interests-persistence/create-interest!
+                  db {:user-id       user-id
+                      :intent        "Long-form journalism about technology and power"
+                      :taste-profile {:trusted-sources ["PBS Frontline"] :novelty-ratio 0.5}})]
+    (testing "get-projects lists the normal project but not the interest's backing project"
+      (let [listed (projects-persistence/get-projects db user-id)]
+        (is (= [(:id project)] (mapv :id listed)))))
+
+    (testing "get-project can still fetch the backing project by id directly"
+      (is (some? (projects-persistence/get-project db (:project-id interest) user-id))))))

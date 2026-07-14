@@ -201,7 +201,10 @@
        :questions (pending-questions run)}
 
       :else
-      (shelve! db interest (workflows-persistence/get-workflow-run db run-id)))))
+      (let [fresh-run (workflows-persistence/get-workflow-run db run-id)]
+        (if (= "completed" (:status fresh-run))
+          (shelve! db interest fresh-run)
+          {:status "error" :run-id run-id})))))
 
 (defn run-curation!
   "Run the Interest Curation workflow for an interest and refresh its shelf.

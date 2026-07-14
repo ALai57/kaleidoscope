@@ -16,9 +16,14 @@
   (rdbms/make-finder :projects))
 
 (defn get-projects
-  "Return all projects for a user."
+  "Return all projects for a user, excluding interest-backing projects
+  (status = \"interest\") — those are managed via /interests, not the
+  projects API."
   [db user-id]
-  (get-projects-raw db {:user-id user-id}))
+  (next/execute! db
+                 ["SELECT * FROM projects WHERE user_id = ? AND status IS DISTINCT FROM ?"
+                  user-id "interest"]
+                 {:builder-fn rs/as-unqualified-kebab-maps}))
 
 (defn get-project
   "Return a single project by id, checking user ownership."
