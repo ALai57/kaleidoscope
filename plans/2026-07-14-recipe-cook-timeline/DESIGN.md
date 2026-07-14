@@ -67,6 +67,23 @@ level. This matches the approved prototype exactly.
 Only the **authored overrides** must never be silently dropped. Everything else
 is persisted purely as an optimization.
 
+### Load-bearing invariant: overrides annotate phases
+
+An override is **not** a fact about content — it's an *annotation on a derived
+phase*. Its key (`"{component}/{label}"`) names a phase the segmenter invented;
+it can't even be expressed without the timeline to point at. Override and phase
+therefore share one identity and one lifecycle, which is why they live together
+in the blob rather than being split into an "authored" store — they are not
+independent things.
+
+What keeps an annotation valid across regenerations is **phase-identity
+stability**, and that is exactly what the trust boundary (below) guarantees: for
+an unchanged component the cached phases are kept verbatim (the LLM's
+re-segmentation is discarded), so the phase key an override points at does not
+move. When a component's steps *do* change, its phases are legitimately new and
+its overrides are legitimately dropped — the annotation's target is gone. This
+coupling is cohesion, not complecting; the trust boundary is what makes it safe.
+
 ---
 
 ## Data model
