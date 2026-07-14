@@ -52,3 +52,49 @@
     (let [packed (tl/pack (comp1 [["a" "active" 3 ["b"]]
                                    ["b" "active" 3 ["a"]]]) [])]
       (is (every? some? (vals (starts packed)))))))
+
+(def content-a
+  {:title "R"
+   :sections [{:name "Salmon" :ingredients [] :steps ["marinate" "sear"]}
+              {:name "Rice"   :ingredients [] :steps ["rinse" "simmer"]}]})
+
+(deftest content-fingerprint-test
+  (testing "one entry per section, id from name, stable hash"
+    (let [fp (tl/content-fingerprint content-a)]
+      (is (= ["Salmon" "Rice"] (mapv :id fp)))
+      (is (= (tl/steps-hash ["marinate" "sear"]) (:steps-hash (first fp)))))))
+
+(deftest component-id-falls-back-to-ordinal-test
+  (is (= "Section 1" (tl/component-id {:name nil :steps []} 0)))
+  (is (= "Salmon" (tl/component-id {:name "Salmon" :steps []} 0))))
+
+(deftest changed-ids-test
+  (let [stored {:components [{:name "Salmon" :steps-hash (tl/steps-hash ["marinate" "sear"]) :phases []}
+                            {:name "Rice"   :steps-hash (tl/steps-hash ["rinse" "simmer"]) :phases []}]}
+        edited (assoc-in content-a [:sections 0 :steps] ["marinate" "sear" "rest"])]
+    (testing "nothing changed" (is (= #{} (tl/changed-ids content-a stored))))
+    (testing "one component's steps changed" (is (= #{"Salmon"} (tl/changed-ids edited stored))))
+    (testing "no stored timeline ⇒ everything is changed"
+      (is (= #{"Salmon" "Rice"} (tl/changed-ids content-a nil))))))
+
+(deftest resolve-deps-drops-unknown-test
+  (let [comps [{:name "C" :steps-hash "h"
+                :phases [{:id "C/a" :label "a" :kind "active" :steps [] :estimate 1 :deps ["C/ghost" "C/b"]}
+                         {:id "C/b" :label "b" :kind "active" :steps [] :estimate 1 :deps []}]}]]
+    (is (= ["C/b"] (-> (tl/resolve-deps comps) first :phases first :deps)))))
+
+(deftest surviving-overrides-test
+  (let [stored {:overrides [{:phase "Salmon/Sear" :minutes 12}
+                            {:phase "Rice/Simmer" :minutes 20}]}]
+    (is (= [{:phase "Rice/Simmer" :minutes 20}]
+           (tl/surviving-overrides stored #{"Salmon"})))))
+
+(deftest with-overrides-repacks-test
+  (let [tline {:version 1 :generator-version 1 :generated-at "t" :total-minutes 15
+               :overrides []
+               :components [{:name "C" :steps-hash "h"
+                             :phases [{:id "C/a" :label "a" :kind "active" :steps [] :estimate 10 :deps []}
+                                      {:id "C/b" :label "b" :kind "active" :steps [] :estimate 5 :deps []}]}]}
+        out   (tl/with-overrides tline [{:phase "C/a" :minutes 4}])]
+    (is (= [{:phase "C/a" :minutes 4}] (:overrides out)))
+    (is (= 9 (:total-minutes out)))))
