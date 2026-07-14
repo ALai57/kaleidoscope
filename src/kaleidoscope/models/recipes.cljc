@@ -36,11 +36,7 @@
    [:steps-hash :string]
    [:phases     [:sequential Phase]]])
 
-;; java.lang.Override is auto-imported into every ns; unmap it so this name
-;; is free for our schema var instead.
-(ns-unmap *ns* 'Override)
-
-(def Override
+(def TimelineOverride
   [:map
    [:phase   :string]                  ;; a Phase :id
    [:minutes :int]])
@@ -51,11 +47,11 @@
    [:generator-version :int]
    [:generated-at      some?]
    [:total-minutes     :int]
-   [:overrides         [:sequential Override]]
+   [:overrides         [:sequential TimelineOverride]]
    [:components        [:sequential TimelineComponent]]])
 
 (def TimelineOverridesRequest
-  [:map [:overrides [:sequential Override]]])
+  [:map [:overrides [:sequential TimelineOverride]]])
 
 (def RawScrape
   ;; Validated before persistence. Fetch fields are nullable so a pre-fetch
