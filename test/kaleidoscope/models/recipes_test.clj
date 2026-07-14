@@ -27,6 +27,11 @@
     (is (not (m/validate models/ExtractedFacts
                          {:title "x" :steps ["a"] :section-signals [] :labels []})))))
 
+(deftest update-recipe-request-accepts-recipe-url
+  (is (m/validate models/UpdateRecipeRequest {:recipe-url "new-slug"}))
+  (is (m/validate models/UpdateRecipeRequest {}))               ; still fully optional
+  (is (not (m/validate models/UpdateRecipeRequest {:recipe-url 42}))))
+
 (deftest scrape-result-carries-run-id-test
   (is (m/validate models/ScrapeResult
                   {:recipe {:title "X" :sections [{:ingredients [] :steps []}]}

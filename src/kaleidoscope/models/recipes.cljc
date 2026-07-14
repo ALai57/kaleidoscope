@@ -85,6 +85,7 @@
 (def UpdateRecipeRequest
   [:map
    [:content           {:optional true} RecipeContent]
+   [:recipe-url        {:optional true} :string]
    [:source-url        {:optional true} [:maybe :string]]
    [:label-ids         {:optional true} [:sequential :uuid]]
    [:public-visibility {:optional true} :boolean]])
