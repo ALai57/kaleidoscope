@@ -173,6 +173,7 @@ When debugging test failures, never pipe full test output directly into the conv
 3. **Don't refactor legacy CMS code** (articles, albums, portfolio) unless it's explicitly the task.
 4. **Every feature needs automated tests.** Unit or end-to-end — discuss the right layer, but "no tests" is not acceptable.
 5. **Keep `Taskfile.yml` in sync with `bin/`.** If a bin script is added, renamed, or changes its interface, update the Taskfile.
+6. **Keep `docs/operations.md` current.** Any change to deployment (`fly.toml`, `bin/` deploy scripts, Docker/build, secrets/env) or to the Taskfile/`bin/` interface must be reflected in `docs/operations.md` in the same change.
 
 ---
 

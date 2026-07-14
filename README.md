@@ -158,6 +158,9 @@ For local development, see [local-development.md](./docs/local-development.md)
 ## Deployment
 To deploy, follow instructions in [deployment.md](./docs/deployment.md)
 
+## Operations
+For operational concerns of running the app, see [operations.md](./docs/operations.md)
+
 
 # TODO:
 3) Update to stop using hash-routing

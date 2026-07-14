@@ -4,6 +4,15 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile"
 
+# Non-secret config only. Secrets are supplied via `fly secrets set` and are
+# NOT declared here (fly.toml can't hold their values). Required secrets:
+#   ANTHROPIC_API_KEY     — llm scorer, llm workflow executor, claude-vision transcriber
+#   FIRECRAWL_API_KEY     — firecrawl recipe fetcher
+#   GOOGLE_VISION_API_KEY — only if IMAGE_TRANSCRIBER_TYPE=google-vision
+#   KALEIDOSCOPE_DB_PASSWORD — Neon Postgres password
+#   KALEIDOSCOPE_BUGSNAG_KEY — Bugsnag exception reporting
+#   KALEIDOSCOPE_STRIPE_API_KEY — Stripe client
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY — S3 static content + storage
 [env]
   KALEIDOSCOPE_DB_TYPE                    = "postgres"
   KALEIDOSCOPE_DB_HOST                    = "ep-polished-frost-an34qo7y.c-6.us-east-1.aws.neon.tech"
@@ -30,6 +39,14 @@ primary_region = "iad"
 
   # Set to "none" until SNS/image-resizer is migrated off AWS
   KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE        = "none"
+
+  # AI / pluggable components. Real backends below require ANTHROPIC_API_KEY
+  # (scorer, workflow executor, claude-vision transcriber) and FIRECRAWL_API_KEY
+  # (recipe fetcher), supplied via `fly secrets`.
+  KALEIDOSCOPE_SCORER_TYPE                = "llm"
+  KALEIDOSCOPE_WORKFLOW_EXECUTOR_TYPE     = "llm"
+  KALEIDOSCOPE_RECIPE_FETCHER_TYPE        = "firecrawl"
+  KALEIDOSCOPE_IMAGE_TRANSCRIBER_TYPE     = "claude-vision"
 
   AWS_REGION                              = "us-east-1"
 
