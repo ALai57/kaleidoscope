@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { BASE_URL } from './config'
 
-test('Readers can list and open articles', async ({ request }) => {
+// Suite 5 — does the public CMS read path work end-to-end?
+test('Published articles can be listed and opened, and missing articles return 404', async ({ request }) => {
   let first: { 'article-url': string }
 
   await test.step('The list of articles loads and is not empty', async () => {
-    const listRes = await request.get(`${BASE_URL}/compositions`)
+    const listRes = await request.get('/compositions')
     expect(listRes.status()).toBe(200)
     const articles = await listRes.json()
     expect(Array.isArray(articles)).toBe(true)
@@ -18,7 +18,7 @@ test('Readers can list and open articles', async ({ request }) => {
 
   await test.step('The first article can be opened', async () => {
     const slug = first['article-url']
-    const articleRes = await request.get(`${BASE_URL}/compositions/${encodeURIComponent(slug)}`)
+    const articleRes = await request.get(`/compositions/${encodeURIComponent(slug)}`)
     expect(articleRes.status()).toBe(200)
     const article = await articleRes.json()
     expect(article['article-url']).toBe(slug)
@@ -26,8 +26,8 @@ test('Readers can list and open articles', async ({ request }) => {
     expect(article.content.length).toBeGreaterThan(0)
   })
 
-  await test.step('Opening an article that does not exist returns a proper "not found" response', async () => {
-    const missingRes = await request.get(`${BASE_URL}/compositions/checkly-nonexistent-xyz`)
+  await test.step('Opening an article that does not exist returns a 404', async () => {
+    const missingRes = await request.get('/compositions/checkly-nonexistent-xyz')
     expect(missingRes.status()).toBe(404)
   })
 })
