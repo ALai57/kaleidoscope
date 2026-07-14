@@ -31,7 +31,8 @@
   [recipe]
   (-> recipe
       (update :content ->content)
-      (cond-> (:original-content recipe) (update :original-content ->content))))
+      (cond-> (:original-content recipe) (update :original-content ->content))
+      (cond-> (:timeline recipe)         (update :timeline ->content))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Labels + groups
@@ -335,6 +336,16 @@
   [db hostname recipe-url]
   (rdbms/scoped-delete! db :recipes {:recipe-url recipe-url :hostname hostname}
                         :ex-subtype :UnableToDeleteRecipe))
+
+(defn save-timeline!
+  "Persist a recipe's derived cook timeline (scoped to hostname). Does not touch
+  :modified-at — the timeline is derived data, not an authored edit. Returns the
+  recipe with the decoded timeline, or nil if no recipe with that slug exists."
+  [db hostname recipe-url timeline]
+  (when (:id (get-recipe db hostname recipe-url))
+    (rdbms/scoped-update! db :recipes {:recipe-url recipe-url :hostname hostname}
+                          {:timeline timeline})
+    (get-recipe db hostname recipe-url)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Audiences

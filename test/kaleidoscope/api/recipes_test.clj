@@ -305,3 +305,22 @@
 
     (testing "scoped to hostname — another host sees nothing"
       (is (nil? (recipes/get-recipe-lineage db "other.com" "chana-masala" false))))))
+
+(deftest save-and-read-timeline-test
+  (let [db (embedded-pg/fresh-db!)
+        _  (recipes/create-recipe! db (example-recipe))
+        tl {:version 1 :generator-version 1 :generated-at "t0" :total-minutes 30
+            :overrides []
+            :components [{:name "Section 1" :steps-hash "h"
+                          :phases [{:id "Section 1/cook" :label "cook" :kind "active"
+                                    :steps [0 1] :estimate 30 :deps [] :start 0}]}]}]
+    (testing "save returns the recipe carrying the decoded timeline"
+      (is (match? {:recipe-url "chana-masala" :timeline {:total-minutes 30 :overrides []}}
+                  (recipes/save-timeline! db host "chana-masala" tl))))
+    (testing "a subsequent read decodes the timeline to a map"
+      (is (match? {:timeline {:components [{:name "Section 1"}]}}
+                  (recipes/get-recipe db host "chana-masala"))))
+    (testing "saving a timeline does not bump modified-at"
+      (let [before (:modified-at (recipes/get-recipe db host "chana-masala"))]
+        (recipes/save-timeline! db host "chana-masala" (assoc tl :total-minutes 31))
+        (is (= before (:modified-at (recipes/get-recipe db host "chana-masala"))))))))
