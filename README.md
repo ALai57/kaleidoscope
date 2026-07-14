@@ -97,6 +97,40 @@ When `KALEIDOSCOPE_AUTH_TYPE=auth0`, two additional variables are required:
 | local-filesystem | Serve static content from the local filesystem                   |
 
 
+`KALEIDOSCOPE_SCORER_TYPE` Determines how to score projects
+
+| Value | Description                                            |
+|-------|--------------------------------------------------------|
+| mock  | Deterministic mock scores. Default; needs no API key   |
+| llm   | Score projects via Claude. Requires `ANTHROPIC_API_KEY`|
+
+
+`KALEIDOSCOPE_WORKFLOW_EXECUTOR_TYPE` Determines how to run AI workflow steps
+
+| Value | Description                                                    |
+|-------|---------------------------------------------------------------|
+| mock  | Deterministic mock executor. Default; needs no API key         |
+| llm   | Execute workflow steps via Claude. Requires `ANTHROPIC_API_KEY`|
+
+
+`KALEIDOSCOPE_RECIPE_FETCHER_TYPE` Determines the rendering fetch fallback for recipe scraping
+
+| Value     | Description                                                                |
+|-----------|---------------------------------------------------------------------------|
+| none      | Direct fetch only. Default; a bot-blocked site surfaces as blocked         |
+| mock      | Mock fetcher for tests                                                     |
+| firecrawl | Retry bot-blocked fetches through Firecrawl. Requires `FIRECRAWL_API_KEY`  |
+
+
+`KALEIDOSCOPE_IMAGE_TRANSCRIBER_TYPE` Determines how to OCR recipe photos on import
+
+| Value         | Description                                                          |
+|---------------|---------------------------------------------------------------------|
+| mock          | Canned transcript for local dev / tests. Default                    |
+| claude-vision | Transcribe via Claude. Requires `ANTHROPIC_API_KEY`                 |
+| google-vision | Handwriting/dense-layout backend. Requires `GOOGLE_VISION_API_KEY`  |
+
+
 `KALEIDOSCOPE_TIMELINE_GENERATOR_TYPE` Determines how to generate recipe cook timelines
 
 | Value | Description                                                                    |
