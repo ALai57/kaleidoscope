@@ -5,8 +5,10 @@
 #   scripts/ephemeral/checkly-test --name=<slug>
 #
 # Points the Monitoring-as-Code checks at https://kal-eph-<slug>.fly.dev by
-# passing ENVIRONMENT_URL (see checkly/__checks__/config.ts) and runs a one-off
-# `checkly test` session in Checkly's cloud runners.
+# passing ENVIRONMENT_URL (see checkly/playwright.config.ts) and runs a one-off
+# `checkly test --tags no-spend` session in Checkly's cloud runners. The paid
+# `spends` suite (project scoring → a real Claude call) is intentionally NOT run
+# on branch deploys; it runs only as a daily production monitor.
 #
 # Requires (all read from the environment / .env.fly.staging):
 #   CHECKLY_API_KEY, CHECKLY_ACCOUNT_ID   — to talk to Checkly's cloud
@@ -45,6 +47,7 @@ log "Running full Checkly spec suite against $BASE_URL"
 ( cd "$REPO_ROOT/checkly" \
     && ENVIRONMENT_URL="$BASE_URL" CHECKLY_API_KEY="$CHECKLY_API_KEY" CHECKLY_ACCOUNT_ID="$CHECKLY_ACCOUNT_ID" \
        npx checkly test \
+         --tags no-spend \
          --env ENVIRONMENT_URL="$BASE_URL" \
          --env AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" \
          --env AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET" ) \

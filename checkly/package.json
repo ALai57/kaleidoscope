@@ -1,0 +1,13 @@
+{
+  "name": "kaleidoscope-checkly",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "npx checkly test",
+    "deploy": "npx checkly deploy"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "checkly": "^8.10.0",
+    "typescript": "^5.0.0"
+  }
+}
