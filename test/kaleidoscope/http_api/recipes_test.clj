@@ -44,6 +44,14 @@
                          :steps       ["Cook"]}]}
    :public-visibility true})
 
+(def json-ld-html
+  "<html><head>
+   <script type=\"application/ld+json\">
+   {\"@context\":\"https://schema.org\",\"@type\":\"Recipe\",\"name\":\"Chana Masala\",
+    \"recipeIngredient\":[\"2 cups chickpeas\"],
+    \"recipeInstructions\":[{\"@type\":\"HowToStep\",\"text\":\"Cook\"}]}
+   </script></head><body>Blog exposition.</body></html>")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Auth boundaries
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -296,3 +304,52 @@
           (is (match? {:status 200 :body {:recipe-url "chana-masala"
                                           :scrape-processing-run-id run-id}}
                       (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))))
+
+(deftest import-lineage-http-test
+  (let [app (make-app "custom-authenticated-user")]
+    (with-redefs [scraper/fetch-direct (fn [_] {:raw-html json-ld-html
+                                                :final-url "http://example.com/r"
+                                                :http-status 200})]
+      ;; 1. scrape persists a raw scrape + processing run, returns the run id
+      (let [scrape (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                            as-writer
+                            (mock/json-body {:url "http://example.com/r"})))
+            run-id (get-in scrape [:body :scrape-processing-run-id])]
+
+        (testing "precondition: the scrape returned a run id"
+          (is (string? run-id)))
+
+        ;; 2. create the recipe linked to that run
+        (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                 as-writer
+                 (mock/json-body (assoc example-body :scrape-processing-run-id run-id))))
+
+        (testing "a writer reads the assembled lineage; raw body omitted by default"
+          (is (match? {:status 200
+                       :body   {:recipe-url "chana-masala"
+                                :run  {:outcome    "success"
+                                       :techniques {:parse "json-ld"}}
+                                :raw  {:http-status   200
+                                       :content-bytes pos-int?
+                                       :raw-content   nil?}}}
+                      (app (-> (mock/request :get "https://andrewslai.com/recipes/chana-masala/lineage")
+                               as-writer)))))
+
+        (testing "include-raw=true returns the stored raw html"
+          (is (match? {:status 200 :body {:raw {:raw-content json-ld-html}}}
+                      (app (-> (mock/request :get "https://andrewslai.com/recipes/chana-masala/lineage?include-raw=true")
+                               as-writer)))))
+
+        (testing "a recipe with no linked run has no lineage (404)"
+          (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                   as-writer
+                   (mock/json-body {:content {:title "Manual" :sections [{:ingredients ["x"] :steps ["y"]}]}
+                                    :recipe-url "manual" :public-visibility true})))
+          (is (match? {:status 404}
+                      (app (-> (mock/request :get "https://andrewslai.com/recipes/manual/lineage")
+                               as-writer)))))))
+
+    (testing "a non-writer cannot see lineage (404, no existence leak)"
+      (is (match? {:status 404}
+                  ((make-app "always-unauthenticated")
+                   (mock/request :get "https://andrewslai.com/recipes/chana-masala/lineage")))))))
