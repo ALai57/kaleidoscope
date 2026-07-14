@@ -102,3 +102,72 @@
                       (app (as-user (mock/request :delete (str "/interests/" interest-id))))))
           (is (match? {:status 404}
                       (app (as-user (mock/request :get (str "/interests/" interest-id)))))))))))
+
+;; The full design loop over HTTP with the mock executor: onboard an interest,
+;; curate, read the shelf, retune the novelty dial, re-curate, act on a card.
+(deftest personal-recommender-end-to-end-test
+  (let [db  (embedded-h2/fresh-db!)
+        app (test-app {:database db :workflow-executor (workflow-mock/make-mock-executor)})]
+    (mw/reset-rate-limits!)
+    (let [interest-id
+          (get-in (app (-> (mock/request :post "/interests")
+                           (mock/json-body {:intent        "Investigative journalism about technology and power"
+                                            :taste-profile {:trusted-sources ["PBS Frontline" "The Hill"]
+                                                            :novelty-ratio   0.5
+                                                            :formats         ["article" "podcast"]}})
+                           as-user))
+                  [:body :id])]
+
+      (testing "curating fills a finite shelf split by the novelty dial"
+        (is (match? {:status 200
+                     :body   {:status  "completed"
+                              :summary {:total 6 :trusted 3 :novel 3}}}
+                    (app (-> (mock/request :post (str "/interests/" interest-id "/curate"))
+                             (mock/json-body {})
+                             as-user)))))
+
+      (testing "every shelf card carries a why rationale and a trust/novel origin tag"
+        (let [{:keys [body]} (app (as-user (mock/request
+                                            :get (str "/interests/" interest-id
+                                                      "/recommendations?status=shelved"))))]
+          (is (= 6 (count body)))
+          (is (every? #(and (seq (:why %)) (contains? #{"trusted" "novel"} (:origin %))) body))))
+
+      (testing "the shelf filters by media kind"
+        (let [{:keys [body]} (app (as-user (mock/request
+                                            :get (str "/interests/" interest-id
+                                                      "/recommendations?status=shelved&kind=article"))))]
+          (is (seq body))
+          (is (every? #(= "article" (:kind %)) body))))
+
+      (testing "retuning the novelty dial to 1.0 makes the next shelf entirely novel"
+        (app (-> (mock/request :put (str "/interests/" interest-id))
+                 (mock/json-body {:taste-profile {:novelty-ratio 1.0}})
+                 as-user))
+        (is (match? {:status 200
+                     :body   {:summary {:total 6 :trusted 0 :novel 6}}}
+                    (app (-> (mock/request :post (str "/interests/" interest-id "/curate"))
+                             (mock/json-body {})
+                             as-user)))))
+
+      (testing "re-curation replaced the shelf instead of growing it (finite by principle)"
+        (is (= 6 (count (:body (app (as-user (mock/request
+                                              :get (str "/interests/" interest-id
+                                                        "/recommendations?status=shelved")))))))))
+
+      (testing "the reader can queue a card off the shelf"
+        (let [rec-id (:id (first (:body (app (as-user (mock/request
+                                                       :get (str "/interests/" interest-id
+                                                                 "/recommendations?status=shelved")))))))]
+          (is (match? {:status 200 :body {:status "queued"}}
+                      (app (-> (mock/request :put (str "/interests/" interest-id
+                                                       "/recommendations/" rec-id))
+                               (mock/json-body {:status "queued"})
+                               as-user))))))
+
+      (testing "responding to a step that isn't awaiting input is a 404, not a mutation"
+        (is (match? {:status 404}
+                    (app (-> (mock/request :post (format "/interests/%s/curation-runs/%s/steps/%s/respond"
+                                                         interest-id (random-uuid) (random-uuid)))
+                             (mock/json-body {:answers ["x"]})
+                             as-user))))))))
