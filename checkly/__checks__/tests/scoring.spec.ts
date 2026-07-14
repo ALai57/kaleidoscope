@@ -48,8 +48,8 @@ test('Scoring a project returns a score from Claude', async ({ request }) => {
   await test.step('A fresh score from Claude comes back for the definition', async () => {
     const res = await request.get(`/projects/${projectId}/scores`, { headers })
     expect(res.status()).toBe(200)
-    const runs: Array<{ 'score-definition-id': string, overall: number }> = await res.json()
-    const run = runs.find((r) => r['score-definition-id'] === definitionId)
+    const runs: Array<{ definition: { id: string }, overall: number }> = await res.json()
+    const run = runs.find((r) => r.definition.id === definitionId)
     expect(run, 'No score run recorded — the Claude call likely failed (POST /scores returns 200 even when scoring throws)').toBeTruthy()
     expect(typeof run!.overall, 'Score run has no numeric overall').toBe('number')
   })
