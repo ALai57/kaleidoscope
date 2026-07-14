@@ -20,4 +20,8 @@
                        (llm/parse-segment-response "{\"foo\":1}"))))
   (testing "nil text throws a generation error, not an NPE"
     (is (thrown-match? clojure.lang.ExceptionInfo {:type :generation}
-                       (llm/parse-segment-response nil)))))
+                       (llm/parse-segment-response nil))))
+  (testing "structurally invalid proposal (phase missing :estimate) throws a generation error"
+    (is (thrown-match? clojure.lang.ExceptionInfo {:type :generation}
+                       (llm/parse-segment-response
+                        "{\"components\":[{\"name\":\"C\",\"phases\":[{\"id\":\"C/x\",\"label\":\"x\",\"kind\":\"active\",\"steps\":[0],\"deps\":[]}]}]}")))))

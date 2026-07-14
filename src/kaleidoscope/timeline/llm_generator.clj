@@ -1,7 +1,9 @@
 (ns kaleidoscope.timeline.llm-generator
   (:require [cheshire.core :as json]
             [clojure.string :as str]
+            [kaleidoscope.models.recipes :as models]
             [kaleidoscope.timeline.protocol :as protocol]
+            [malli.core :as m]
             [taoensso.timbre :as log])
   (:import [java.net URI]
            [java.net.http HttpClient HttpRequest HttpResponse
@@ -40,8 +42,8 @@
                   (str/replace #"\s*```$" "") str/trim)]
     (try
       (let [parsed (json/decode clean true)]
-        (when-not (sequential? (:components parsed))
-          (throw (ex-info "no :components" {:type :generation})))
+        (when-not (m/validate models/TimelineProposal parsed)
+          (throw (ex-info "invalid timeline proposal" {:type :generation})))
         parsed)
       (catch com.fasterxml.jackson.core.JsonProcessingException _
         (throw (ex-info "malformed timeline JSON" {:type :generation}))))))

@@ -424,3 +424,24 @@
     (testing "the recipe itself is still retrievable and un-timelined"
       (is (match? {:status 200 :body {:recipe-url "chana-masala" :timeline nil?}}
                   (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))
+
+(deftest timeline-rate-limit-maps-to-503-test
+  (let [app (make-app "custom-authenticated-user")]
+    (create-recipe! app)
+    (with-redefs [kaleidoscope.api.recipe-timeline/generate!
+                  (fn [_] (throw (ex-info "429" {:type :generation :status 429})))]
+      (testing "an Anthropic rate-limit surfaces as 503, not 502"
+        (is (match? {:status 503 :body {:reason "rate-limited"}}
+                    (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")
+                             as-writer))))))))
+
+(deftest timeline-post-skips-write-when-unchanged-test
+  (let [app (make-app "custom-authenticated-user")]
+    (create-recipe! app)
+    (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline") as-writer))
+    (with-redefs [kaleidoscope.api.recipes/save-timeline!
+                  (fn [& _] (throw (ex-info "should not persist on short-circuit" {})))]
+      (testing "a second POST with unchanged content short-circuits and does NOT persist"
+        (is (match? {:status 200 :body {:timeline {:total-minutes pos?}}}
+                    (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")
+                             as-writer))))))))

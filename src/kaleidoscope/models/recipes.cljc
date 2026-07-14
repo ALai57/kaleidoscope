@@ -53,6 +53,16 @@
 (def TimelineOverridesRequest
   [:map [:overrides [:sequential TimelineOverride]]])
 
+(def TimelineProposal
+  ;; What a generator's `segment` returns (pre-assemble/pack): components carry no
+  ;; :steps-hash yet, and phases carry no :start (Phase's :start is optional).
+  [:map
+   [:components
+    [:sequential
+     [:map
+      [:name   :string]
+      [:phases [:sequential Phase]]]]]])
+
 (def RawScrape
   ;; Validated before persistence. Fetch fields are nullable so a pre-fetch
   ;; failure (url) or a photo import still records source-kind + hostname.

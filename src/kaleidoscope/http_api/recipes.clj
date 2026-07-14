@@ -6,7 +6,7 @@
             [kaleidoscope.api.recipe-timeline :as timeline-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.models.recipes :as models.recipes]
-            [ring.util.http-response :refer [bad-gateway bad-request conflict not-found ok unprocessable-entity]]
+            [ring.util.http-response :refer [bad-gateway bad-request conflict not-found ok service-unavailable unprocessable-entity]]
             [taoensso.timbre :as log]))
 
 (defn ->slug
@@ -206,16 +206,21 @@
                                   url       (get-in parameters [:path :recipe-url])]
                               (if-let [recipe (recipes-api/get-recipe db host url)]
                                 (try
-                                  (let [timeline (timeline-api/generate!
+                                  (let [stored   (:timeline recipe)
+                                        timeline (timeline-api/generate!
                                                   {:generator         (:timeline-generator components)
                                                    :content           (:content recipe)
-                                                   :stored            (:timeline recipe)
+                                                   :stored            stored
                                                    :generator-version timeline-api/default-generator-version
                                                    :now               (str (java.time.Instant/now))})]
-                                    (ok {:timeline (:timeline (recipes-api/save-timeline! db host url timeline))}))
+                                    (if (identical? timeline stored)
+                                      (ok {:timeline timeline})
+                                      (ok {:timeline (:timeline (recipes-api/save-timeline! db host url timeline))})))
                                   (catch clojure.lang.ExceptionInfo e
                                     (if (= :generation (:type (ex-data e)))
-                                      (bad-gateway {:reason "generation-failed"})
+                                      (if (= 429 (:status (ex-data e)))
+                                        (service-unavailable {:reason "rate-limited"})
+                                        (bad-gateway {:reason "generation-failed"}))
                                       (throw e))))
                                 (not-found {:reason "Missing"})))))}
      :put  {:summary    "Apply duration overrides and re-pack (writer-only; no LLM)"
