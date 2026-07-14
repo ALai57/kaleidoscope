@@ -96,6 +96,14 @@ When `KALEIDOSCOPE_AUTH_TYPE=auth0`, two additional variables are required:
 | in-memory        | Use an in-memory filesystem. Useful for testing                  |
 | local-filesystem | Serve static content from the local filesystem                   |
 
+
+`KALEIDOSCOPE_TIMELINE_GENERATOR_TYPE` Determines how to generate recipe cook timelines
+
+| Value | Description                                                                    |
+|-------|--------------------------------------------------------------------------------|
+| mock  | Deterministic timeline generator. Default; needs no API key                    |
+| llm   | Segment a recipe into timeline phases via Claude. Requires `ANTHROPIC_API_KEY` |
+
 Some launch options require additional environment variables to start up (e.g.
 databases need connection variables). If you don't supply these variables, the
 app will send verbose error messages to help you configure the environment
