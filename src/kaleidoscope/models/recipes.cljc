@@ -99,3 +99,43 @@
                        [:normalize :keyword]]]
    [:warnings         [:sequential :string]]
    [:scrape-processing-run-id :uuid]])
+
+(def LlmCall
+  ;; A stored Anthropic call. `purpose` round-trips from JSONB as a string;
+  ;; request/response are stored verbatim, so they stay opaque maps here.
+  [:map
+   [:purpose  some?]
+   [:model    :string]
+   [:request  :map]
+   [:response :map]])
+
+(def RecipeLineage
+  ;; Read-only view assembled from processing_runs + raw_scrapes for one recipe.
+  ;; JSONB-sourced values arrive decoded; `techniques`/`outcome` are strings.
+  ;; `raw.raw-content` is present but nil unless the request opts into the body.
+  [:map
+   [:recipe-url :string]
+   [:recipe-id  :uuid]
+   [:run  [:map
+           [:id               :uuid]
+           [:pipeline-version :string]
+           [:outcome          :string]
+           [:error-detail     [:maybe :map]]
+           [:techniques       [:map
+                               [:acquire   {:optional true} [:maybe :string]]
+                               [:parse     {:optional true} [:maybe :string]]
+                               [:normalize {:optional true} [:maybe :string]]]]
+           [:facts            [:maybe ExtractedFacts]]
+           [:content          [:maybe RecipeContent]]
+           [:llm-calls        [:sequential LlmCall]]
+           [:warnings         [:sequential :string]]
+           [:created-at       some?]]]
+   [:raw  [:map
+           [:source-kind   :string]
+           [:request-url   {:optional true} [:maybe :string]]
+           [:final-url     {:optional true} [:maybe :string]]
+           [:http-status   {:optional true} [:maybe :int]]
+           [:fetch-tier    {:optional true} [:maybe :string]]
+           [:content-bytes :int]
+           [:raw-content   [:maybe :string]]
+           [:created-at    some?]]]])

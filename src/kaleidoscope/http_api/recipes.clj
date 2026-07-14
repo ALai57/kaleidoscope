@@ -173,7 +173,26 @@
                             (recipes-api/delete-recipe! (:database components)
                                                         (hu/get-host request)
                                                         (get-in parameters [:path :recipe-url]))
-                            (ok {:deleted (get-in parameters [:path :recipe-url])}))}}]])
+                            (ok {:deleted (get-in parameters [:path :recipe-url])}))}}]
+
+   ["/:recipe-url/lineage"
+    {:get {:summary    "Import lineage for a recipe (writer-only): processing run + raw scrape"
+           :responses  (merge hu/openapi-401 hu/openapi-404
+                              {200 {:body models.recipes/RecipeLineage}})
+           :parameters {:path  {:recipe-url :string}
+                        :query [:map [:include-raw {:optional true} :boolean]]}
+           :handler    (fn [{:keys [components parameters] :as request}]
+                         ;; Writer-only: the response exposes raw HTML/transcripts
+                         ;; and full LLM prompts. Non-writers get 404 (no leak).
+                         (if-not (authz/writer? request)
+                           (not-found {:reason "Missing"})
+                           (if-let [lineage (recipes-api/get-recipe-lineage
+                                             (:database components)
+                                             (hu/get-host request)
+                                             (get-in parameters [:path :recipe-url])
+                                             (boolean (get-in parameters [:query :include-raw])))]
+                             (ok lineage)
+                             (not-found {:reason "Missing"}))))}}]])
 
 (def reitit-recipe-labels-routes
   ["/recipe-labels" {:tags     ["recipe-labels"]

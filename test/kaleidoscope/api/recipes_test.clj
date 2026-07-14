@@ -240,3 +240,46 @@
       (testing "can delete an audience"
         (recipes/delete-recipe-audience! db aid)
         (is (empty? (recipes/get-recipe-audiences db {:id aid})))))))
+
+(deftest recipe-import-lineage-test
+  (let [db       (embedded-pg/fresh-db!)
+        raw-html "<html>recipe</html>"
+        {raw-id :id} (pipeline-db/create-raw-scrape!
+                      db {:hostname host :source-kind "url"
+                          :request-url "http://example.com/r" :final-url "http://example.com/r"
+                          :http-status 200 :fetch-tier "direct" :raw-content raw-html})
+        {run-id :id} (pipeline-db/create-processing-run!
+                      db {:hostname host :raw-scrape-id raw-id :pipeline-version "abc123"
+                          :techniques {:acquire :direct :parse :json-ld :normalize :single-section}
+                          :facts   {:title "Chana Masala" :ingredients ["2 cups chickpeas"]
+                                    :steps ["Cook"] :section-signals [] :labels []}
+                          :content example-content
+                          :llm-calls [] :warnings [] :outcome :success :error-detail nil})
+        _        (recipes/create-recipe! db (example-recipe :scrape-processing-run-id run-id))]
+
+    (testing "assembles run + raw for a scraped recipe; raw body omitted by default"
+      (is (match? {:recipe-url "chana-masala"
+                   :recipe-id  uuid?
+                   :run  {:pipeline-version "abc123"
+                          :outcome          "success"
+                          :techniques       {:parse "json-ld"}
+                          :content          {:title "Chana Masala"}}
+                   :raw  {:http-status   200
+                          :fetch-tier    "direct"
+                          :content-bytes (count raw-html)
+                          :raw-content   nil?}}
+                  (recipes/get-recipe-lineage db host "chana-masala" false))))
+
+    (testing "include-raw? returns the stored raw body"
+      (is (match? {:raw {:raw-content raw-html}}
+                  (recipes/get-recipe-lineage db host "chana-masala" true))))
+
+    (testing "a recipe with no linked run has no lineage"
+      (recipes/create-recipe! db (example-recipe :recipe-url "no-run"))
+      (is (nil? (recipes/get-recipe-lineage db host "no-run" false))))
+
+    (testing "a nonexistent recipe has no lineage"
+      (is (nil? (recipes/get-recipe-lineage db host "does-not-exist" false))))
+
+    (testing "scoped to hostname — another host sees nothing"
+      (is (nil? (recipes/get-recipe-lineage db "other.com" "chana-masala" false))))))

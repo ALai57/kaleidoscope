@@ -11,6 +11,7 @@
   (:require [cheshire.core :as json]
             [kaleidoscope.api.access :as access]
             [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
             [kaleidoscope.utils.core :as utils]
             [honey.sql :as hsql]
             [next.jdbc :as next]
@@ -170,6 +171,32 @@
   "A single recipe by slug (labels attached), scoped to hostname."
   [db hostname recipe-url]
   (first (get-recipes db {:hostname hostname :recipe-url recipe-url})))
+
+(defn get-recipe-lineage
+  "A recipe's import lineage: the processing run linked via
+  `:scrape-processing-run-id` and the raw scrape that run ran over, all scoped
+  to `hostname`. Pure read — assembles records the pipeline already persisted.
+
+  Returns nil when no recipe with that slug exists for the host, or when it has
+  no linked run (a manually-created recipe). `include-raw?` gates the
+  potentially large raw body: `:raw` always carries `:content-bytes` (size), and
+  `:raw-content` is the full body when true, else nil (the UI re-fetches with
+  include-raw when a user opens the raw inspector)."
+  [db hostname recipe-url include-raw?]
+  (when-let [{:keys [id scrape-processing-run-id]} (get-recipe db hostname recipe-url)]
+    (when scrape-processing-run-id
+      (when-let [run (pipeline-db/get-processing-run db scrape-processing-run-id hostname)]
+        (let [raw (pipeline-db/get-raw-scrape db (:raw-scrape-id run) hostname)]
+          {:recipe-url recipe-url
+           :recipe-id  id
+           :run        (select-keys run [:id :pipeline-version :outcome :error-detail
+                                         :techniques :facts :content :llm-calls
+                                         :warnings :created-at])
+           :raw        (-> raw
+                           (select-keys [:source-kind :request-url :final-url
+                                         :http-status :fetch-tier :raw-content :created-at])
+                           (assoc :content-bytes (count (or (:raw-content raw) "")))
+                           (cond-> (not include-raw?) (assoc :raw-content nil)))})))))
 
 (defn get-recipe-audiences
   [db query]
