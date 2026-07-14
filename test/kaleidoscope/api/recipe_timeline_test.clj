@@ -31,7 +31,7 @@
 (deftest pack-respects-dependencies-test
   (testing "a phase can't start before its dep finishes"
     (let [packed (tl/pack (comp1 [["marinate" "passive" 24 []]
-                                   ["sear" "active" 10 ["C/marinate"]]]) [])]
+                                   ["sear" "active" 10 ["marinate"]]]) [])]
       (is (match? {"marinate" 0 "sear" 24} (starts packed)))
       (is (= 34 (:total-minutes packed))))))
 
@@ -44,11 +44,11 @@
 
 (deftest pack-tolerates-dangling-dep-test
   (testing "a dep on a nonexistent phase is ignored, not fatal"
-    (let [packed (tl/pack (comp1 [["a" "active" 10 ["C/ghost"]]]) [])]
+    (let [packed (tl/pack (comp1 [["a" "active" 10 ["ghost"]]]) [])]
       (is (match? {"a" 0} (starts packed))))))
 
 (deftest pack-breaks-cycles-test
   (testing "a dependency cycle does not hang; every phase gets a start"
-    (let [packed (tl/pack (comp1 [["a" "active" 3 ["C/b"]]
-                                   ["b" "active" 3 ["C/a"]]]) [])]
+    (let [packed (tl/pack (comp1 [["a" "active" 3 ["b"]]
+                                   ["b" "active" 3 ["a"]]]) [])]
       (is (every? some? (vals (starts packed)))))))

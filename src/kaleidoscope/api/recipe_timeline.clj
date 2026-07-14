@@ -23,20 +23,9 @@
   duration = matching override :minutes, else :estimate. Returns
   {:components <with :start> :total-minutes int}."
   [components overrides]
-  (let [ov-by-id  (into {} (map (juxt :phase :minutes)) overrides)
-        pairs     (for [c components p (:phases c)] [c p])
-        ;; Deps are authored as component-qualified ids (e.g. "C/marinate"),
-        ;; while a phase's own :id is unqualified within its component — map
-        ;; both forms to the phase's canonical :id so deps resolve correctly.
-        alias->id (into {}
-                        (mapcat (fn [[c p]]
-                                  [[(:id p) (:id p)]
-                                   [(str (:name c) "/" (:id p)) (:id p)]]))
-                        pairs)
-        phases    (for [[_ p] pairs]
-                    (-> p
-                        (assoc :duration (or (ov-by-id (:id p)) (:estimate p)))
-                        (update :deps (fn [deps] (into [] (keep alias->id) deps)))))
+  (let [ov-by-id (into {} (map (juxt :phase :minutes)) overrides)
+        phases   (for [c components p (:phases c)]
+                   (assoc p :duration (or (ov-by-id (:id p)) (:estimate p))))
         by-id    (into {} (map (juxt :id identity)) phases)
         order    (topo-sort (vec phases))
         {:keys [spans]}
