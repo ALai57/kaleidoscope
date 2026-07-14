@@ -9,6 +9,7 @@
    [kaleidoscope.http-api.articles :refer [reitit-articles-routes reitit-branches-routes reitit-compositions-routes]]
    [kaleidoscope.http-api.audiences :refer [reitit-audiences-routes]]
    [kaleidoscope.http-api.groups :refer [reitit-groups-routes]]
+   [kaleidoscope.http-api.interests :refer [reitit-interests-routes]]
    [kaleidoscope.http-api.projects :refer [reitit-projects-routes]]
    [kaleidoscope.http-api.score-definitions :refer [reitit-score-definition-routes]]
    [kaleidoscope.http-api.agents :refer [reitit-agent-routes]]
@@ -40,6 +41,7 @@
    {:pattern #"^/ping"           :handler auth/public-access}
 
    {:pattern #"^/groups.*"            :handler auth/require-*-writer}
+   {:pattern #"^/interests.*"         :handler auth/require-*-writer}
    {:pattern #"^/projects-portfolio"  :handler auth/public-access}
    {:pattern #"^/projects.*"          :handler auth/require-*-writer}
    {:pattern #"^/score-definitions.*" :handler auth/require-*-writer}
@@ -228,6 +230,7 @@
         reitit-branches-routes
         reitit-compositions-routes
         reitit-groups-routes
+        reitit-interests-routes
         reitit-photos-routes
         reitit-projects-routes
         reitit-score-definition-routes
