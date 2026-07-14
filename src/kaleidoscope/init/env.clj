@@ -193,7 +193,7 @@
 (def kaleidoscope-notify-image-resizer-boot-instructions
   {:name      :kaleidoscope-notify-image-resizer
    :path      "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE"
-   :launchers {"none"    (fn [_env] identity)
+   :launchers {"none"    (fn [_env] (fn [& _args] nil))
                "println" (fn [_env] (fn [& args] (println "Arguments to image notifier" args)))
                "sns"     (fn [env]
                            (let [{:keys [image-notifier-arn]} (env->kaleidoscope-image-notifier env)

@@ -74,6 +74,17 @@
         (is (= "kal-ephemeral" (:storage-root client)))
         (is (= "eph-foo/" (:prefix client)))))))
 
+(deftest notify-image-resizer-none-launcher-accepts-keyword-args
+  (testing "the \"none\" no-op notifier tolerates the keyword-arg call made by new-image"
+    (let [none-launcher (get-in sut/kaleidoscope-notify-image-resizer-boot-instructions
+                                [:launchers "none"])
+          notifier      (none-launcher {})]
+      ;; new-image invokes the notifier with these six positional args; a bare
+      ;; clojure.core/identity throws ArityException here (Bugsnag 6a567ddc).
+      (is (nil? (notifier :subject             "image-resize-requested"
+                          :message             "s3://host/media/photo/raw.png"
+                          :message-attributes  {"hostname" "host" "extension" "png"}))))))
+
 (deftest image-transcriber-boots-mock-by-default-test
   (testing "the default launcher yields a MockTranscriber under :kaleidoscope-image-transcriber"
     (let [system (sut/start-system! [sut/kaleidoscope-image-transcriber-boot-instructions] {})]
