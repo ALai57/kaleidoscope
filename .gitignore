@@ -52,3 +52,6 @@ kaleidoscope.iml
 fly.kal-eph-*.toml
 
 .neon
+
+# Playwright MCP browser-debug artifacts (console logs, page snapshots)
+.playwright-mcp/

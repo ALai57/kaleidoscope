@@ -2,7 +2,8 @@
   (:require [kaleidoscope.persistence.rdbms.embedded-db-utils :as edb-utils]
             [next.jdbc :as next]
             [taoensso.timbre :as log])
-  (:import io.zonky.test.db.postgres.embedded.EmbeddedPostgres))
+  (:import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
+           java.time.Duration))
 
 ;; Disable Zonky logs because they're so verbose
 (log/merge-config! {:min-level [["io.zonky*" :error]
@@ -16,9 +17,15 @@
   "Start the Embedded Postgres process and set the output Redirector.
 
   Normally, Embedded Postgres logs via a separate thread -> this causes Log
-  redirection through Timbre to fail."
+  redirection through Timbre to fail.
+
+  The startup wait is raised well above Zonky's 10s default: the native
+  Postgres binary can take longer to accept connections under test/CI load
+  (concurrent DBs, busy CPU, first-run binary extraction), which otherwise
+  surfaces as a flaky \"Gave up waiting for server to start\" failure."
   []
   (-> (EmbeddedPostgres/builder)
+      (.setPGStartupWait (Duration/ofSeconds 60))
       (.start)
       (->db-spec)))
 

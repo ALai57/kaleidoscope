@@ -1,0 +1,458 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      "@id": "https://breadbyelise.com/cardamom-buns/#article",
+      "isPartOf": {
+        "@id": "https://breadbyelise.com/cardamom-buns/"
+      },
+      "author": {
+        "name": "Bread By Elise",
+        "@id": "https://breadbyelise.com/#/schema/person/d014b3a3e7310b86b0bfb41660ec78f2"
+      },
+      "headline": "The Best Cardamom Buns",
+      "datePublished": "2024-08-09T10:15:47+00:00",
+      "dateModified": "2024-10-29T19:38:26+00:00",
+      "wordCount": 1793,
+      "commentCount": 5,
+      "publisher": {
+        "@id": "https://breadbyelise.com/#organization"
+      },
+      "image": {
+        "@id": "https://breadbyelise.com/cardamom-buns/#primaryimage"
+      },
+      "thumbnailUrl": "https://breadbyelise.com/wp-content/uploads/2024/08/DSC00255.jpg",
+      "keywords": [
+        "Buns &amp; Rolls",
+        "Pastry",
+        "Sweet Bakes"
+      ],
+      "articleSection": [
+        "Pastry",
+        "Yeast Recipe"
+      ],
+      "inLanguage": "en-US",
+      "potentialAction": [
+        {
+          "@type": "CommentAction",
+          "name": "Comment",
+          "target": [
+            "https://breadbyelise.com/cardamom-buns/#respond"
+          ]
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://breadbyelise.com/cardamom-buns/",
+      "url": "https://breadbyelise.com/cardamom-buns/",
+      "name": "The Best Cardamom Buns - Bread By Elise",
+      "isPartOf": {
+        "@id": "https://breadbyelise.com/#website"
+      },
+      "primaryImageOfPage": {
+        "@id": "https://breadbyelise.com/cardamom-buns/#primaryimage"
+      },
+      "image": {
+        "@id": "https://breadbyelise.com/cardamom-buns/#primaryimage"
+      },
+      "thumbnailUrl": "https://breadbyelise.com/wp-content/uploads/2024/08/DSC00255.jpg",
+      "datePublished": "2024-08-09T10:15:47+00:00",
+      "dateModified": "2024-10-29T19:38:26+00:00",
+      "description": "The Best Cardamom Buns. Enjoy the flavor of freshly ground cardamom and the pillowy texture that makes these buns an all-time favorite.",
+      "breadcrumb": {
+        "@id": "https://breadbyelise.com/cardamom-buns/#breadcrumb"
+      },
+      "inLanguage": "en-US",
+      "potentialAction": [
+        {
+          "@type": "ReadAction",
+          "target": [
+            "https://breadbyelise.com/cardamom-buns/"
+          ]
+        }
+      ]
+    },
+    {
+      "@type": "ImageObject",
+      "inLanguage": "en-US",
+      "@id": "https://breadbyelise.com/cardamom-buns/#primaryimage",
+      "url": "https://breadbyelise.com/wp-content/uploads/2024/08/DSC00255.jpg",
+      "contentUrl": "https://breadbyelise.com/wp-content/uploads/2024/08/DSC00255.jpg",
+      "width": 1536,
+      "height": 2048
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://breadbyelise.com/cardamom-buns/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://breadbyelise.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Latest Recipes",
+          "item": "https://breadbyelise.com/latest-recipes/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "The Best Cardamom Buns"
+        }
+      ]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://breadbyelise.com/#website",
+      "url": "https://breadbyelise.com/",
+      "name": "Bread By Elise",
+      "description": "Bread &amp; Pastry Recipes",
+      "publisher": {
+        "@id": "https://breadbyelise.com/#organization"
+      },
+      "potentialAction": [
+        {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://breadbyelise.com/?s={search_term_string}"
+          },
+          "query-input": {
+            "@type": "PropertyValueSpecification",
+            "valueRequired": true,
+            "valueName": "search_term_string"
+          }
+        }
+      ],
+      "inLanguage": "en-US"
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://breadbyelise.com/#organization",
+      "name": "Bread By Elise",
+      "url": "https://breadbyelise.com/",
+      "logo": {
+        "@type": "ImageObject",
+        "inLanguage": "en-US",
+        "@id": "https://breadbyelise.com/#/schema/logo/image/",
+        "url": "https://breadbyelise.com/wp-content/uploads/2024/04/cropped-logo-v3.png",
+        "contentUrl": "https://breadbyelise.com/wp-content/uploads/2024/04/cropped-logo-v3.png",
+        "width": 834,
+        "height": 91,
+        "caption": "Bread By Elise"
+      },
+      "image": {
+        "@id": "https://breadbyelise.com/#/schema/logo/image/"
+      },
+      "sameAs": [
+        "https://www.facebook.com/breadbyelise",
+        "https://www.instagram.com/breadbyelise/",
+        "https://www.tiktok.com/@breadbyelisecom",
+        "https://www.youtube.com/c/BreadByElise",
+        "https://pinterest.com/breadbyelisecom/"
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://breadbyelise.com/#/schema/person/d014b3a3e7310b86b0bfb41660ec78f2",
+      "name": "Bread By Elise",
+      "image": {
+        "@type": "ImageObject",
+        "inLanguage": "en-US",
+        "@id": "https://secure.gravatar.com/avatar/91f0940cebf2e89e8f5c1458ac302b314cb21b68b58754deb9d2af6ad4e3b281?s=96&d=mm&r=g",
+        "url": "https://secure.gravatar.com/avatar/91f0940cebf2e89e8f5c1458ac302b314cb21b68b58754deb9d2af6ad4e3b281?s=96&d=mm&r=g",
+        "contentUrl": "https://secure.gravatar.com/avatar/91f0940cebf2e89e8f5c1458ac302b314cb21b68b58754deb9d2af6ad4e3b281?s=96&d=mm&r=g",
+        "caption": "Bread By Elise"
+      },
+      "sameAs": [
+        "https://breadbyelise.com"
+      ],
+      "url": "https://breadbyelise.com/author/bbestudio/"
+    },
+    {
+      "@type": "Recipe",
+      "name": "The Best Cardamom Buns",
+      "author": {
+        "@id": "https://breadbyelise.com/#/schema/person/d014b3a3e7310b86b0bfb41660ec78f2"
+      },
+      "description": "This step-by-step recipe will guide you in baking the best cardamom buns right at home. Enjoy the spicy-sweet flavor of freshly ground cardamom and the pillowy texture that makes these buns an all-time favorite. This recipe yields 6 large or 12 smaller buns.",
+      "datePublished": "2024-08-09T10:15:47+00:00",
+      "image": [
+        "https://breadbyelise.com/wp-content/uploads/2024/08/DSC00255.jpg",
+        "https://breadbyelise.com/wp-content/uploads/2024/08/DSC00255-500x500.jpg",
+        "https://breadbyelise.com/wp-content/uploads/2024/08/DSC00255-500x375.jpg",
+        "https://breadbyelise.com/wp-content/uploads/2024/08/DSC00255-480x270.jpg"
+      ],
+      "video": {
+        "name": "The Best Cardamom Buns",
+        "description": "This step-by-step recipe will guide you in baking the best cardamom buns right at home. Enjoy the spicy-sweet flavor of freshly ground cardamom and the pillowy texture that makes these buns an all-time favorite.",
+        "thumbnailUrl": "https://thumbnails.scriptwrapper.com/20750/lvhvkoh6o34zks9guuwc",
+        "embedUrl": "https://video.mediavine.com/videos/wcr32l60vkxygh9gsxf2.js",
+        "contentUrl": "https://videos.scriptwrapper.com/20750/wcr32l60vkxygh9gsxf2/original/video.mp4",
+        "uploadDate": "2024-10-29T19:10:01+00:00",
+        "duration": "PT25S",
+        "@type": "VideoObject"
+      },
+      "recipeYield": [
+        "12",
+        "12 buns"
+      ],
+      "prepTime": "PT40M",
+      "cookTime": "PT15M",
+      "totalTime": "PT135M",
+      "recipeIngredient": [
+        "370 g bread flour",
+        "40 g granulated sugar",
+        "5 g instant dry yeast",
+        "5 g salt",
+        "185 g whole milk (at around 27℃/80℉)",
+        "1  large egg (room temp)",
+        "65 g unsalted butter (in cubes, softened at room temp)",
+        "1  egg for egg wash",
+        "75 g unsalted butter (softened at room temp)",
+        "35 g granulated sugar",
+        "35 g dark brown sugar",
+        "3 g decorticated cardamom seeds (ground in mortar and pestle)",
+        "15 g all-purpose flour",
+        "30 g dark brown sugar",
+        "30 g water",
+        "20 g granulated sugar",
+        "2 g decorticated cardamom seeds (ground in mortar and pestle)"
+      ],
+      "recipeInstructions": [
+        {
+          "@type": "HowToSection",
+          "name": "Dough",
+          "itemListElement": [
+            {
+              "@type": "HowToStep",
+              "text": "Combine all the ingredients listed for the dough, excluding the butter, in the bowl of a stand mixer fitted with a dough hook.",
+              "name": "Combine all the ingredients listed for the dough, excluding the butter, in the bowl of a stand mixer fitted with a dough hook.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-0-0"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Knead the dough on low to medium speed for about 10 minutes.",
+              "name": "Knead the dough on low to medium speed for about 10 minutes.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-0-1"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Gradually add the cubed butter to the dough, one cube at a time, while continuing to knead.",
+              "name": "Gradually add the cubed butter to the dough, one cube at a time, while continuing to knead.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-0-2"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Continue kneading for another 10-20 minutes or until the dough passes the window-pane test – it should be smooth, elastic, and able to be stretched thinly without tearing.",
+              "name": "Continue kneading for another 10-20 minutes or until the dough passes the window-pane test – it should be smooth, elastic, and able to be stretched thinly without tearing.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-0-3"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Transfer the dough to a clean, lightly oiled bowl.",
+              "name": "Transfer the dough to a clean, lightly oiled bowl.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-0-4"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Cover the bowl with plastic wrap and let the dough proof. You have two options: Option 1. For a standard first proof, let the dough rise at around 77°F (25°C) for 60-90 minutes until it doubles in size. Option 2. For easier handling during shaping, proof the dough for about 45 minutes at around 77°F (25°C) until it rises to about 60% of its original size (where 100% would mean doubling). Transfer the dough to the fridge and let it rest for 1-2 hours or until it has fully doubled. This second rest in the fridge allows the dough to firm up slightly while continuing to rise.",
+              "name": "Cover the bowl with plastic wrap and let the dough proof. You have two options: Option 1. For a standard first proof, let the dough rise at around 77°F (25°C) for 60-90 minutes until it doubles in size. Option 2. For easier handling during shaping, proof the dough for about 45 minutes at around 77°F (25°C) until it rises to about 60% of its original size (where 100% would mean doubling). Transfer the dough to the fridge and let it rest for 1-2 hours or until it has fully doubled. This second rest in the fridge allows the dough to firm up slightly while continuing to rise.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-0-5"
+            }
+          ]
+        },
+        {
+          "@type": "HowToSection",
+          "name": "Cardamom Filling",
+          "itemListElement": [
+            {
+              "@type": "HowToStep",
+              "text": "Grind the decorticated cardamom seeds in your mortar and pestle until they’re medium-fine. There’s no need to grind them too finely.",
+              "name": "Grind the decorticated cardamom seeds in your mortar and pestle until they’re medium-fine. There’s no need to grind them too finely.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-1-0"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Combine all the filling ingredients in a small bowl, including the 3 grams of ground cardamom. Mix thoroughly with a fork or small spatula. Cover the bowl and set it aside at room temperature until you’re ready to shape the cardamom buns.",
+              "name": "Combine all the filling ingredients in a small bowl, including the 3 grams of ground cardamom. Mix thoroughly with a fork or small spatula. Cover the bowl and set it aside at room temperature until you’re ready to shape the cardamom buns.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-1-1"
+            }
+          ]
+        },
+        {
+          "@type": "HowToSection",
+          "name": "Shape",
+          "itemListElement": [
+            {
+              "@type": "HowToStep",
+              "text": "Once the dough has doubled, you&#39;re ready to shape the cardamom buns.",
+              "name": "Once the dough has doubled, you&#39;re ready to shape the cardamom buns.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-2-0"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Transfer the dough to a lightly floured surface and roll it out into a rectangle 18×14 inches (45×35 cm) long.",
+              "name": "Transfer the dough to a lightly floured surface and roll it out into a rectangle 18×14 inches (45×35 cm) long.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-2-1"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Spread the filling evenly over the dough surface using an offset spatula.",
+              "name": "Spread the filling evenly over the dough surface using an offset spatula.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-2-2"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Grab the shorter side with both hands and fold the dough down 2/3 of the way, then fold the remaining 1/3 over the top, like folding a letter.",
+              "name": "Grab the shorter side with both hands and fold the dough down 2/3 of the way, then fold the remaining 1/3 over the top, like folding a letter.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-2-3"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Gently roll over the dough with your rolling pin, using the weight of the pin as enough pressure to seal the layers without flattening them.",
+              "name": "Gently roll over the dough with your rolling pin, using the weight of the pin as enough pressure to seal the layers without flattening them.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-2-4"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Next, depending on your muffin pan, divide the dough: if using a regular muffin tin, cut it into 12 strands; for a jumbo muffin tin, divide it into 6 strands.",
+              "name": "Next, depending on your muffin pan, divide the dough: if using a regular muffin tin, cut it into 12 strands; for a jumbo muffin tin, divide it into 6 strands.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-2-5"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Please refer to the images, description, and recipe video earlier in this post for step-by-step instructions on shaping braided cardamom buns. You&#39;ll find them under the &quot;How to Shape Braided Cardamom Buns&quot; section.",
+              "name": "Please refer to the images, description, and recipe video earlier in this post for step-by-step instructions on shaping braided cardamom buns. You&#39;ll find them under the &quot;How to Shape Braided Cardamom Buns&quot; section.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-2-6"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Transfer the shaped cardamom buns to your muffin tin. Cover them with plastic wrap and let them proof for 20-40 minutes until they&#39;ve visibly increased in size and look nice and puffy.",
+              "name": "Transfer the shaped cardamom buns to your muffin tin. Cover them with plastic wrap and let them proof for 20-40 minutes until they&#39;ve visibly increased in size and look nice and puffy.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-2-7"
+            }
+          ]
+        },
+        {
+          "@type": "HowToSection",
+          "name": "Bake",
+          "itemListElement": [
+            {
+              "@type": "HowToStep",
+              "text": "Preheat your oven to 350℉ (180℃).",
+              "name": "Preheat your oven to 350℉ (180℃).",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-3-0"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Brush cardamom buns with egg wash.",
+              "name": "Brush cardamom buns with egg wash.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-3-1"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "Bake the cardamom buns for 15-20 minutes or until the internal temperature reaches 200°F (95°C). Meanwhile, prepare the simple syrup and cardamom sugar:",
+              "name": "Bake the cardamom buns for 15-20 minutes or until the internal temperature reaches 200°F (95°C). Meanwhile, prepare the simple syrup and cardamom sugar:",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-3-2"
+            }
+          ]
+        },
+        {
+          "@type": "HowToSection",
+          "name": "Simple Syrup &amp; Cardamom Sugar",
+          "itemListElement": [
+            {
+              "@type": "HowToStep",
+              "text": "To make the simple syrup, add ingredients to a small saucepan over medium heat. Stir until it simmers, and continue simmering until the sugar has dissolved. Set aside.",
+              "name": "To make the simple syrup, add ingredients to a small saucepan over medium heat. Stir until it simmers, and continue simmering until the sugar has dissolved. Set aside.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-4-0"
+            },
+            {
+              "@type": "HowToStep",
+              "text": "To make the cardamom sugar, grind decorticated cardamom in your mortar and pestle until it’s medium-fine. Then add the sugar and grind for a few additional seconds until combined. Set aside.",
+              "name": "To make the cardamom sugar, grind decorticated cardamom in your mortar and pestle until it’s medium-fine. Then add the sugar and grind for a few additional seconds until combined. Set aside.",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-4-1"
+            }
+          ]
+        },
+        {
+          "@type": "HowToSection",
+          "name": "Assemble",
+          "itemListElement": [
+            {
+              "@type": "HowToStep",
+              "text": "After baking, brush the tops of the buns with simple syrup and sprinkle with cardamom sugar. Transfer them to a wire rack to cool for at least 15 minutes. Enjoy!",
+              "name": "After baking, brush the tops of the buns with simple syrup and sprinkle with cardamom sugar. Transfer them to a wire rack to cool for at least 15 minutes. Enjoy!",
+              "url": "https://breadbyelise.com/cardamom-buns/#wprm-recipe-6220-step-5-0"
+            }
+          ]
+        }
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "5",
+        "ratingCount": "3",
+        "reviewCount": "3"
+      },
+      "review": [
+        {
+          "@type": "Review",
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": "5"
+          },
+          "reviewBody": "These buns are delicious! Made them today and I’m pretty sure I’ll be making them again in the next week. \r\nThank you for the clear instructions!",
+          "author": {
+            "@type": "Person",
+            "name": "Ilse"
+          },
+          "datePublished": "2025-09-26"
+        },
+        {
+          "@type": "Review",
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": "5"
+          },
+          "reviewBody": "Great recipe - my first time making them and I'm delighted with the results - the dough is beautiful and soft and the cardamom spicing is perfectly nuanced, delicious!!",
+          "author": {
+            "@type": "Person",
+            "name": "Raeoni"
+          },
+          "datePublished": "2025-09-19"
+        },
+        {
+          "@type": "Review",
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": "5"
+          },
+          "reviewBody": "There're few recipes cardamom bans in Japanese, so I'm really happy you give us this recipe. I wish I could introduce your recipe in Japanese someday because all your recipe must be loved by Japanese bakers...",
+          "author": {
+            "@type": "Person",
+            "name": "ilovemirin"
+          },
+          "datePublished": "2024-08-15"
+        }
+      ],
+      "recipeCategory": [
+        "Dessert"
+      ],
+      "recipeCuisine": [
+        "Scandinavian"
+      ],
+      "keywords": "Cardamom, Cardamom Buns",
+      "@id": "https://breadbyelise.com/cardamom-buns/#recipe",
+      "isPartOf": {
+        "@id": "https://breadbyelise.com/cardamom-buns/#article"
+      },
+      "mainEntityOfPage": "https://breadbyelise.com/cardamom-buns/"
+    }
+  ]
+}
