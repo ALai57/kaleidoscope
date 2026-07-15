@@ -69,7 +69,13 @@
   and every project-creation / bare POST /scores call runs one Claude call
   per is-default definition with no cap (see score-project!)."
   [db user-id body]
-  (persistence/create-score-definition! db (assoc body :user-id user-id :is-default false)))
+  ;; description is optional on the wire (ScoreDefinitionRequest) but NOT NULL in
+  ;; the score_definitions table - coalesce a missing description to "" so an
+  ;; omitted field is accepted rather than hitting the DB constraint as a 500/400.
+  (persistence/create-score-definition!
+   db (-> body
+          (update :description #(or % ""))
+          (assoc :user-id user-id :is-default false))))
 
 (defn update-score-definition!
   "Update a score definition. Returns nil if not found or not owned —

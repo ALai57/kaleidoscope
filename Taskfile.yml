@@ -41,10 +41,20 @@ tasks:
     cmd: ./bin/docker-build
 
   deploy:
-    desc: Run tests, build the uberjar, and deploy to Fly.io
+    desc: Run tests, migrate the prod DB, build the uberjar, and deploy to Fly.io
+    summary: |
+      Migrations run against prod (.env.fly.prod) BEFORE the Fly deploy so the
+      schema is ready before the new code boots — a deploy that ships code ahead
+      of its migrations is what broke /recipes/scrape in prod. Override the
+      migration target with DEPLOY_ENV if deploying elsewhere.
+    vars:
+      DEPLOY_ENV: '{{.DEPLOY_ENV | default ".env.fly.prod"}}'
     cmds:
       - task: test
       - task: build:uberjar
+      - task: db:migrate
+        vars:
+          ENV: '{{.DEPLOY_ENV}}'
       - ./bin/deploy-image
 
   env:up:

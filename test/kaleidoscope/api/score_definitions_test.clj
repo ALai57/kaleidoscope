@@ -48,6 +48,21 @@
       (is (not (:error (score-defs/delete-score-definition! database owner-id def-id))))
       (is (nil? (score-defs/get-score-definition database owner-id def-id))))))
 
+;; description is optional on the wire (ScoreDefinitionRequest marks it
+;; {:optional true}) but score_definitions.description is NOT NULL. Without
+;; coalescing, an omitted description reaches the INSERT as nil and the DB
+;; constraint throws - surfacing as the HTTP 400 the scoring checkly check hit.
+(deftest create-score-definition-defaults-missing-description-test
+  (let [database (embedded-h2/fresh-db!)
+        user-id  "owner@example.com"
+        defn     (score-defs/create-score-definition!
+                  database user-id (dissoc custom-definition :description))]
+    (testing "A definition created without a description is accepted"
+      (is (some? (:id defn))))
+    (testing "The missing description is stored as an empty string, not nil"
+      (is (= "" (:description defn)))
+      (is (= "" (:description (score-defs/get-score-definition database user-id (:id defn))))))))
+
 ;; score-project!'s unbounded "default definitions" fan-out path only
 ;; considers is-default=true rows - if a user could set that flag on their
 ;; own definitions via the HTTP-reachable create path, they could grow that

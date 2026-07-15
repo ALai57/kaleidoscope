@@ -7,4 +7,8 @@
    :host     (get env "KALEIDOSCOPE_DB_HOST")
    :user     (get env "KALEIDOSCOPE_DB_USER")
    :password (get env "KALEIDOSCOPE_DB_PASSWORD")
-   :dbtype   "postgresql"})
+   :dbtype   "postgresql"
+   ;; Mirror the runtime pool (init.env/env->pg-conn): managed Postgres (Neon)
+   ;; requires TLS, so the migration connection must request it too. Defaults to
+   ;; "require" and is overridable for local plaintext via KALEIDOSCOPE_DB_SSL_MODE.
+   :sslmode  (get env "KALEIDOSCOPE_DB_SSL_MODE" "require")})

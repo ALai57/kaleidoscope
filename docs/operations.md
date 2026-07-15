@@ -8,6 +8,33 @@ the decisions behind them.
 > (`fly.toml`, `bin/` deploy scripts, Docker/build, secrets/env) or to the
 > Taskfile / `bin/` interface must be reflected here in the same change.
 
+## Production deployment
+
+`task deploy` is the production release path. It runs, in order:
+
+1. `task test` — full suite; a failing test aborts the deploy.
+2. `task build:uberjar` — compile + package the standalone JAR.
+3. `task db:migrate ENV=.env.fly.prod` — apply pending migrations to the prod
+   Neon DB.
+4. `./bin/deploy-image` (`flyctl deploy`) — deploy to Fly.io.
+
+**Migrations run before the Fly deploy, not after.** The schema must be ready
+before the new code boots. Shipping code ahead of its migrations is exactly what
+broke `POST /recipes/scrape` in production (the deployed code wrote `raw_scrapes`
+columns — `source_kind`, `raw_content` — that its migration hadn't yet added, so
+every scrape 500'd). Folding the migration into `task deploy` closes that gap.
+
+The migration step targets `.env.fly.prod` by default; override with
+`task deploy DEPLOY_ENV=<env-file>` to release against a different target. Because
+the migration connects to managed Postgres, the migration runner
+(`persistence.rdbms.live-pg/pg-conn`) requests TLS via `KALEIDOSCOPE_DB_SSL_MODE`
+(default `require`), mirroring the runtime pool.
+
+Migrations are additive/forward-compatible by convention so the brief window
+where the migrated schema serves the still-running old code is safe. Avoid
+destructive column drops/renames in the same deploy as the code that stops using
+them — split those across two deploys.
+
 ## Synthetic monitoring (Checkly)
 
 Synthetic checks live in `checkly/` as a standard Playwright project
