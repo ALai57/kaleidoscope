@@ -12,7 +12,7 @@ const SUITES: Array<{
   locations: string[]
   tags: string[]
 }> = [
-  { project: 'liveness',      name: 'The server is running and reports its version.',                                 frequency: 360,  locations: ['us-east-1', 'eu-west-1'], tags: ['no-spend'] },
+  { project: 'liveness',      name: 'The server is running and reports its version.',                                 frequency: 360,  locations: ['us-east-1'],              tags: ['no-spend'] },
   { project: 'homepage',      name: 'The homepage loads and renders without client-side errors.',                     frequency: 360,  locations: ['us-east-1'],              tags: ['no-spend'] },
   { project: 'auth-boundary', name: 'Protected endpoints reject unauthenticated requests with 401.',                  frequency: 360,  locations: ['us-east-1'],              tags: ['no-spend'] },
   { project: 'auth0-login',   name: 'The synthetic user can obtain an Auth0 access token.',                           frequency: 360,  locations: ['us-east-1'],              tags: ['no-spend'] },

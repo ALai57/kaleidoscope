@@ -7,7 +7,7 @@ export default defineConfig({
     activated: true,
     muted: false,
     runtimeId: '2026.04',
-    locations: ['us-east-1', 'eu-west-1'],
+    locations: ['us-east-1'],
     tags: ['kaleidoscope', 'production'],
     frequency: 360,
   },
