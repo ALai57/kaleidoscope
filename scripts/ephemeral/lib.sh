@@ -99,6 +99,71 @@ neon_branch_name()  { printf 'eph-%s' "$1"; }
 otel_service_name() { printf 'kal-eph-%s' "$1"; }
 s3_prefix()         { printf 'eph-%s/' "$1"; }
 
+# --- ephemeral app discovery -------------------------------------------------
+# Turn `fly apps list --json` (on stdin) into the slug of every kal-eph-* app,
+# one per line. Pure (no fly/network) so it's unit-testable against fixtures.
+# The trailing dash in the prefix keeps a stray `kal-ephemeral`-style name out.
+parse_ephemeral_slugs() {
+  jq -r '.[].Name | select(startswith("kal-eph-")) | ltrimstr("kal-eph-")'
+}
+
+# All deployed ephemeral env slugs, discovered from Fly, one per line.
+list_ephemeral_slugs() {
+  require_cmd fly
+  require_cmd jq
+  fly apps list --json | parse_ephemeral_slugs
+}
+
+# Interactively choose an ephemeral slug from the deployed kal-eph-* Fly apps.
+# The chosen slug is the only thing printed to stdout (so `$(...)` capture is
+# clean); every prompt, warning, and the numbered menu go to stderr. Dies with
+# an actionable message when there's nothing to pick or no TTY to prompt on.
+select_ephemeral_slug() {
+  local slugs
+  slugs="$(list_ephemeral_slugs)" || die "Could not list Fly apps — is 'fly' authenticated (fly auth login)?"
+  [ -n "$slugs" ] || die "No ephemeral Fly apps (kal-eph-*) found. Deploy one first: task ephemeral:up NAME=<slug>."
+
+  local -a options=()
+  local line
+  while IFS= read -r line; do
+    [ -n "$line" ] && options+=("$line")
+  done <<< "$slugs"
+
+  if [ "${#options[@]}" -eq 1 ]; then
+    warn "Only one ephemeral env found ('${options[0]}'); using it."
+    printf '%s' "${options[0]}"
+    return 0
+  fi
+
+  [ -t 0 ] || die "No --name given and stdin is not a TTY — pass --name=<slug> to select non-interactively."
+
+  warn "No --name given. Select which ephemeral env to target:"
+  local choice
+  select choice in "${options[@]}"; do
+    if [ -n "$choice" ]; then
+      printf '%s' "$choice"
+      return 0
+    fi
+    warn "Invalid selection; enter one of the listed numbers."
+  done
+  die "No selection made."
+}
+
+# Resolve the slug for a command that acts on an already-deployed env: the
+# --name flag wins, else prompt to pick from the deployed kal-eph-* Fly apps
+# (select_ephemeral_slug). Unlike resolve_slug there is NO git-branch fallback —
+# these commands mutate a real cloud env, so we target one on purpose instead of
+# guessing from whatever branch happens to be checked out.
+resolve_slug_or_select() {
+  local name
+  name="$(parse_name_flag "$@")"
+  if [ -n "$name" ]; then
+    derive_slug "$name"
+  else
+    select_ephemeral_slug
+  fi
+}
+
 # --- Neon helpers ------------------------------------------------------------
 neon_conn_string() {
   local branch="$1"

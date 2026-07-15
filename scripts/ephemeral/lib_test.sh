@@ -50,6 +50,25 @@ case "$branch_warn" in
   *) printf '  FAIL: %s\n    stderr was: %q\n' "branch fallback warns on stderr" "$branch_warn"; fails=$((fails + 1)) ;;
 esac
 
+# parse_ephemeral_slugs: extract kal-eph-* slugs from `fly apps list --json`.
+# Only kal-eph-<slug> apps count; the trailing dash keeps unrelated names out.
+apps_json='[
+  {"Name":"kaleidoscope-log-shipper"},
+  {"Name":"kal-eph-pr-42"},
+  {"Name":"kaleidoscope"},
+  {"Name":"kal-eph-recipes-feature"},
+  {"Name":"kal-ephemeral"}
+]'
+check "parses only kal-eph-* slugs" \
+  "pr-42
+recipes-feature" \
+  "$(printf '%s' "$apps_json" | parse_ephemeral_slugs)"
+
+check "empty app list yields no slugs" "" "$(printf '[]' | parse_ephemeral_slugs)"
+
+# resolve_slug_or_select: --name wins and is normalized (no fly/prompt needed).
+check "resolve_slug_or_select honors --name" "recipes" "$(resolve_slug_or_select --name=Recipes 2>/dev/null)"
+
 if [ "$fails" -eq 0 ]; then
   printf 'lib_test: all tests passed\n'
 else

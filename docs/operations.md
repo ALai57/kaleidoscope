@@ -31,6 +31,18 @@ scoring and the default workflow, so project creation is paid too — the
 `projects` suite is tagged `spends` alongside `scoring`. `checkly test --tags`
 is include-only.
 
+Run the suite against an ephemeral env on demand with `task ephemeral:checkly-test`.
+`NAME` is optional: with no `NAME` it lists the deployed `kal-eph-*` Fly apps and
+prompts you to pick one (auto-selecting when there's only one), so it needs a TTY.
+Pass `NAME=<slug>` to skip the prompt or run non-interactively (e.g. in CI). The
+`ephemeral:down`, `ephemeral:build-frontend`, and `ephemeral:smoke-test` tasks share
+this same optional-`NAME`, prompt-if-omitted behavior; the remaining `ephemeral:*`
+tasks (`up`, `provision-db`, `deploy-app`) still require an explicit `NAME`.
+
+The runner exports `CHECKLY_TEST_ENVIRONMENT=<slug>` so the recorded test session is
+labeled with the ephemeral env in Checkly's dashboard (the Environment column is
+blank without it).
+
 | Context | Command | Runs |
 |---|---|---|
 | Ephemeral `up` | `checkly test --tags no-spend` (in `scripts/ephemeral/checkly-test`) | 6 free suites |

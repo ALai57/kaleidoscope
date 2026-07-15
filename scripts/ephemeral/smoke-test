@@ -2,6 +2,11 @@
 # Smoke-test a deployed ephemeral environment (kal-eph-<slug>).
 #
 #   scripts/ephemeral/smoke-test --name=<slug>
+#   scripts/ephemeral/smoke-test                # auto-detect + pick from deployed apps
+#
+# With --name the checks target kal-eph-<slug> directly. Without it, the script
+# lists the deployed kal-eph-* Fly apps and prompts you to pick one (auto-selects
+# when there's exactly one); pass --name to skip the prompt.
 #
 # Checks:
 #   1. GET /ping        -> 200                (server is up)
@@ -13,7 +18,7 @@ set -euo pipefail
 # shellcheck source=scripts/ephemeral/lib.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
 
-SLUG="$(resolve_slug "$@")"
+SLUG="$(resolve_slug_or_select "$@")"
 APP="$(fly_app_name "$SLUG")"
 BASE_URL="https://$APP.fly.dev"
 

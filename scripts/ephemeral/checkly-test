@@ -3,6 +3,11 @@
 # regression catcher.
 #
 #   scripts/ephemeral/checkly-test --name=<slug>
+#   scripts/ephemeral/checkly-test              # auto-detect + pick from deployed apps
+#
+# With --name the suite targets kal-eph-<slug> directly. Without it, the script
+# lists the deployed kal-eph-* Fly apps and prompts you to pick one (auto-selects
+# when there's exactly one); pass --name to skip the prompt / run non-interactively.
 #
 # Points the Monitoring-as-Code checks at https://kal-eph-<slug>.fly.dev by
 # passing ENVIRONMENT_URL (see checkly/playwright.config.ts) and runs a one-off
@@ -19,7 +24,7 @@ set -euo pipefail
 # shellcheck source=scripts/ephemeral/lib.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
 
-SLUG="$(resolve_slug "$@")"
+SLUG="$(resolve_slug_or_select "$@")"
 APP="$(fly_app_name "$SLUG")"
 BASE_URL="https://$APP.fly.dev"
 
@@ -41,11 +46,15 @@ fi
 
 require_cmd npx
 
-log "Running full Checkly spec suite against $BASE_URL"
+log "Running full Checkly spec suite against $BASE_URL (environment '$SLUG')"
 # ENVIRONMENT_URL is exported (shell env) so construct-parse-time reads it, and
 # passed via --env so it reaches the spec runtime in Checkly's cloud runners.
+# CHECKLY_TEST_ENVIRONMENT labels the recorded test session with the ephemeral
+# slug — the CLI reads it into the session's "environment" field (null otherwise,
+# leaving the dashboard's Environment column blank).
 ( cd "$REPO_ROOT/checkly" \
     && ENVIRONMENT_URL="$BASE_URL" CHECKLY_API_KEY="$CHECKLY_API_KEY" CHECKLY_ACCOUNT_ID="$CHECKLY_ACCOUNT_ID" \
+       CHECKLY_TEST_ENVIRONMENT="$SLUG" \
        npx checkly test \
          --tags no-spend \
          --env ENVIRONMENT_URL="$BASE_URL" \
