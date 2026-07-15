@@ -66,16 +66,6 @@
    [:updated-at  inst?]
    [:dimensions  [:sequential ScoreDimensionDefinition]]])
 
-(def CreateScoreDefinitionRequest
-  [:map
-   [:name        :string]
-   [:description :string]
-   [:scorer-type {:optional true} ScorerType]
-   [:dimensions  [:sequential
-                  [:map
-                   [:name     :string]
-                   [:criteria :string]]]]])
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Score Runs
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
