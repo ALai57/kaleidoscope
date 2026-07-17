@@ -25,10 +25,9 @@
   (cond-> request
     headers (assoc :headers (cske/transform-keys csk/->kebab-case headers))))
 
-(defn site-value
-  "The resolved tenant identity — scopes DB queries. Set by wrap-resolve-tenant;
-  falls back to the Host header for paths that run before it (default handler)."
-  [request] (or (:tenant request) (get-host request)))
+(defn get-tenant
+  "The resolved tenant identity — scopes DB queries. Set by wrap-resolve-tenant"
+  [request] (:tenant request))
 
 (def forced-store-key
   "Request key set by wrap-force-store when a route names a shared store." ::forced-store)
@@ -37,7 +36,7 @@
   "The store name that serves this request's files: a route-forced shared store
   wins, else the store resolved at the edge. No Host fallback — callers that skip
   the middleware (default handler) set forced-store-key explicitly."
-  [request] (or (get request forced-store-key) (:asset-store request)))
+  [request] (get request forced-store-key (:asset-store request)))
 
 (defn get-resource
   [static-content-adapters {:keys [uri headers] :as request}]
@@ -49,7 +48,7 @@
                                         {:version version}
                                         {})))]
     (cond
-      (nil? adapter)              (do (log/warnf "Invalid request: no static-content adapter for store %s" (asset-store request))
+      (nil? adapter)              (do (log/warnf "Invalid request: no static-content adapter for store %s" bucket)
                                       {:status 404})
       (fs/folder? uri)            (-> {:status 200
                                        :body   result}

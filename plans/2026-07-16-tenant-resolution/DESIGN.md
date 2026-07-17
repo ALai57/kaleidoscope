@@ -150,7 +150,7 @@ ephemeral.
   (fn [handler] (fn [request] (handler (merge request (resolve-fn request))))))
 
 ;; http_utils accessors:
-(defn site-value [request]  (or (:tenant request) (get-host request)))       ; DB identity
+(defn get-tenant [request]  (:tenant request))                               ; DB identity (resolver always sets it)
 (defn asset-store [request] (or (::forced-store request) (:asset-store request))) ; file store name
 ```
 
@@ -174,7 +174,7 @@ With `fixed` → `:tenant = "andrewslai.com"`, `:asset-store = "ephemeral-tenant
   override — the resolver simply points `:asset-store` at it. Reads **and** writes
   stay in that prefix; prod media is never touched. The `EPHEMERAL_HOST_*` overlay
   is retired.
-- **Content:** handlers scope DB queries by `site-value = "andrewslai.com"`, and
+- **Content:** handlers scope DB queries by `get-tenant = "andrewslai.com"`, and
   the `staging`-derived branch already has `andrewslai.com` rows. The data keeps
   its honest identity; the *env* is told which tenant it represents. No `UPDATE`,
   no header rewrite.
@@ -191,7 +191,7 @@ safety boundary.
 (`/`, `/assets/*`) name their store via route data `:store "kaleidoscope.client"`
 (stamped as `::forced-store` by `wrap-force-store`); everything else uses the
 store resolved once at the edge. There is no `resource-bucket` fallback chain, no
-`site-value`-as-bucket double duty, and no Host fallback (the default not-found
+`get-tenant`-as-bucket double duty, and no Host fallback (the default not-found
 handler sets `::forced-store` explicitly).
 
 **`:asset-store` carries a store *name*** (a key into the adapters map), not the
@@ -199,12 +199,12 @@ adapter object — a deliberate choice: names are loggable, testable as plain
 strings, and keep the isolated store a normal registry entry.
 
 **Phase 2 — content.** Mechanically replace `(hu/get-host request)` →
-`(hu/site-value request)` across `http_api/{articles,recipes,themes,audiences,photo}.clj`.
+`(hu/get-tenant request)` across `http_api/{articles,recipes,themes,audiences,photo}.clj`.
 Behavior-preserving in prod. Photo additionally selects its **upload adapter** via
 `(hu/asset-store request)`, so ephemeral uploads write to the isolated store.
 
 `api/` and `persistence/` are **untouched** — they take `:hostname` as plain data;
-the string now originates from `site-value` instead of `get-host`.
+the string now originates from `get-tenant` instead of `get-host`.
 
 ### Ephemeral deploy changes (`scripts/ephemeral/deploy-app`)
 
@@ -259,7 +259,7 @@ independently.
 ### Persistence
 
 **No migration.** The `hostname` column keeps storing the tenant's canonical
-value; `site-value` supplies that same string. The column name is mildly
+value; `get-tenant` supplies that same string. The column name is mildly
 under-descriptive (it is effectively a tenant id) but it is a value at rest, and
 a rename is cosmetic, expensive (≈10 tables), and explicitly out of scope.
 
@@ -375,9 +375,9 @@ bill.
 
 1. **Phase 1 — resolution seam + assets.** Add `http_api/tenant`, the resolver
    boot instruction, `wrap-resolve-tenant`; convert the static path to
-   `site-value`. Wire ephemeral (`fixed`, `KALEIDOSCOPE_TENANT`, drop
+   `get-tenant`. Wire ephemeral (`fixed`, `KALEIDOSCOPE_TENANT`, drop
    `EPHEMERAL_HOST_*`). Closes the reported asset bug. Prod unchanged.
-2. **Phase 2 — content.** Mechanical `get-host` → `site-value` swap across the
+2. **Phase 2 — content.** Mechanical `get-host` → `get-tenant` swap across the
    ~40 handler sites, test per handler. Ephemeral content renders.
 3. **Write-isolation decision** (A/B/C above) — likely (B) alongside Phase 1.
 4. **Seeding** — confirm/curate `staging` data (parallel, independent).
@@ -437,7 +437,7 @@ Per `CLAUDE.md` sharp edges #5 and #6:
 - **Static path:** with `fixed`, `/favicon.ico`, `/static/*`, `/media/*` resolve
   to the pinned tenant's adapter (embedded/in-memory fs); a shell route
   (`/assets/*`) still resolves to `kaleidoscope.client`.
-- **Handler scoping (Phase 2):** each converted handler scopes by `site-value`;
+- **Handler scoping (Phase 2):** each converted handler scopes by `get-tenant`;
   with `fixed`, requests under a fly.dev-style host still read the pinned
   tenant's rows. Prod-mode (`host`) tests assert unchanged behavior.
 - **Deploy guardrail:** `deploy-app` rejects an unknown `TENANT`.

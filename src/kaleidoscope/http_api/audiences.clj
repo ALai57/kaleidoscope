@@ -22,7 +22,7 @@
               :handler    (fn [{:keys [components parameters] :as request}]
                             (log/debugf "Received params %s" parameters)
                             (let [query-params (:query parameters)
-                                  audiences    (->> {:hostname (hu/site-value request)}
+                                  audiences    (->> {:hostname (hu/get-tenant request)}
                                                     (merge query-params)
                                                     (articles-api/get-article-audiences (:database components) ))]
                               (if (empty? audiences)
@@ -40,7 +40,7 @@
                            (let [{:keys [article-id group-id]} (:body parameters)]
                              (ok (articles-api/add-audience-to-article! (:database components)
                                                                         {:id       article-id
-                                                                         :hostname (hu/site-value request)}
+                                                                         :hostname (hu/get-tenant request)}
                                                                         {:id group-id}))))}}]
 
    ["/:audience-id" {:delete {:summary    "Delete an audience"

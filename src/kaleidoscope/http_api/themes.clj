@@ -48,7 +48,7 @@
                             (try
                               (log/info "Creating theme!" parameters)
                               (let [theme    (merge (:request parameters)
-                                                    {:hostname (hu/site-value request)
+                                                    {:hostname (hu/get-tenant request)
                                                      :owner-id (:user-id (:identity request))})
                                     [result] (themes-api/create-theme! (:database components) theme)]
                                 (log/infof "Created theme %s" result)
@@ -66,7 +66,7 @@
                                          (try
                                            (let [{:keys [theme-id]} (:path parameters)
                                                  requester-id       (:user-id (:identity request))
-                                                 site               (hu/site-value request)]
+                                                 site               (hu/get-tenant request)]
                                              (log/infof "User %s attempting to delete theme %s!" requester-id theme-id)
                                              (if-let [result (themes-api/delete-theme! (:database components) requester-id site theme-id)]
                                                (no-content)
@@ -92,7 +92,7 @@
                                         (log/info "Updating theme!" parameters)
                                         (let [{:keys [theme-id]} (:path parameters)
                                               requester-id       (:user-id (:identity request))
-                                              site               (hu/site-value request)
+                                              site               (hu/get-tenant request)
                                               theme              (merge (:request parameters)
                                                                         {:hostname site
                                                                          :owner-id requester-id

@@ -3,9 +3,9 @@
             [clojure.test :refer :all]))
 
 
-(deftest site-value-test
-  (is (= "andrewslai.com" (sut/site-value {:tenant "andrewslai.com" :headers {"host" "x"}})))
-  (is (= "x"              (sut/site-value {:headers {"host" "x"}}))))          ; fallback for pre-resolver paths
+(deftest get-tenant-test
+  (is (= "andrewslai.com" (sut/get-tenant {:tenant "andrewslai.com" :headers {"host" "x"}})))
+  (is (nil? (sut/get-tenant {:headers {"host" "x"}}))))                        ; no Host fallback — the resolver always sets :tenant
 
 (deftest asset-store-test
   (is (= "kaleidoscope.client" (sut/asset-store {sut/forced-store-key "kaleidoscope.client" :asset-store "a"})))
