@@ -2,6 +2,7 @@
   (:require [cheshire.core :as json]
             [clojure.test :refer :all]
             [kaleidoscope.http-api.auth.buddy-backends :as bb]
+            [kaleidoscope.http-api.http-utils :as http-utils]
             [kaleidoscope.http-api.middleware :as sut]
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
@@ -300,6 +301,15 @@
       (is (match? {:status 200} (app (mock/request :get "/limited/ccc")))))
     (testing "A 4th request, even against a brand-new id, is rejected"
       (is (match? {:status 429} (app (mock/request :get "/limited/never-seen-before")))))))
+
+(defn- run-force [store inner]
+  (((:compile sut/wrap-force-store) {:store store} {}) inner))
+
+(deftest force-store-test
+  (let [c (atom nil)] ((run-force "kaleidoscope.client" (fn [r] (reset! c r) {})) {})
+       (is (= "kaleidoscope.client" (get @c http-utils/forced-store-key))))
+  (let [c (atom nil)] ((run-force nil (fn [r] (reset! c r) {})) {})
+       (is (nil? (get @c http-utils/forced-store-key)))))
 
 (deftest wrap-rate-limit-separate-routes-dont-share-a-bucket-test
   (let [routes ["" {}

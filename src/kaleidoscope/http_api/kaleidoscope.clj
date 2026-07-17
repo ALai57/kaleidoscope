@@ -137,13 +137,13 @@
                           :handler   get-static-resource}}]
    ["/"           {:get {:span-name "kaleidoscope.index.get"
                          :uri       "index.html"
-                         :host      "kaleidoscope.client"
+                         :store     "kaleidoscope.client"
                          :handler   get-static-resource}}]
 
    ["/assets/*"
     {:get         {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
                    ;; Load all compiled JS assets from the kaleidoscope-client bucket
-                   :host      "kaleidoscope.client"
+                   :store     "kaleidoscope.client"
                    :handler   get-static-resource}}]
 
    ["/static/*" {:conflicting true
@@ -255,11 +255,11 @@
                             :components components})
                      ;; May not have the middleware components!
                      ;; Redirect to index.html for client-side routing.
-                     ;; Must replicate wrap-force-host/wrap-force-uri manually since this
+                     ;; Must replicate wrap-force-store/wrap-force-uri manually since this
                      ;; handler bypasses the reitit middleware stack.
                      (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
                        (get-static-resource (-> request
-                                                (mw/set-host "kaleidoscope.client")
+                                                (assoc http-utils/forced-store-key "kaleidoscope.client")
                                                 (assoc :uri "index.html")
                                                 ;; Components must be added here because this isn't
                                                 ;; wrapped with middleware the same way other routes are

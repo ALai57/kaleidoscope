@@ -226,27 +226,15 @@
                       (handler request))
                     (handler request)))))})
 
-(defn set-host
-  [request host]
-  (-> request
-      http-utils/kebab-case-headers
-      (assoc-in [:headers "host"] host)))
-
-(def wrap-force-host
-  "The HTTP request's Host header is used to determine which set of resources
-  are used (e.g. Host = `andrewslai` forces the application to use the
-  `andrewslai` S3 bucket and associated resources).
-
-  If the reitit route has a `:host` key, force the resources to come from that
-  particular host. Useful for forcing common resources across all domains (e.g.
-  `andrewslai` and `foobar` want to serve the same `index.html` file from the
-  `kaleidoscope.pub` S3 bucket)."
-  {:name    ::wrap-force-host
-   :compile (fn [{:keys [host] :as _route-data} opts]
-              (fn wrapper [handler]
-                (fn new-handler [request]
-                  (span/with-span! {:name (format "kaleidoscope.mw.force-host")}
-                    (handler (if host (set-host request host) request))))))})
+(def wrap-force-store
+  "If a route sets :store, serve its files from that named shared store
+  (e.g. kaleidoscope.client for the SPA shell), bypassing tenant resolution."
+  {:name    ::wrap-force-store
+   :compile (fn [{:keys [store]} _]
+              (fn [handler]
+                (fn [request]
+                  (span/with-span! {:name "kaleidoscope.mw.force-store"}
+                    (handler (cond-> request store (assoc http-utils/forced-store-key store)))))))})
 
 (def wrap-force-uri
   "If the reitit route has a `:uri` key, force the request to search for that
@@ -266,7 +254,7 @@
   gets rejected by Malli (400) before it ever reaches the access-rules check
   that should return 401."
   [wrap-add-http-spans
-   wrap-force-host
+   wrap-force-store
    wrap-force-uri
    wrap-rate-limit
    wrap-gzip
