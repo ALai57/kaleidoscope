@@ -74,6 +74,12 @@
         (is (= "kal-ephemeral" (:storage-root client)))
         (is (= "eph-foo/" (:prefix client)))))))
 
+(deftest registry-test
+  (let [s3-launcher (get-in sut/kaleidoscope-static-content-adapter-boot-instructions [:launchers "s3"])]
+    (is (contains? (set (map :hostname (sut/read-tenants))) "andrewslai.com"))
+    (is (= "wedding"          (:bucket (get (s3-launcher {}) "caheriaguilar.and.andrewslai.com")))) ; bucket≠host proves file read
+    (is (= "kaleidoscope.pub" (:bucket (get (s3-launcher {}) "kaleidoscope.pub"))))))
+
 (deftest notify-image-resizer-none-launcher-accepts-keyword-args
   (testing "the \"none\" no-op notifier tolerates the keyword-arg call made by new-image"
     (let [none-launcher (get-in sut/kaleidoscope-notify-image-resizer-boot-instructions

@@ -1,7 +1,9 @@
 (ns kaleidoscope.init.env
   "Parses environment variables into Clojure maps that are used to boot system
   components."
-  (:require [cognitect.aws.client.api :as aws]
+  (:require [cheshire.core :as json]
+            [clojure.java.io :as io]
+            [cognitect.aws.client.api :as aws]
             [kaleidoscope.clients.bugsnag :as bugsnag]
             [kaleidoscope.clients.error-reporter :as er]
             [kaleidoscope.clients.session-tracker :as st]
@@ -212,25 +214,28 @@
                                                                                message-attributes)}}))))}
    :default   "sns"})
 
+(defn read-tenants
+  "Tenant registry — single source of truth (also read by scripts/ephemeral/lib.sh
+  via jq). Edit resources/tenants.json to onboard a tenant."
+  [] (-> (io/resource "tenants.json") slurp (json/parse-string true) :tenants))
+
 ;; TODO: Allow this to work using entire domain name. Otherwise, we could get collisions.
 (def kaleidoscope-static-content-adapter-boot-instructions
   {:name      :kaleidoscope-static-content-adapters
    :path      "KALEIDOSCOPE_STATIC_CONTENT_TYPE"
    :launchers {"none"             (fn [_env] identity)
-               "s3"               (fn [env] (cond-> {"kaleidoscope.pub"                 (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
-                                                     ;; The shared SPA-shell bucket (serves /, /index.html, /assets/*).
-                                                     ;; Bucket/prefix are overridable per environment so an ephemeral
-                                                     ;; deploy can serve its own frontend build; defaults to prod's bucket.
-                                                     "kaleidoscope.client"              (s3-storage/make-s3 (cond-> {:bucket (or (get env "KALEIDOSCOPE_CLIENT_BUCKET") "kaleidoscope.client")}
-                                                                                                             (get env "KALEIDOSCOPE_CLIENT_PREFIX")
-                                                                                                             (assoc :prefix (get env "KALEIDOSCOPE_CLIENT_PREFIX"))))
-                                                     "andrewslai.com"                   (s3-storage/make-s3 {:bucket "andrewslai.com"})
-                                                     "caheriaguilar.com"                (s3-storage/make-s3 {:bucket "caheriaguilar.com"})
-                                                     "sahiltalkingcents.com"            (s3-storage/make-s3 {:bucket "sahiltalkingcents.com"})
-                                                     "caheriaguilar.and.andrewslai.com" (s3-storage/make-s3 {:bucket "wedding"})
+               "s3"               (fn [env] (cond-> (merge {"kaleidoscope.pub"    (s3-storage/make-s3 {:bucket "kaleidoscope.pub"})
+                                                            ;; The shared SPA-shell bucket (serves /, /index.html, /assets/*).
+                                                            ;; Bucket/prefix are overridable per environment so an ephemeral
+                                                            ;; deploy can serve its own frontend build; defaults to prod's bucket.
+                                                            "kaleidoscope.client" (s3-storage/make-s3 (cond-> {:bucket (or (get env "KALEIDOSCOPE_CLIENT_BUCKET") "kaleidoscope.client")}
+                                                                                                         (get env "KALEIDOSCOPE_CLIENT_PREFIX")
+                                                                                                         (assoc :prefix (get env "KALEIDOSCOPE_CLIENT_PREFIX"))))
 
-                                                     ;; For testing locally
-                                                     "andrewslai.com.localhost"         (s3-storage/make-s3 {:bucket "andrewslai.com"})}
+                                                            ;; For testing locally
+                                                            "andrewslai.com.localhost" (s3-storage/make-s3 {:bucket "andrewslai.com"})}
+                                                           (into {} (map (fn [{:keys [hostname bucket]}] [hostname (s3-storage/make-s3 {:bucket bucket})])) (read-tenants)))
+                                             ;; (Task 6 adds the isolated-store entry here.)
 
                                              ;; For ephemeral test environments (arbitrary *.fly.dev hosts)
                                              (and (get env "KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS")
