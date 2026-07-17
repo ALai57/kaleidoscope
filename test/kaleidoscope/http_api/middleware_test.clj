@@ -302,15 +302,6 @@
     (testing "A 4th request, even against a brand-new id, is rejected"
       (is (match? {:status 429} (app (mock/request :get "/limited/never-seen-before")))))))
 
-(defn- run-force [store inner]
-  (((:compile sut/wrap-force-store) {:store store} {}) inner))
-
-(deftest force-store-test
-  (let [c (atom nil)] ((run-force "kaleidoscope.client" (fn [r] (reset! c r) {})) {})
-       (is (= "kaleidoscope.client" (:asset-store @c))))
-  (let [c (atom nil)] ((run-force nil (fn [r] (reset! c r) {})) {})
-       (is (nil? (:asset-store @c)))))
-
 (deftest wrap-kebab-case-headers-test
   (let [c       (atom nil)
         handler (sut/wrap-kebab-case-headers (fn [r] (reset! c r) {:status 200}))]

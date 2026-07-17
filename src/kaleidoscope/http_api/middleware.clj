@@ -226,17 +226,6 @@
                       (handler request))
                     (handler request)))))})
 
-(def wrap-force-store
-  "If a route sets :store, serve its files from that named shared store
-  (e.g. kaleidoscope.client for the SPA shell) by setting :asset-store directly,
-  overriding whatever the tenant resolver would pick."
-  {:name    ::wrap-force-store
-   :compile (fn [{:keys [store]} _]
-              (fn [handler]
-                (fn [request]
-                  (span/with-span! {:name "kaleidoscope.mw.force-store"}
-                    (handler (cond-> request store (assoc :asset-store store)))))))})
-
 (defn wrap-kebab-case-headers
   "Normalize request header keys to kebab-case for every request, so handlers
   and downstream middleware never apply `http-utils/kebab-case-headers`
@@ -263,7 +252,6 @@
   that should return 401."
   [wrap-add-http-spans
    wrap-kebab-case-headers
-   wrap-force-store
    wrap-force-uri
    wrap-rate-limit
    wrap-gzip

@@ -187,12 +187,14 @@ safety boundary.
 ### Consuming the values — one decision, no chain
 
 **"Which store serves `GET /media/x`?"** is now a single request key:
-`(:asset-store request)`. The tenant resolver sets it (as a default); shared-shell
-routes (`/`, `/assets/*`) name their store via route data `:store "kaleidoscope.client"`,
-which `wrap-force-store` writes straight onto `:asset-store` (overriding the
-resolver's default); everything else uses the store resolved once at the edge.
-There is no `resource-bucket` fallback chain, no `get-tenant`-as-bucket double
-duty, and no Host fallback (the default not-found handler sets `:asset-store`
+`(:asset-store request)`. One middleware, `wrap-resolve-tenant`, owns both the
+tenant identity and where its files come from — who and where are inextricably
+linked. It resolves the tenant's own store, and a shared-shell route (`/`,
+`/assets/*`) may name a cross-tenant store via route data
+`:store "kaleidoscope.client"`, which the same middleware applies (it is a reitit
+`:compile` middleware, so it sees the route's `:store`). There is no separate
+force-store middleware, no `resource-bucket` fallback chain, no `get-tenant`-as-bucket
+double duty, and no Host fallback (the default not-found handler sets `:asset-store`
 explicitly). Header keys are normalized to kebab-case once, by
 `wrap-kebab-case-headers` in the base middleware, rather than a-la-carte.
 

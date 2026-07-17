@@ -21,8 +21,18 @@
   (fn [_request] {:tenant tenant-host :asset-store asset-store}))
 
 (defn wrap-resolve-tenant
-  "Set the resolver's {:tenant .. :asset-store ..} as defaults on the request:
-  existing keys win, so `wrap-force-store` (which sets :asset-store for shared-shell
-  routes) is never clobbered regardless of middleware order."
+  "Resolve, once at the edge, the tenant (:tenant, for DB scoping) and where its
+  files come from (:asset-store) — the two are inextricably linked, so one
+  middleware owns both. A route may name a shared store via :store (the SPA
+  shell's kaleidoscope.client, shared across tenants), which overrides the
+  tenant's own store; every other route serves from the tenant's store. Compile
+  middleware so it can read the route's :store."
   [resolve-fn]
-  (fn [handler] (fn [request] (handler (merge (resolve-fn request) request)))))
+  {:name    ::wrap-resolve-tenant
+   :compile (fn [{:keys [store]} _opts]
+              (fn [handler]
+                (fn [request]
+                  (let [{:keys [tenant asset-store]} (resolve-fn request)]
+                    (handler (assoc request
+                                    :tenant      tenant
+                                    :asset-store (or store asset-store)))))))})

@@ -257,8 +257,9 @@
                             :components components})
                      ;; May not have the middleware components!
                      ;; Redirect to index.html for client-side routing.
-                     ;; Must replicate wrap-force-store/wrap-force-uri manually since this
-                     ;; handler bypasses the reitit middleware stack.
+                     ;; This handler bypasses the reitit middleware stack, so set the
+                     ;; shared-shell store (:asset-store) and :uri manually — the same
+                     ;; values wrap-resolve-tenant/wrap-force-uri would apply.
                      (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
                        (get-static-resource (-> request
                                                 (assoc :asset-store "kaleidoscope.client")

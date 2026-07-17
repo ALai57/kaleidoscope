@@ -30,9 +30,9 @@
   [request] (:tenant request))
 
 (defn asset-store
-  "The store name that serves this request's files. Set on the request by the
-  tenant resolver (default) and overridden by `wrap-force-store` for routes that
-  name a shared store (e.g. the SPA shell). No Host fallback."
+  "The store name that serves this request's files. Set on the request by
+  `wrap-resolve-tenant` — the tenant's own store, or a route's `:store` shared
+  store (e.g. the SPA shell) when named. No Host fallback."
   [request] (:asset-store request))
 
 (defn get-resource
