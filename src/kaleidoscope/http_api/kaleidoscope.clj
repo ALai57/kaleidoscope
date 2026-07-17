@@ -262,7 +262,7 @@
                      ;; values wrap-resolve-tenant/wrap-force-uri would apply.
                      (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
                        (get-static-resource (-> request
-                                                (assoc :asset-store "kaleidoscope.client")
+                                                (assoc :tenant {:asset-store "kaleidoscope.client"})
                                                 (assoc :uri "index.html")
                                                 ;; Components must be added here because this isn't
                                                 ;; wrapped with middleware the same way other routes are

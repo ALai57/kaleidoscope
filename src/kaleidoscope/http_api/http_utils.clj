@@ -26,14 +26,18 @@
     headers (assoc :headers (cske/transform-keys csk/->kebab-case headers))))
 
 (defn get-tenant
-  "The resolved tenant identity — scopes DB queries. Set by wrap-resolve-tenant"
+  "The resolved tenant value {:hostname .. :tenant-name .. :asset-store ..},
+  placed on the request by `wrap-resolve-tenant`."
   [request] (:tenant request))
 
+(defn tenant-hostname
+  "The resolved tenant's :hostname — scopes DB queries."
+  [request] (:hostname (:tenant request)))
+
 (defn asset-store
-  "The store name that serves this request's files. Set on the request by
-  `wrap-resolve-tenant` — the tenant's own store, or a route's `:store` shared
-  store (e.g. the SPA shell) when named. No Host fallback."
-  [request] (:asset-store request))
+  "The store name that serves this request's files: the tenant's :asset-store,
+  or a route's `:store` shared store (e.g. the SPA shell) when named."
+  [request] (:asset-store (:tenant request)))
 
 (defn get-resource
   [static-content-adapters {:keys [uri headers] :as request}]

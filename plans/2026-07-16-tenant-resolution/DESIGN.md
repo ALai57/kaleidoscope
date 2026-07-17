@@ -137,31 +137,39 @@ minimal — enough to carry the scoping hostname and select the asset adapter.
 
 ### New namespace: `kaleidoscope.http-api.tenant`
 
-The resolver puts **two sibling values** on the request — deliberately separate,
-because they are two different concerns: identity (which tenant, for DB scoping)
-and placement (which store, for files). They coincide in prod and diverge in
-ephemeral.
+The resolver produces a **tenant value** — a map `{:hostname .. :tenant-name ..
+:asset-store ..}` — placed on the request under `:tenant`. It bundles the facts a
+request needs about who it is and where its data lives: `:hostname` scopes DB
+queries, `:asset-store` selects the file store, `:tenant-name` identifies the
+tenant. Identity and placement coincide in prod and diverge in ephemeral.
 
 ```clojure
-;; Resolver → {:tenant <identity string>  :asset-store <store name>}
-;; merged onto the request as two top-level keys (NOT nested — identity and
-;; placement are siblings).
+;; Resolver → {:hostname .. :tenant-name .. :asset-store ..}, placed under :tenant.
+;; wrap-resolve-tenant is a reitit :compile middleware so it can apply a route's
+;; :store override to the tenant's :asset-store (the shared SPA shell).
 (defn wrap-resolve-tenant [resolve-fn]
-  (fn [handler] (fn [request] (handler (merge request (resolve-fn request))))))
+  {:name    ::wrap-resolve-tenant
+   :compile (fn [{:keys [store]} _]
+              (fn [handler]
+                (fn [request]
+                  (let [tenant (resolve-fn request)]
+                    (handler (assoc request :tenant (cond-> tenant store (assoc :asset-store store))))))))})
 
 ;; http_utils accessors:
-(defn get-tenant [request]  (:tenant request))                               ; DB identity (resolver always sets it)
-(defn asset-store [request] (:asset-store request))                          ; file store name
+(defn get-tenant       [request] (:tenant request))                   ; the whole tenant value
+(defn tenant-hostname  [request] (:hostname (:tenant request)))       ; DB scoping
+(defn asset-store      [request] (:asset-store (:tenant request)))    ; file store name
 ```
 
 `resolve-fn` is a strategy selected at boot in `init/env.clj`, like the
 db/auth/storage/scorer backends:
 
-- **`host` (default; prod + local):** `{:tenant host :asset-store host}` — both
-  the Host header. Behaviour-identical to today.
-- **`fixed` (ephemeral):** `{:tenant KALEIDOSCOPE_TENANT :asset-store <isolated
-  store name>}` — identity pinned for the DB, placement pointed at the isolated
-  store, independently.
+- **`host` (default; prod + local):** `{:hostname host :tenant-name host
+  :asset-store host}` — all derived from the Host header. Behaviour-identical to
+  today.
+- **`fixed` (ephemeral):** `{:hostname KALEIDOSCOPE_TENANT :tenant-name
+  KALEIDOSCOPE_TENANT :asset-store <isolated store name>}` — hostname/name pinned
+  for the DB, the store pointed at the isolated prefix, independently.
 
 ### Why this fixes ephemeral with no data rewrite
 

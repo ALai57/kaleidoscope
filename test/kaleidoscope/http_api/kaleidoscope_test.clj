@@ -113,14 +113,14 @@
                 "KALEIDOSCOPE_TENANT_RESOLVER_TYPE" "fixed" "KALEIDOSCOPE_TENANT" "andrewslai.com"
                 "KALEIDOSCOPE_TENANT_ASSET_BUCKET" "kal-ephemeral"}
                (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS) env/prepare-kaleidoscope)]
-    (is (match? {:tenant "andrewslai.com" :asset-store "ephemeral-tenant-assets"}
+    (is (match? {:hostname "andrewslai.com" :asset-store "ephemeral-tenant-assets"}
                 ((:tenant-resolver c) {:headers {"host" "kal-eph-xyz.fly.dev"}})))))
 
 (deftest tenant-resolver-default-host-test
   (let [c (->> {"KALEIDOSCOPE_DB_TYPE" "embedded-h2" "KALEIDOSCOPE_AUTH_TYPE" "always-unauthenticated"
                 "KALEIDOSCOPE_AUTHORIZATION_TYPE" "use-access-control-list" "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
                (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS) env/prepare-kaleidoscope)]
-    (is (match? {:tenant "andrewslai.com" :asset-store "andrewslai.com"}
+    (is (match? {:hostname "andrewslai.com" :asset-store "andrewslai.com"}
                 ((:tenant-resolver c) {:headers {"host" "andrewslai.com"}})))))
 
 (deftest admin-routes-test

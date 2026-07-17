@@ -43,8 +43,7 @@
         tenant-store      (atom {})
         ephemeral-store   (atom {})
         req               {:headers    {"host" "kal-eph-xyz.fly.dev"}
-                            :tenant     "andrewslai.com"
-                            :asset-store "ephemeral-tenant-assets"
+                            :tenant     {:hostname "andrewslai.com" :asset-store "ephemeral-tenant-assets"}
                             :components {:database                database
                                          :static-content-adapters {"andrewslai.com"          (in-mem/make-mem-fs {:store tenant-store})
                                                                     "ephemeral-tenant-assets" (in-mem/make-mem-fs {:store ephemeral-store})}

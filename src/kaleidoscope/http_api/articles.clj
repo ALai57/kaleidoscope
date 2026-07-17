@@ -32,7 +32,7 @@
                                                                                               models.articles/example-article-2]}}}}}})
               :handler   (fn [{:keys [components] :as request}]
                            (span/with-span! {:name "kaleidoscope.handler.articles.get-all"}
-                             (->> {:hostname (hu/get-tenant request)}
+                             (->> {:hostname (hu/tenant-hostname request)}
                                   (articles-api/get-articles (:database components))
                                   ok)))}}]
    ["/:article-url"
@@ -68,7 +68,7 @@
                          (let [article-url                (:article-url path-params)
                                [{:keys [id] :as article}] (articles-api/get-articles (:database components)
                                                                                      {:article-url article-url
-                                                                                      :hostname    (hu/get-tenant request)})]
+                                                                                      :hostname    (hu/tenant-hostname request)})]
                            (if article
                              (ok (first (articles-api/update-article! (:database components)
                                                                       (-> body-params
@@ -101,7 +101,7 @@
            :handler   (fn [{:keys [components path-params] :as request}]
                         (let [branch-name (:branch-name path-params)
                               article-url (:article-url path-params)
-                              hostname    (hu/get-tenant request)]
+                              hostname    (hu/tenant-hostname request)]
                           (try
                             (log/infof "Publishing article %s and branch %s for %s" article-url branch-name hostname)
                             (let [[{:keys [branch-id]}] (articles-api/get-branches (:database components) {:branch-name branch-name
@@ -134,7 +134,7 @@
                                   article-url (:article-url path-params)
                                   result      (articles-api/new-version! (:database components)
                                                                          {:branch-name   branch-name
-                                                                          :hostname      (hu/get-tenant request)
+                                                                          :hostname      (hu/tenant-hostname request)
                                                                           :article-url   article-url
                                                                           :article-tags  (get-in request [:body-params :article-tags] "thoughts")
                                                                           :article-title (get-in request [:body-params :article-title] "[New article]")
@@ -164,9 +164,9 @@
                                                                                       :value   [models.articles/example-composition-1]}}}}}})
 
               :handler (fn [{:keys [components] :as request}]
-                         (log/infof "Getting compositions for host `%s`" (hu/get-tenant request))
+                         (log/infof "Getting compositions for host `%s`" (hu/tenant-hostname request))
                          (ok (articles-api/get-published-articles (:database components)
-                                                                  {:hostname (hu/get-tenant request)}
+                                                                  {:hostname (hu/tenant-hostname request)}
                                                                   (:identity request))))}}]
    ["/:article-url"
     {:get {:summary    "Retrieve a single published article"
@@ -181,7 +181,7 @@
                          (log/infof "Retrieving composition %s" (get-in parameters [:path :article-url]))
                          (let [result (articles-api/get-published-articles (:database components)
                                                                            {:article-url (get-in parameters [:path :article-url])
-                                                                            :hostname    (hu/get-tenant request)}
+                                                                            :hostname    (hu/tenant-hostname request)}
                                                                            (:identity request))]
                            (if (empty? result)
                              (not-found {:reason "Missing"})
@@ -208,7 +208,7 @@
                          (let [query-params (-> csk/->kebab-case-keyword
                                                 (cske/transform-keys (:query parameters))
                                                 (select-keys [:article-id :article-url])
-                                                (assoc :hostname (hu/get-tenant request)))
+                                                (assoc :hostname (hu/tenant-hostname request)))
                                branches     (articles-api/get-branches (:database components)
                                                                        query-params)]
                            (if (empty? branches)
@@ -221,7 +221,7 @@
                             (try
                               (ok (articles-api/create-branch! (:database components)
                                                                (assoc body-params
-                                                                      :hostname (hu/get-tenant request)
+                                                                      :hostname (hu/tenant-hostname request)
                                                                       :author   (or (oidc/get-full-name (:identity request))
                                                                                     (oidc/get-user-id (:identity request))))))
                               (catch Exception e

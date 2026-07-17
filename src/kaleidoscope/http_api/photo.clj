@@ -45,7 +45,7 @@
   (span/with-span! {:name "kaleidoscope.api.photo.upload-and-process"}
     (log/infof "Processing file %s" filename)
     (let [{:keys [static-content-adapters database notify-image-resizer!]} components
-          hostname (hu/get-tenant req)
+          hostname (hu/tenant-hostname req)
           extension (get-file-extension filename)
 
           static-content-adapter (-> static-content-adapters
@@ -93,7 +93,7 @@
                :handler   (fn [{:keys [components parameters] :as req}]
                             (let [query-params (:query parameters)
                                   _ (log/infof "Getting photos matching %s" query-params)
-                                  hostname (hu/get-tenant req)
+                                  hostname (hu/tenant-hostname req)
                                   photos (albums-api/get-full-photos (:database components) (assoc query-params :hostname hostname))]
                               (ok (map (fn [{:keys [id filename] :as photo}]
                                          (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos))))}
@@ -131,7 +131,7 @@
                                       (let [{:keys [photo-id]} (:path parameters)
 
                                             _ (log/infof "Getting photo %s" photo-id)
-                                            hostname (hu/get-tenant request)
+                                            hostname (hu/tenant-hostname request)
                                             photos (albums-api/get-full-photos (:database components) {:id       photo-id
                                                                                                        :hostname hostname})]
                                         (if (empty? photos)
@@ -156,7 +156,7 @@
                         :parameters {:path {:photo-id :uuid}}
                         :handler    (fn [{:keys [components body-params parameters] :as request}]
                                       (let [{:keys [photo-id]} (:path parameters)
-                                            hostname (hu/get-tenant request)]
+                                            hostname (hu/tenant-hostname request)]
                                         (log/infof "Updating photo %s for %s" photo-id hostname)
                                         (if-let [updated (albums-api/update-photo!
                                                            (:database components) photo-id hostname
