@@ -65,6 +65,8 @@ tasks:
       the live env. Requires .env.fly.staging; the Checkly step is skipped with a
       warning unless CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID and AUTH0_CLIENT_ID/SECRET
       are set. Name it explicitly: task env:up NAME=pr-42
+    env:
+      TENANT: '{{.TENANT}}'
     cmd: ./scripts/ephemeral/up {{if .NAME}}--name={{.NAME}}{{end}}
 
   env:down:
@@ -147,6 +149,8 @@ tasks:
     desc: Build and deploy the backend to a named ephemeral Fly app (requires NAME)
     requires:
       vars: [NAME]
+    env:
+      TENANT: '{{.TENANT}}'
     cmd: ./scripts/ephemeral/deploy-app --name={{.NAME}}
 
   ephemeral:smoke-test:

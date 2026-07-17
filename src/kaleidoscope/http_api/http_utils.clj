@@ -25,13 +25,6 @@
   (cond-> request
     headers (assoc :headers (cske/transform-keys csk/->kebab-case headers))))
 
-(defn bucket-name
-  "Getting host name is from ring.util.request"
-  [request]
-  (if-let [server-name (get-host request)]
-    server-name
-    (log/warnf "Request without a host. Cannot lookup associated bucket.")))
-
 (defn site-value
   "The resolved tenant identity — scopes DB queries. Set by wrap-resolve-tenant;
   falls back to the Host header for paths that run before it (default handler)."
@@ -56,7 +49,7 @@
                                         {:version version}
                                         {})))]
     (cond
-      (nil? adapter)              (do (log/warnf "Invalid request to bucket associated with host %s" (get-in request [:headers "host"]))
+      (nil? adapter)              (do (log/warnf "Invalid request: no static-content adapter for store %s" (asset-store request))
                                       {:status 404})
       (fs/folder? uri)            (-> {:status 200
                                        :body   result}
