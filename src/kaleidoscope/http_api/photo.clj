@@ -178,9 +178,7 @@
                                                 (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
                                                   (let [path-params (:path parameters)
                                                         [{:keys [path] :as version} :as photo-versions] (albums-api/get-full-photos (:database components) path-params)]
-                                                    (hu/get-resource (:static-content-adapters components) (-> request
-                                                                                                               (assoc :uri path)
-                                                                                                               hu/kebab-case-headers)))))}}]
+                                                    (hu/get-resource (:static-content-adapters components) (assoc request :uri path)))))}}]
 
    ])
 

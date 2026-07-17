@@ -261,7 +261,7 @@
                      ;; handler bypasses the reitit middleware stack.
                      (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
                        (get-static-resource (-> request
-                                                (assoc http-utils/forced-store-key "kaleidoscope.client")
+                                                (assoc :asset-store "kaleidoscope.client")
                                                 (assoc :uri "index.html")
                                                 ;; Components must be added here because this isn't
                                                 ;; wrapped with middleware the same way other routes are

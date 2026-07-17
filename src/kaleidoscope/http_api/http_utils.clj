@@ -29,14 +29,11 @@
   "The resolved tenant identity — scopes DB queries. Set by wrap-resolve-tenant"
   [request] (:tenant request))
 
-(def forced-store-key
-  "Request key set by wrap-force-store when a route names a shared store." ::forced-store)
-
 (defn asset-store
-  "The store name that serves this request's files: a route-forced shared store
-  wins, else the store resolved at the edge. No Host fallback — callers that skip
-  the middleware (default handler) set forced-store-key explicitly."
-  [request] (get request forced-store-key (:asset-store request)))
+  "The store name that serves this request's files. Set on the request by the
+  tenant resolver (default) and overridden by `wrap-force-store` for routes that
+  name a shared store (e.g. the SPA shell). No Host fallback."
+  [request] (:asset-store request))
 
 (defn get-resource
   [static-content-adapters {:keys [uri headers] :as request}]

@@ -307,9 +307,15 @@
 
 (deftest force-store-test
   (let [c (atom nil)] ((run-force "kaleidoscope.client" (fn [r] (reset! c r) {})) {})
-       (is (= "kaleidoscope.client" (get @c http-utils/forced-store-key))))
+       (is (= "kaleidoscope.client" (:asset-store @c))))
   (let [c (atom nil)] ((run-force nil (fn [r] (reset! c r) {})) {})
-       (is (nil? (get @c http-utils/forced-store-key)))))
+       (is (nil? (:asset-store @c)))))
+
+(deftest wrap-kebab-case-headers-test
+  (let [c       (atom nil)
+        handler (sut/wrap-kebab-case-headers (fn [r] (reset! c r) {:status 200}))]
+    (handler {:headers {"If-None-Match" "v1"}})
+    (is (= {"if-none-match" "v1"} (:headers @c)))))
 
 (deftest wrap-rate-limit-separate-routes-dont-share-a-bucket-test
   (let [routes ["" {}

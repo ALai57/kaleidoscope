@@ -151,7 +151,7 @@ ephemeral.
 
 ;; http_utils accessors:
 (defn get-tenant [request]  (:tenant request))                               ; DB identity (resolver always sets it)
-(defn asset-store [request] (or (::forced-store request) (:asset-store request))) ; file store name
+(defn asset-store [request] (:asset-store request))                          ; file store name
 ```
 
 `resolve-fn` is a strategy selected at boot in `init/env.clj`, like the
@@ -186,13 +186,15 @@ safety boundary.
 
 ### Consuming the values — one decision, no chain
 
-**"Which store serves `GET /media/x`?"** is now a single expression:
-`(asset-store request)` = `(or ::forced-store :asset-store)`. Shared-shell routes
-(`/`, `/assets/*`) name their store via route data `:store "kaleidoscope.client"`
-(stamped as `::forced-store` by `wrap-force-store`); everything else uses the
-store resolved once at the edge. There is no `resource-bucket` fallback chain, no
-`get-tenant`-as-bucket double duty, and no Host fallback (the default not-found
-handler sets `::forced-store` explicitly).
+**"Which store serves `GET /media/x`?"** is now a single request key:
+`(:asset-store request)`. The tenant resolver sets it (as a default); shared-shell
+routes (`/`, `/assets/*`) name their store via route data `:store "kaleidoscope.client"`,
+which `wrap-force-store` writes straight onto `:asset-store` (overriding the
+resolver's default); everything else uses the store resolved once at the edge.
+There is no `resource-bucket` fallback chain, no `get-tenant`-as-bucket double
+duty, and no Host fallback (the default not-found handler sets `:asset-store`
+explicitly). Header keys are normalized to kebab-case once, by
+`wrap-kebab-case-headers` in the base middleware, rather than a-la-carte.
 
 **`:asset-store` carries a store *name*** (a key into the adapters map), not the
 adapter object — a deliberate choice: names are loggable, testable as plain

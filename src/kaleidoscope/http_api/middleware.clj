@@ -228,13 +228,21 @@
 
 (def wrap-force-store
   "If a route sets :store, serve its files from that named shared store
-  (e.g. kaleidoscope.client for the SPA shell), bypassing tenant resolution."
+  (e.g. kaleidoscope.client for the SPA shell) by setting :asset-store directly,
+  overriding whatever the tenant resolver would pick."
   {:name    ::wrap-force-store
    :compile (fn [{:keys [store]} _]
               (fn [handler]
                 (fn [request]
                   (span/with-span! {:name "kaleidoscope.mw.force-store"}
-                    (handler (cond-> request store (assoc http-utils/forced-store-key store)))))))})
+                    (handler (cond-> request store (assoc :asset-store store)))))))})
+
+(defn wrap-kebab-case-headers
+  "Normalize request header keys to kebab-case for every request, so handlers
+  and downstream middleware never apply `http-utils/kebab-case-headers`
+  a-la-carte."
+  [handler]
+  (fn [request] (handler (http-utils/kebab-case-headers request))))
 
 (def wrap-force-uri
   "If the reitit route has a `:uri` key, force the request to search for that
@@ -254,6 +262,7 @@
   gets rejected by Malli (400) before it ever reaches the access-rules check
   that should return 401."
   [wrap-add-http-spans
+   wrap-kebab-case-headers
    wrap-force-store
    wrap-force-uri
    wrap-rate-limit

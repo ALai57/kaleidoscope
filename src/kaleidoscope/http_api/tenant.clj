@@ -21,6 +21,8 @@
   (fn [_request] {:tenant tenant-host :asset-store asset-store}))
 
 (defn wrap-resolve-tenant
-  "Merge the resolver's {:tenant .. :asset-store ..} onto the request."
+  "Set the resolver's {:tenant .. :asset-store ..} as defaults on the request:
+  existing keys win, so `wrap-force-store` (which sets :asset-store for shared-shell
+  routes) is never clobbered regardless of middleware order."
   [resolve-fn]
-  (fn [handler] (fn [request] (handler (merge request (resolve-fn request))))))
+  (fn [handler] (fn [request] (handler (merge (resolve-fn request) request)))))
