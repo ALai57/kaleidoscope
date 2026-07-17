@@ -32,10 +32,24 @@
     server-name
     (log/warnf "Request without a host. Cannot lookup associated bucket.")))
 
+(defn site-value
+  "The resolved tenant identity — scopes DB queries. Set by wrap-resolve-tenant;
+  falls back to the Host header for paths that run before it (default handler)."
+  [request] (or (:tenant request) (get-host request)))
+
+(def forced-store-key
+  "Request key set by wrap-force-store when a route names a shared store." ::forced-store)
+
+(defn asset-store
+  "The store name that serves this request's files: a route-forced shared store
+  wins, else the store resolved at the edge. No Host fallback — callers that skip
+  the middleware (default handler) set forced-store-key explicitly."
+  [request] (or (get request forced-store-key) (:asset-store request)))
+
 (defn get-resource
   [static-content-adapters {:keys [uri headers] :as request}]
-  (log/infof "Getting resource at %s for %s" uri (bucket-name request))
-  (let [bucket  (bucket-name request)
+  (log/infof "Getting resource at %s for %s" uri (asset-store request))
+  (let [bucket  (asset-store request)
         adapter (get static-content-adapters bucket)
         result  (when adapter
                   (fs/get adapter uri (if-let [version (get-in request [:headers "if-none-match"])]
