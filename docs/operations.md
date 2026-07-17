@@ -96,7 +96,11 @@ tenant hostname and serves that tenant's content in isolation.
   tenant hostname for ephemeral use.
 - **Fixed resolver.** `deploy-app` sets `KALEIDOSCOPE_TENANT_RESOLVER_TYPE=fixed`
   and `KALEIDOSCOPE_TENANT=$TENANT`, so the backend resolves every request to
-  the pinned tenant instead of inspecting the `Host` header.
+  the pinned tenant instead of inspecting the `Host` header. Every
+  tenant-scoped content handler — articles, recipes, themes, audiences,
+  photos — reads and writes against this one pinned tenant's DB rows, so the
+  Neon branch must actually contain that tenant's data (see the DB-seeding
+  prerequisite below).
 - **Isolated assets.** `/static/*` and `/media/*` are served from
   `s3://kal-ephemeral/tenant-assets/<slug>/` — an S3 prefix scoped to this one
   ephemeral env (`KALEIDOSCOPE_TENANT_ASSET_BUCKET`/`_PREFIX`), never the real
@@ -104,7 +108,11 @@ tenant hostname and serves that tenant's content in isolation.
   `task ephemeral:seed-tenant-assets NAME=<slug> TENANT=<hostname>` (run by
   `up`, before `deploy-app`) syncs
   `test-resources/ephemeral-sample-assets/<hostname>/` into that prefix, so
-  ephemeral reads and writes never touch prod media.
+  ephemeral reads and writes never touch prod media. The same split makes
+  uploads safe: a photo upload writes its bytes to the isolated
+  `tenant-assets/<slug>/` store while the DB row is recorded under the
+  pinned tenant — there is no path from an ephemeral upload back to prod
+  media.
 - **Notifier disabled.** `deploy-app` sets `KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE=none`
   so any image upload against an ephemeral env can't trigger the production
   resize/notification topic.
