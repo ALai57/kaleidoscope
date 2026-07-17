@@ -1,6 +1,11 @@
 (ns kaleidoscope.http-api.photo-test
-  (:require [clojure.test :refer [deftest is testing]]
-            [kaleidoscope.http-api.photo :as photo]))
+  (:require [clojure.java.io :as io]
+            [clojure.test :refer [deftest is testing]]
+            [kaleidoscope.api.albums :as albums-api]
+            [kaleidoscope.http-api.photo :as photo]
+            [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
+            [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [matcher-combinators.test :refer [match?]]))
 
 ;; Verified exploitable 2026-07-03 (see PLAN.md): the previous
 ;; implementation (`(last (str/split path #"\."))`) returned the *entire*
@@ -26,3 +31,32 @@
     (is (= "bin" (photo/get-file-extension "file.this-is-not-a-safe-extension")))
     (is (= "bin" (photo/get-file-extension "file.")))
     (is (= "bin" (photo/get-file-extension "")))))
+
+;; Task 10: :tenant (DB scope) and :asset-store (upload destination) diverge in
+;; an ephemeral env — a "fixed" resolver pins :tenant to the real site
+;; ("andrewslai.com") while :asset-store points at the isolated per-env bucket
+;; ("ephemeral-tenant-assets"), even though the raw Host header is some
+;; fly.dev-style ephemeral hostname. The upload must write bytes to the
+;; isolated store while recording the DB photo row under the pinned tenant.
+(deftest process-photo-upload-scopes-db-and-store-independently-test
+  (let [database          (embedded-h2/fresh-db!)
+        tenant-store      (atom {})
+        ephemeral-store   (atom {})
+        req               {:headers    {"host" "kal-eph-xyz.fly.dev"}
+                            :tenant     "andrewslai.com"
+                            :asset-store "ephemeral-tenant-assets"
+                            :components {:database                database
+                                         :static-content-adapters {"andrewslai.com"          (in-mem/make-mem-fs {:store tenant-store})
+                                                                    "ephemeral-tenant-assets" (in-mem/make-mem-fs {:store ephemeral-store})}
+                                         :notify-image-resizer!   (fn [& _] nil)}}
+        file              {:filename "myfile.png"
+                            :tempfile (io/file (io/resource "public/images/lock.svg"))}]
+    (photo/process-photo-upload! req file)
+
+    (testing "The photo bytes land in the isolated asset store, not the pinned tenant's own bucket"
+      (is (match? {photo/MEDIA-FOLDER map?} @ephemeral-store))
+      (is (= {} @tenant-store)))
+
+    (testing "The DB photo row is scoped to the pinned tenant, not the raw ephemeral Host header"
+      (is (seq (albums-api/get-full-photos database {:hostname "andrewslai.com"})))
+      (is (empty? (albums-api/get-full-photos database {:hostname "kal-eph-xyz.fly.dev"}))))))
