@@ -14,6 +14,12 @@ SLUG="$(resolve_slug "$@")"
 APP="$(fly_app_name "$SLUG")"
 BRANCH="$(neon_branch_name "$SLUG")"
 
+# The pinned tenant this env impersonates (Task 5's registry) and the isolated
+# S3 prefix its /static/*, /media/* are served from — see seed-tenant-assets.
+TENANT="${TENANT:-$DEFAULT_TENANT}"
+known_tenant? "$TENANT" || die "Unknown TENANT '$TENANT' (not in $TENANTS_FILE)."
+ASSET_PREFIX="$(tenant_asset_prefix "$SLUG")"
+
 load_staging_env
 require_cmd fly
 require_cmd neonctl
@@ -67,8 +73,11 @@ parse_conn_string "$(neon_conn_string "$BRANCH")"
 # The DB host/name/user and KALEIDOSCOPE_ENV were deleted from the generated
 # [env] above so there's no conflicting definition (see PLAN's convention note).
 # The frontend/static keys below live only in secrets — no [env] entry to delete.
-#   KALEIDOSCOPE_CLIENT_BUCKET/_PREFIX  -> /, /index.html, /assets/* (the SPA shell)
-#   KALEIDOSCOPE_EPHEMERAL_HOST_*       -> this host's /static/*, /media/*
+#   KALEIDOSCOPE_CLIENT_BUCKET/_PREFIX       -> /, /index.html, /assets/* (the SPA shell)
+#   KALEIDOSCOPE_TENANT_ASSET_BUCKET/_PREFIX -> the pinned tenant's /static/*, /media/*,
+#                                                served from the isolated tenant-assets/<slug>/
+#                                                prefix (seed-tenant-assets), never the real
+#                                                per-tenant bucket.
 PREFIX="$(s3_prefix "$SLUG")"
 
 # Guard: the backend is about to serve /, /index.html, /assets/* from this exact
@@ -79,6 +88,13 @@ PREFIX="$(s3_prefix "$SLUG")"
 log "Verifying frontend build exists at s3://$EPHEMERAL_BUCKET/${PREFIX}index.html ..."
 aws s3 ls "s3://$EPHEMERAL_BUCKET/${PREFIX}index.html" >/dev/null 2>&1 \
   || die "No index.html at s3://$EPHEMERAL_BUCKET/$PREFIX — run 'build-frontend --name=$SLUG' first (frontend/backend slug mismatch?)."
+
+# Same guard for the tenant-asset prefix, but a warn (not die): the app still
+# boots and serves the SPA shell fine without it — only /favicon.ico, /static/*,
+# /media/* 404 until it's seeded.
+log "Verifying tenant assets exist at s3://$EPHEMERAL_BUCKET/${ASSET_PREFIX}static/favicon.ico ..."
+aws s3 ls "s3://$EPHEMERAL_BUCKET/${ASSET_PREFIX}static/favicon.ico" >/dev/null 2>&1 \
+  || warn "No favicon.ico at s3://$EPHEMERAL_BUCKET/$ASSET_PREFIX — /favicon.ico, /static/*, /media/* will 404 until you run 'seed-tenant-assets --name=$SLUG'."
 
 log "Setting secrets on '$APP'..."
 fly secrets set --app "$APP" --stage \
@@ -92,9 +108,11 @@ fly secrets set --app "$APP" --stage \
   AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
   KALEIDOSCOPE_CLIENT_BUCKET="$EPHEMERAL_BUCKET" \
   KALEIDOSCOPE_CLIENT_PREFIX="$PREFIX" \
-  KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS="$APP.fly.dev" \
-  KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET="$EPHEMERAL_BUCKET" \
-  KALEIDOSCOPE_EPHEMERAL_HOST_PREFIX="$PREFIX" \
+  KALEIDOSCOPE_TENANT_RESOLVER_TYPE="fixed" \
+  KALEIDOSCOPE_TENANT="$TENANT" \
+  KALEIDOSCOPE_TENANT_ASSET_BUCKET="$EPHEMERAL_BUCKET" \
+  KALEIDOSCOPE_TENANT_ASSET_PREFIX="$ASSET_PREFIX" \
+  KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE="none" \
   KALEIDOSCOPE_RECIPE_FETCHER_TYPE="${KALEIDOSCOPE_RECIPE_FETCHER_TYPE:-none}" \
   FIRECRAWL_API_KEY="${FIRECRAWL_API_KEY:-}" \
   ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
