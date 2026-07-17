@@ -346,6 +346,27 @@
     "/compositions/my-first-article" {:status 200 :body (malli-matcher models.articles/GetCompositionResponse)}
     "/compositions/does-not-exist"   {:status 404}))
 
+(deftest fixed-resolver-scopes-content-test
+  (testing "Under the fixed tenant resolver, a fly.dev host still serves the pinned tenant's content"
+    (let [components (->> {"KALEIDOSCOPE_DB_TYPE"               "embedded-h2"
+                           "KALEIDOSCOPE_AUTH_TYPE"             "always-unauthenticated"
+                           "KALEIDOSCOPE_AUTHORIZATION_TYPE"    "use-access-control-list"
+                           "KALEIDOSCOPE_STATIC_CONTENT_TYPE"   "none"
+                           "KALEIDOSCOPE_TENANT_RESOLVER_TYPE"  "fixed"
+                           "KALEIDOSCOPE_TENANT"                "andrewslai.com"}
+                          (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                          env/prepare-kaleidoscope)
+          ;; Fixture article #1 ("my-first-article", hostname "andrewslai.com") already has a
+          ;; published branch/version; mark it public so an anonymous request can see it via
+          ;; /compositions - same shape as `published-article-retrieval-test` above.
+          _          (articles-api/update-article! (:database components)
+                                                    {:id 1 :public-visibility true})
+          app        (->> components
+                          kaleidoscope/kaleidoscope-app
+                          tu/wrap-clojure-response)]
+      (is (match? {:status 200 :body (m/embeds [{:article-url "my-first-article"}])}
+                  (app (mock/request :get "https://kal-eph-xyz.fly.dev/compositions")))))))
+
 (deftest create-branch-happy-path-test
   (let [app     (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                       "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
