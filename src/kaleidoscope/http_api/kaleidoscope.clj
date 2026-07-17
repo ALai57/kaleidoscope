@@ -24,6 +24,7 @@
    [kaleidoscope.http-api.recipes :refer [reitit-recipes-routes reitit-recipe-labels-routes reitit-recipe-label-groups-routes reitit-recipe-audiences-routes]]
    [kaleidoscope.http-api.registration :refer [reitit-registration-routes]]
    [kaleidoscope.http-api.swagger :refer [reitit-openapi-routes]]
+   [kaleidoscope.http-api.tenant :as tenant]
    [kaleidoscope.http-api.themes :refer [reitit-themes-routes]]
    [kaleidoscope.trace :as-alias trace]
    [reitit.ring :as ring]
@@ -209,7 +210,8 @@
    (let [reitit-config (assoc-in mw/reitit-configuration
                                  [:data :middleware]
                                  (concat mw/base-middleware
-                                         [(mw/wrap-exception-reporter (:exception-reporter components))
+                                         [(tenant/wrap-resolve-tenant (or (:tenant-resolver components) tenant/host-resolver))
+                                          (mw/wrap-exception-reporter (:exception-reporter components))
                                           (inject-components components)
                                           (:session-tracking components)
                                           (:auth-stack components)]

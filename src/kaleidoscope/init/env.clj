@@ -8,6 +8,7 @@
             [kaleidoscope.http-api.auth.buddy-backends :as bb]
             [kaleidoscope.http-api.kaleidoscope :as kaleidoscope]
             [kaleidoscope.http-api.middleware :as mw]
+            [kaleidoscope.http-api.tenant :as tenant]
             [kaleidoscope.http-api.virtual-hosting :as vh]
             [kaleidoscope.persistence.filesystem.in-memory-impl :as memory]
             [kaleidoscope.persistence.filesystem.local :as local-fs]
@@ -257,6 +258,17 @@
                                              "caheriaguilar.and.andrewslai.com" (local-fs/make-local-fs (env->kaleidoscope-local-fs env "caheriaguilar.and.andrewslai.com"))})}
    :default   "s3"})
 
+(def kaleidoscope-tenant-resolver-boot-instructions
+  {:name      :kaleidoscope-tenant-resolver
+   :path      "KALEIDOSCOPE_TENANT_RESOLVER_TYPE"
+   :launchers {"host"  (fn [_] tenant/host-resolver)
+               "fixed" (fn [env] (tenant/fixed-resolver
+                                  (get env "KALEIDOSCOPE_TENANT")
+                                  (if (get env "KALEIDOSCOPE_TENANT_ASSET_BUCKET")
+                                    tenant/ephemeral-asset-store
+                                    (get env "KALEIDOSCOPE_TENANT"))))}
+   :default   "host"})
+
 (def kaleidoscope-scorer-boot-instructions
   {:name      :kaleidoscope-scorer
    :path      "KALEIDOSCOPE_SCORER_TYPE"
@@ -334,6 +346,7 @@
    kaleidoscope-authentication-boot-instructions
    kaleidoscope-authorization-boot-instructions
    kaleidoscope-static-content-adapter-boot-instructions
+   kaleidoscope-tenant-resolver-boot-instructions
    kaleidoscope-notify-image-resizer-boot-instructions
    kaleidoscope-scorer-boot-instructions
    kaleidoscope-workflow-executor-boot-instructions
@@ -381,6 +394,7 @@
            kaleidoscope-authentication
            kaleidoscope-authorization
            kaleidoscope-static-content-adapters
+           kaleidoscope-tenant-resolver
            kaleidoscope-notify-image-resizer
            kaleidoscope-scorer
            kaleidoscope-workflow-executor
@@ -396,6 +410,7 @@
                              :wrap (apply comp (mw/auth-stack kaleidoscope-authentication
                                                               kaleidoscope-authorization))}
    :static-content-adapters kaleidoscope-static-content-adapters
+   :tenant-resolver         kaleidoscope-tenant-resolver
    :notify-image-resizer!   kaleidoscope-notify-image-resizer
    :scorer                  kaleidoscope-scorer
    :workflow-executor       kaleidoscope-workflow-executor
