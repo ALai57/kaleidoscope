@@ -235,16 +235,13 @@
                                                             ;; For testing locally
                                                             "andrewslai.com.localhost" (s3-storage/make-s3 {:bucket "andrewslai.com"})}
                                                            (into {} (map (fn [{:keys [hostname bucket]}] [hostname (s3-storage/make-s3 {:bucket bucket})])) (read-tenants)))
-                                             ;; (Task 6 adds the isolated-store entry here.)
-
-                                             ;; For ephemeral test environments (arbitrary *.fly.dev hosts)
-                                             (and (get env "KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS")
-                                                  (get env "KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET"))
-                                             (assoc (get env "KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS")
+                                             ;; The isolated per-env asset store the "fixed" tenant resolver points at.
+                                             (get env "KALEIDOSCOPE_TENANT_ASSET_BUCKET")
+                                             (assoc tenant/ephemeral-asset-store
                                                     (s3-storage/make-s3
-                                                     (cond-> {:bucket (get env "KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET")}
-                                                       (get env "KALEIDOSCOPE_EPHEMERAL_HOST_PREFIX")
-                                                       (assoc :prefix (get env "KALEIDOSCOPE_EPHEMERAL_HOST_PREFIX")))))))
+                                                     (cond-> {:bucket (get env "KALEIDOSCOPE_TENANT_ASSET_BUCKET")}
+                                                       (get env "KALEIDOSCOPE_TENANT_ASSET_PREFIX")
+                                                       (assoc :prefix (get env "KALEIDOSCOPE_TENANT_ASSET_PREFIX")))))))
                "in-memory"        (fn [_env] {"kaleidoscope.pub"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "kaleidoscope.client"              (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "andrewslai.com"                   (memory/make-mem-fs {:store (atom memory/example-fs)})

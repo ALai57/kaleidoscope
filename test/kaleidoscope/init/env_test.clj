@@ -32,29 +32,20 @@
     (is (= "ephemeral-foo" (:release-stage (sut/env->bugsnag {"KALEIDOSCOPE_BUGSNAG_KEY" "key"
                                                               "KALEIDOSCOPE_ENV"        "ephemeral-foo"}))))))
 
-(deftest s3-static-content-launcher-adds-ephemeral-host-alias-when-configured
-  (let [s3-launcher (get-in sut/kaleidoscope-static-content-adapter-boot-instructions [:launchers "s3"])
-        base-hosts  #{"kaleidoscope.pub" "kaleidoscope.client" "andrewslai.com" "caheriaguilar.com"
-                      "sahiltalkingcents.com" "caheriaguilar.and.andrewslai.com" "andrewslai.com.localhost"}]
-    (testing "unset ephemeral env vars leave the adapter map unchanged"
-      (is (= base-hosts (set (keys (s3-launcher {}))))))
+(deftest s3-static-content-launcher-registers-isolated-ephemeral-asset-store-when-configured
+  (let [s3-launcher (get-in sut/kaleidoscope-static-content-adapter-boot-instructions [:launchers "s3"])]
+    (testing "setting the asset bucket and prefix registers the isolated store under its fixed name"
+      (let [adapters (s3-launcher {"KALEIDOSCOPE_TENANT_ASSET_BUCKET" "kal-ephemeral"
+                                   "KALEIDOSCOPE_TENANT_ASSET_PREFIX" "tenant-assets/xyz/"})
+            store    (get adapters "ephemeral-tenant-assets")]
+        (is (= "kal-ephemeral" (:bucket store)))
+        (is (= "tenant-assets/xyz/" (:prefix store)))))
 
-    (testing "setting both ephemeral env vars adds an alias entry pointed at the given bucket"
-      (let [adapters (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS"  "kal-eph-foo.fly.dev"
-                                   "KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET" "kal-ephemeral"})]
-        (is (= (conj base-hosts "kal-eph-foo.fly.dev") (set (keys adapters))))
-        (is (= "kal-ephemeral" (:storage-root (get adapters "kal-eph-foo.fly.dev"))))
-        (is (nil? (:prefix (get adapters "kal-eph-foo.fly.dev"))))))
+    (testing "unset asset bucket env var leaves the isolated store entry absent"
+      (is (nil? (get (s3-launcher {}) "ephemeral-tenant-assets"))))
 
-    (testing "also setting the prefix env var scopes the ephemeral adapter to that key prefix"
-      (let [adapters (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS"  "kal-eph-foo.fly.dev"
-                                   "KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET" "kal-ephemeral"
-                                   "KALEIDOSCOPE_EPHEMERAL_HOST_PREFIX" "eph-foo/"})]
-        (is (= "eph-foo/" (:prefix (get adapters "kal-eph-foo.fly.dev"))))))
-
-    (testing "setting only one of the two ephemeral env vars leaves the adapter map unchanged"
-      (is (= base-hosts (set (keys (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS" "kal-eph-foo.fly.dev"})))))
-      (is (= base-hosts (set (keys (s3-launcher {"KALEIDOSCOPE_EPHEMERAL_HOST_BUCKET" "kal-ephemeral"}))))))))
+    (testing "the isolated store entry is additive, not an override of any tenant entry"
+      (is (= "andrewslai.com" (:bucket (get (s3-launcher {"KALEIDOSCOPE_TENANT_ASSET_BUCKET" "kal-ephemeral"}) "andrewslai.com")))))))
 
 (deftest s3-static-content-launcher-overrides-client-shell-bucket-when-configured
   (let [s3-launcher (get-in sut/kaleidoscope-static-content-adapter-boot-instructions [:launchers "s3"])]
