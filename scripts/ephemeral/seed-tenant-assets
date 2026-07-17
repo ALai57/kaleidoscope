@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Seed an ephemeral env's isolated tenant-asset S3 prefix with sample fixtures.
+#
+#   scripts/ephemeral/seed-tenant-assets --name=<slug>
+#   TENANT=caheriaguilar.com scripts/ephemeral/seed-tenant-assets --name=<slug>
+#
+# An ephemeral env impersonates exactly one pinned tenant (TENANT, defaulting
+# to DEFAULT_TENANT) and must serve that tenant's /static/* and /media/* from
+# an ISOLATED S3 prefix (tenant-assets/<slug>/ inside the shared kal-ephemeral
+# bucket) — never the real per-tenant bucket. TENANT is validated against the
+# tenant registry (resources/tenants.json, Task 5) so a typo'd hostname fails
+# loudly instead of silently seeding an empty prefix. Sample fixtures live in
+# test-resources/ephemeral-sample-assets/<TENANT>/ and mirror the served URL
+# paths (static/... -> /static/..., media/... -> /media/...).
+set -euo pipefail
+# shellcheck source=scripts/ephemeral/lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
+
+SLUG="$(resolve_slug "$@")"
+TENANT="${TENANT:-$DEFAULT_TENANT}"
+known_tenant? "$TENANT" || die "Unknown tenant '$TENANT' — not found in $TENANTS_FILE."
+PREFIX="$(tenant_asset_prefix "$SLUG")"
+
+FIXTURES_DIR="$REPO_ROOT/test-resources/ephemeral-sample-assets/$TENANT"
+[ -d "$FIXTURES_DIR" ] || die "No sample tenant assets at $FIXTURES_DIR — add fixtures for '$TENANT' first."
+
+load_staging_env
+require_cmd aws
+: "${AWS_ACCESS_KEY_ID:?set AWS_ACCESS_KEY_ID in $STAGING_ENV_FILE}"
+: "${AWS_SECRET_ACCESS_KEY:?set AWS_SECRET_ACCESS_KEY in $STAGING_ENV_FILE}"
+
+log "Syncing $FIXTURES_DIR/ -> s3://$EPHEMERAL_BUCKET/$PREFIX ..."
+aws s3 sync "$FIXTURES_DIR/" "s3://$EPHEMERAL_BUCKET/$PREFIX" --delete
+
+log "Tenant assets seeded to s3://$EPHEMERAL_BUCKET/$PREFIX"

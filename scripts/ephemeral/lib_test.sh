@@ -69,6 +69,19 @@ check "empty app list yields no slugs" "" "$(printf '[]' | parse_ephemeral_slugs
 # resolve_slug_or_select: --name wins and is normalized (no fly/prompt needed).
 check "resolve_slug_or_select honors --name" "recipes" "$(resolve_slug_or_select --name=Recipes 2>/dev/null)"
 
+# tenant_asset_prefix: pure string helper, mirrors s3_prefix's shape.
+check "tenant_asset_prefix formats the S3 key prefix" "tenant-assets/my-slug/" "$(tenant_asset_prefix my-slug)"
+
+# known_tenant?: validates a hostname against the real tenant registry
+# (resources/tenants.json) via jq. A known hostname exits 0; an unknown one
+# (typo, never-registered domain) exits non-zero so callers can `die` loudly
+# instead of seeding an empty/wrong S3 prefix.
+if known_tenant? andrewslai.com; then tenant_result=ok; else tenant_result=fail; fi
+check "known_tenant? accepts a registered hostname" "ok" "$tenant_result"
+
+if known_tenant? typo.example.com; then tenant_result=ok; else tenant_result=fail; fi
+check "known_tenant? rejects an unregistered hostname" "fail" "$tenant_result"
+
 if [ "$fails" -eq 0 ]; then
   printf 'lib_test: all tests passed\n'
 else

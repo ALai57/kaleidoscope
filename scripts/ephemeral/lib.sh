@@ -30,6 +30,20 @@ require_cmd() { command -v "$1" >/dev/null 2>&1 || die "Required command not fou
 # recipe-scrape bot-block fallback. Covered by the *.env* gitignore rule.
 STAGING_ENV_FILE="${STAGING_ENV_FILE:-$REPO_ROOT/.env.fly.staging}"
 
+# --- tenant registry (resources/tenants.json, Task 5) ------------------------
+# An ephemeral env impersonates exactly one pinned tenant hostname and must
+# only ever serve that tenant's assets from an isolated S3 prefix — never the
+# real per-tenant bucket. DEFAULT_TENANT picks andrewslai.com when TENANT is
+# unset; known_tenant? guards against a typo'd hostname silently seeding an
+# empty/wrong prefix.
+TENANTS_FILE="${TENANTS_FILE:-$REPO_ROOT/resources/tenants.json}"
+DEFAULT_TENANT="${DEFAULT_TENANT:-andrewslai.com}"
+
+known_tenant?() {
+  require_cmd jq
+  jq -e --arg h "$1" '.tenants[]|select(.hostname==$h)' "$TENANTS_FILE" >/dev/null 2>&1
+}
+
 load_staging_env() {
   [ -f "$STAGING_ENV_FILE" ] || die "Missing $STAGING_ENV_FILE — see plans/2026-07-09-ephemeral-env-claude-workflow/PLAN.md (NEON_API_KEY, NEON_PROJECT_ID, AWS creds, Bugsnag key)."
   # shellcheck disable=SC1090
@@ -98,6 +112,7 @@ fly_app_name()      { printf 'kal-eph-%s' "$1"; }
 neon_branch_name()  { printf 'eph-%s' "$1"; }
 otel_service_name() { printf 'kal-eph-%s' "$1"; }
 s3_prefix()         { printf 'eph-%s/' "$1"; }
+tenant_asset_prefix() { printf 'tenant-assets/%s/' "$1"; }
 
 # --- ephemeral app discovery -------------------------------------------------
 # Turn `fly apps list --json` (on stdin) into the slug of every kal-eph-* app,

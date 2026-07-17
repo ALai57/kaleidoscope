@@ -90,12 +90,17 @@ tasks:
     summary: |
       Like env:up but pinned to an explicit NAME instead of the git branch.
       Creates a Neon branch (eph-<NAME>), deploys a Fly app (kal-eph-<NAME>) against
-      real dependencies, smoke-tests it, and runs the full Checkly spec suite. Requires
+      real dependencies, seeds the pinned tenant's isolated S3 asset prefix,
+      smoke-tests it, and runs the full Checkly spec suite. Requires
       .env.fly.staging; the Checkly step is skipped with a warning unless
       CHECKLY_API_KEY/CHECKLY_ACCOUNT_ID and AUTH0_CLIENT_ID/SECRET are set.
-      Usage: task ephemeral:up NAME=pr-42
+      TENANT picks which tenant hostname (from resources/tenants.json) the env
+      impersonates; defaults to DEFAULT_TENANT (andrewslai.com).
+      Usage: task ephemeral:up NAME=pr-42 TENANT=caheriaguilar.com
     requires:
       vars: [NAME]
+    env:
+      TENANT: '{{.TENANT}}'
     cmd: ./scripts/ephemeral/up --name={{.NAME}}
 
   ephemeral:down:
@@ -122,6 +127,21 @@ tasks:
       Usage: task ephemeral:build-frontend  OR  task ephemeral:build-frontend NAME=pr-42
     interactive: true
     cmd: ./scripts/ephemeral/build-frontend {{if .NAME}}--name={{.NAME}}{{end}}
+
+  ephemeral:seed-tenant-assets:
+    desc: Seed a named ephemeral env's isolated tenant-asset S3 prefix with sample fixtures (requires NAME)
+    summary: |
+      Syncs test-resources/ephemeral-sample-assets/<TENANT>/ to
+      s3://kal-ephemeral/tenant-assets/<NAME>/ — an S3 prefix isolated per
+      ephemeral env, never the real per-tenant bucket. TENANT defaults to
+      DEFAULT_TENANT (andrewslai.com) and is validated against
+      resources/tenants.json; an unknown TENANT fails loudly.
+      Usage: task ephemeral:seed-tenant-assets NAME=pr-42 TENANT=caheriaguilar.com
+    requires:
+      vars: [NAME]
+    env:
+      TENANT: '{{.TENANT}}'
+    cmd: ./scripts/ephemeral/seed-tenant-assets --name={{.NAME}}
 
   ephemeral:deploy-app:
     desc: Build and deploy the backend to a named ephemeral Fly app (requires NAME)
