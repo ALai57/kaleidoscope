@@ -67,6 +67,11 @@ this same optional-`NAME`, prompt-if-omitted behavior; the remaining `ephemeral:
 tasks (`up`, `provision-db`, `deploy-app`, `seed-tenant-assets`) still require an
 explicit `NAME`.
 
+`ephemeral:build-frontend` only supplies staging AWS creds and a clean `npm ci`,
+then delegates the actual build and S3 sync to `npm run ephemeral:deploy` in the
+kaleidoscope-ui repo — the frontend owns its `vite build` command and dist path,
+and must expose that `ephemeral:deploy` script.
+
 The runner exports `CHECKLY_TEST_ENVIRONMENT=<slug>` so the recorded test session is
 labeled with the ephemeral env in Checkly's dashboard (the Environment column is
 blank without it).
