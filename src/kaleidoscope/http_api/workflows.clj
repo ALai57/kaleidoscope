@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.workflows
   (:require [kaleidoscope.api.workflows :as workflows-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [conflict not-found ok]]
             [taoensso.timbre :as log]))
 
@@ -51,7 +52,7 @@
 
    ["" {:get {:summary "List workflows for the authenticated user"
               :handler (fn [{:keys [components] :as request}]
-                         (ok (workflows-api/get-workflows (:database components)
+                         (ok (workflows-api/get-workflows (tenant/scope (:database components) (hu/tenant-hostname request))
                                                           (:user-id (:identity request)))))}
 
         :post {:summary    "Create a workflow"
@@ -63,7 +64,7 @@
                :parameters {:body WorkflowRequest}
                :handler    (fn [{:keys [components parameters] :as request}]
                              (ok (workflows-api/create-workflow!
-                                  (:database components)
+                                  (tenant/scope (:database components) (hu/tenant-hostname request))
                                   (:user-id (:identity request))
                                   (:body parameters))))}}]
 
@@ -75,7 +76,7 @@
                           (let [user-id     (:user-id (:identity request))
                                 workflow-id (:workflow-id (:path parameters))]
                             (if-let [wf (workflows-api/get-workflow
-                                         (:database components) user-id workflow-id)]
+                                         (tenant/scope (:database components) (hu/tenant-hostname request)) user-id workflow-id)]
                               (ok wf)
                               (not-found {:reason "Workflow not found"}))))}
 
@@ -85,7 +86,7 @@
                           (let [user-id     (:user-id (:identity request))
                                 workflow-id (:workflow-id (:path parameters))]
                             (if-let [wf (workflows-api/update-workflow!
-                                         (:database components) user-id workflow-id (:body parameters))]
+                                         (tenant/scope (:database components) (hu/tenant-hostname request)) user-id workflow-id (:body parameters))]
                               (ok wf)
                               (not-found {:reason "Workflow not found"}))))}
 
@@ -94,7 +95,7 @@
                              (let [user-id     (:user-id (:identity request))
                                    workflow-id (:workflow-id (:path parameters))
                                    result      (workflows-api/delete-workflow!
-                                                (:database components) user-id workflow-id)]
+                                                (tenant/scope (:database components) (hu/tenant-hostname request)) user-id workflow-id)]
                                (cond
                                  (:error result) (case (:error result)
                                                    :cannot-delete-default
@@ -119,7 +120,7 @@
             :handler (fn [{:keys [components parameters] :as request}]
                        (let [user-id    (:user-id (:identity request))
                              project-id (:project-id (:path parameters))
-                             db         (:database components)
+                             db         (tenant/scope (:database components) (hu/tenant-hostname request))
                              executor   (:workflow-executor components)]
                          (if-let [recs (workflows-api/get-workflow-recommendation
                                         db executor project-id user-id)]
@@ -133,7 +134,7 @@
                           (let [user-id    (:user-id (:identity request))
                                 project-id (:project-id (:path parameters))]
                             (if-let [runs (workflows-api/get-workflow-runs
-                                           (:database components) project-id user-id)]
+                                           (tenant/scope (:database components) (hu/tenant-hostname request)) project-id user-id)]
                               (ok runs)
                               (not-found {:reason "Project not found"}))))}
 
@@ -153,7 +154,7 @@
                                     scrutiny     (:scrutiny body)
                                     target-score (:target-score body)]
                                 (if-let [run (workflows-api/create-run!
-                                              (:database components)
+                                              (tenant/scope (:database components) (hu/tenant-hostname request))
                                               project-id user-id
                                               {:workflow-id  workflow-id
                                                :mode         mode
@@ -172,7 +173,7 @@
                                  project-id (:project-id (:path parameters))
                                  run-id     (:run-id (:path parameters))]
                              (if-let [run (workflows-api/get-workflow-run
-                                           (:database components) run-id project-id user-id)]
+                                           (tenant/scope (:database components) (hu/tenant-hostname request)) run-id project-id user-id)]
                                (ok run)
                                (not-found {:reason "Run not found"}))))}
 
@@ -183,7 +184,7 @@
                                  run-id     (:run-id (:path parameters))
                                  mode       (:mode body-params)]
                              (if-let [run (workflows-api/update-run-mode!
-                                           (:database components)
+                                           (tenant/scope (:database components) (hu/tenant-hostname request))
                                            run-id project-id user-id mode)]
                                (ok run)
                                (not-found {:reason "Run not found"}))))}}]
@@ -196,7 +197,7 @@
                               project-id (:project-id (:path parameters))
                               run-id     (:run-id (:path parameters))]
                           (if-let [rounds (workflows-api/get-run-rounds
-                                           (:database components) run-id project-id user-id)]
+                                           (tenant/scope (:database components) (hu/tenant-hostname request)) run-id project-id user-id)]
                             (ok rounds)
                             (not-found {:reason "Run not found"}))))}}]
 
@@ -208,7 +209,7 @@
                          (let [user-id    (:user-id (:identity request))
                                project-id (:project-id (:path parameters))
                                run-id     (:run-id (:path parameters))
-                               db         (:database components)
+                               db         (tenant/scope (:database components) (hu/tenant-hostname request))
                                executor   (:workflow-executor components)]
                            (if-let [run (workflows-api/force-proceed!
                                          db executor project-id user-id run-id)]
@@ -226,7 +227,7 @@
                          (let [user-id    (:user-id (:identity request))
                                project-id (:project-id (:path parameters))
                                run-id     (:run-id (:path parameters))
-                               db         (:database components)
+                               db         (tenant/scope (:database components) (hu/tenant-hostname request))
                                executor   (:workflow-executor components)]
                            (hu/sse-response
                             (fn [output-stream]
@@ -253,7 +254,7 @@
                                run-id      (:run-id (:path parameters))
                                step-run-id (:step-run-id (:path parameters))]
                            (if-let [run (workflows-api/skip-step!
-                                         (:database components)
+                                         (tenant/scope (:database components) (hu/tenant-hostname request))
                                          project-id user-id run-id step-run-id)]
                              (ok run)
                              (not-found {:reason "Run or step not found"}))))}}]
@@ -270,7 +271,7 @@
                                step-run-id (:step-run-id (:path parameters))
                                answers     (or (:answers body-params) [])]
                            (if-let [run (workflows-api/respond-to-step!
-                                         (:database components)
+                                         (tenant/scope (:database components) (hu/tenant-hostname request))
                                          (:workflow-executor components)
                                          project-id user-id run-id step-run-id answers)]
                              (ok run)
@@ -288,7 +289,7 @@
                          (let [user-id    (:user-id (:identity request))
                                project-id (:project-id (:path parameters))
                                run-id     (:run-id (:path parameters))
-                               db         (:database components)
+                               db         (tenant/scope (:database components) (hu/tenant-hostname request))
                                executor   (:workflow-executor components)]
                            (hu/sse-response
                             (fn [output-stream]

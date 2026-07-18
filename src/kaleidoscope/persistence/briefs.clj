@@ -1,6 +1,7 @@
 (ns kaleidoscope.persistence.briefs
   (:require [honey.sql :as hsql]
             [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.utils.core :as utils]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]))
@@ -8,34 +9,40 @@
 (defn get-all-briefs
   "Return all brief versions for a project, newest first."
   [db project-id]
-  (next/execute! db
-                 (hsql/format {:select   :*
-                               :from     :project-briefs
-                               :where    [:= :project-id project-id]
-                               :order-by [[:version :desc]]})
-                 {:builder-fn rs/as-unqualified-kebab-maps}))
+  (let [hostname (tenant/hostname-of db)]
+    (next/execute! (tenant/unwrap db)
+                   (hsql/format {:select   :*
+                                 :from     :project-briefs
+                                 :where    (cond-> [:and [:= :project-id project-id]]
+                                             hostname (conj [:= :hostname hostname]))
+                                 :order-by [[:version :desc]]})
+                   {:builder-fn rs/as-unqualified-kebab-maps})))
 
 (defn get-latest-brief
   "Return the highest-version brief for a project, or nil if none exists."
   [db project-id]
-  (first (next/execute! db
-                        (hsql/format {:select   :*
-                                      :from     :project-briefs
-                                      :where    [:= :project-id project-id]
-                                      :order-by [[:version :desc]]
-                                      :limit    1})
-                        {:builder-fn rs/as-unqualified-kebab-maps})))
+  (let [hostname (tenant/hostname-of db)]
+    (first (next/execute! (tenant/unwrap db)
+                          (hsql/format {:select   :*
+                                        :from     :project-briefs
+                                        :where    (cond-> [:and [:= :project-id project-id]]
+                                                    hostname (conj [:= :hostname hostname]))
+                                        :order-by [[:version :desc]]
+                                        :limit    1})
+                          {:builder-fn rs/as-unqualified-kebab-maps}))))
 
 (defn get-brief-by-version
   "Return a specific brief version for a project."
   [db project-id version]
-  (first (next/execute! db
-                        (hsql/format {:select :*
-                                      :from   :project-briefs
-                                      :where  [:and
-                                               [:= :project-id project-id]
-                                               [:= :version version]]})
-                        {:builder-fn rs/as-unqualified-kebab-maps})))
+  (let [hostname (tenant/hostname-of db)]
+    (first (next/execute! (tenant/unwrap db)
+                          (hsql/format {:select :*
+                                        :from   :project-briefs
+                                        :where  (cond-> [:and
+                                                         [:= :project-id project-id]
+                                                         [:= :version version]]
+                                                  hostname (conj [:= :hostname hostname]))})
+                          {:builder-fn rs/as-unqualified-kebab-maps}))))
 
 (defn create-brief!
   "Create a new brief version. Atomically computes the next version number.
@@ -44,7 +51,7 @@
    workflow-round-id links the brief to the round that produced it."
   [db {:keys [project-id content source agent-type workflow-round-id]}]
   (next/with-transaction [tx db]
-    (let [result (first (next/execute! tx
+    (let [result (first (next/execute! (tenant/unwrap tx)
                                        (hsql/format {:select [[[:coalesce [:max :version] 0] :max-version]]
                                                      :from   :project-briefs
                                                      :where  [:= :project-id project-id]})

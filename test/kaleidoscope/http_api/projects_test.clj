@@ -1,6 +1,8 @@
 (ns kaleidoscope.http-api.projects-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.http-api.kaleidoscope :as kal]
+            [kaleidoscope.http-api.tenant :as tenant-mw]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.http-api.middleware :as mw]
             [kaleidoscope.http-api.projects :refer [reitit-projects-routes]]
             [kaleidoscope.persistence.projects :as projects-persistence]
@@ -19,7 +21,8 @@
   [components]
   (let [config (update-in mw/reitit-configuration
                           [:data :middleware]
-                          (fn [middleware] (concat middleware [(kal/inject-components components)])))]
+                          (fn [middleware] (concat middleware [(kal/inject-components components)
+                                          (tenant-mw/wrap-resolve-tenant (tenant-mw/fixed-resolver "andrewslai.com" "andrewslai.com"))])))]
     (ring/ring-handler
      (ring/router [reitit-projects-routes] config))))
 
@@ -113,7 +116,10 @@
   (let [database   (embedded-h2/fresh-db!)
         app        (test-app {:database database})
         user-id    "owner@example.com"
-        project    (projects-persistence/create-project! database {:user-id user-id :title "Real Project"})
+        ;; seed through a scoped handle so the project carries the tenant the
+        ;; PUT handler will scope to (matches the fixed-resolver in test-app).
+        project    (projects-persistence/create-project! (tenant/scope database "andrewslai.com")
+                                                         {:user-id user-id :title "Real Project"})
         project-id (:id project)]
     (mw/reset-rate-limits!)
     (let [response (app (-> (mock/request :put (str "/projects/" project-id))

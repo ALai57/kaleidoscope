@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.body-param-coercion-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.http-api.kaleidoscope :as kal]
+            [kaleidoscope.http-api.tenant :as tenant-mw]
             [kaleidoscope.http-api.middleware :as mw]
             [kaleidoscope.http-api.projects :refer [reitit-projects-routes]]
             [kaleidoscope.http-api.tasks :refer [reitit-task-routes]]
@@ -20,7 +21,8 @@
   [routes components]
   (let [config (update-in mw/reitit-configuration
                           [:data :middleware]
-                          (fn [middleware] (concat middleware [(kal/inject-components components)])))]
+                          (fn [middleware] (concat middleware [(kal/inject-components components)
+                                          (tenant-mw/wrap-resolve-tenant (tenant-mw/fixed-resolver "andrewslai.com" "andrewslai.com"))])))]
     (ring/ring-handler
      (ring/router [routes] config))))
 

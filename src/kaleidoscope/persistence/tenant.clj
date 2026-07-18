@@ -50,11 +50,16 @@
 (defrecord TenantConn [ds hostname])
 
 (defn scope
-  "Bind a datasource/connection to a single tenant hostname. A nil hostname
-  (e.g. a request with no Host header) is allowed and fails *closed*: reads of
-  tenant-scoped tables match `hostname = NULL`, i.e. nothing — never another
-  tenant's data. Crashing here would turn a malformed request into a 500."
+  "Bind a datasource/connection to a single tenant hostname. THROWS on a nil
+  hostname: a scoped db with no tenant is a bug (a handler reached persistence
+  without a resolved tenant), and silently returning an unscoped db would be
+  fail-open — a missing tenant would see every tenant's data. `wrap-resolve-tenant`
+  guarantees a hostname on every real request; a test that scopes must give its
+  app that middleware (or a Host header)."
   [ds hostname]
+  (when (nil? hostname)
+    (throw (ex-info "Cannot scope a database to a nil tenant hostname — no tenant was resolved for this request"
+                    {:type :NoTenantResolved})))
   (->TenantConn ds hostname))
 
 (defn scoped?

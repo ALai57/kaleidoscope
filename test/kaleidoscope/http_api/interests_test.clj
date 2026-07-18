@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.http-api.interests :refer [reitit-interests-routes]]
             [kaleidoscope.http-api.kaleidoscope :as kal]
+            [kaleidoscope.http-api.tenant :as tenant-mw]
             [kaleidoscope.http-api.middleware :as mw]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.test-utils :as tu]
@@ -22,7 +23,8 @@
   [components]
   (let [config (update-in mw/reitit-configuration
                           [:data :middleware]
-                          (fn [middleware] (concat middleware [(kal/inject-components components)])))]
+                          (fn [middleware] (concat middleware [(kal/inject-components components)
+                                          (tenant-mw/wrap-resolve-tenant (tenant-mw/fixed-resolver "andrewslai.com" "andrewslai.com"))])))]
     (tu/wrap-clojure-response
      (ring/ring-handler
       (ring/router [reitit-interests-routes] config)))))

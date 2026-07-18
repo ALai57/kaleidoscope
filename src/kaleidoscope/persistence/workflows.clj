@@ -2,6 +2,7 @@
   (:require [honey.sql :as hsql]
             [honey.sql.helpers :as hh]
             [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.utils.core :as utils]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]
@@ -25,7 +26,7 @@
 (defn- with-steps
   "Attach ordered steps to a workflow row."
   [db wf]
-  (let [steps (next/execute! db
+  (let [steps (next/execute! (tenant/unwrap db)
                              (hsql/format {:select   :*
                                            :from     :workflow-steps
                                            :where    [:= :workflow-id (:id wf)]
@@ -48,29 +49,33 @@
 (defn get-default-workflow
   "Return the first live default workflow for a user, or nil."
   [db user-id]
-  (first (next/execute! db
-                        (hsql/format {:select   :*
-                                      :from     :workflows
-                                      :where    [:and
-                                                 [:= :user-id user-id]
-                                                 [:= :is-default true]
-                                                 [:= :status "live"]]
-                                      :limit    1})
-                        {:builder-fn rs/as-unqualified-kebab-maps})))
+  (let [hostname (tenant/hostname-of db)]
+    (first (next/execute! (tenant/unwrap db)
+                          (hsql/format {:select   :*
+                                        :from     :workflows
+                                        :where    (cond-> [:and
+                                                           [:= :user-id user-id]
+                                                           [:= :is-default true]
+                                                           [:= :status "live"]]
+                                                    hostname (conj [:= :hostname hostname]))
+                                        :limit    1})
+                          {:builder-fn rs/as-unqualified-kebab-maps}))))
 
 (defn get-live-workflows
   "Return all live workflows for a user."
   [db user-id]
-  (->> (next/execute! db
-                      (hsql/format {:select   :*
-                                    :from     :workflows
-                                    :where    [:and
-                                               [:= :user-id user-id]
-                                               [:= :status "live"]]
-                                    :order-by [[:created-at :asc]]})
-                      {:builder-fn rs/as-unqualified-kebab-maps})
+  (->> (let [hostname (tenant/hostname-of db)]
+         (next/execute! (tenant/unwrap db)
+                        (hsql/format {:select   :*
+                                      :from     :workflows
+                                      :where    (cond-> [:and
+                                                         [:= :user-id user-id]
+                                                         [:= :status "live"]]
+                                                  hostname (conj [:= :hostname hostname]))
+                                      :order-by [[:created-at :asc]]})
+                        {:builder-fn rs/as-unqualified-kebab-maps}))
        (mapv (fn [wf]
-               (let [steps (next/execute! db
+               (let [steps (next/execute! (tenant/unwrap db)
                                           (hsql/format {:select   :*
                                                         :from     :workflow-steps
                                                         :where    [:= :workflow-id (:id wf)]
@@ -135,7 +140,7 @@
       (when wf
         (when (some? steps)
           ;; Full replace of steps
-          (next/execute! tx
+          (next/execute! (tenant/unwrap tx)
                          (hsql/format (-> (hh/delete-from :workflow-steps)
                                           (hh/where [:= :workflow-id workflow-id])))
                          {:builder-fn rs/as-unqualified-kebab-maps})
@@ -188,7 +193,7 @@
 (defn- enrich-run
   "Attach ordered step_runs and workflow name to a run map."
   [db run]
-  (let [step-runs (next/execute! db
+  (let [step-runs (next/execute! (tenant/unwrap db)
                                  (hsql/format {:select   :*
                                                :from     :project-workflow-step-runs
                                                :where    [:= :workflow-run-id (:id run)]
@@ -203,12 +208,14 @@
 (defn get-workflow-runs
   "Return all runs for a project, newest first, each with step_runs."
   [db project-id]
-  (->> (next/execute! db
-                      (hsql/format {:select   :*
-                                    :from     :project-workflow-runs
-                                    :where    [:= :project-id project-id]
-                                    :order-by [[:created-at :desc]]})
-                      {:builder-fn rs/as-unqualified-kebab-maps})
+  (->> (let [hostname (tenant/hostname-of db)]
+         (next/execute! (tenant/unwrap db)
+                        (hsql/format {:select   :*
+                                      :from     :project-workflow-runs
+                                      :where    (cond-> [:and [:= :project-id project-id]]
+                                                  hostname (conj [:= :hostname hostname]))
+                                      :order-by [[:created-at :desc]]})
+                        {:builder-fn rs/as-unqualified-kebab-maps}))
        (mapv (partial enrich-run db))))
 
 (defn get-workflow-run
@@ -241,7 +248,7 @@
                                      :created-at   now}
                                     :ex-subtype :UnableToCreateWorkflowRun))]
       (when workflow-id
-        (let [steps (next/execute! tx
+        (let [steps (next/execute! (tenant/unwrap tx)
                                    (hsql/format {:select   :*
                                                  :from     :workflow-steps
                                                  :where    [:= :workflow-id workflow-id]
@@ -356,7 +363,7 @@
 (defn next-custom-step-position
   "Return the next available position for a step_run in a run."
   [db workflow-run-id]
-  (let [result (first (next/execute! db
+  (let [result (first (next/execute! (tenant/unwrap db)
                                      (hsql/format {:select [[[:coalesce [:max :position] -1] :max-pos]]
                                                    :from   :project-workflow-step-runs
                                                    :where  [:= :workflow-run-id workflow-run-id]})
@@ -391,7 +398,7 @@
 (defn get-round
   "Return a single round by its ID."
   [db round-id]
-  (first (next/execute! db
+  (first (next/execute! (tenant/unwrap db)
                         (hsql/format {:select :*
                                       :from   :workflow-rounds
                                       :where  [:= :id round-id]})
@@ -400,7 +407,7 @@
 (defn get-current-round
   "Return the in_progress round for a workflow run, or nil if none."
   [db workflow-run-id]
-  (first (next/execute! db
+  (first (next/execute! (tenant/unwrap db)
                         (hsql/format {:select   :*
                                       :from     :workflow-rounds
                                       :where    [:and
@@ -413,7 +420,7 @@
 (defn get-all-rounds
   "Return all rounds for a run, ordered by round_number."
   [db workflow-run-id]
-  (next/execute! db
+  (next/execute! (tenant/unwrap db)
                  (hsql/format {:select   :*
                                 :from     :workflow-rounds
                                 :where    [:= :workflow-run-id workflow-run-id]
@@ -424,7 +431,7 @@
   "Create pending step runs for all parallel and fan_in steps in a workflow for a given round.
    These are the steps that execute within each loop iteration."
   [db workflow-run-id workflow-id round-id]
-  (let [loop-steps (next/execute! db
+  (let [loop-steps (next/execute! (tenant/unwrap db)
                                   (hsql/format {:select   :*
                                                 :from     :workflow-steps
                                                 :where    [:and
@@ -460,7 +467,7 @@
   ([db workflow-run-id round-id execution-mode]
    (get-step-runs-by-round-and-mode db workflow-run-id round-id execution-mode #{"pending"}))
   ([db workflow-run-id round-id execution-mode statuses]
-   (next/execute! db
+   (next/execute! (tenant/unwrap db)
                   (hsql/format {:select   :*
                                  :from     :project-workflow-step-runs
                                  :where    (cond-> [:and
@@ -474,7 +481,7 @@
 (defn workflow-has-loop-steps?
   "Returns true if the workflow has any parallel or fan_in steps."
   [db workflow-id]
-  (boolean (seq (next/execute! db
+  (boolean (seq (next/execute! (tenant/unwrap db)
                                (hsql/format {:select   :*
                                              :from     :workflow-steps
                                              :where    [:and
@@ -510,7 +517,7 @@
   "Return the most recent judge record for a workflow run, or nil.
    Joins through workflow_rounds to filter by run."
   [db workflow-run-id]
-  (first (next/execute! db
+  (first (next/execute! (tenant/unwrap db)
                         (hsql/format {:select   [[:wjr/id :id]
                                                  [:wjr/round-id :round-id]
                                                  [:wjr/brief-version :brief-version]
@@ -533,7 +540,7 @@
               :policy :brief-version}}
    Rounds are ordered by round_number ascending."
   [db run-id]
-  (let [rounds (next/execute! db
+  (let [rounds (next/execute! (tenant/unwrap db)
                                (hsql/format {:select   :*
                                              :from     :workflow-rounds
                                              :where    [:= :workflow-run-id run-id]
@@ -544,7 +551,7 @@
       (let [round-ids (mapv :id rounds)
 
             ;; One judge record per round (keep the latest in case of re-entry)
-            judge-records (next/execute! db
+            judge-records (next/execute! (tenant/unwrap db)
                                          (hsql/format {:select   :*
                                                        :from     :workflow-judge-records
                                                        :where    [:in :round-id round-ids]
@@ -558,7 +565,7 @@
                                    {} judge-records)
 
             ;; Latest brief per round (briefs linked via workflow_round_id)
-            briefs (next/execute! db
+            briefs (next/execute! (tenant/unwrap db)
                                    (hsql/format {:select   :*
                                                  :from     :project-briefs
                                                  :where    [:in :workflow-round-id round-ids]
