@@ -16,24 +16,28 @@
 (def GetBranchResponse
   [:map
    [:article-id         :int]
-   [:article-title      :string]
+   ;; article-title is nullable: untitled drafts exist in the data.
+   [:article-title      [:maybe :string]]
    [:article-url        :string]
    [:article-created-at inst?]
    [:author        :string]
    [:public-visibility :boolean]
    [:branch-id     :int]
    [:branch-name   :string]
-   [:created-at    inst?]
+   ;; created-at/modified-at are nullable on article_branches: legacy rows
+   ;; predate these being populated on branch creation.
+   [:created-at    [:maybe inst?]]
    [:hostname      :string]
    [:summary       [:maybe :string]]
-   [:modified-at   inst?]
+   [:modified-at   [:maybe inst?]]
    [:published-at  [:maybe inst?]]])
 
 (def GetVersionResponse
   [:map
    [:article-id         :int]
    [:article-tags       :string]
-   [:article-title      :string]
+   ;; article-title is nullable: untitled drafts exist in the data.
+   [:article-title      [:maybe :string]]
    [:article-url        :string]
    [:article-created-at inst?]
    [:public-visibility :boolean]
@@ -41,26 +45,27 @@
    [:branch-id     :int]
    [:branch-name   :string]
    [:content       :string]
-   [:created-at    inst?]
+   [:created-at    [:maybe inst?]]
    [:hostname      :string]
    [:summary       [:maybe :string]]
-   [:modified-at   inst?]
+   [:modified-at   [:maybe inst?]]
    [:published-at  [:maybe inst?]]])
 
 (def GetCompositionResponse
   [:map
    [:article-id    :int]
-   [:article-title :string]
+   ;; article-title is nullable: untitled drafts exist in the data.
+   [:article-title [:maybe :string]]
    [:article-url   :string]
    [:article-tags  :string]
    [:author        :string]
    [:branch-id     :int]
    [:branch-name   :string]
-   [:created-at    inst?]
+   [:created-at    [:maybe inst?]]
    [:content       :string]
    [:hostname      :string]
    [:summary       [:maybe :string]]
-   [:modified-at   inst?]
+   [:modified-at   [:maybe inst?]]
    [:version-id    :int]])
 
 (def CreateVersionRequest

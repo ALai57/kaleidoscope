@@ -21,6 +21,7 @@
             [kaleidoscope.utils.core :as util]
             [malli.core :as malli]
             [malli.transform :as mt]
+            [next.jdbc :as jdbc]
             [matcher-combinators.core :as mcc]
             [matcher-combinators.matchers :as m]
             [matcher-combinators.result :as result]
@@ -408,6 +409,37 @@
       (is (match? {:status 401}
                   (app (-> {:article-id article-id}
                            (get-branches "http://other-host.com"))))))))
+
+(deftest branches-with-null-columns-serialize-test
+  (testing "GET /branches serializes legacy rows whose article-title/created-at/modified-at are NULL"
+    (let [components (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                           "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                           "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                           "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                          (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                          env/prepare-kaleidoscope)
+          db         (:database components)
+          app        (->> components
+                          kaleidoscope/kaleidoscope-app
+                          tu/wrap-clojure-response)
+          {:keys [article-id branch-id]} (-> {:article-tags "thoughts"
+                                              :article-url  "null-cols-article"
+                                              :author       "Andrew Lai"
+                                              :branch-name  "main"}
+                                             (create-branch "http://andrewslai.test")
+                                             app :body first)]
+      ;; Reproduce legacy prod data: NULL the nullable branch timestamps and
+      ;; the article title (all created non-null by the API on the line above).
+      (jdbc/execute! db ["UPDATE article_branches SET created_at = NULL, modified_at = NULL WHERE id = ?" branch-id])
+      (jdbc/execute! db ["UPDATE articles SET article_title = NULL WHERE id = ?" article-id])
+
+      (testing "the row round-trips as 200 (response coercion tolerates the NULLs)"
+        (is (match? {:status 200
+                     :body   (m/embeds [{:branch-id     branch-id
+                                         :article-title nil
+                                         :created-at    nil
+                                         :modified-at   nil}])}
+                    (app (get-branches {:article-id article-id} "http://andrewslai.test"))))))))
 
 (deftest publish-branch-test
   (let [app             (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
