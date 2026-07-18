@@ -1,6 +1,6 @@
 -- Portfolio had no tenancy and was served publicly, unscoped, to every site.
 -- Give it a hostname. Existing rows are the original site's; backfill first.
-ALTER TABLE portfolio_entries ADD COLUMN hostname VARCHAR;
+ALTER TABLE portfolio_entries ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 
@@ -12,7 +12,7 @@ ALTER TABLE portfolio_entries ALTER COLUMN hostname SET NOT NULL;
 
 --;;
 
-ALTER TABLE portfolio_links ADD COLUMN hostname VARCHAR;
+ALTER TABLE portfolio_links ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 

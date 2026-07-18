@@ -1,7 +1,7 @@
 -- Albums had no tenancy: GET /albums returned every site's albums. Give albums
 -- a hostname like the rest of the CMS. Existing rows predate multi-tenancy and
 -- belong to the original site; backfill them before enforcing NOT NULL.
-ALTER TABLE albums ADD COLUMN hostname VARCHAR;
+ALTER TABLE albums ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 

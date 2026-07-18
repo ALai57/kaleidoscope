@@ -33,7 +33,7 @@ ALTER TABLE tags ADD CONSTRAINT tags_id_hostname_unique UNIQUE (id, hostname);
 --;;
 
 -- article_branches -> articles
-ALTER TABLE article_branches ADD COLUMN hostname VARCHAR;
+ALTER TABLE article_branches ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 
@@ -57,7 +57,7 @@ ALTER TABLE article_branches ADD CONSTRAINT article_branches_article_hostname_fk
 --;;
 
 -- article_versions -> article_branches
-ALTER TABLE article_versions ADD COLUMN hostname VARCHAR;
+ALTER TABLE article_versions ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 
@@ -77,7 +77,7 @@ ALTER TABLE article_versions ADD CONSTRAINT article_versions_branch_hostname_fk
 --;;
 
 -- article_tags -> articles + tags
-ALTER TABLE article_tags ADD COLUMN hostname VARCHAR;
+ALTER TABLE article_tags ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 
@@ -102,7 +102,7 @@ ALTER TABLE article_tags ADD CONSTRAINT article_tags_tag_hostname_fk
 --;;
 
 -- article_audiences -> articles
-ALTER TABLE article_audiences ADD COLUMN hostname VARCHAR;
+ALTER TABLE article_audiences ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 

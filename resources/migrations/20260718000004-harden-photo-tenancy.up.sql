@@ -17,7 +17,7 @@ ALTER TABLE photos ADD CONSTRAINT photos_id_hostname_unique UNIQUE (id, hostname
 --;;
 
 -- photo_versions -> photos
-ALTER TABLE photo_versions ADD COLUMN hostname VARCHAR;
+ALTER TABLE photo_versions ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 
@@ -37,7 +37,7 @@ ALTER TABLE photo_versions ADD CONSTRAINT photo_versions_photo_hostname_fk
 --;;
 
 -- photos_in_albums -> photos AND albums (both must share the tenant)
-ALTER TABLE photos_in_albums ADD COLUMN hostname VARCHAR;
+ALTER TABLE photos_in_albums ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 

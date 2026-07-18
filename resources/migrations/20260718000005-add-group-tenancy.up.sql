@@ -1,7 +1,7 @@
 -- Groups become per-site (owner confirmed 2026-07-18): a group belongs to a
 -- tenant, and its memberships inherit that tenant. Groups back both article and
 -- recipe audiences; the audience-attach checks remain the enforcement point.
-ALTER TABLE groups ADD COLUMN hostname VARCHAR;
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 
@@ -17,7 +17,7 @@ ALTER TABLE groups ADD CONSTRAINT groups_id_hostname_unique UNIQUE (id, hostname
 
 --;;
 
-ALTER TABLE user_group_memberships ADD COLUMN hostname VARCHAR;
+ALTER TABLE user_group_memberships ADD COLUMN IF NOT EXISTS hostname VARCHAR;
 
 --;;
 
