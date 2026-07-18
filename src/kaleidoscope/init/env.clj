@@ -76,13 +76,16 @@
    :password    (get env "KALEIDOSCOPE_DB_PASSWORD")
    :dbtype      "postgresql"
    :sslmode     (get env "KALEIDOSCOPE_DB_SSL_MODE" "require")
-   ;; Minimum number of connections when the pool is idle. Set intentionally
-   ;; low, because the app uses db.t4g.micro and we don't want to eat up CPU.
-   :minimumIdle 3
-   :idleTimeout 120000                                      ;; Shut down connections after 2 mins
-   ;; Neon closes idle connections after ~5 min. maxLifetime forces HikariCP to
-   ;; retire and replace connections before Neon kills them, avoiding the
-   ;; "Failed to validate connection (This connection has been closed.)" warnings.
+   ;; Keep zero idle connections so the pool fully drains when the app is idle.
+   ;; This lets Neon suspend compute (scale-to-zero) after its ~5 min idle
+   ;; window, since HikariCP no longer holds any connection open. Tradeoff: the
+   ;; first request after a suspend pays cold-start + reconnect latency.
+   :minimumIdle 0
+   :idleTimeout 120000                                      ;; Reap idle connections after 2 mins (well before Neon's ~5 min)
+   ;; maxLifetime still caps how long an *active* connection lives, protecting
+   ;; long-running connections from Neon's server-side timeout. With minimumIdle
+   ;; 0 this no longer causes reconnect churn while idle: once the pool drains to
+   ;; zero there are no connections to retire and replace.
    :maxLifetime 240000                                      ;; Retire connections after 4 mins
    })
 
