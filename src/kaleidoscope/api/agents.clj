@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.agents
   (:require [honey.sql :as hsql]
             [kaleidoscope.persistence.agents :as persistence]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.scoring.agents :as agents]
             [kaleidoscope.utils.core :as utils]
             [next.jdbc :as next]
@@ -41,18 +42,25 @@
   "Idempotently seed the pre-defined agent definitions for a user.
    Uses INSERT ... ON CONFLICT DO NOTHING for race safety."
   [db user-id]
-  (doseq [defn default-agent-definitions]
-    (next/execute! db
-                   (hsql/format
-                    {:insert-into :agent-definitions
-                     :values      [(assoc defn
-                                          :user-id    user-id
-                                          :id         (utils/uuid)
-                                          :created-at (utils/now)
-                                          :updated-at (utils/now))]
-                     :on-conflict [:user-id :agent-type]
-                     :do-nothing  true})
-                   {:builder-fn rs/as-unqualified-kebab-maps})))
+  ;; raw next/execute! bypasses the scoped-handle machinery — unwrap it and
+  ;; stamp the row's tenant explicitly. (ON CONFLICT stays [:user-id
+  ;; :agent-type] until the enforcement migration widens the unique to include
+  ;; hostname; single-tenant today, so no cross-site seed collision yet.)
+  (let [hostname (tenant/hostname-of db)
+        raw      (tenant/unwrap db)]
+    (doseq [defn default-agent-definitions]
+      (next/execute! raw
+                     (hsql/format
+                      {:insert-into :agent-definitions
+                       :values      [(assoc defn
+                                            :user-id    user-id
+                                            :hostname   hostname
+                                            :id         (utils/uuid)
+                                            :created-at (utils/now)
+                                            :updated-at (utils/now))]
+                       :on-conflict [:user-id :agent-type]
+                       :do-nothing  true})
+                     {:builder-fn rs/as-unqualified-kebab-maps}))))
 
 (defn get-agent-definitions
   "Return all agent definitions for a user, seeding defaults on first access."
