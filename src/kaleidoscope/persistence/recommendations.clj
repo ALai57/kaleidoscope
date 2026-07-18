@@ -2,6 +2,7 @@
   (:require [honey.sql :as hsql]
             [honey.sql.helpers :as hh]
             [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.utils.core :as utils]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]))
@@ -34,26 +35,30 @@
   "Return recommendations for an interest, newest first, optionally filtered
   by status and/or kind."
   [db interest-id {:keys [status kind]}]
-  (next/execute! db
-                 (hsql/format {:select   :*
-                               :from     :recommendations
-                               :where    (cond-> [:and [:= :interest-id interest-id]]
-                                           status (conj [:= :status status])
-                                           kind   (conj [:= :kind kind]))
-                               :order-by [[:added-at :desc]]})
-                 {:builder-fn rs/as-unqualified-kebab-maps}))
+  (let [hostname (tenant/hostname-of db)]
+    (next/execute! (tenant/unwrap db)
+                   (hsql/format {:select   :*
+                                 :from     :recommendations
+                                 :where    (cond-> [:and [:= :interest-id interest-id]]
+                                             status   (conj [:= :status status])
+                                             kind     (conj [:= :kind kind])
+                                             hostname (conj [:= :hostname hostname]))
+                                 :order-by [[:added-at :desc]]})
+                   {:builder-fn rs/as-unqualified-kebab-maps})))
 
 (defn archive-shelved!
   "Archive everything currently shelved for an interest. The shelf is finite:
   each curation run replaces it rather than growing it without bound."
   [db interest-id]
-  (next/execute! db
-                 (hsql/format (-> (hh/update :recommendations)
-                                  (hh/set {:status "archived"})
-                                  (hh/where [:and
-                                             [:= :interest-id interest-id]
-                                             [:= :status "shelved"]])))
-                 {:builder-fn rs/as-unqualified-kebab-maps}))
+  (let [hostname (tenant/hostname-of db)]
+    (next/execute! (tenant/unwrap db)
+                   (hsql/format (-> (hh/update :recommendations)
+                                    (hh/set {:status "archived"})
+                                    (hh/where (cond-> [:and
+                                                       [:= :interest-id interest-id]
+                                                       [:= :status "shelved"]]
+                                                hostname (conj [:= :hostname hostname])))))
+                   {:builder-fn rs/as-unqualified-kebab-maps})))
 
 (defn update-recommendation-status!
   "Update a recommendation's status, scoped to interest-id. Returns nil if not

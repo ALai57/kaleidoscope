@@ -1,6 +1,8 @@
 (ns kaleidoscope.http-api.interests
   (:require [kaleidoscope.api.curation :as curation]
             [kaleidoscope.api.interests :as interests-api]
+            [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [not-found ok]]))
 
 (def TasteProfile
@@ -47,7 +49,7 @@
 
    ["" {:get {:summary "List interests for the authenticated user"
               :handler (fn [{:keys [components] :as request}]
-                         (ok (interests-api/get-interests (:database components)
+                         (ok (interests-api/get-interests (tenant/scope (:database components) (hu/tenant-hostname request))
                                                           (:user-id (:identity request)))))}
 
         :post {:summary    "Create an interest (free-text intent + optional taste profile)"
@@ -55,7 +57,7 @@
                :parameters {:body InterestRequest}
                :handler    (fn [{:keys [components parameters] :as request}]
                              (ok (interests-api/create-interest!
-                                  (:database components)
+                                  (tenant/scope (:database components) (hu/tenant-hostname request))
                                   (:user-id (:identity request))
                                   (:body parameters))))}}]
 
@@ -67,7 +69,7 @@
                           (let [user-id     (:user-id (:identity request))
                                 interest-id (:interest-id (:path parameters))]
                             (if-let [interest (interests-api/get-interest
-                                               (:database components) user-id interest-id)]
+                                               (tenant/scope (:database components) (hu/tenant-hostname request)) user-id interest-id)]
                               (ok interest)
                               (not-found {:reason "Interest not found"}))))}
 
@@ -77,7 +79,7 @@
                              (let [user-id     (:user-id (:identity request))
                                    interest-id (:interest-id (:path parameters))]
                                (if-let [interest (interests-api/update-interest!
-                                                  (:database components) user-id interest-id
+                                                  (tenant/scope (:database components) (hu/tenant-hostname request)) user-id interest-id
                                                   (:body parameters))]
                                  (ok interest)
                                  (not-found {:reason "Interest not found"}))))}
@@ -87,7 +89,7 @@
                              (let [user-id     (:user-id (:identity request))
                                    interest-id (:interest-id (:path parameters))]
                                (if (interests-api/delete-interest!
-                                    (:database components) user-id interest-id)
+                                    (tenant/scope (:database components) (hu/tenant-hostname request)) user-id interest-id)
                                  {:status 204}
                                  (not-found {:reason "Interest not found"}))))}}]
 
@@ -100,7 +102,7 @@
                               (let [user-id     (:user-id (:identity request))
                                     interest-id (:interest-id (:path parameters))]
                                 (if-let [shelf (interests-api/get-shelf
-                                                (:database components) user-id interest-id
+                                                (tenant/scope (:database components) (hu/tenant-hostname request)) user-id interest-id
                                                 (:query parameters))]
                                   (ok shelf)
                                   (not-found {:reason "Interest not found"}))))}}]
@@ -114,7 +116,7 @@
                                  interest-id       (:interest-id (:path parameters))
                                  recommendation-id (:recommendation-id (:path parameters))]
                              (if-let [rec (interests-api/update-recommendation-status!
-                                           (:database components) user-id interest-id
+                                           (tenant/scope (:database components) (hu/tenant-hostname request)) user-id interest-id
                                            recommendation-id (:status (:body parameters)))]
                                (ok rec)
                                (not-found {:reason "Recommendation not found"}))))}}]]
@@ -129,7 +131,7 @@
                            (let [user-id     (:user-id (:identity request))
                                  interest-id (:interest-id (:path parameters))]
                              (if-let [result (curation/run-curation!
-                                              (:database components)
+                                              (tenant/scope (:database components) (hu/tenant-hostname request))
                                               (:workflow-executor components)
                                               user-id interest-id
                                               (:body parameters))]
@@ -145,7 +147,7 @@
                            (let [user-id     (:user-id (:identity request))
                                  {:keys [interest-id run-id step-run-id]} (:path parameters)]
                              (if-let [result (curation/respond-to-curation-step!
-                                              (:database components)
+                                              (tenant/scope (:database components) (hu/tenant-hostname request))
                                               (:workflow-executor components)
                                               user-id interest-id run-id step-run-id
                                               (:answers (:body parameters)))]
