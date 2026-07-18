@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.workspace-roots
   (:require [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.workspace-roots :as persistence]
             [kaleidoscope.utils.local-files :as local-files]
             [ring.util.http-response :refer [bad-request not-found ok]]))
@@ -14,8 +15,9 @@
                                 {200 {:description "A collection of workspace roots"
                                       :content     {"application/json" {:schema [:any]}}}})
               :handler   (fn [{:keys [components] :as request}]
-                           (let [user-id (:user-id (:identity request))]
-                             (ok (persistence/get-workspace-roots (:database components) user-id))))}
+                           (let [user-id (:user-id (:identity request))
+                                 db      (tenant/scope (:database components) (hu/tenant-hostname request))]
+                             (ok (persistence/get-workspace-roots db user-id))))}
 
         :post {:summary   "Register a new workspace root"
                :responses (merge hu/openapi-401
@@ -35,7 +37,8 @@
 
                                 :else
                                 (if-let [root (persistence/add-workspace-root!
-                                               (:database components) user-id path label)]
+                                               (tenant/scope (:database components) (hu/tenant-hostname request))
+                                               user-id path label)]
                                   (ok root)
                                   {:status 409 :body {:reason "Path already registered"}}))))}}]
 
@@ -50,6 +53,7 @@
                                (let [user-id (:user-id (:identity request))
                                      root-id (:workspace-root-id (:path parameters))]
                                  (if (persistence/delete-workspace-root!
-                                      (:database components) root-id user-id)
+                                      (tenant/scope (:database components) (hu/tenant-hostname request))
+                                      root-id user-id)
                                    {:status 204}
                                    (not-found {:reason "Workspace root not found"}))))}}]]])

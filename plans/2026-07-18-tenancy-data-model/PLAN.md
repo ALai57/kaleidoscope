@@ -76,7 +76,30 @@ made TenantConn-unwrap-safe earlier, but these fns take explicit args → add ho
 - ✅ Slice 5 groups — `20260718000005` (groups + user_group_memberships per-site; full_memberships
   view carries hostname; create/add-users threaded; keystone tests updated).
 - All verified on H2 **and** embedded-pg; full suite 0 failures (only the pre-existing pg-initdb flake).
-- ⬜ Slices 6–7 AI engine (roots then transitive children) — the big remaining block.
+
+### Slices 6–7 AI engine — IN PROGRESS (foundation laid, green)
+Keystone: `rdbms/insert!`, `scoped-update!`, `scoped-delete!` now inject hostname for tenant-scoped
+tables when handed a scoped handle (via `tenant/inject-row`/`scope-query`) — so a scoped handle
+auto-stamps writes, mirroring finder reads. `tenant/hostname-of` added. Verified slices 1–5 unaffected.
+
+- ✅ Migration `20260718000006` — nullable `hostname` + backfill `andrewslai.com` on ALL 22 AI-engine
+  tables; all 22 added to `tenant-scoped-tables` (tripwire green). Full suite green. SAFE/additive:
+  nothing requires hostname yet, so the engine keeps working while code is threaded.
+- ✅ `workspace_roots` domain threaded (3 handlers scoped; finder/insert only, no raw reads) — proves
+  the pattern: scope the handler's db → keystone stamps writes + finder reads auto-scope.
+
+### Remaining (precise, from the 2 inventory agents)
+Per domain: scope handlers to a `tenant/scope`d db, and for RAW `next/execute!` reads (which crash on a
+TenantConn) unwrap + add `[:= :hostname h]`. Then a final migration enforces.
+- **agents** (raw: seed-default ON CONFLICT needs `,hostname`), **score_definitions** (2 raw reads +
+  seeder), **interests**/recommendations (2 raw reads; create-interest! delegates to create-project!),
+  **tasks** (4 raw reads), **projects** (~7 raw reads), **workflows** (~18 raw reads) — the big two.
+- 3 runtime seeders thread hostname: `seed-default-workflows!`, `seed-default-agent-definitions!`
+  (+ ON CONFLICT target), `seed-default-definitions!`.
+- ~30 raw reads: unwrap + hostname filter. ~50 handlers: scope db. ~60 test fixtures (http_api tests
+  just need a Host header; api/persistence tests need a scoped handle or explicit hostname).
+- **Final migration (7):** SET NOT NULL, UNIQUE(id,hostname) on roots, composite (parent_id,hostname)
+  FKs on the 16 children, and `hostname` into agent_definitions/user_workspace_roots business uniques.
 
 ## Sequencing recommendation
 1. Finish CMS (portfolio, article/photo hardening) — mechanical, pattern proven.

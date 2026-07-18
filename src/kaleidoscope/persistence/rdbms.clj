@@ -179,6 +179,7 @@
 
 (defn insert! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
+    (let [m (tenant/inject-row database table m)]
     (try+
      (insert-impl! (tenant/unwrap database) table m)
      (catch org.postgresql.util.PSQLException e
@@ -199,7 +200,7 @@
                                            e
                                            (.getMessage e))}}
                       (when ex-subtype
-                        {:subtype ex-subtype})))))))
+                        {:subtype ex-subtype}))))))))
 
 (defmulti update-impl!
   (fn [database table {:keys [id] :as m}]
@@ -238,7 +239,8 @@
   itself, not by a preceding check that can be skipped."
   [database table where-map set-map & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.scoped-update.%s" table)}
-    (wrap-sql-exceptions table where-map #(scoped-update-impl! (tenant/unwrap database) table where-map set-map))))
+    (let [where-map (tenant/scope-query database table where-map)]
+      (wrap-sql-exceptions table where-map #(scoped-update-impl! (tenant/unwrap database) table where-map set-map)))))
 
 (defn scoped-delete!
   "Like `delete!`, but scopes the WHERE clause to every key in `where-map`
@@ -250,6 +252,7 @@
   before deleting (see `kaleidoscope.persistence.ownership/delete-owned!`)."
   [database table where-map & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.scoped-delete.%s" table)}
+    (let [where-map (tenant/scope-query database table where-map)]
     (try+
      (transact! database (-> (hh/delete-from table)
                              (hh/where (into [:and] (map (fn [[k v]] [:= k v])) where-map))
@@ -261,7 +264,7 @@
                        :message   {:data   where-map
                                    :reason (.getMessage e)}}
                       (when ex-subtype
-                        {:subtype ex-subtype})))))))
+                        {:subtype ex-subtype}))))))))
 
 (defn delete! [database table ids & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.delete.%s" table)}

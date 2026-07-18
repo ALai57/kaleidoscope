@@ -33,7 +33,14 @@
     "albums" "enhanced_albums" "album_contents"
     "portfolio_entries" "portfolio_links"
     "recipes" "recipe_labels" "recipe_label_groups" "recipe_label_assignments"
-    "recipe_audiences" "raw_scrapes" "processing_runs"})
+    "recipe_audiences" "raw_scrapes" "processing_runs"
+    ;; AI engine (owner axis is user_id; hostname is the tenant axis on top)
+    "projects" "workflows" "score_definitions" "agent_definitions"
+    "user_workspace_roots" "interests" "workflow_steps" "project_workflow_runs"
+    "project_workflow_step_runs" "project_score_runs" "project_score_dimensions"
+    "score_dimension_definitions" "project_notes" "project_conversations"
+    "project_skills" "workflow_rounds" "workflow_judge_records" "project_briefs"
+    "project_task_generation_runs" "project_tasks" "task_artifacts" "recommendations"})
 
 (defn tenant-scoped-table?
   "Does `table` (a keyword, kebab or snake) carry a hostname column?"
@@ -59,6 +66,11 @@
   [db]
   (if (scoped? db) (:ds db) db))
 
+(defn hostname-of
+  "The tenant hostname a handle is scoped to, or nil for an unscoped db."
+  [db]
+  (when (scoped? db) (:hostname db)))
+
 (defn scope-query
   "Inject the handle's hostname into a query map for `table`. A no-op —
   returns the query map unchanged — for an unscoped db, or for a table that
@@ -67,6 +79,20 @@
   (if (and (scoped? db) (tenant-scoped-table? table))
     (assoc query-map :hostname (:hostname db))
     query-map))
+
+(defn inject-row
+  "Stamp the handle's hostname onto a row map (or each row in a seq) being
+  written to a tenant-scoped `table`. A no-op for an unscoped db or a
+  non-tenant table — so writes through a raw datasource must still set
+  :hostname themselves, and a scoped handle can't accidentally stamp a table
+  with no hostname column. A single request only ever writes its own tenant,
+  so stamping the request hostname is correct; the composite (parent_id,
+  hostname) FKs then verify children match their parent's tenant."
+  [db table m]
+  (if (and (scoped? db) (tenant-scoped-table? table))
+    (let [h (:hostname db)]
+      (if (map? m) (assoc m :hostname h) (mapv #(assoc % :hostname h) m)))
+    m))
 
 ;; A scoped handle must behave like its datasource under `with-transaction`,
 ;; but hand the body a handle that is *still scoped* — otherwise reads inside
