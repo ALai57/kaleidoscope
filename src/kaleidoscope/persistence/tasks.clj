@@ -1,6 +1,7 @@
 (ns kaleidoscope.persistence.tasks
   (:require [honey.sql :as hsql]
             [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.utils.core :as utils]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]))
@@ -15,7 +16,7 @@
 (defn- next-position
   "Return max(position) + 1 for a project's task list, or 0 if empty."
   [db project-id]
-  (let [row (first (next/execute! db
+  (let [row (first (next/execute! (tenant/unwrap db)
                                   (hsql/format {:select [[[:coalesce [:max :position] -1] :max-pos]]
                                                 :from   :project-tasks
                                                 :where  [:= :project-id project-id]})
@@ -30,21 +31,25 @@
   "Return all tasks for a project ordered by position ASC.
    Optionally pass a status string to filter."
   ([db project-id]
-   (next/execute! db
-                  (hsql/format {:select   :*
-                                :from     :project-tasks
-                                :where    [:= :project-id project-id]
-                                :order-by [[:position :asc]]})
-                  {:builder-fn rs/as-unqualified-kebab-maps}))
+   (let [hostname (tenant/hostname-of db)]
+     (next/execute! (tenant/unwrap db)
+                    (hsql/format {:select   :*
+                                  :from     :project-tasks
+                                  :where    (cond-> [:and [:= :project-id project-id]]
+                                              hostname (conj [:= :hostname hostname]))
+                                  :order-by [[:position :asc]]})
+                    {:builder-fn rs/as-unqualified-kebab-maps})))
   ([db project-id status]
-   (next/execute! db
-                  (hsql/format {:select   :*
-                                :from     :project-tasks
-                                :where    [:and
-                                           [:= :project-id project-id]
-                                           [:= :status status]]
-                                :order-by [[:position :asc]]})
-                  {:builder-fn rs/as-unqualified-kebab-maps})))
+   (let [hostname (tenant/hostname-of db)]
+     (next/execute! (tenant/unwrap db)
+                    (hsql/format {:select   :*
+                                  :from     :project-tasks
+                                  :where    (cond-> [:and
+                                                     [:= :project-id project-id]
+                                                     [:= :status status]]
+                                              hostname (conj [:= :hostname hostname]))
+                                  :order-by [[:position :asc]]})
+                    {:builder-fn rs/as-unqualified-kebab-maps}))))
 
 (defn get-task
   "Return a single task by id."
@@ -170,12 +175,14 @@
 (defn list-generation-runs
   "Return all generation runs for a project, newest first."
   [db project-id]
-  (next/execute! db
-                 (hsql/format {:select   :*
-                               :from     :project-task-generation-runs
-                               :where    [:= :project-id project-id]
-                               :order-by [[:created-at :desc]]})
-                 {:builder-fn rs/as-unqualified-kebab-maps}))
+  (let [hostname (tenant/hostname-of db)]
+    (next/execute! (tenant/unwrap db)
+                   (hsql/format {:select   :*
+                                 :from     :project-task-generation-runs
+                                 :where    (cond-> [:and [:= :project-id project-id]]
+                                             hostname (conj [:= :hostname hostname]))
+                                 :order-by [[:created-at :desc]]})
+                   {:builder-fn rs/as-unqualified-kebab-maps})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Status summary
@@ -184,13 +191,15 @@
 (defn get-task-status
   "Return {:pending-count N :total-count N} for a project."
   [db project-id]
-  (let [row (first
-             (next/execute! db
+  (let [hostname (tenant/hostname-of db)
+        row (first
+             (next/execute! (tenant/unwrap db)
                             (hsql/format
                              {:select [[[:count :*] :total-count]
                                        [[:sum [:case [:= :status "pending"] 1 :else 0]] :pending-count]]
                               :from   :project-tasks
-                              :where  [:= :project-id project-id]})
+                              :where  (cond-> [:and [:= :project-id project-id]]
+                                        hostname (conj [:= :hostname hostname]))})
                             {:builder-fn rs/as-unqualified-kebab-maps}))]
     {:pending-count (or (:pending-count row) 0)
      :total-count   (or (:total-count row) 0)}))

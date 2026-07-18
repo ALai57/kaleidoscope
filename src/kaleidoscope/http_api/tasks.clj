@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.tasks
   (:require [kaleidoscope.api.tasks :as tasks-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.tasks.planner :as planner]
             [ring.util.http-response :refer [not-found ok]]
@@ -27,7 +28,7 @@
                                 project-id (:project-id (:path parameters))
                                 status     (:status query-params)]
                             (if-let [tasks (tasks-api/list-tasks
-                                            (:database components) project-id user-id
+                                            (tenant/scope (:database components) (hu/tenant-hostname request)) project-id user-id
                                             {:status status})]
                               (ok tasks)
                               (not-found {:reason "Project not found"}))))}
@@ -37,7 +38,7 @@
                           (let [user-id    (:user-id (:identity request))
                                 project-id (:project-id (:path parameters))]
                             (if-let [task (tasks-api/create-task!
-                                           (:database components) project-id user-id body-params)]
+                                           (tenant/scope (:database components) (hu/tenant-hostname request)) project-id user-id body-params)]
                               (ok task)
                               (not-found {:reason "Project not found"}))))}}]
 
@@ -48,7 +49,7 @@
                       (let [user-id    (:user-id (:identity request))
                             project-id (:project-id (:path parameters))]
                         (if-let [status (tasks-api/get-task-status
-                                         (:database components) project-id user-id)]
+                                         (tenant/scope (:database components) (hu/tenant-hostname request)) project-id user-id)]
                           (ok status)
                           (not-found {:reason "Project not found"}))))}}]
 
@@ -61,7 +62,7 @@
                                project-id (:project-id (:path parameters))
                                positions  (:body parameters)]
                            (if (nil? (tasks-api/reorder-tasks!
-                                      (:database components) project-id user-id positions))
+                                      (tenant/scope (:database components) (hu/tenant-hostname request)) project-id user-id positions))
                              (not-found {:reason "Project not found, or one or more tasks do not belong to it"})
                              {:status 204})))}}]
 
@@ -72,7 +73,7 @@
             :handler (fn [{:keys [components parameters] :as request}]
                        (let [user-id    (:user-id (:identity request))
                              project-id (:project-id (:path parameters))
-                             db         (:database components)
+                             db         (tenant/scope (:database components) (hu/tenant-hostname request))
                              task-planner (get-task-planner components)]
                          (if-let [project (projects-persistence/get-project
                                            db project-id user-id)]
@@ -99,7 +100,7 @@
                                    project-id (:project-id (:path parameters))
                                    task-id    (:task-id (:path parameters))]
                                (if-let [task (tasks-api/update-task!
-                                              (:database components) project-id user-id task-id
+                                              (tenant/scope (:database components) (hu/tenant-hostname request)) project-id user-id task-id
                                               body-params)]
                                  (ok task)
                                  (not-found {:reason "Project or task not found"}))))}
@@ -110,6 +111,6 @@
                                    project-id (:project-id (:path parameters))
                                    task-id    (:task-id (:path parameters))]
                                (if (nil? (tasks-api/delete-task!
-                                          (:database components) project-id user-id task-id))
+                                          (tenant/scope (:database components) (hu/tenant-hostname request)) project-id user-id task-id))
                                  (not-found {:reason "Project not found"})
                                  {:status 204})))}}]]])
