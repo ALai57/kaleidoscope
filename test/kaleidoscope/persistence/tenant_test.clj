@@ -46,6 +46,33 @@
       (is (= {:a 1 :hostname "andrewslai.com"}
              (tenant/scope-query scoped :articles {:a 1}))))))
 
+(deftest ai-engine-children-cannot-cross-tenants-at-db-level-test
+  ;; The enforcement migration gives the AI engine the same composite
+  ;; (parent_id, hostname) FKs as the CMS: a child cannot attach to a parent
+  ;; on a different tenant, enforced by the database, not just app code.
+  (let [db          (embedded-h2/fresh-db!)
+        now         "2022-01-01T00:00:00Z"
+        [{pid :id}] (rdbms/insert! (tenant/scope db "andrewslai.com") :projects
+                                   {:user-id "u" :title "p" :status "idea"
+                                    :created-at now :updated-at now})]
+    (testing "a project_note cannot attach to a project on a different tenant"
+      (is (thrown? Exception
+                   (rdbms/insert! db :project-notes
+                                  {:id         (java.util.UUID/randomUUID)
+                                   :project-id pid
+                                   :content    "x"
+                                   :source     "text"
+                                   :hostname   "caheriaguilar.com"
+                                   :created-at now}))))
+    (testing "the same-tenant note attaches fine"
+      (is (rdbms/insert! db :project-notes
+                         {:id         (java.util.UUID/randomUUID)
+                          :project-id pid
+                          :content    "x"
+                          :source     "text"
+                          :hostname   "andrewslai.com"
+                          :created-at now})))))
+
 (deftest find-by-keys-honors-tenant-conn-test
   ;; The recipes/scrape domains call find-by-keys directly (no make-finder), so
   ;; it must unwrap a TenantConn and inject hostname for tenant-scoped tables.

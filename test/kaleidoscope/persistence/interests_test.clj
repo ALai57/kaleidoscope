@@ -4,6 +4,7 @@
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.utils.core :as utils]
             [matcher-combinators.test :refer [match?]]
             [next.jdbc :as next]
@@ -15,7 +16,7 @@
       (f))))
 
 (deftest interests-tables-exist-test
-  (let [db      (embedded-h2/fresh-db!)
+  (let [db      (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         user-id "reader@example.com"
         project (projects-persistence/create-project! db {:user-id user-id
                                                           :title   "Interest: tech journalism"})
@@ -50,7 +51,7 @@
                                            :added-at    now}))))))))
 
 (deftest interest-crud-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         user-id  "reader@example.com"
         interest (interests-persistence/create-interest!
                   db {:user-id       user-id
@@ -93,7 +94,7 @@
       (is (nil? (projects-persistence/get-project db (:project-id interest) user-id))))))
 
 (deftest get-projects-excludes-interest-backing-projects-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         user-id  "reader@example.com"
         project  (projects-persistence/create-project! db {:user-id user-id :title "A normal project"})
         interest (interests-persistence/create-interest!

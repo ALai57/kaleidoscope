@@ -3,6 +3,7 @@
             [kaleidoscope.persistence.interests :as interests-persistence]
             [kaleidoscope.persistence.recommendations :as recommendations-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.tenant :as tenant]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
 
@@ -20,7 +21,7 @@
     :why "New source covering your keywords." :origin "novel"}])
 
 (deftest recommendations-crud-test
-  (let [db          (embedded-h2/fresh-db!)
+  (let [db          (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         interest    (interests-persistence/create-interest!
                      db {:user-id "reader@example.com" :intent "Tech journalism" :taste-profile {}})
         interest-id (:id interest)]

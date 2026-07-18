@@ -4,6 +4,7 @@
             [kaleidoscope.persistence.briefs :as briefs-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.scoring.protocol :as scoring-protocol]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
@@ -19,7 +20,7 @@
   ;; argument and silently ignore it, so ownership was enforced only by a
   ;; preceding get-project call a future caller could forget. Now scoped by
   ;; rdbms/scoped-update!/scoped-delete! directly.
-  (let [database (embedded-h2/fresh-db!)
+  (let [database (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id "owner@example.com"
         other-id "other@example.com"
         project  (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
@@ -46,7 +47,7 @@
   ;; it (the same Pattern A shape as update-project!, just not previously
   ;; catalogued), so a caller who owns *any* project could pass their own
   ;; project-id alongside another project's skill-id and mutate it.
-  (let [database          (embedded-h2/fresh-db!)
+  (let [database          (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id          "owner@example.com"
         other-id          "other@example.com"
         project           (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
@@ -72,7 +73,7 @@
   ;; caller updating their own project could set :user-id to a victim's
   ;; identity and silently transfer the row — content and all — to that
   ;; victim's account.
-  (let [database  (embedded-h2/fresh-db!)
+  (let [database  (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id  "owner@example.com"
         victim-id "victim@example.com"
         project   (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
@@ -89,7 +90,7 @@
   ;; clause was fixed to scope by project-id. A caller updating their own
   ;; skill could include :project-id in the body and re-parent the skill
   ;; into a project they don't own.
-  (let [database          (embedded-h2/fresh-db!)
+  (let [database          (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id          "owner@example.com"
         victim-id         "victim@example.com"
         project           (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
@@ -118,7 +119,7 @@
   ;; get-all-briefs/get-latest-brief/get-brief-by-version here, matching the
   ;; existing get-score-history pattern, and pointing the HTTP handlers at
   ;; them instead of calling persistence.* directly.
-  (let [database  (embedded-h2/fresh-db!)
+  (let [database  (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id  "owner@example.com"
         other-id  "other@example.com"
         project   (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
@@ -155,7 +156,7 @@
   ;; defense-in-depth verifying score-project!'s *own* fan-out width is
   ;; bounded independent of that, mirroring the explicit-definition-ids cap
   ;; rather than trusting a single enforcement point for the same risk.
-  (let [database   (embedded-h2/fresh-db!)
+  (let [database   (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         user-id    "owner@example.com"
         project    (projects-persistence/create-project! database {:user-id user-id :title "Project"})
         pid        (:id project)

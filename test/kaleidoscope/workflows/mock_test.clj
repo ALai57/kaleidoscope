@@ -3,6 +3,7 @@
             [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.persistence.interests :as interests-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.workflows :as workflows-persistence]
             [kaleidoscope.workflows.mock :as workflow-mock]
             [kaleidoscope.workflows.protocol :as wf-protocol]
@@ -27,7 +28,7 @@
       (is (some #(< (:relevance %) 5.0) pool)))))
 
 (deftest mock-librarian-discovery-step-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         user-id  "reader@example.com"
         interest (interests-persistence/create-interest!
                   db {:user-id       user-id

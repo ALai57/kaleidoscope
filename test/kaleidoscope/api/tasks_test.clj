@@ -3,6 +3,7 @@
             [kaleidoscope.api.tasks :as tasks]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.tasks :as tasks-persistence]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
@@ -17,7 +18,7 @@
   (projects-persistence/create-project! db {:user-id user-id :title title}))
 
 (deftest task-project-ownership-test
-  (let [database (embedded-h2/fresh-db!)
+  (let [database (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id "owner@example.com"
         other-id "other@example.com"
         ;; owner's project + task
@@ -65,7 +66,7 @@
   ;; itself is trying to set. This plants attacker-controlled content
   ;; (title/description) into a victim's project without ever touching it
   ;; directly.
-  (let [database          (embedded-h2/fresh-db!)
+  (let [database          (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id          "owner@example.com"
         victim-id         "victim@example.com"
         project           (new-project! database owner-id "Owner's Project")

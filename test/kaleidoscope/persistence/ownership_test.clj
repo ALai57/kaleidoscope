@@ -5,6 +5,7 @@
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
+            [kaleidoscope.persistence.tenant :as tenant]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
 
@@ -14,7 +15,7 @@
       (f))))
 
 (deftest get-owned-single-column-test
-  (let [database (embedded-postgres/fresh-db!)
+  (let [database (tenant/scope (embedded-postgres/fresh-db!) "andrewslai.com")
         owner-id "owner@example.com"
         other-id "other@example.com"
         project  (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
@@ -31,7 +32,7 @@
       (is (nil? (ownership/get-owned database :projects (random-uuid) owner-id))))))
 
 (deftest update-owned-and-delete-owned-single-column-test
-  (let [database (embedded-postgres/fresh-db!)
+  (let [database (tenant/scope (embedded-postgres/fresh-db!) "andrewslai.com")
         owner-id "owner@example.com"
         other-id "other@example.com"
         project  (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})
@@ -59,7 +60,7 @@
   ;; (H2 has no RETURNING; it needs `SELECT * FROM FINAL TABLE (...)`, same
   ;; as the existing update-impl! override). The single-column tests above
   ;; only exercise Postgres; this catches the H2 dialect gap on its own.
-  (let [database (embedded-h2/fresh-db!)
+  (let [database (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id "owner@example.com"
         other-id "other@example.com"
         project  (projects-persistence/create-project! database {:user-id owner-id :title "Owner's Project"})

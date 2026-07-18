@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.api.score-definitions :as score-defs]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.tenant :as tenant]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
 
@@ -18,7 +19,7 @@
    :dimensions  [{:name "Clarity" :criteria "Is it clear?"}]})
 
 (deftest score-definition-ownership-test
-  (let [database (embedded-h2/fresh-db!)
+  (let [database (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id "owner@example.com"
         other-id "other@example.com"
         defn     (score-defs/create-score-definition! database owner-id custom-definition)
@@ -53,7 +54,7 @@
 ;; coalescing, an omitted description reaches the INSERT as nil and the DB
 ;; constraint throws - surfacing as the HTTP 400 the scoring checkly check hit.
 (deftest create-score-definition-defaults-missing-description-test
-  (let [database (embedded-h2/fresh-db!)
+  (let [database (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         user-id  "owner@example.com"
         defn     (score-defs/create-score-definition!
                   database user-id (dissoc custom-definition :description))]
@@ -71,7 +72,7 @@
 ;; (which calls the persistence layer directly, bypassing this function) is
 ;; allowed to create is-default=true rows.
 (deftest create-score-definition-forces-is-default-false-test
-  (let [database (embedded-h2/fresh-db!)
+  (let [database (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         user-id  "owner@example.com"
         defn     (score-defs/create-score-definition!
                   database user-id (assoc custom-definition :is-default true))]

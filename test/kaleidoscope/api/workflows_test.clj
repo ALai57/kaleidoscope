@@ -3,6 +3,7 @@
             [kaleidoscope.api.workflows :as workflows]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.workflows :as workflows-persistence]
             [kaleidoscope.workflows.protocol :as wf-protocol]
             [matcher-combinators.test :refer [match?]]
@@ -31,7 +32,7 @@
   ;; one triggered by every `POST /projects` via `start-default-workflow!` -
   ;; threw an ArityException. The blanket exception handler in
   ;; `http-api/projects.clj` then surfaced this as an opaque 400.
-  (let [database (embedded-postgres/fresh-db!)
+  (let [database (tenant/scope (embedded-postgres/fresh-db!) "andrewslai.com")
         user-id  "drifted-user@example.com"]
     (workflows/seed-default-workflows! database user-id)
     (let [live-default (->> (workflows-persistence/get-workflows database user-id)
@@ -48,7 +49,7 @@
         (is (seq (:steps (workflows/get-workflow database user-id (:id live-default)))))))))
 
 (deftest workflow-ownership-test
-  (let [database   (embedded-postgres/fresh-db!)
+  (let [database   (tenant/scope (embedded-postgres/fresh-db!) "andrewslai.com")
         owner-id   "owner@example.com"
         other-id   "other@example.com"
         wf         (workflows/create-workflow! database owner-id custom-workflow)
@@ -79,7 +80,7 @@
       (is (nil? (workflows/get-workflow database owner-id wf-id))))))
 
 (deftest workflow-run-project-scoping-test
-  (let [database          (embedded-postgres/fresh-db!)
+  (let [database          (tenant/scope (embedded-postgres/fresh-db!) "andrewslai.com")
         owner-id          "owner@example.com"
         other-id          "other@example.com"
         wf                (workflows/create-workflow! database owner-id custom-workflow)
@@ -144,7 +145,7 @@
 ;; prevents two overlapping calls on the same run from both executing the
 ;; pending step (each would otherwise burn its own Claude call).
 (deftest advance-step-concurrency-lock-test
-  (let [database      (embedded-postgres/fresh-db!)
+  (let [database      (tenant/scope (embedded-postgres/fresh-db!) "andrewslai.com")
         user-id       "owner@example.com"
         wf            (workflows/create-workflow! database user-id custom-workflow)
         project       (projects-persistence/create-project! database {:user-id user-id :title "Locked Project"})
@@ -173,7 +174,7 @@
 ;; same run could execute two steps at once - the exact race claim-run!/
 ;; release-run! exist to close, just through a door that didn't check it.
 (deftest run-custom-step-shares-lock-with-advance-step-test
-  (let [database      (embedded-postgres/fresh-db!)
+  (let [database      (tenant/scope (embedded-postgres/fresh-db!) "andrewslai.com")
         user-id       "owner@example.com"
         wf            (workflows/create-workflow! database user-id custom-workflow)
         project       (projects-persistence/create-project! database {:user-id user-id :title "Locked Project"})
@@ -203,7 +204,7 @@
 ;; second, uncapped mutation path for that field (the first being project
 ;; creation, capped in http_api.projects). Verifies the cap holds here too.
 (deftest respond-to-step-description-cap-test
-  (let [database       (embedded-postgres/fresh-db!)
+  (let [database       (tenant/scope (embedded-postgres/fresh-db!) "andrewslai.com")
         user-id        "owner@example.com"
         wf             (workflows/create-workflow! database user-id custom-workflow)
         project        (projects-persistence/create-project! database {:user-id    user-id

@@ -3,6 +3,7 @@
             [kaleidoscope.api.interests :as interests]
             [kaleidoscope.persistence.recommendations :as recommendations-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.tenant :as tenant]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
 
@@ -14,7 +15,7 @@
 (def user-id "reader@example.com")
 
 (deftest create-interest-applies-default-taste-profile-test
-  (let [db (embedded-h2/fresh-db!)]
+  (let [db (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")]
     (testing "an interest created from bare intent gets the full default profile"
       (is (match? {:intent        "Modern jazz history"
                    :taste-profile {:novelty-ratio 0.5 :cadence "weekly" :trusted-sources []}}
@@ -26,7 +27,7 @@
                                                :taste-profile {:novelty-ratio 0.8}}))))))
 
 (deftest update-interest-merges-taste-profile-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         interest (interests/create-interest! db user-id
                                              {:intent        "Tech journalism"
                                               :taste-profile {:trusted-sources ["PBS Frontline"]}})]
@@ -41,7 +42,7 @@
                                             {:taste-profile {:novelty-ratio 0.0}}))))))
 
 (deftest shelf-access-is-gated-by-interest-ownership-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         interest (interests/create-interest! db user-id {:intent "Tech journalism"})
         [rec]    (recommendations-persistence/create-recommendations!
                   db (:id interest)
@@ -65,7 +66,7 @@
   (testing "folds into a profile with no :refinements key yet"
     (is (= {:refinements ["a"]} (interests/fold-refinement {} ["a"]))))
   (testing "fold-refinement! persists the fold, scoped to owner"
-    (let [db       (embedded-h2/fresh-db!)
+    (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
           interest (interests/create-interest! db user-id {:intent "Tech journalism"})]
       (is (nil? (interests/fold-refinement! db "attacker@example.com" (:id interest) ["a"])))
       (is (match? {:taste-profile {:refinements ["Prefer primary sources"]}}

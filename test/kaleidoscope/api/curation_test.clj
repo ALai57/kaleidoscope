@@ -7,6 +7,7 @@
             [kaleidoscope.persistence.interests :as interests-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.workflows :as workflows-persistence]
             [kaleidoscope.workflows.mock :as workflow-mock]
             [matcher-combinators.test :refer [match?]]
@@ -108,7 +109,7 @@
                           taste-overrides)}))
 
 (deftest seed-curation-workflow-test
-  (let [db (embedded-h2/fresh-db!)]
+  (let [db (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")]
     (curation/seed-curation-workflow! db user-id)
     (let [wf (curation/get-curation-workflow db user-id)]
       (testing "the Interest Curation workflow is live with clarify → discover steps"
@@ -122,7 +123,7 @@
         (is (= (:id wf) (:id (curation/get-curation-workflow db user-id))))))))
 
 (deftest run-curation-shelves-with-novelty-split-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         executor (workflow-mock/make-mock-executor)
         interest (make-interest! db)
         result   (curation/run-curation! db executor user-id (:id interest) {})]
@@ -147,14 +148,14 @@
            "<taste_profile>")))))
 
 (deftest run-curation-ownership-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         executor (workflow-mock/make-mock-executor)
         interest (make-interest! db)]
     (testing "a non-owner cannot curate someone else's interest"
       (is (nil? (curation/run-curation! db executor "attacker@example.com" (:id interest) {}))))))
 
 (deftest re-curation-replaces-the-shelf-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         executor (workflow-mock/make-mock-executor)
         interest (make-interest! db)]
     (curation/run-curation! db executor user-id (:id interest) {})
@@ -164,7 +165,7 @@
       (is (= 6 (count (interests-api/get-shelf db user-id (:id interest) {:status "archived"})))))))
 
 (deftest run-curation-respects-shelf-size-and-scrutiny-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         executor (workflow-mock/make-mock-executor)
         interest (make-interest! db)
         result   (curation/run-curation! db executor user-id (:id interest)
@@ -196,7 +197,7 @@
     {:run run :step step}))
 
 (deftest respond-to-curation-step-folds-answers-and-resumes-test
-  (let [db         (embedded-h2/fresh-db!)
+  (let [db         (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         executor   (workflow-mock/make-mock-executor)
         interest   (make-interest! db)
         {:keys [run step]} (paused-curation-run! db interest)
@@ -213,7 +214,7 @@
                   (workflows-persistence/get-step-run db (:id step)))))))
 
 (deftest respond-to-curation-step-guards-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         executor (workflow-mock/make-mock-executor)
         interest (make-interest! db)
         {:keys [run step]} (paused-curation-run! db interest)]
@@ -230,7 +231,7 @@
                  db executor user-id (:id interest) (:id run) (:id step) ["x"]))))))
 
 (deftest taste-profile-retune-changes-composition-test
-  (let [db       (embedded-h2/fresh-db!)
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         executor (workflow-mock/make-mock-executor)
         interest (make-interest! db)]
     (testing "novelty 1.0 — the next shelf is entirely novel"

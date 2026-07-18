@@ -3,6 +3,7 @@
             [kaleidoscope.api.agents :as agents]
             [kaleidoscope.persistence.agents :as agents-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
+            [kaleidoscope.persistence.tenant :as tenant]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
 
@@ -17,7 +18,7 @@
 ;; that seeding path has a pre-existing H2 incompatibility (raw `ON
 ;; CONFLICT` SQL) that isn't this test's concern.
 (deftest agent-definition-ownership-test
-  (let [database (embedded-h2/fresh-db!)
+  (let [database (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id "owner@example.com"
         other-id "other@example.com"
         defn     (agents/create-agent-definition! database owner-id
