@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.themes
   (:require [kaleidoscope.api.themes :as themes-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [no-content ok not-found]]
             [taoensso.timbre :as log]))
 
@@ -28,7 +29,8 @@
               :handler    (fn [{:keys [components parameters] :as request}]
                             (log/infof "Received params %s" parameters)
                             (let [query-params (:query parameters)
-                                  themes       (themes-api/get-themes (:database components) query-params)]
+                                  db           (tenant/scope (:database components) (hu/tenant-hostname request))
+                                  themes       (themes-api/get-themes db query-params)]
                               (if (empty? themes)
                                 (not-found)
                                 (ok themes))))}

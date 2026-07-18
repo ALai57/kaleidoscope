@@ -1,5 +1,7 @@
 (ns kaleidoscope.http-api.portfolio
   (:require [kaleidoscope.api.portfolio :as portfolio-api]
+            [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [ok]]
             [kaleidoscope.api.portfolio :as portfolio]))
 
@@ -157,4 +159,4 @@
                                                         :value   example-portfolio-response}}}}}}
 
           :handler (fn [{:keys [components parameters] :as request}]
-                     (ok (portfolio-api/get-portfolio (:database components))))}}])
+                     (ok (portfolio-api/get-portfolio (tenant/scope (:database components) (hu/tenant-hostname request)))))}}])

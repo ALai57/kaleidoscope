@@ -5,6 +5,7 @@
             [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.models.articles :as models.articles]
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [conflict not-found ok]]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
@@ -32,9 +33,8 @@
                                                                                               models.articles/example-article-2]}}}}}})
               :handler   (fn [{:keys [components] :as request}]
                            (span/with-span! {:name "kaleidoscope.handler.articles.get-all"}
-                             (->> {:hostname (hu/tenant-hostname request)}
-                                  (articles-api/get-articles (:database components))
-                                  ok)))}}]
+                             (let [db (tenant/scope (:database components) (hu/tenant-hostname request))]
+                               (ok (articles-api/get-articles db {})))))}}]
    ["/:article-url"
     {:get {:summary   "Retrieve a single article"
            :responses (merge hu/openapi-404 hu/openapi-500
@@ -46,8 +46,9 @@
 
            :parameters {:path {:article-url string?}}
            :handler    (fn [{:keys [components path-params] :as request}]
-                         (let [article-url (:article-url path-params)]
-                           (if-let [article (first (articles-api/get-articles (:database components) {:article-url article-url}))]
+                         (let [article-url (:article-url path-params)
+                               db          (tenant/scope (:database components) (hu/tenant-hostname request))]
+                           (if-let [article (first (articles-api/get-articles db {:article-url article-url}))]
                              (ok article)
                              (not-found {:reason "Missing"}))))}
      :put {:summary    "Update a single article"
@@ -66,11 +67,10 @@
            :parameters {:path {:article-url string?}}
            :handler    (fn [{:keys [components path-params body-params] :as request}]
                          (let [article-url                (:article-url path-params)
-                               [{:keys [id] :as article}] (articles-api/get-articles (:database components)
-                                                                                     {:article-url article-url
-                                                                                      :hostname    (hu/tenant-hostname request)})]
+                               db                         (tenant/scope (:database components) (hu/tenant-hostname request))
+                               [{:keys [id] :as article}] (articles-api/get-articles db {:article-url article-url})]
                            (if article
-                             (ok (first (articles-api/update-article! (:database components)
+                             (ok (first (articles-api/update-article! db
                                                                       (-> body-params
                                                                           (select-keys [:public-visibility])
                                                                           (update :public-visibility parse-boolean)
@@ -88,8 +88,9 @@
                                                                                       models.articles/example-branch-2]}}}}}}
             :parameters {:path {:article-url string?}}
             :handler    (fn [{:keys [components path-params] :as request}]
-                          (let [article-url (:article-url path-params)]
-                            (ok (articles-api/get-branches (:database components) {:article-url article-url}))))}}]
+                          (let [article-url (:article-url path-params)
+                                db          (tenant/scope (:database components) (hu/tenant-hostname request))]
+                            (ok (articles-api/get-branches db {:article-url article-url}))))}}]
    ;; The two routes below should be relocated to `branches`
    ["/:article-url/branches/:branch-name/publish"
     {:put {:summary   "Publish an article branch"
@@ -101,13 +102,13 @@
            :handler   (fn [{:keys [components path-params] :as request}]
                         (let [branch-name (:branch-name path-params)
                               article-url (:article-url path-params)
-                              hostname    (hu/tenant-hostname request)]
+                              hostname    (hu/tenant-hostname request)
+                              db          (tenant/scope (:database components) hostname)]
                           (try
                             (log/infof "Publishing article %s and branch %s for %s" article-url branch-name hostname)
-                            (let [[{:keys [branch-id]}] (articles-api/get-branches (:database components) {:branch-name branch-name
-                                                                                                           :article-url article-url
-                                                                                                           :hostname    hostname})]
-                              (if-let [result (and branch-id (articles-api/publish-branch! (:database components) branch-id hostname))]
+                            (let [[{:keys [branch-id]}] (articles-api/get-branches db {:branch-name branch-name
+                                                                                       :article-url article-url})]
+                              (if-let [result (and branch-id (articles-api/publish-branch! db branch-id hostname))]
                                 (ok result)
                                 (not-found {:reason "Missing"})))
                             (catch Exception e
@@ -132,9 +133,10 @@
                             (let [commit      (->commit request)
                                   branch-name (:branch-name path-params)
                                   article-url (:article-url path-params)
-                                  result      (articles-api/new-version! (:database components)
+                                  hostname    (hu/tenant-hostname request)
+                                  result      (articles-api/new-version! (tenant/scope (:database components) hostname)
                                                                          {:branch-name   branch-name
-                                                                          :hostname      (hu/tenant-hostname request)
+                                                                          :hostname      hostname
                                                                           :article-url   article-url
                                                                           :article-tags  (get-in request [:body-params :article-tags] "thoughts")
                                                                           :article-title (get-in request [:body-params :article-title] "[New article]")
@@ -164,10 +166,11 @@
                                                                                       :value   [models.articles/example-composition-1]}}}}}})
 
               :handler (fn [{:keys [components] :as request}]
-                         (log/infof "Getting compositions for host `%s`" (hu/tenant-hostname request))
-                         (ok (articles-api/get-published-articles (:database components)
-                                                                  {:hostname (hu/tenant-hostname request)}
-                                                                  (:identity request))))}}]
+                         (let [hostname (hu/tenant-hostname request)]
+                           (log/infof "Getting compositions for host `%s`" hostname)
+                           (ok (articles-api/get-published-articles (tenant/scope (:database components) hostname)
+                                                                    {:hostname hostname}
+                                                                    (:identity request)))))}}]
    ["/:article-url"
     {:get {:summary    "Retrieve a single published article"
            :parameters {:path {:article-url string?}}
@@ -179,10 +182,11 @@
                                                                                  :value   models.articles/example-composition-1}}}}}})
            :handler    (fn [{:keys [components parameters] :as request}]
                          (log/infof "Retrieving composition %s" (get-in parameters [:path :article-url]))
-                         (let [result (articles-api/get-published-articles (:database components)
-                                                                           {:article-url (get-in parameters [:path :article-url])
-                                                                            :hostname    (hu/tenant-hostname request)}
-                                                                           (:identity request))]
+                         (let [hostname (hu/tenant-hostname request)
+                               result   (articles-api/get-published-articles (tenant/scope (:database components) hostname)
+                                                                             {:article-url (get-in parameters [:path :article-url])
+                                                                              :hostname    hostname}
+                                                                             (:identity request))]
                            (if (empty? result)
                              (not-found {:reason "Missing"})
                              (ok (first result)))))}}]])
@@ -207,10 +211,9 @@
               :handler (fn [{:keys [components parameters] :as request}]
                          (let [query-params (-> csk/->kebab-case-keyword
                                                 (cske/transform-keys (:query parameters))
-                                                (select-keys [:article-id :article-url])
-                                                (assoc :hostname (hu/tenant-hostname request)))
-                               branches     (articles-api/get-branches (:database components)
-                                                                       query-params)]
+                                                (select-keys [:article-id :article-url]))
+                               db           (tenant/scope (:database components) (hu/tenant-hostname request))
+                               branches     (articles-api/get-branches db query-params)]
                            (if (empty? branches)
                              (not-found {:reason "Missing"})
                              (ok branches))))}
@@ -219,11 +222,12 @@
                                  {200 {:body [:any]}})
                :handler   (fn [{:keys [components body-params] :as request}]
                             (try
-                              (ok (articles-api/create-branch! (:database components)
-                                                               (assoc body-params
-                                                                      :hostname (hu/tenant-hostname request)
-                                                                      :author   (or (oidc/get-full-name (:identity request))
-                                                                                    (oidc/get-user-id (:identity request))))))
+                              (let [hostname (hu/tenant-hostname request)]
+                                (ok (articles-api/create-branch! (tenant/scope (:database components) hostname)
+                                                                 (assoc body-params
+                                                                        :hostname hostname
+                                                                        :author   (or (oidc/get-full-name (:identity request))
+                                                                                      (oidc/get-user-id (:identity request)))))))
                               (catch Exception e
                                 (log/error "Caught exception " e))))}}]
 
@@ -239,7 +243,8 @@
             :parameters {:path {:branch-id string?}}
             :handler    (fn [{:keys [components parameters] :as request}]
                           (let [branch-id (get-in parameters [:path :branch-id])
-                                branches  (articles-api/get-versions (:database components) {:branch-id (Integer/parseInt branch-id)})]
+                                db        (tenant/scope (:database components) (hu/tenant-hostname request))
+                                branches  (articles-api/get-versions db {:branch-id (Integer/parseInt branch-id)})]
                             (if (empty? branches)
                               (not-found {:reason "Missing"})
                               (ok (reverse (sort-by :created-at branches))))))}}]])

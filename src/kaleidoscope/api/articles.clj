@@ -60,6 +60,7 @@
         (let [[{branch-id :id :as branch}] (rdbms/insert! tx
                                                           :article-branches {:branch-name branch-name
                                                                              :article-id  article-id
+                                                                             :hostname    (:hostname article)
                                                                              :created-at  now
                                                                              :modified-at now}
                                                           :ex-subtype :UnableToCreateArticleBranch)
@@ -110,12 +111,15 @@
 
 (defn create-version!
   [db {:keys [branch-id] :as article-branch} {:keys [created-at] :as article-version}]
-  (let [branch-id                      (or branch-id (get-in (get-branches db article-branch)
-                                                             [0 :branch-id]))
+  (let [[{branch-id :branch-id
+          hostname  :hostname}]        (get-branches db (if branch-id
+                                                          {:branch-id branch-id}
+                                                          article-branch))
         now                            (or created-at (utils/now))
         [{version-id :id :as version}] (rdbms/insert! db
                                                       :article-versions (assoc article-version
                                                                                :branch-id   branch-id
+                                                                               :hostname    hostname
                                                                                :created-at  now
                                                                                :modified-at now)
                                                       :ex-subtype :UnableToCreateArticleBranch)
@@ -147,7 +151,7 @@
   (rdbms/make-finder :full-article-audiences))
 
 (defn- -add-audiences-to-article!
-  [db article-id group-ids]
+  [db article-id hostname group-ids]
   (log/infof "Adding an audience to article %s" article-id)
   (let [now (utils/now)]
     (rdbms/insert! db
@@ -156,6 +160,7 @@
                                         {:id         id
                                          :group-id   (str group-id)
                                          :article-id article-id
+                                         :hostname   hostname
                                          :created-at now})
                    :ex-subtype :UnableToAddArticleAudience)))
 
@@ -172,7 +177,7 @@
       ;; This is a workaround so I don't have to deal with a multiple upsert in both
       ;; HSQL and Postgres
       (not-empty existing-audience) existing-audience
-      (empty? existing-audience)    (-add-audiences-to-article! db (:id article) [(:id group)]))))
+      (empty? existing-audience)    (-add-audiences-to-article! db (:id article) (:hostname article) [(:id group)]))))
 
 (defn delete-article-audience!
   [database audience-id]

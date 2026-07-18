@@ -3,6 +3,7 @@
             [cheshire.core :as json]
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.utils.core :as utils]
             [kaleidoscope.utils.core :as u]
@@ -93,8 +94,8 @@
                :handler   (fn [{:keys [components parameters] :as req}]
                             (let [query-params (:query parameters)
                                   _ (log/infof "Getting photos matching %s" query-params)
-                                  hostname (hu/tenant-hostname req)
-                                  photos (albums-api/get-full-photos (:database components) (assoc query-params :hostname hostname))]
+                                  db (tenant/scope (:database components) (hu/tenant-hostname req))
+                                  photos (albums-api/get-full-photos db query-params)]
                               (ok (map (fn [{:keys [id filename] :as photo}]
                                          (assoc photo :path (format "/v2/photos/%s/%s" id filename))) photos))))}
         :post {:summary     "Upload a new file"
@@ -131,9 +132,8 @@
                                       (let [{:keys [photo-id]} (:path parameters)
 
                                             _ (log/infof "Getting photo %s" photo-id)
-                                            hostname (hu/tenant-hostname request)
-                                            photos (albums-api/get-full-photos (:database components) {:id       photo-id
-                                                                                                       :hostname hostname})]
+                                            db (tenant/scope (:database components) (hu/tenant-hostname request))
+                                            photos (albums-api/get-full-photos db {:id photo-id})]
                                         (if (empty? photos)
                                           (not-found {:reason "Missing"})
                                           (ok (map (fn [{:keys [id filename] :as photo}]
@@ -177,7 +177,8 @@
                                   :handler    (fn [{:keys [components parameters] :as request}]
                                                 (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
                                                   (let [path-params (:path parameters)
-                                                        [{:keys [path] :as version} :as photo-versions] (albums-api/get-full-photos (:database components) path-params)]
+                                                        db          (tenant/scope (:database components) (hu/tenant-hostname request))
+                                                        [{:keys [path] :as version} :as photo-versions] (albums-api/get-full-photos db path-params)]
                                                     (hu/get-resource (:static-content-adapters components) (assoc request :uri path)))))}}]
 
    ])

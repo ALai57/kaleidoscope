@@ -90,11 +90,14 @@
   [database requester-id group-id users]
   (if (owns? database requester-id group-id)
     (let [now-time    (utils/now)
+          ;; a membership inherits its group's tenant.
+          hostname    (:hostname (first (get-groups database {:id group-id})))
           memberships (vec (for [{:keys [email alias] :as user} (if (vector? users) users [users])]
                              {:id         (utils/uuid)
                               :email      email
                               :alias      alias
                               :group-id   group-id
+                              :hostname   hostname
                               :created-at now-time}))]
       (vec (rdbms/insert! database
                           :user-group-memberships memberships

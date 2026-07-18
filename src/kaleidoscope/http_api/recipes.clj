@@ -6,6 +6,7 @@
             [kaleidoscope.api.recipe-timeline :as timeline-api]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.models.recipes :as models.recipes]
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [bad-gateway bad-request conflict not-found ok service-unavailable unprocessable-entity]]
             [taoensso.timbre :as log]))
 
@@ -72,22 +73,23 @@
                                     [:ingredient {:optional true} :string]
                                     [:label-id {:optional true} :uuid]]}
                :handler    (fn [{:keys [components parameters] :as request}]
-                             (ok (recipes-api/get-visible-recipes
-                                  (:database components)
-                                  (merge {:hostname (hu/tenant-hostname request)}
-                                         (:query parameters))
-                                  (:identity request)
-                                  (authz/writer? request))))}
+                             (let [hostname (hu/tenant-hostname request)]
+                               (ok (recipes-api/get-visible-recipes
+                                    (tenant/scope (:database components) hostname)
+                                    (merge {:hostname hostname} (:query parameters))
+                                    (:identity request)
+                                    (authz/writer? request)))))}
         :post {:summary    "Create a recipe"
                :responses  {200 {:body models.recipes/GetRecipeResponse}}
                :parameters {:body models.recipes/CreateRecipeRequest}
                :handler    (fn [{:keys [components parameters identity] :as request}]
-                             (let [{:keys [content recipe-url] :as body} (:body parameters)]
+                             (let [{:keys [content recipe-url] :as body} (:body parameters)
+                                   hostname (hu/tenant-hostname request)]
                                (handle-write
                                 #(recipes-api/create-recipe!
-                                  (:database components)
+                                  (tenant/scope (:database components) hostname)
                                   (merge body
-                                         {:hostname   (hu/tenant-hostname request)
+                                         {:hostname   hostname
                                           :recipe-url (or (not-empty recipe-url)
                                                           (->slug (:title content)))
                                           :author     (or (:name identity) (:user-id identity))})))))}}]
@@ -99,9 +101,10 @@
                                 422 {:body [:map [:reason :string]]}})
             :parameters {:body [:map [:url :string]]}
             :handler    (fn [{:keys [components parameters] :as request}]
-                          (let [url (get-in parameters [:body :url])
-                                ctx {:database (:database components)
-                                     :hostname (hu/tenant-hostname request)
+                          (let [url      (get-in parameters [:body :url])
+                                hostname (hu/tenant-hostname request)
+                                ctx {:database (tenant/scope (:database components) hostname)
+                                     :hostname hostname
                                      :api-key  (:api-key (:workflow-executor components))
                                      :fetcher  (:recipe-fetcher components)}]
                             ;; Expected scrape outcomes become a 422 the client
@@ -124,9 +127,10 @@
                                 422 {:body [:map [:reason :string]]}})
             :handler    (fn [{:keys [components params] :as request}]
                           (try
-                            (let [images (multipart-images params)
-                                  ctx    {:database    (:database components)
-                                          :hostname    (hu/tenant-hostname request)
+                            (let [images   (multipart-images params)
+                                  hostname (hu/tenant-hostname request)
+                                  ctx    {:database    (tenant/scope (:database components) hostname)
+                                          :hostname    hostname
                                           :api-key     (:api-key (:workflow-executor components))
                                           :transcriber (:image-transcriber components)}]
                               (try
@@ -145,32 +149,35 @@
               :responses  (merge hu/openapi-404 {200 {:body models.recipes/GetRecipeResponse}})
               :parameters {:path {:recipe-url :string}}
               :handler    (fn [{:keys [components parameters] :as request}]
-                            (if-let [recipe (first (recipes-api/get-visible-recipes
-                                                    (:database components)
-                                                    {:hostname   (hu/tenant-hostname request)
-                                                     :recipe-url (get-in parameters [:path :recipe-url])}
-                                                    (:identity request)
-                                                    (authz/writer? request)))]
-                              (ok recipe)
-                              (not-found {:reason "Missing"})))}
+                            (let [hostname (hu/tenant-hostname request)]
+                              (if-let [recipe (first (recipes-api/get-visible-recipes
+                                                      (tenant/scope (:database components) hostname)
+                                                      {:hostname   hostname
+                                                       :recipe-url (get-in parameters [:path :recipe-url])}
+                                                      (:identity request)
+                                                      (authz/writer? request)))]
+                                (ok recipe)
+                                (not-found {:reason "Missing"}))))}
      :put    {:summary    "Update a recipe's editable fields and labels"
               :responses  (merge hu/openapi-404 {200 {:body models.recipes/GetRecipeResponse}})
               :parameters {:path {:recipe-url :string}
                            :body models.recipes/UpdateRecipeRequest}
               :handler    (fn [{:keys [components parameters] :as request}]
-                            (handle-write
-                             #(recipes-api/update-recipe!
-                               (:database components)
-                               (hu/tenant-hostname request)
-                               (get-in parameters [:path :recipe-url])
-                               (:body parameters))))}
+                            (let [hostname (hu/tenant-hostname request)]
+                              (handle-write
+                               #(recipes-api/update-recipe!
+                                 (tenant/scope (:database components) hostname)
+                                 hostname
+                                 (get-in parameters [:path :recipe-url])
+                                 (:body parameters)))))}
      :delete {:summary    "Delete a recipe"
               :responses  {200 {:body [:any]}}
               :parameters {:path {:recipe-url :string}}
               :handler    (fn [{:keys [components parameters] :as request}]
-                            (recipes-api/delete-recipe! (:database components)
-                                                        (hu/tenant-hostname request)
-                                                        (get-in parameters [:path :recipe-url]))
+                            (let [hostname (hu/tenant-hostname request)]
+                              (recipes-api/delete-recipe! (tenant/scope (:database components) hostname)
+                                                          hostname
+                                                          (get-in parameters [:path :recipe-url])))
                             (ok {:deleted (get-in parameters [:path :recipe-url])}))}}]
 
    ["/:recipe-url/lineage"
@@ -185,7 +192,7 @@
                          (if-not (authz/writer? request)
                            (not-found {:reason "Missing"})
                            (if-let [lineage (recipes-api/get-recipe-lineage
-                                             (:database components)
+                                             (tenant/scope (:database components) (hu/tenant-hostname request))
                                              (hu/tenant-hostname request)
                                              (get-in parameters [:path :recipe-url])
                                              (boolean (get-in parameters [:query :include-raw])))]
@@ -201,8 +208,8 @@
             :handler    (fn [{:keys [components parameters] :as request}]
                           (if-not (authz/writer? request)
                             (not-found {:reason "Missing"})
-                            (let [db        (:database components)
-                                  host      (hu/tenant-hostname request)
+                            (let [host      (hu/tenant-hostname request)
+                                  db        (tenant/scope (:database components) host)
                                   url       (get-in parameters [:path :recipe-url])]
                               (if-let [recipe (recipes-api/get-recipe db host url)]
                                 (try
@@ -231,8 +238,8 @@
             :handler    (fn [{:keys [components parameters] :as request}]
                           (if-not (authz/writer? request)
                             (not-found {:reason "Missing"})
-                            (let [db     (:database components)
-                                  host   (hu/tenant-hostname request)
+                            (let [host   (hu/tenant-hostname request)
+                                  db     (tenant/scope (:database components) host)
                                   url    (get-in parameters [:path :recipe-url])
                                   recipe (recipes-api/get-recipe db host url)]
                               (if-let [stored (:timeline recipe)]
@@ -247,34 +254,38 @@
    ["" {:get  {:summary  "All labels for the tenant, each with its group name"
                :responses {200 {:body [:sequential models.recipes/RecipeLabel]}}
                :handler  (fn [{:keys [components] :as request}]
-                           (ok (recipes-api/get-labels (:database components)
-                                                       {:hostname (hu/tenant-hostname request)})))}
+                           (let [hostname (hu/tenant-hostname request)]
+                             (ok (recipes-api/get-labels (tenant/scope (:database components) hostname)
+                                                         {:hostname hostname}))))}
         :post {:summary    "Create a label (optionally in a group)"
                :responses  {200 {:body models.recipes/RecipeLabel}}
                :parameters {:body [:map
                                    [:name :string]
                                    [:group-id {:optional true} [:maybe :uuid]]]}
                :handler    (fn [{:keys [components parameters] :as request}]
-                             (ok (recipes-api/create-label!
-                                  (:database components)
-                                  (assoc (:body parameters) :hostname (hu/tenant-hostname request)))))}}]
+                             (let [hostname (hu/tenant-hostname request)]
+                               (ok (recipes-api/create-label!
+                                    (tenant/scope (:database components) hostname)
+                                    (assoc (:body parameters) :hostname hostname)))))}}]
    ["/:id" {:put    {:summary    "Rename a label"
                      :parameters {:path {:id :uuid}
                                   :body [:map [:name :string]]}
                      :responses  {200 {:body [:any]}}
                      :handler    (fn [{:keys [components parameters] :as request}]
-                                   (ok (recipes-api/rename-label!
-                                        (:database components)
-                                        (get-in parameters [:path :id])
-                                        (hu/tenant-hostname request)
-                                        (get-in parameters [:body :name]))))}
+                                   (let [hostname (hu/tenant-hostname request)]
+                                     (ok (recipes-api/rename-label!
+                                          (tenant/scope (:database components) hostname)
+                                          (get-in parameters [:path :id])
+                                          hostname
+                                          (get-in parameters [:body :name])))))}
             :delete {:summary    "Delete a label"
                      :parameters {:path {:id :uuid}}
                      :responses  {200 {:body [:any]}}
                      :handler    (fn [{:keys [components parameters] :as request}]
-                                   (recipes-api/delete-label! (:database components)
-                                                              (get-in parameters [:path :id])
-                                                              (hu/tenant-hostname request))
+                                   (let [hostname (hu/tenant-hostname request)]
+                                     (recipes-api/delete-label! (tenant/scope (:database components) hostname)
+                                                                (get-in parameters [:path :id])
+                                                                hostname))
                                    (ok {:deleted (get-in parameters [:path :id])}))}}]])
 
 (def reitit-recipe-label-groups-routes
@@ -283,32 +294,36 @@
    ["" {:get  {:summary   "All label groups for the tenant"
                :responses {200 {:body [:any]}}
                :handler   (fn [{:keys [components] :as request}]
-                            (ok (recipes-api/get-label-groups (:database components)
-                                                              {:hostname (hu/tenant-hostname request)})))}
+                            (let [hostname (hu/tenant-hostname request)]
+                              (ok (recipes-api/get-label-groups (tenant/scope (:database components) hostname)
+                                                                {:hostname hostname}))))}
         :post {:summary    "Create a label group"
                :parameters {:body [:map [:name :string]]}
                :responses  {200 {:body [:any]}}
                :handler    (fn [{:keys [components parameters] :as request}]
-                             (ok (recipes-api/create-label-group!
-                                  (:database components)
-                                  (assoc (:body parameters) :hostname (hu/tenant-hostname request)))))}}]
+                             (let [hostname (hu/tenant-hostname request)]
+                               (ok (recipes-api/create-label-group!
+                                    (tenant/scope (:database components) hostname)
+                                    (assoc (:body parameters) :hostname hostname)))))}}]
    ["/:id" {:put    {:summary    "Rename a label group"
                      :parameters {:path {:id :uuid}
                                   :body [:map [:name :string]]}
                      :responses  {200 {:body [:any]}}
                      :handler    (fn [{:keys [components parameters] :as request}]
-                                   (ok (recipes-api/rename-label-group!
-                                        (:database components)
-                                        (get-in parameters [:path :id])
-                                        (hu/tenant-hostname request)
-                                        (get-in parameters [:body :name]))))}
+                                   (let [hostname (hu/tenant-hostname request)]
+                                     (ok (recipes-api/rename-label-group!
+                                          (tenant/scope (:database components) hostname)
+                                          (get-in parameters [:path :id])
+                                          hostname
+                                          (get-in parameters [:body :name])))))}
             :delete {:summary    "Delete a label group (cascades to its labels)"
                      :parameters {:path {:id :uuid}}
                      :responses  {200 {:body [:any]}}
                      :handler    (fn [{:keys [components parameters] :as request}]
-                                   (recipes-api/delete-label-group! (:database components)
-                                                                    (get-in parameters [:path :id])
-                                                                    (hu/tenant-hostname request))
+                                   (let [hostname (hu/tenant-hostname request)]
+                                     (recipes-api/delete-label-group! (tenant/scope (:database components) hostname)
+                                                                      (get-in parameters [:path :id])
+                                                                      hostname))
                                    (ok {:deleted (get-in parameters [:path :id])}))}}]])
 
 (def reitit-recipe-audiences-routes
@@ -318,10 +333,8 @@
               :parameters {:query [:map {:closed false} [:recipe-id {:optional true} :uuid]]}
               :responses  (merge hu/openapi-404 {200 {:body [:any]}})
               :handler    (fn [{:keys [components parameters] :as request}]
-                            (let [audiences (recipes-api/get-recipe-audiences
-                                             (:database components)
-                                             (merge {:hostname (hu/tenant-hostname request)}
-                                                    (:query parameters)))]
+                            (let [db        (tenant/scope (:database components) (hu/tenant-hostname request))
+                                  audiences (recipes-api/get-recipe-audiences db (:query parameters))]
                               (if (empty? audiences)
                                 (not-found)
                                 (ok audiences))))}
@@ -331,10 +344,11 @@
                                   [:group-id :uuid]]}
               :responses  {200 {:body [:any]}}
               :handler    (fn [{:keys [components parameters] :as request}]
-                            (let [{:keys [recipe-id group-id]} (:body parameters)]
+                            (let [{:keys [recipe-id group-id]} (:body parameters)
+                                  hostname (hu/tenant-hostname request)]
                               (ok (recipes-api/add-audience-to-recipe!
-                                   (:database components)
-                                   {:id recipe-id :hostname (hu/tenant-hostname request)}
+                                   (tenant/scope (:database components) hostname)
+                                   {:id recipe-id :hostname hostname}
                                    {:id group-id}))))}}]
    ["/:audience-id" {:delete {:summary    "Unshare"
                               :parameters {:path {:audience-id :uuid}}

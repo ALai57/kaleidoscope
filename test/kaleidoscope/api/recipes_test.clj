@@ -1,6 +1,7 @@
 (ns kaleidoscope.api.recipes-test
   (:require [kaleidoscope.api.recipes :as recipes]
             [kaleidoscope.api.groups :as groups]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-pg]
             [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
             [clojure.test :refer [deftest is testing use-fixtures]]
@@ -233,7 +234,7 @@
         public      (recipes/create-recipe! db (example-recipe :recipe-url "public" :public-visibility true))
         shared      (recipes/create-recipe! db (example-recipe :recipe-url "shared" :public-visibility false))
         _hidden     (recipes/create-recipe! db (example-recipe :recipe-url "hidden" :public-visibility false))
-        [{gid :id}] (groups/create-group! db {:display-name "friends" :owner-id "user-1"})
+        [{gid :id}] (groups/create-group! db {:display-name "friends" :owner-id "user-1" :hostname host})
         _           (groups/add-users-to-group! db "user-1" gid {:email "member@x.com" :alias "m"})
         _           (recipes/add-audience-to-recipe! db (assoc shared :recipe-url "shared") {:id gid})]
     (testing "a group member sees public + shared, not hidden"
@@ -255,7 +256,7 @@
 (deftest audience-idempotency-test
   (let [db        (embedded-pg/fresh-db!)
         recipe    (recipes/create-recipe! db (example-recipe))
-        [{gid :id}] (groups/create-group! db {:display-name "g" :owner-id "u"})]
+        [{gid :id}] (groups/create-group! db {:display-name "g" :owner-id "u" :hostname host})]
     (let [[{aid :id}] (recipes/add-audience-to-recipe! db recipe {:id gid})]
       (testing "adding the same audience twice does not create a duplicate"
         (is (match? [{:id aid}] (recipes/add-audience-to-recipe! db recipe {:id gid}))))
@@ -324,3 +325,23 @@
       (let [before (:modified-at (recipes/get-recipe db host "chana-masala"))]
         (recipes/save-timeline! db host "chana-masala" (assoc tl :total-minutes 31))
         (is (= before (:modified-at (recipes/get-recipe db host "chana-masala"))))))))
+
+(deftest scoped-handle-confines-recipe-reads-across-tenants-test
+  ;; Recipes already thread hostname explicitly into every read, but they must
+  ;; also be safe to query through a tenant/scope handle (a TenantConn must not
+  ;; crash the raw next/execute! reads, and find-by-keys reads must confine).
+  (let [db      (embedded-pg/fresh-db!)
+        andrew  (tenant/scope db "andrewslai.com")
+        _       (recipes/create-recipe! db (example-recipe :hostname "andrewslai.com" :recipe-url "a-dish"))
+        _       (recipes/create-recipe! db (example-recipe :hostname "caheriaguilar.com" :recipe-url "c-dish"))
+        _       (recipes/create-label-group! db {:hostname "andrewslai.com" :name "cuisine"})
+        _       (recipes/create-label-group! db {:hostname "caheriaguilar.com" :name "cuisine"})]
+
+    (testing "raw-SQL read (get-recipes) is safe through a scoped handle and confines"
+      (is (= #{"a-dish"} (set (map :recipe-url (recipes/get-recipes andrew {:hostname "andrewslai.com"})))))
+      ;; the handle does not crash even when the query map omits hostname keys downstream
+      (is (seq (recipes/get-recipes andrew {:hostname "andrewslai.com"}))))
+
+    (testing "find-by-keys read (get-label-groups) confines through a scoped handle with no :hostname key"
+      (is (match? [{:hostname "andrewslai.com" :name "cuisine"}]
+                  (recipes/get-label-groups andrew {}))))))

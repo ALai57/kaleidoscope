@@ -1,5 +1,6 @@
 (ns kaleidoscope.api.albums-test
   (:require [kaleidoscope.api.albums :as albums-api]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
             [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
@@ -20,13 +21,31 @@
 (def example-album
   {:album-name     "Test album"
    :description    "My description"
+   :hostname       "andrewslai.com"
    :cover-photo-id #uuid "d947c6b0-679f-4067-9747-3d282833a27d"})
 
+(deftest albums-are-site-scoped-test
+  ;; albums used to have no tenancy at all — GET /albums returned every
+  ;; site's albums. They are now hostname-scoped like the rest of the CMS.
+  (let [db (embedded-h2/fresh-db!)
+        _  (albums-api/create-album! db {:album-name "andrew-album" :hostname "andrewslai.com"})
+        _  (albums-api/create-album! db {:album-name "caheri-album" :hostname "caheriaguilar.com"})]
+    (testing "a scoped handle confines albums to its own site"
+      (let [andrew (albums-api/get-albums (tenant/scope db "andrewslai.com"))]
+        (is (seq andrew))
+        (is (every? #(= "andrewslai.com" (:hostname %)) andrew))
+        (is (not-any? #(= "caheri-album" (:album-name %)) andrew))))
+    (testing "the other site sees only its own"
+      (is (match? [{:album-name "caheri-album" :hostname "caheriaguilar.com"}]
+                  (albums-api/get-albums (tenant/scope db "caheriaguilar.com")))))))
+
 (def example-photo
-  {:id #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"})
+  {:id       #uuid "88c0f460-01c7-4051-a549-f7f123f6acc2"
+   :hostname "andrewslai.com"})
 
 (def example-photo-version
   {:photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4" ;; From db-seed
+   :hostname       "andrewslai.com"
    :path           "some/path"
    :storage-driver "local"
    :storage-root   "resources/"
@@ -47,9 +66,16 @@
         (is (match? [example-album] (albums-api/get-albums database (select-keys example-album [:album-name]))))
         (is (match? [example-album] (albums-api/get-albums database {:id id}))))
 
-      (testing "Can update an album"
-        (albums-api/update-album! database {:id         id
-                                            :album-name "Something new"})
+      (testing "Cannot update an album via the wrong site"
+        (is (nil? (first (albums-api/update-album! database "caheriaguilar.com"
+                                                   {:id id :album-name "Hijacked"}))))
+        (is (match? [{:album-name "Test album"}]
+                    (albums-api/get-albums database {:id id}))))
+
+      (testing "Can update an album on its own site"
+        (albums-api/update-album! database "andrewslai.com"
+                                  {:id         id
+                                   :album-name "Something new"})
         (is (match? [{:album-name "Something new"}]
                     (albums-api/get-albums database {:id id})))))))
 
@@ -193,6 +219,7 @@
                   (albums-api/create-photo-version-2! database
                                                       [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
                                                                                       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
+                                                                                      "andrewslai.com"
                                                                                       "png"
                                                                                       (util/now)
                                                                                       "thumbnail")]))))
@@ -223,6 +250,7 @@
       (albums-api/create-photo-version-2! database
                                           [(albums-api/make-image-version (in-mem/make-mem-fs {:store mock-fs})
                                                                           #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
+                                                                          "andrewslai.com"
                                                                           "png"
                                                                           (util/now)
                                                                           "thumbnail")])
@@ -307,3 +335,19 @@
                                  :more-metadata 12345}
                       }}}}
                   @mock-fs)))))
+
+(deftest get-full-photos-scoped-handle-confines-by-tenant-test
+  ;; The photo GET handlers used to thread :hostname into the query map by
+  ;; hand (and the file-serving handler omitted it entirely). Scoping the db
+  ;; handle confines get-full-photos to one tenant even when the query has no
+  ;; :hostname key — full_photos is a VIEW, so this also confirms injection
+  ;; works through the join, not just base tables.
+  (let [db (embedded-h2/fresh-db!)
+        _  (albums-api/create-photo! db {:id (u/uuid) :photo-title "shared" :hostname "andrewslai.com"})
+        _  (albums-api/create-photo! db {:id (u/uuid) :photo-title "shared" :hostname "caheriaguilar.com"})]
+    (testing "a raw handle sees both tenants' photos"
+      (is (= 2 (count (albums-api/get-full-photos db {:photo-title "shared"})))))
+    (testing "a scoped handle sees only its tenant's photo, query omitting :hostname"
+      (is (match? [{:hostname "andrewslai.com"}]
+                  (albums-api/get-full-photos (tenant/scope db "andrewslai.com") {:photo-title "shared"})))
+      (is (empty? (albums-api/get-full-photos (tenant/scope db "nobody.com") {:photo-title "shared"}))))))

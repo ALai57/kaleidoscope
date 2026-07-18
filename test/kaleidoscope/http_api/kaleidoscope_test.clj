@@ -6,6 +6,7 @@
   (:require [clojure.java.io :as io]
             [clojure.test :refer [are deftest is testing use-fixtures]]
             [kaleidoscope.api.articles :as articles-api]
+            [kaleidoscope.api.themes :as themes-api]
             [kaleidoscope.api.portfolio :as portfolio]
             [kaleidoscope.http-api.auth.buddy-backends :as bb]
             [kaleidoscope.http-api.cache-control :as cc]
@@ -508,6 +509,67 @@
                   (app (get-version "https://andrewslai.com" (:branch-id article-branch)))))
       (is (match? {:status 401}
                   (app (get-version "https://other-domain.com" (:branch-id article-branch))))))))
+
+(deftest themes-get-does-not-leak-across-tenants-test
+  ;; GET /themes is public-access; before hostname scoping the handler queried
+  ;; get-themes with the raw query params (no hostname), so an anonymous
+  ;; visitor to andrewslai.com could enumerate another tenant's themes.
+  (let [components (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                         "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                         "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                         "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                        (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                        env/prepare-kaleidoscope)
+        _   (themes-api/create-theme! (:database components)
+                                      {:display-name "caheri-theme"
+                                       :owner-id     "caheri"
+                                       :hostname     "caheriaguilar.com"
+                                       :config       {:primary {:main "#000"}}})
+        app (->> components
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+
+    (testing "andrewslai.com cannot see caheriaguilar.com's themes"
+      (is (match? {:status 404}
+                  (app (mock/request :get "https://andrewslai.com/themes")))))
+
+    (testing "caheriaguilar.com can see its own theme"
+      (is (match? {:status 200 :body (m/embeds [{:display-name "caheri-theme"}])}
+                  (app (mock/request :get "https://caheriaguilar.com/themes")))))))
+
+(deftest get-versions-does-not-leak-across-tenants-test
+  ;; The wrong-host case above is stopped by access control (401). This is
+  ;; the subtler leak the tenant scoping closes: an authorized writer on
+  ;; andrewslai.com must not be able to read ANOTHER live tenant's versions
+  ;; by supplying that tenant's branch-id — the handler used to query
+  ;; get-versions by a bare branch-id with no hostname, returning whoever
+  ;; owned it.
+  (let [components (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                         "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
+                         "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                         "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                        (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                        env/prepare-kaleidoscope)
+        ;; A branch + version owned by a DIFFERENT tenant, seeded straight
+        ;; into the DB (caheriaguilar.com is not the request's host).
+        [{other-branch-id :branch-id}] (articles-api/new-version! (:database components)
+                                                                  {:article-url "caheri-secret"
+                                                                   :hostname    "caheriaguilar.com"
+                                                                   :branch-name "main"
+                                                                   :author      "caheri"}
+                                                                  {:content "secret draft"})
+        app (->> components
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+
+    (testing "sanity: the other tenant's branch really has versions"
+      (is (some? other-branch-id))
+      (is (= 1 (count (articles-api/get-versions (:database components)
+                                                 {:branch-id other-branch-id})))))
+
+    (testing "an authorized andrewslai.com request cannot read caheriaguilar.com's versions"
+      (is (match? {:status 404}
+                  (app (get-version "https://andrewslai.com" other-branch-id)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Resume API

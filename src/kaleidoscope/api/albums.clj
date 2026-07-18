@@ -23,10 +23,15 @@
                    :ex-subtype :UnableToCreateAlbum)))
 
 (defn update-album!
-  [database album]
-  (rdbms/update! database
-                 :albums album
-                 :ex-subtype :UnableToUpdateAlbum))
+  "Update an album, scoped to hostname so a writer on one site cannot edit
+  another site's album by id (same IDOR class as update-photo!/update-theme!).
+  Returns the updated row, or nil if no album with that id exists for the host."
+  [database hostname {:keys [id] :as album}]
+  (rdbms/scoped-update! database
+                        :albums
+                        {:id id :hostname hostname}
+                        (dissoc album :id :hostname)
+                        :ex-subtype :UnableToUpdateAlbum))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos
@@ -97,12 +102,13 @@
    ])
 
 (defn make-image-version
-  [static-content-adapter photo-id extension now-time image-version-name]
+  [static-content-adapter photo-id hostname extension now-time image-version-name]
   (let [id (utils/uuid)
         image-category (name image-version-name)
         path (format "%s/%s/%s.%s" (:photos-folder static-content-adapter) photo-id image-category extension)]
     (-> {:image-category image-category
          :photo-id       photo-id
+         :hostname       hostname
          :id             id
          :storage-driver (:storage-driver static-content-adapter)
          :storage-root   (:storage-root static-content-adapter)
@@ -134,7 +140,7 @@
 
         photo (create-photo! database {:id photo-id :hostname hostname})
 
-        versions (map (partial make-image-version static-content-adapter photo-id extension now-time) IMAGE-VERSIONS)
+        versions (map (partial make-image-version static-content-adapter photo-id hostname extension now-time) IMAGE-VERSIONS)
         results (create-photo-version-2! database versions)]
 
     (fs/put-file static-content-adapter
@@ -159,10 +165,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn add-photos-to-album! [database album-id photo-ids]
   (let [now-time (utils/now)
+        ;; the link is tenant data; its hostname is the album's (the composite
+        ;; FKs then also require every photo to share that tenant).
+        hostname (:hostname (first (get-albums database {:id album-id})))
         photos-in-album (vec (for [photo-id (if (seq? photo-ids) photo-ids [photo-ids])]
                                {:id          (utils/uuid)
                                 :photo-id    photo-id
                                 :album-id    album-id
+                                :hostname    hostname
                                 :created-at  now-time
                                 :modified-at now-time}))]
     (vec (rdbms/insert! database

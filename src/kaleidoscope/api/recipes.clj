@@ -12,6 +12,7 @@
             [kaleidoscope.api.access :as access]
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.persistence.scrape-pipeline :as pipeline-db]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.utils.core :as utils]
             [honey.sql :as hsql]
             [next.jdbc :as next]
@@ -67,7 +68,7 @@
   "All labels for a tenant, each with its group name joined so callers can
   render `group/label` (e.g. `ethnicity/indian`)."
   [db {:keys [hostname] :as query}]
-  (next/execute! db
+  (next/execute! (tenant/unwrap db)
                  (hsql/format {:select   [:l.id :l.name :l.group-id :l.hostname :l.created-at
                                           [:g.name :group-name]]
                                :from     [[:recipe-labels :l]]
@@ -81,7 +82,7 @@
   label set to its group-ids (and to reject cross-tenant/unknown ids)."
   [db label-ids hostname]
   (when (seq label-ids)
-    (next/execute! db
+    (next/execute! (tenant/unwrap db)
                    (hsql/format {:select :*
                                  :from   :recipe-labels
                                  :where  [:and
@@ -122,7 +123,7 @@
   (let [recipe-ids (mapv :id recipes)]
     (if (empty? recipe-ids)
       recipes
-      (let [rows      (next/execute! db
+      (let [rows      (next/execute! (tenant/unwrap db)
                                      (hsql/format {:select    [[:a.recipe-id :recipe-id]
                                                                [:l.id :id] [:l.name :name]
                                                                [:l.group-id :group-id]
@@ -160,7 +161,7 @@
                                            :where  [:and
                                                     [:= :a.recipe-id :recipes.id]
                                                     [:= :a.label-id label-id]]}]))
-        recipes (next/execute! db
+        recipes (next/execute! (tenant/unwrap db)
                                (hsql/format {:select   :*
                                              :from     :recipes
                                              :where    where

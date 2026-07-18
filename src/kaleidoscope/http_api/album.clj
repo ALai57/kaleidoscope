@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.album
   (:require [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.models.albums :as models.albums] ;; Install specs
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [no-content not-found ok]]
             [taoensso.timbre :as log]
             [kaleidoscope.http-api.http-utils :as hu]))
@@ -38,7 +39,7 @@
 
               :handler (fn [{:keys [components] :as request}]
                          (log/info "Getting albums")
-                         (ok (albums-api/get-albums (:database components))))}
+                         (ok (albums-api/get-albums (tenant/scope (:database components) (hu/tenant-hostname request)))))}
         :post {:summary   "Add an album"
                :responses {200 {:description "The group that was created"
                                 :content     {"application/json"
@@ -53,7 +54,8 @@
                                                                         :value   example-album-request}}}}}
                :handler   (fn [{:keys [components body-params] :as request}]
                             (log/info "Creating album" body-params)
-                            (ok (first (albums-api/create-album! (:database components) body-params))))}}]
+                            (ok (first (albums-api/create-album! (:database components)
+                                                                 (assoc body-params :hostname (hu/tenant-hostname request))))))}}]
 
    ["/-/contents" {:conflicting true
                    :get         {:summary   "Retrieve contents from all albums"
@@ -62,7 +64,8 @@
                                                                 {:schema [:sequential models.albums/AlbumContent]}}}}
                                  :handler   (fn [{:keys [components] :as request}]
                                               (log/info "Getting contents")
-                                              (let [contents (albums-api/get-album-contents (:database components))]
+                                              (let [db       (tenant/scope (:database components) (hu/tenant-hostname request))
+                                                    contents (albums-api/get-album-contents db)]
                                                 (ok contents)))}}]
    ["/:album-id" {:get {:summary    "Retrieve album by ID"
                         :responses  (merge hu/openapi-404
@@ -71,9 +74,10 @@
                                                                {:schema models.albums/Album}}}})
                         :parameters {:path {:album-id :uuid}}
                         :handler    (fn [{:keys [components parameters] :as request}]
-                                      (let [{:keys [album-id]} (:path parameters)]
+                                      (let [{:keys [album-id]} (:path parameters)
+                                            db                 (tenant/scope (:database components) (hu/tenant-hostname request))]
                                         (log/infof "Getting album: %s" album-id)
-                                        (ok (first (albums-api/get-albums (:database components) {:id album-id})))))}
+                                        (ok (first (albums-api/get-albums db {:id album-id})))))}
                   :put {:summary    "Update an album"
                         :responses  (merge hu/openapi-401
                                            {200 {:description "An album"
@@ -84,6 +88,7 @@
                                       (let [{:keys [album-id]} (:path parameters)]
                                         (log/infof "Updating album: %s with: %s" album-id body-params)
                                         (ok (first (albums-api/update-album! (:database components)
+                                                                             (hu/tenant-hostname request)
                                                                              (assoc body-params :id album-id))))))}}]
    ["/:album-id/contents" {:conflicting true
                            :get    {:summary    "Retrieve an album's contents"
@@ -94,9 +99,10 @@
 
                                     :parameters {:path {:album-id :uuid}}
                                     :handler    (fn [{:keys [components parameters] :as request}]
-                                                  (let [{:keys [album-id]} (:path parameters)]
+                                                  (let [{:keys [album-id]} (:path parameters)
+                                                        db                 (tenant/scope (:database components) (hu/tenant-hostname request))]
                                                     (log/infof "Getting album contents from album: %s" album-id)
-                                                    (let [contents (albums-api/get-album-contents (:database components) {:album-id album-id})]
+                                                    (let [contents (albums-api/get-album-contents db {:album-id album-id})]
                                                       (ok contents))))}
                            :post   {:summary     "Add content to album"
                                     :description "Supports bulk insert."
@@ -139,9 +145,9 @@
                                :content-id :uuid}}
            :handler    (fn [{:keys [components parameters] :as request}]
                          (let [{:keys [album-id content-id]} (:path parameters)
-
+                               db       (tenant/scope (:database components) (hu/tenant-hostname request))
                                _        (log/infof "Getting album content %s for album: %s" content-id album-id)
-                               [result] (albums-api/get-album-contents (:database components)
+                               [result] (albums-api/get-album-contents db
                                                                        {:album-id         album-id
                                                                         :album-content-id content-id})]
                            (if result

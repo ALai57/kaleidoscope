@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.groups
   (:require [kaleidoscope.api.groups :as groups-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [no-content not-found ok]]
             [taoensso.timbre :as log]))
 
@@ -18,7 +19,7 @@
                                       :content     {"application/json"
                                                     {:schema [:any]}}}})
               :handler   (fn [{:keys [components] :as request}]
-                           (ok (groups-api/get-users-groups (:database components)
+                           (ok (groups-api/get-users-groups (tenant/scope (:database components) (hu/tenant-hostname request))
                                                             (:user-id (:identity request)))))}
         :post {:summary   "Create a group"
                :responses (merge hu/openapi-401
@@ -28,7 +29,9 @@
                :handler   (fn [{:keys [components body-params] :as request}]
                             (try
                               (log/info "Creating group!" body-params)
-                              (let [group (assoc body-params :owner-id (:user-id (:identity request)))]
+                              (let [group (assoc body-params
+                                                 :owner-id (:user-id (:identity request))
+                                                 :hostname (hu/tenant-hostname request))]
                                 (ok (doto (groups-api/create-group! (:database components) group)
                                       log/info)))
                               (catch Exception e
@@ -46,7 +49,8 @@
                                               _                  (log/info "Creating group!" group-id body-params)
                                               group              (assoc body-params
                                                                         :id       group-id
-                                                                        :owner-id (:user-id (:identity request)))]
+                                                                        :owner-id (:user-id (:identity request))
+                                                                        :hostname (hu/tenant-hostname request))]
                                           (ok (doto (groups-api/create-group! (:database components) group)
                                                 log/info)))
                                         (catch Exception e
@@ -80,7 +84,7 @@
                                                  (let [{:keys [group-id]} (:path parameters)
                                                        requester-id       (:user-id (:identity request))
                                                        member             body-params]
-                                                   (ok (doto (groups-api/add-users-to-group! (:database components) requester-id group-id member)
+                                                   (ok (doto (groups-api/add-users-to-group! (tenant/scope (:database components) (hu/tenant-hostname request)) requester-id group-id member)
                                                          log/info)))
                                                  (catch Exception e
                                                    (log/error "Caught exception " e))))}}]

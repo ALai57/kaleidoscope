@@ -14,7 +14,8 @@
 
 (def example-group
   {:display-name "mygroup"
-   :owner-id     "user-1"})
+   :owner-id     "user-1"
+   :hostname     "andrewslai.com"})
 
 (deftest create-and-retrieve-group-test
   (let [database (embedded-h2/fresh-db!)]

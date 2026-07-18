@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.audiences
   (:require [kaleidoscope.api.articles :as articles-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [ok not-found]]
             [taoensso.timbre :as log]))
 
@@ -22,9 +23,8 @@
               :handler    (fn [{:keys [components parameters] :as request}]
                             (log/debugf "Received params %s" parameters)
                             (let [query-params (:query parameters)
-                                  audiences    (->> {:hostname (hu/tenant-hostname request)}
-                                                    (merge query-params)
-                                                    (articles-api/get-article-audiences (:database components) ))]
+                                  db           (tenant/scope (:database components) (hu/tenant-hostname request))
+                                  audiences    (articles-api/get-article-audiences db query-params)]
                               (if (empty? audiences)
                                 (not-found)
                                 (ok audiences))))}
@@ -37,10 +37,12 @@
                                    [:article-id :int]
                                    [:group-id :uuid]]}
               :handler   (fn [{:keys [components parameters] :as request}]
-                           (let [{:keys [article-id group-id]} (:body parameters)]
-                             (ok (articles-api/add-audience-to-article! (:database components)
+                           (let [{:keys [article-id group-id]} (:body parameters)
+                                 hostname (hu/tenant-hostname request)
+                                 db       (tenant/scope (:database components) hostname)]
+                             (ok (articles-api/add-audience-to-article! db
                                                                         {:id       article-id
-                                                                         :hostname (hu/tenant-hostname request)}
+                                                                         :hostname hostname}
                                                                         {:id group-id}))))}}]
 
    ["/:audience-id" {:delete {:summary    "Delete an audience"

@@ -8,6 +8,7 @@
             [next.jdbc.prepare :as prepare]
             [next.jdbc.result-set :as rs]
             [next.jdbc.sql :as next.sql]
+            [kaleidoscope.persistence.tenant :as tenant]
             [slingshot.slingshot :refer [throw+ try+]]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]
@@ -90,8 +91,8 @@
 
 (defn transact!
   [conn stmt]
-  (next/execute! conn stmt {:return-keys true
-                            :builder-fn  rs/as-unqualified-kebab-maps}))
+  (next/execute! (tenant/unwrap conn) stmt {:return-keys true
+                                            :builder-fn  rs/as-unqualified-kebab-maps}))
 
 (defn- wrap-sql-exceptions
   "Runs `thunk`, rethrowing any PSQLException as a :PersistenceException
@@ -113,26 +114,40 @@
 
 (defn find-by-keys
   ([database table query-map]
-   (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
-     (wrap-sql-exceptions
-      table query-map
-      #(next.sql/find-by-keys database
-                              (csk/->snake_case_keyword table)
-                              (cske/transform-keys csk/->snake_case_keyword query-map)
-                              {:builder-fn rs/as-unqualified-kebab-maps})))))
+   ;; Honor a TenantConn: inject :hostname for tenant-scoped tables, then run
+   ;; against the raw datasource. Direct callers (recipes, scrape pipeline)
+   ;; rely on this since they don't go through make-finder.
+   (let [query-map (tenant/scope-query database table query-map)
+         database  (tenant/unwrap database)]
+     (span/with-span! {:name (format "kaleidoscope.db.find.%s" table)}
+       (wrap-sql-exceptions
+        table query-map
+        #(next.sql/find-by-keys database
+                                (csk/->snake_case_keyword table)
+                                (cske/transform-keys csk/->snake_case_keyword query-map)
+                                {:builder-fn rs/as-unqualified-kebab-maps}))))))
 
 (defn make-finder
   [table]
   (fn getter
     ([database]
-     (span/with-span! {:name (format "kaleidoscope.db.get.%s" table)}
-       (wrap-sql-exceptions
-        table nil
-        #(next/execute! database
-                        [(format "SELECT * FROM %s" (csk/->snake_case_string table))]
-                        {:builder-fn rs/as-unqualified-kebab-maps}))))
+     ;; A scoped handle turns "fetch all" into "fetch all for this tenant"
+     ;; (for tenant-scoped tables). For a table with no hostname column,
+     ;; scope-query is a no-op, so this fetches all rows against the raw ds.
+     (if (tenant/scoped? database)
+       (getter (tenant/unwrap database) (tenant/scope-query database table {}))
+       (span/with-span! {:name (format "kaleidoscope.db.get.%s" table)}
+         (wrap-sql-exceptions
+          table nil
+          #(next/execute! database
+                          [(format "SELECT * FROM %s" (csk/->snake_case_string table))]
+                          {:builder-fn rs/as-unqualified-kebab-maps})))))
     ([database query-map]
-     (span/with-span! {:name (format "kaleidoscope.db.get2.%s" table)}
+     ;; Inject the tenant's hostname (tenant-scoped tables only), then run the
+     ;; query against the raw datasource — the injected :hostname confines it.
+     (if (tenant/scoped? database)
+       (getter (tenant/unwrap database) (tenant/scope-query database table query-map))
+       (span/with-span! {:name (format "kaleidoscope.db.get2.%s" table)}
        (let [[[where-in-key where-in-vals] :as where-ins] (filter (fn [[k v]]
                                                                     (set? v)) query-map)]
          (cond
@@ -146,7 +161,7 @@
                                                                     :from   table
                                                                     :where  [:in where-in-key where-in-vals]})
                                                       {:builder-fn rs/as-unqualified-kebab-maps})))
-           :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported" {}))))))))
+           :else                   (throw (ex-info "Multiple `WHERE IN` clauses currently not supported" {})))))))))
 
 (defmulti insert-impl!
   (fn [database table m]
@@ -165,7 +180,7 @@
 (defn insert! [database table m & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.insert.%s" table)}
     (try+
-     (insert-impl! database table m)
+     (insert-impl! (tenant/unwrap database) table m)
      (catch org.postgresql.util.PSQLException e
        (log/errorf "Caught Exception while inserting: %s" e)
        (throw+ (merge {:type      :PersistenceException
@@ -201,7 +216,7 @@
 
 (defn update! [database table {:keys [id] :as m} & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.update.%s" table)}
-    (wrap-sql-exceptions table {:id id} #(update-impl! database table m))))
+    (wrap-sql-exceptions table {:id id} #(update-impl! (tenant/unwrap database) table m))))
 
 (defmulti scoped-update-impl!
   (fn [database table where-map set-map]
@@ -223,7 +238,7 @@
   itself, not by a preceding check that can be skipped."
   [database table where-map set-map & {:keys [ex-subtype]}]
   (span/with-span! {:name (format "kaleidoscope.db.scoped-update.%s" table)}
-    (wrap-sql-exceptions table where-map #(scoped-update-impl! database table where-map set-map))))
+    (wrap-sql-exceptions table where-map #(scoped-update-impl! (tenant/unwrap database) table where-map set-map))))
 
 (defn scoped-delete!
   "Like `delete!`, but scopes the WHERE clause to every key in `where-map`

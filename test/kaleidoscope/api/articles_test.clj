@@ -1,5 +1,6 @@
 (ns kaleidoscope.api.articles-test
   (:require [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.api.articles :as articles]
             [kaleidoscope.api.groups :as groups]
             [kaleidoscope.api.groups-test :as groups-test]
@@ -39,6 +40,7 @@
                         :article-url   "my-test-article"
                         :article-title "My Test Article"
                         :author        "Andrew Lai"
+                        :hostname      "andrewslai.com"
                         :branch-name   "my-new-branch"}]
 
     (testing "example-article-branch doesn't exist in the database"
@@ -64,6 +66,7 @@
         article-branch {:article-tags "thoughts"
                         :article-url  "my-test-article"
                         :author       "Andrew Lai"
+                        :hostname     "andrewslai.com"
                         :branch-name  "my-new-branch"}]
 
     (testing "example-article-branch doesn't exist in the database"
@@ -87,6 +90,7 @@
         article-branch                           {:article-tags "thoughts"
                                                   :article-url  "my-test-article"
                                                   :author       "Andrew Lai"
+                                                  :hostname     "andrewslai.com"
                                                   :branch-name  "my-new-branch"}
         version                                  {:content "<p>Hello</p>"}
         [{:keys [branch-id] :as article-branch}] (articles/create-branch! database article-branch)]
@@ -112,6 +116,7 @@
           article-branch {:article-tags "thoughts"
                           :article-url  "my-test-article"
                           :author       "Andrew Lai"
+                          :hostname     "andrewslai.com"
                           :branch-name  "my-new-branch"}
           version        {:content "<p>Hello</p>"}
 
@@ -130,6 +135,7 @@
           article-branch {:article-tags "thoughts"
                           :article-url  "my-test-article"
                           :author       "Andrew Lai"
+                          :hostname     "andrewslai.com"
                           :branch-name  "my-new-branch"}
           version        {:content "<p>Hello</p>"}
 
@@ -149,7 +155,8 @@
   (let [database       (embedded-h2/fresh-db!)
         article-branch {:article-tags "thoughts"
                         :article-url  "my-test-article"
-                        :author       "Andrew Lai"}
+                        :author       "Andrew Lai"
+                        :hostname     "andrewslai.com"}
 
         [{article-id    :article-id
           old-branch-id :branch-id}] (articles/create-branch! database
@@ -251,7 +258,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;
 (def example-group
   {:display-name "mygroup"
-   :owner-id     "user-1"})
+   :owner-id     "user-1"
+   :hostname     "andrewslai.com"})
 
 (deftest get-published-articles-audience-test
   (let [database                (embedded-h2/fresh-db!)
@@ -330,6 +338,104 @@
         (articles/delete-article-audience! database id)
 
         (is (empty? (articles/get-article-audiences database {:id id})))))))
+
+(deftest article-children-cannot-cross-tenants-at-db-level-test
+  ;; The cross-site-branch bug used to be preventable only in application code.
+  ;; With composite (id, hostname) FKs the DATABASE now forbids attaching a
+  ;; branch/version to a parent on a different tenant — defense in the schema,
+  ;; not just the handler. These insert directly, bypassing the code checks.
+  (let [database        (embedded-h2/fresh-db!)
+        now             "2022-01-01T00:00:00Z"
+        [{article-id :id}] (articles/create-article! database {:article-url "victim"
+                                                               :hostname    "sahiltalkingcents.com"
+                                                               :author      "victim"})]
+    (testing "a branch cannot be attached to an article under a different hostname"
+      (is (thrown? Exception
+                   (rdbms/insert! database :article-branches
+                                  {:branch-name "attacker" :article-id article-id
+                                   :hostname    "andrewslai.com"
+                                   :created-at  now :modified-at now}))))
+
+    (testing "the legitimate same-hostname attachment succeeds"
+      (let [[{branch-id :id}] (rdbms/insert! database :article-branches
+                                             {:branch-name "legit" :article-id article-id
+                                              :hostname    "sahiltalkingcents.com"
+                                              :created-at  now :modified-at now})]
+        (is branch-id)
+        (testing "a version cannot cross to a different hostname than its branch"
+          (is (thrown? Exception
+                       (rdbms/insert! database :article-versions
+                                      {:branch-id branch-id :content "x"
+                                       :hostname  "andrewslai.com"
+                                       :created-at now :modified-at now}))))))))
+
+(deftest tenant-scoped-reads-do-not-leak-across-sites
+  ;; The complement to cross-site-branch-manipulation-test: instead of
+  ;; remembering to thread :hostname into every query map (and leaking the
+  ;; moment someone forgets — see http_api GET /articles/:url, /branches,
+  ;; and /branches/:id/versions), a `tenant/scope` handle carries the
+  ;; hostname structurally, so a read simply CANNOT observe another site.
+  (let [raw (embedded-h2/fresh-db!)
+        ;; article_url is globally unique, so each site owns a distinct url.
+        ;; The leak is that a visitor on site A can pull site B's article by
+        ;; url — the scoped handle must instead return nothing for B's url.
+        _   (articles/new-version! raw {:article-url "andrew-post" :hostname "andrewslai.com"
+                                        :branch-name "main" :author "andrew"}
+                                   {:content "andrew's content"})
+        _   (articles/new-version! raw {:article-url "caheri-post" :hostname "caheriaguilar.com"
+                                        :branch-name "main" :author "caheri"}
+                                   {:content "caheri's content"})
+        andrew (tenant/scope raw "andrewslai.com")]
+
+    (testing "a raw (unscoped) handle happily pulls the OTHER site's article — the leak"
+      (is (= 1 (count (articles/get-articles raw {:article-url "caheri-post"})))))
+
+    (testing "get-articles through a scoped handle cannot see the other site's article,
+              even though the query map omits :hostname"
+      (is (empty? (articles/get-articles andrew {:article-url "caheri-post"})))
+      (is (match? [{:hostname "andrewslai.com" :author "andrew"}]
+                  (articles/get-articles andrew {:article-url "andrew-post"}))))
+
+    (testing "get-branches through a scoped handle is confined to this site"
+      (is (empty? (articles/get-branches andrew {:article-url "caheri-post"})))
+      (is (match? [{:hostname "andrewslai.com"}]
+                  (articles/get-branches andrew {:article-url "andrew-post"}))))
+
+    (testing "get-versions for another site's branch-id returns nothing through this handle"
+      (let [other-branch-id (->> (articles/get-versions raw {})
+                                 (filter #(= "caheriaguilar.com" (:hostname %)))
+                                 first
+                                 :branch-id)]
+        (is (some? other-branch-id))
+        (is (empty? (articles/get-versions andrew {:branch-id other-branch-id})))))
+
+    (testing "the no-arg (fetch-all) finder is also confined to the scoped site"
+      (let [rows (articles/get-articles andrew)]
+        (is (seq rows))
+        (is (every? #(= "andrewslai.com" (:hostname %)) rows))))))
+
+(deftest tenant-scoped-writes-survive-transactions
+  ;; create-branch! opens an internal next/with-transaction; the scoped
+  ;; handle must survive it (Transactable), and the internal reads it does
+  ;; (article-id lookups) must stay confined to the handle's hostname.
+  (let [raw    (embedded-h2/fresh-db!)
+        andrew (tenant/scope raw "andrewslai.com")
+        [branch] (articles/create-branch! andrew {:article-url   "scoped-write"
+                                                  :branch-name   "main"
+                                                  :article-tags  "thoughts"
+                                                  :article-title "Scoped"
+                                                  :hostname      "andrewslai.com"
+                                                  :author        "andrew"})]
+    (testing "create-branch! succeeds when handed a scoped handle"
+      (is (some? branch)))
+
+    (testing "the branch is visible to a handle for the same site"
+      (is (match? [{:hostname "andrewslai.com"}]
+                  (articles/get-branches andrew {:article-url "scoped-write"}))))
+
+    (testing "the branch is invisible to a handle for a different site"
+      (is (empty? (articles/get-branches (tenant/scope raw "caheriaguilar.com")
+                                         {:article-url "scoped-write"}))))))
 
 (deftest cross-site-branch-manipulation-test
   ;; Verified exploitable 2026-07-03 (see PLAN.md): a writer authorized for
