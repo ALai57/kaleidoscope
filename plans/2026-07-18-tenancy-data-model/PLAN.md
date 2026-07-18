@@ -95,7 +95,15 @@ user/project entry-points). Domains: workspace_roots, agents, score_definitions,
 (+recommendations), projects, workflows (+briefs). `tenant/scope` now THROWS on a nil hostname
 (fail-loud; the 5 bare http test-apps got a fixed-resolver).
 
-### REMAINING: enforcement migration (the capstone)
+### ✅ DONE: enforcement migration (capstone) — `20260718000007`
+NOT NULL on all 22 AI-engine tables + UNIQUE(id,hostname) on the 8 FK-target parents + 17 composite
+`(fk_col, hostname)` FKs. AI-engine test fixtures scope their seed db to andrewslai.com. DB-enforcement
+test proves cross-tenant child attachment is rejected. Full suite green.
+**Tenancy data-model work COMPLETE** — every app table is hostname-scoped and DB-enforced.
+Deferred (edge case): widen agent_definitions/user_workspace_roots business uniques + agents ON CONFLICT
+to include hostname (auto-named unique drop isn't portable; only matters for multi-site same-user).
+
+### (historical) enforcement migration notes
 Make it DB-enforced like the CMS did: `SET NOT NULL`, `UNIQUE(id,hostname)` on the 6 roots, composite
 `(parent_id, hostname)` FKs on the 16 children (backfilling each child's hostname from its parent), and
 widen `agent_definitions`/`user_workspace_roots` business uniques + the agents ON CONFLICT to include
