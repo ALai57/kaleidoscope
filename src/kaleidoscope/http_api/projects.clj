@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [kaleidoscope.api.projects :as projects-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.projects :as persistence]
             [kaleidoscope.scoring.agents :as agents]
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
@@ -25,7 +26,7 @@
                                       :content     {"application/json"
                                                     {:schema [:any]}}}})
               :handler   (fn [{:keys [components] :as request}]
-                           (ok (projects-api/get-projects (:database components)
+                           (ok (projects-api/get-projects (tenant/scope (:database components) (hu/tenant-hostname request))
                                                           (:user-id (:identity request)))))}
 
         :post {:summary    "Create a project (triggers scoring against default definitions)"
@@ -44,7 +45,7 @@
                :handler    (fn [{:keys [components parameters] :as request}]
                             (try
                               (ok (projects-api/create-project!
-                                   (:database components)
+                                   (tenant/scope (:database components) (hu/tenant-hostname request))
                                    (:scorer components)
                                    (:workflow-executor components)
                                    (:user-id (:identity request))
@@ -66,7 +67,7 @@
                :handler   (fn [{:keys [components parameters] :as request}]
                             (let [project-id (:project-id (:path parameters))]
                               (if-let [project (projects-api/get-project
-                                                (:database components) project-id
+                                                (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                                 (:user-id (:identity request)))]
                                 (ok project)
                                 (not-found {:reason "Project not found"}))))}
@@ -89,7 +90,7 @@
                :handler   (fn [{:keys [components parameters] :as request}]
                             (let [project-id (:project-id (:path parameters))]
                               (if-let [project (projects-api/update-project!
-                                                (:database components) project-id
+                                                (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                                 (:user-id (:identity request)) (:body parameters))]
                                 (ok project)
                                 (not-found {:reason "Project not found"}))))}
@@ -101,7 +102,7 @@
                   :handler   (fn [{:keys [components parameters] :as request}]
                                (let [project-id (:project-id (:path parameters))]
                                  (if (projects-api/delete-project!
-                                      (:database components) project-id
+                                      (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                       (:user-id (:identity request)))
                                    {:status 204}
                                    (not-found {:reason "Project not found"}))))}}]
@@ -112,7 +113,7 @@
                 :handler   (fn [{:keys [components parameters] :as request}]
                              (let [project-id (:project-id (:path parameters))]
                                (if-let [notes (projects-api/get-notes
-                                               (:database components) project-id
+                                               (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                                (:user-id (:identity request)))]
                                  (ok notes)
                                  (not-found {:reason "Project not found"}))))}
@@ -125,7 +126,7 @@
                                 ;; Whisper integration can be added here by replacing :content
                                 ;; with the transcription result before persisting.
                                 (if-let [note (projects-api/create-note!
-                                               (:database components)
+                                               (tenant/scope (:database components) (hu/tenant-hostname request))
                                                project-id (:user-id (:identity request))
                                                {:content (get body-params :content "")
                                                 :source  source})]
@@ -138,7 +139,7 @@
                 :handler   (fn [{:keys [components parameters] :as request}]
                              (let [project-id (:project-id (:path parameters))]
                                (if-let [scores (projects-api/get-latest-scores
-                                                (:database components) project-id
+                                                (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                                 (:user-id (:identity request)))]
                                  (ok scores)
                                  (not-found {:reason "Project not found"}))))}
@@ -156,7 +157,7 @@
                                (let [project-id     (:project-id (:path parameters))
                                      definition-ids (:definition-ids (:body parameters))]
                                  (if-let [project (projects-api/score-project!
-                                                   (:database components)
+                                                   (tenant/scope (:database components) (hu/tenant-hostname request))
                                                    (:scorer components)
                                                    project-id (:user-id (:identity request)) definition-ids)]
                                    (ok project)
@@ -166,7 +167,7 @@
                         :handler   (fn [{:keys [components parameters] :as request}]
                                      (let [project-id (:project-id (:path parameters))]
                                        (ok (or (projects-api/get-score-history
-                                                (:database components) project-id
+                                                (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                                 (:user-id (:identity request)))
                                                []))))}}]
 
@@ -175,7 +176,7 @@
               :rate-limit {:max-requests 10 :window-ms 60000}
               :handler   (fn [{:keys [components body-params parameters] :as request}]
                            (let [project-id (:project-id (:path parameters))
-                                 db         (:database components)
+                                 db         (tenant/scope (:database components) (hu/tenant-hostname request))
                                  scorer     (:scorer components)
                                  params     {:dimension-name        (:dimension-name body-params)
                                              :rationale             (:rationale body-params)
@@ -198,7 +199,7 @@
                              (let [project-id (:project-id (:path parameters))
                                    agent-type (:agent (:path parameters))]
                                (ok (or (projects-api/get-conversation
-                                        (:database components)
+                                        (tenant/scope (:database components) (hu/tenant-hostname request))
                                         project-id (:user-id (:identity request)) agent-type)
                                        []))))}
 
@@ -210,7 +211,7 @@
                                     project-id (:project-id (:path parameters))
                                     agent-type (:agent (:path parameters))
                                     user-msg   (get (:body parameters) :message "")
-                                    db         (:database components)
+                                    db         (tenant/scope (:database components) (hu/tenant-hostname request))
                                     scorer     (:scorer components)]
                                 (if-not (persistence/get-project db project-id user-id)
                                   (not-found {:reason "Project not found"})
@@ -255,7 +256,7 @@
                 :handler   (fn [{:keys [components parameters] :as request}]
                              (let [project-id (:project-id (:path parameters))]
                                (ok (or (projects-api/get-skill-tree
-                                        (:database components) project-id
+                                        (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                         (:user-id (:identity request)))
                                        []))))}}]
 
@@ -263,7 +264,7 @@
                           :rate-limit {:max-requests 5 :window-ms 60000}
                           :handler   (fn [{:keys [components parameters] :as request}]
                                        (let [project-id (:project-id (:path parameters))
-                                             db         (:database components)
+                                             db         (tenant/scope (:database components) (hu/tenant-hostname request))
                                              scorer     (:scorer components)]
                                          (if-let [project (persistence/get-project db project-id
                                                                                     (:user-id (:identity request)))]
@@ -282,7 +283,7 @@
                               (let [project-id (:project-id (:path parameters))
                                     skill-id   (:skill-id (:path parameters))]
                                 (if-let [tree (projects-api/update-skill!
-                                               (:database components)
+                                               (tenant/scope (:database components) (hu/tenant-hostname request))
                                                project-id (:user-id (:identity request)) skill-id body-params)]
                                   (ok tree)
                                   (not-found {:reason "Project or skill not found"}))))}}]]]
@@ -302,7 +303,7 @@
                                (if (not-every? local-files/path-allowed? paths)
                                  (bad-request {:reason "One or more paths are not under an allowed root"})
                                  (if-let [project (projects-api/update-project!
-                                                    (:database components)
+                                                    (tenant/scope (:database components) (hu/tenant-hostname request))
                                                     project-id (:user-id (:identity request))
                                                     {:local-paths paths})]
                                    (ok project)
@@ -314,7 +315,7 @@
                 :handler (fn [{:keys [components parameters] :as request}]
                            (let [project-id (:project-id (:path parameters))]
                              (if-let [briefs (projects-api/get-all-briefs
-                                              (:database components) project-id
+                                              (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                               (:user-id (:identity request)))]
                                (ok briefs)
                                (not-found {:reason "Project not found"}))))}}]
@@ -324,7 +325,7 @@
              :handler (fn [{:keys [components parameters] :as request}]
                         (let [project-id (:project-id (:path parameters))]
                           (if-let [brief (projects-api/get-latest-brief
-                                          (:database components) project-id
+                                          (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                           (:user-id (:identity request)))]
                             (ok brief)
                             (not-found {:reason "No brief found for this project"}))))}}]
@@ -336,7 +337,7 @@
                         (let [project-id (:project-id (:path parameters))
                               version    (parse-long (:version (:path parameters)))]
                           (if-let [brief (projects-api/get-brief-by-version
-                                          (:database components) project-id
+                                          (tenant/scope (:database components) (hu/tenant-hostname request)) project-id
                                           (:user-id (:identity request)) version)]
                             (ok brief)
                             (not-found {:reason "Brief version not found"}))))}}]]]])

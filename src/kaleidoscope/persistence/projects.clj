@@ -21,10 +21,14 @@
   (status = \"interest\") — those are managed via /interests, not the
   projects API."
   [db user-id]
-  (next/execute! db
-                 ["SELECT * FROM projects WHERE user_id = ? AND status IS DISTINCT FROM ?"
-                  user-id "interest"]
-                 {:builder-fn rs/as-unqualified-kebab-maps}))
+  (let [hostname (tenant/hostname-of db)]
+    (next/execute! (tenant/unwrap db)
+                   (if hostname
+                     ["SELECT * FROM projects WHERE user_id = ? AND status IS DISTINCT FROM ? AND hostname = ?"
+                      user-id "interest" hostname]
+                     ["SELECT * FROM projects WHERE user_id = ? AND status IS DISTINCT FROM ?"
+                      user-id "interest"])
+                   {:builder-fn rs/as-unqualified-kebab-maps})))
 
 (defn get-project
   "Return a single project by id, checking user ownership."
@@ -99,28 +103,32 @@
 (defn get-default-score-definition-by-scorer-type
   "Return the first is_default=true score definition matching a scorer type, with dimensions."
   [db user-id scorer-type]
-  (when-let [defn (first (next/execute! db
-                                        (hsql/format {:select :*
-                                                      :from   :score-definitions
-                                                      :where  [:and
-                                                               [:= :user-id user-id]
-                                                               [:= :scorer-type scorer-type]
-                                                               [:= :is-default true]]
-                                                      :limit  1})
-                                        {:builder-fn rs/as-unqualified-kebab-maps}))]
+  (when-let [defn (first (let [hostname (tenant/hostname-of db)]
+                           (next/execute! (tenant/unwrap db)
+                                          (hsql/format {:select :*
+                                                        :from   :score-definitions
+                                                        :where  (cond-> [:and
+                                                                         [:= :user-id user-id]
+                                                                         [:= :scorer-type scorer-type]
+                                                                         [:= :is-default true]]
+                                                                  hostname (conj [:= :hostname hostname]))
+                                                        :limit  1})
+                                          {:builder-fn rs/as-unqualified-kebab-maps})))]
     (let [dims (get-score-dimension-definitions-raw db {:score-definition-id (:id defn)})]
       (assoc defn :dimensions (vec (sort-by :position dims))))))
 
 (defn get-default-score-definitions
   "Return all is_default=true score definitions with their dimensions."
   [db user-id]
-  (->> (next/execute! db
-                      (hsql/format {:select :*
-                                    :from   :score-definitions
-                                    :where  [:and
-                                             [:= :user-id user-id]
-                                             [:= :is-default true]]})
-                      {:builder-fn rs/as-unqualified-kebab-maps})
+  (->> (let [hostname (tenant/hostname-of db)]
+         (next/execute! (tenant/unwrap db)
+                        (hsql/format {:select :*
+                                      :from   :score-definitions
+                                      :where  (cond-> [:and
+                                                       [:= :user-id user-id]
+                                                       [:= :is-default true]]
+                                                hostname (conj [:= :hostname hostname]))})
+                        {:builder-fn rs/as-unqualified-kebab-maps}))
        (mapv (fn [defn]
                (let [dims (get-score-dimension-definitions-raw db {:score-definition-id (:id defn)})]
                  (assoc defn :dimensions (vec (sort-by :position dims))))))))
@@ -214,7 +222,7 @@
   "Get the next version number for a (project, definition) pair.
    Must be called inside a transaction."
   [tx project-id definition-id]
-  (let [result (first (next/execute! tx
+  (let [result (first (next/execute! (tenant/unwrap tx)
                                      (hsql/format {:select [[[:coalesce [:max :version] 0] :max-version]]
                                                    :from   :project-score-runs
                                                    :where  [:and
@@ -226,12 +234,12 @@
 (defn get-score-run
   "Return a score run with its dimension results."
   [db score-run-id]
-  (when-let [run (first (next/execute! db
+  (when-let [run (first (next/execute! (tenant/unwrap db)
                                        (hsql/format {:select :*
                                                      :from   :project-score-runs
                                                      :where  [:= :id score-run-id]})
                                        {:builder-fn rs/as-unqualified-kebab-maps}))]
-    (let [dims (next/execute! db
+    (let [dims (next/execute! (tenant/unwrap db)
                               (hsql/format {:select :*
                                             :from   :project-score-dimensions
                                             :where  [:= :score-run-id score-run-id]})
@@ -273,7 +281,7 @@
   [db run-ids]
   (if (empty? run-ids)
     []
-    (next/execute! db
+    (next/execute! (tenant/unwrap db)
                    (hsql/format {:select :*
                                  :from   :project-score-dimensions
                                  :where  [:in :score-run-id run-ids]})
@@ -282,22 +290,26 @@
 (defn get-latest-score-runs
   "Return the latest score run per definition for a project, with dimensions and definition info."
   [db project-id]
-  (let [latest-runs
+  (let [hostname (tenant/hostname-of db)
+        latest-runs
         (next/execute!
-         db
-         [(str "SELECT psr.id, psr.project_id, psr.score_definition_id, psr.version,"
-               "       psr.overall, psr.scored_at,"
-               "       sd.name AS definition_name, sd.scorer_type AS definition_scorer_type"
-               "  FROM project_score_runs psr"
-               "  JOIN score_definitions sd ON psr.score_definition_id = sd.id"
-               " WHERE psr.project_id = ?"
-               "   AND psr.version = ("
-               "       SELECT MAX(psr2.version)"
-               "         FROM project_score_runs psr2"
-               "        WHERE psr2.project_id = psr.project_id"
-               "          AND psr2.score_definition_id = psr.score_definition_id"
-               "   )")
-          project-id]
+         (tenant/unwrap db)
+         (into
+          [(str "SELECT psr.id, psr.project_id, psr.score_definition_id, psr.version,"
+                "       psr.overall, psr.scored_at,"
+                "       sd.name AS definition_name, sd.scorer_type AS definition_scorer_type"
+                "  FROM project_score_runs psr"
+                "  JOIN score_definitions sd ON psr.score_definition_id = sd.id"
+                " WHERE psr.project_id = ?"
+                (when hostname "   AND psr.hostname = ?")
+                "   AND psr.version = ("
+                "       SELECT MAX(psr2.version)"
+                "         FROM project_score_runs psr2"
+                "        WHERE psr2.project_id = psr.project_id"
+                "          AND psr2.score_definition_id = psr.score_definition_id"
+                "   )")
+           project-id]
+          (when hostname [hostname]))
          {:builder-fn rs/as-unqualified-kebab-maps})]
     (when (seq latest-runs)
       (let [run-ids    (mapv :id latest-runs)
@@ -317,7 +329,8 @@
 (defn get-score-history
   "Return all score runs for a project, all versions, all definitions."
   [db project-id]
-  (let [runs (next/execute! db
+  (let [hostname (tenant/hostname-of db)
+        runs (next/execute! (tenant/unwrap db)
                             (hsql/format
                              {:select [:psr/id
                                        :psr/project-id
@@ -329,7 +342,8 @@
                                        [:sd/scorer-type :definition-scorer-type]]
                               :from   [[:project-score-runs :psr]]
                               :join   [[:score-definitions :sd] [:= :psr/score-definition-id :sd/id]]
-                              :where  [:= :psr/project-id project-id]
+                              :where  (cond-> [:and [:= :psr/project-id project-id]]
+                                        hostname (conj [:= :psr/hostname hostname]))
                               :order-by [[:psr/scored-at :desc]]})
                             {:builder-fn rs/as-unqualified-kebab-maps})]
     (when (seq runs)
@@ -379,14 +393,16 @@
 (defn get-conversation
   "Return conversation history for a project + agent type, ordered by creation time."
   [db project-id agent-type]
-  (next/execute! db
-                 (hsql/format {:select   :*
-                                :from     :project-conversations
-                                :where    [:and
-                                           [:= :project-id project-id]
-                                           [:= :agent-type agent-type]]
-                                :order-by [[:created-at :asc]]})
-                 {:builder-fn rs/as-unqualified-kebab-maps}))
+  (let [hostname (tenant/hostname-of db)]
+    (next/execute! (tenant/unwrap db)
+                   (hsql/format {:select   :*
+                                  :from     :project-conversations
+                                  :where    (cond-> [:and
+                                                     [:= :project-id project-id]
+                                                     [:= :agent-type agent-type]]
+                                              hostname (conj [:= :hostname hostname]))
+                                  :order-by [[:created-at :asc]]})
+                   {:builder-fn rs/as-unqualified-kebab-maps})))
 
 (defn save-conversation-turn!
   "Persist a user message and the assistant reply as two rows."
@@ -417,12 +433,14 @@
 (defn get-skills
   "Return all skills for a project as a flat list."
   [db project-id]
-  (next/execute! db
-                 (hsql/format {:select   :*
-                                :from     :project-skills
-                                :where    [:= :project-id project-id]
-                                :order-by [[:position :asc]]})
-                 {:builder-fn rs/as-unqualified-kebab-maps}))
+  (let [hostname (tenant/hostname-of db)]
+    (next/execute! (tenant/unwrap db)
+                   (hsql/format {:select   :*
+                                  :from     :project-skills
+                                  :where    (cond-> [:and [:= :project-id project-id]]
+                                              hostname (conj [:= :hostname hostname]))
+                                  :order-by [[:position :asc]]})
+                   {:builder-fn rs/as-unqualified-kebab-maps})))
 
 (defn build-skill-tree
   "Convert a flat list of skills into a nested tree structure."
@@ -448,8 +466,9 @@
    skill-nodes: [{:name :description :parent :position}] (flat list, parent is referenced by name)"
   [db project-id skill-nodes]
   (next/with-transaction [tx db]
-    ;; Delete all existing skills
-    (next/execute! tx
+    ;; Delete all existing skills (raw; unwrap the scoped tx. FK-scoped by
+    ;; project-id, which is tenant-bound.)
+    (next/execute! (tenant/unwrap tx)
                    (hsql/format (-> (hh/delete-from :project-skills)
                                     (hh/where [:= :project-id project-id])))
                    {:builder-fn rs/as-unqualified-kebab-maps})
