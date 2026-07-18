@@ -3,6 +3,7 @@
             [honey.sql :as hsql]
             [honey.sql.helpers :as hh]
             [kaleidoscope.persistence.rdbms :as rdbms]
+            [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.utils.core :as utils]
             [next.jdbc :as next]
             [next.jdbc.result-set :as rs]
@@ -170,8 +171,9 @@
                                               scorer-type (assoc :scorer-type scorer-type))))]
       (when defn
         (when (some? dimensions)
-          ;; Replace all dimensions
-          (next/execute! tx
+          ;; Replace all dimensions (raw delete; unwrap so a scoped tx doesn't
+          ;; reach next/execute!. Scoped by the FK, which is tenant-bound.)
+          (next/execute! (tenant/unwrap tx)
                          (hsql/format (-> (hh/delete-from :score-dimension-definitions)
                                           (hh/where [:= :score-definition-id definition-id])))
                          {:builder-fn rs/as-unqualified-kebab-maps})

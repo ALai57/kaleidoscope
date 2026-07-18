@@ -1,6 +1,7 @@
 (ns kaleidoscope.http-api.score-definitions
   (:require [kaleidoscope.api.score-definitions :as score-defs-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.persistence.tenant :as tenant]
             [ring.util.http-response :refer [bad-request no-content not-found ok]]
             [taoensso.timbre :as log]))
 
@@ -44,7 +45,7 @@
                                                     {:schema [:any]}}}})
               :handler   (fn [{:keys [components] :as request}]
                            (let [user-id (:user-id (:identity request))]
-                             (ok (score-defs-api/get-score-definitions (:database components) user-id))))}
+                             (ok (score-defs-api/get-score-definitions (tenant/scope (:database components) (hu/tenant-hostname request)) user-id))))}
 
         :post {:summary    "Create a score definition"
                :responses  (merge hu/openapi-401
@@ -56,7 +57,7 @@
                             (let [user-id (:user-id (:identity request))]
                               (try
                                 (ok (score-defs-api/create-score-definition!
-                                     (:database components) user-id (:body parameters)))
+                                     (tenant/scope (:database components) (hu/tenant-hostname request)) user-id (:body parameters)))
                                 (catch Exception e
                                   (log/errorf "Error creating score definition: %s" e)
                                   (bad-request {:error (.getMessage e)})))))}}]
@@ -73,7 +74,7 @@
                :handler   (fn [{:keys [components parameters] :as request}]
                             (let [user-id (:user-id (:identity request))]
                               (if-let [defn (score-defs-api/get-score-definition
-                                             (:database components)
+                                             (tenant/scope (:database components) (hu/tenant-hostname request))
                                              user-id
                                              (:definition-id (:path parameters)))]
                                 (ok defn)
@@ -90,7 +91,7 @@
                             (let [user-id (:user-id (:identity request))
                                   def-id  (:definition-id (:path parameters))]
                               (if-let [result (score-defs-api/update-score-definition!
-                                               (:database components) user-id def-id (:body parameters))]
+                                               (tenant/scope (:database components) (hu/tenant-hostname request)) user-id def-id (:body parameters))]
                                 (ok result)
                                 (not-found {:reason "Score definition not found"}))))}
 
@@ -103,7 +104,7 @@
                                (let [user-id (:user-id (:identity request))
                                      def-id  (:definition-id (:path parameters))
                                      result  (score-defs-api/delete-score-definition!
-                                              (:database components) user-id def-id)]
+                                              (tenant/scope (:database components) (hu/tenant-hostname request)) user-id def-id)]
                                  (cond
                                    (:error result) (case (:error result)
                                                      :cannot-delete-default
