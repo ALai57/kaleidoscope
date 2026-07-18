@@ -88,6 +88,21 @@ auto-stamps writes, mirroring finder reads. `tenant/hostname-of` added. Verified
 - ✅ `workspace_roots` domain threaded (3 handlers scoped; finder/insert only, no raw reads) — proves
   the pattern: scope the handler's db → keystone stamps writes + finder reads auto-scope.
 
+### AI-engine domains — ALL THREADED ✅ (read-scope + write-stamp, committed, green)
+Every AI-engine handler scopes its db (`tenant/scope`); finder reads auto-scope, writes auto-stamp
+hostname via the keystone, and every raw `next/execute!` read was unwrapped (+ `[:= :hostname h]` on the
+user/project entry-points). Domains: workspace_roots, agents, score_definitions, tasks, interests
+(+recommendations), projects, workflows (+briefs). `tenant/scope` now THROWS on a nil hostname
+(fail-loud; the 5 bare http test-apps got a fixed-resolver).
+
+### REMAINING: enforcement migration (the capstone)
+Make it DB-enforced like the CMS did: `SET NOT NULL`, `UNIQUE(id,hostname)` on the 6 roots, composite
+`(parent_id, hostname)` FKs on the 16 children (backfilling each child's hostname from its parent), and
+widen `agent_definitions`/`user_workspace_roots` business uniques + the agents ON CONFLICT to include
+hostname. **Blocker:** ~60 api/persistence test create-sites use a RAW `embedded-pg` db (no hostname
+stamp → NULL rows), so they must be scoped or pass hostname before NOT NULL can land. App-level tenancy
+already works today (all prod writes go through scoped handlers); this migration is defense-in-depth.
+
 ### Remaining (precise, from the 2 inventory agents)
 Per domain: scope handlers to a `tenant/scope`d db, and for RAW `next/execute!` reads (which crash on a
 TenantConn) unwrap + add `[:= :hostname h]`. Then a final migration enforces.
