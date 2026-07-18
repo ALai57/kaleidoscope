@@ -1,40 +1,31 @@
 #!/usr/bin/env bash
-# Build the kaleidoscope-ui frontend and sync it to the ephemeral env's S3 prefix.
+# Deploy the kaleidoscope-ui frontend to an ephemeral env's S3 prefix.
 #
 #   scripts/ephemeral/build-frontend --name=<slug>
 #   scripts/ephemeral/build-frontend            # auto-detect + pick from deployed apps
 #
-# With --name the build syncs to kal-eph-<slug>'s S3 prefix directly. Without it,
-# the script lists the deployed kal-eph-* Fly apps and prompts you to pick one
-# (auto-selects when there's exactly one); pass --name to skip the prompt.
-#
-# `vite build` writes only index.html + hashed assets/* to
-# resources/kaleidoscope.client/static/dist/. Syncing that to
-# s3://kal-ephemeral/eph-<slug>/ lands index.html and assets/ exactly where the
-# prefixed kaleidoscope.client adapter fetches them (KALEIDOSCOPE_CLIENT_PREFIX,
-# set by deploy-app), so /, /index.html, and /assets/* serve this build.
-# Whatever kaleidoscope-ui is currently checked out is what ships.
+# The frontend now OWNS how it's built and shipped: `npm run ephemeral:deploy`
+# in kaleidoscope-ui resolves the slug (--name or interactive pick from the
+# deployed kal-eph-* Fly apps), runs `vite build --mode ephemeral`, and syncs the
+# dist to s3://kal-ephemeral/eph-<slug>/ where the prefixed kaleidoscope.client
+# adapter (KALEIDOSCOPE_CLIENT_PREFIX, set by deploy-app) serves it. This wrapper
+# just supplies staging AWS creds and a clean dep install, then delegates — the
+# backend no longer knows the frontend's build command or dist path.
 set -euo pipefail
 # shellcheck source=scripts/ephemeral/lib.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
 
-SLUG="$(resolve_slug_or_select "$@")"
-PREFIX="$(s3_prefix "$SLUG")"
-
 load_staging_env
 require_cmd npm
-require_cmd aws
 : "${AWS_ACCESS_KEY_ID:?set AWS_ACCESS_KEY_ID in $STAGING_ENV_FILE}"
 : "${AWS_SECRET_ACCESS_KEY:?set AWS_SECRET_ACCESS_KEY in $STAGING_ENV_FILE}"
 [ -d "$FRONTEND_DIR" ] || die "Frontend repo not found at $FRONTEND_DIR (override with FRONTEND_DIR=...)."
 
-log "Building frontend in $FRONTEND_DIR (npm ci && npm run build -- --mode ephemeral)..."
-( cd "$FRONTEND_DIR" && npm ci && npm run build -- --mode ephemeral)
+# load_staging_env exported AWS_* into the environment; the frontend's aws s3
+# sync inherits them as ambient creds. --name (from up, or the CLI) is forwarded
+# so the frontend targets the same slug; with no args the frontend prompts.
+log "Installing frontend deps (npm ci) in $FRONTEND_DIR ..."
+( cd "$FRONTEND_DIR" && npm ci )
 
-DIST="$FRONTEND_DIR/resources/kaleidoscope.client/static/dist"
-[ -f "$DIST/index.html" ] || die "Expected build output at $DIST/index.html — did vite's outDir change?"
-
-log "Syncing $DIST/ -> s3://$EPHEMERAL_BUCKET/$PREFIX ..."
-aws s3 sync "$DIST/" "s3://$EPHEMERAL_BUCKET/$PREFIX" --delete
-
-log "Frontend deployed to s3://$EPHEMERAL_BUCKET/$PREFIX"
+log "Delegating to frontend 'npm run ephemeral:deploy' in $FRONTEND_DIR ..."
+( cd "$FRONTEND_DIR" && npm run ephemeral:deploy -- "$@" )
