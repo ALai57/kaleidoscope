@@ -271,6 +271,34 @@ lossless — see below). Take a prod DB snapshot before starting.
 - **Per-tenant buckets** are kept as a read-only cold backup for one retention
   cycle after the soak, then deleted (confirm at Phase-2 close).
 
+### Reconciliation / reclamation (offline)
+
+The store is append-only: deleting a photo drops its row and leaves the blob (an
+orphan). Reclamation is a periodic offline job, never on the write path.
+
+- **`task media:reconcile`** (`scripts/media/reconcile` → `tasks/reconcile.clj`)
+  diffs the source of truth (live `photo_versions` rows) against the stored
+  objects: `orphans = stored − referenced` (quarantined to a `trash/` prefix,
+  later lifecycle-expired — **never hard-deleted**), `dangling = referenced −
+  stored` (alert: possible data loss), and `mismatched` (rows whose
+  `content_hash` disagrees with the stored bytes — the integrity pass that gives
+  the checksum column a present reader).
+- **The dangerous logic is typed and tested.** The set-math and safety gates live
+  in Clojure (`reconcile-plan`, unit-tested over in-memory sets), not bash — the
+  launcher is a thin `clojure -M -m` wrapper.
+- **Gated + reversible.** It refuses to quarantine when the referenced set shrank
+  suspiciously (>10% vs the last run) or a DB health check fails; orphans go to
+  `trash/` (reversible via bucket versioning), not a hard delete. Dry-run by
+  default; `APPLY=1` to act.
+- **Inputs.** `KALEIDOSCOPE_MEDIA_BUCKET`, `RECONCILE_STORED_KEYS` (a
+  newline-delimited keys file materialized from the bucket's S3 Inventory export
+  or `aws s3 ls s3://<bucket>/ --recursive | awk '{print $4}'`), and
+  `KALEIDOSCOPE_DB_*`. Optional: `RECONCILE_LAST_REFERENCED_COUNT` (shrink gate),
+  `RECONCILE_VERIFY_HASHES=1` (re-head + checksum each hashed object).
+- **NEVER reconcile against a corrupted index.** The index is the sole source of
+  truth for liveness/ownership — restore it from point-in-time recovery *first*.
+  Run cadence: monthly.
+
 ## Claude Code workspaces
 
 Kaleidoscope's AI features (the workflow engine and project scorer) call the

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Thin launcher for the offline media reconciliation / reclamation job.
+#
+#   scripts/media/reconcile                 # dry-run (default)
+#   RECONCILE_APPLY=1 scripts/media/reconcile
+#
+# ALL real logic — the dangerous set-math (orphans/dangling/mismatched) and the
+# safety gates (shrink, index-health) — is typed, unit-tested Clojure in
+# src/kaleidoscope/tasks/reconcile.clj. This script only execs it, so a
+# field-split surprise in bash can never mis-compute which bytes get quarantined.
+#
+# Required env:
+#   KALEIDOSCOPE_MEDIA_BUCKET   the media bucket to reconcile (e.g. kal-media-prod)
+#   RECONCILE_STORED_KEYS       newline-delimited keys file, materialized from the
+#                               bucket's S3 Inventory export (or
+#                               `aws s3 ls s3://<bucket>/ --recursive | awk '{print $4}'`)
+#   KALEIDOSCOPE_DB_*           index connection (NAME/HOST/PORT/USER/PASSWORD)
+# Optional env:
+#   RECONCILE_LAST_REFERENCED_COUNT  previous run's referenced count (shrink gate)
+#   RECONCILE_VERIFY_HASHES=1        re-head + checksum each hashed object (integrity)
+#   RECONCILE_APPLY=1                actually quarantine orphans to trash/ (default dry-run)
+#
+# NEVER run against a corrupted index — restore it from PITR first (see
+# docs/operations.md). Orphans are quarantined to a trash/ prefix (reversible via
+# bucket versioning), never hard-deleted.
+set -euo pipefail
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." &>/dev/null && pwd)"
+cd "$REPO_ROOT"
+exec clojure -A:dev -M -m kaleidoscope.tasks.reconcile "$@"

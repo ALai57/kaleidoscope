@@ -226,6 +226,23 @@ tasks:
       Usage: TARGET_URL=https://andrewslai.com task media:verify-resize
     cmd: ./scripts/media/verify-resize-roundtrip {{if .URL}}--url={{.URL}}{{end}}
 
+  media:reconcile:
+    desc: Offline reconciliation/reclamation of the media store (dry-run unless APPLY=1)
+    summary: |
+      Diffs the source of truth (live photo_versions rows) against the stored
+      objects: orphans = stored - referenced (quarantined to trash/, never hard
+      deleted), dangling = referenced - stored (data-loss alert), mismatched =
+      rows whose content_hash disagrees with the stored bytes (integrity alert).
+      Gated: refuses on a suspicious index shrink or a failed index-health check.
+      The set-math + gates are typed, unit-tested Clojure; this only launches it.
+      Required env: KALEIDOSCOPE_MEDIA_BUCKET, RECONCILE_STORED_KEYS (keys file
+      from the S3 Inventory export), KALEIDOSCOPE_DB_*. NEVER run against a
+      corrupted index — restore from PITR first. Monthly cadence.
+      Usage: task media:reconcile  OR  task media:reconcile APPLY=1
+    env:
+      RECONCILE_APPLY: '{{if eq .APPLY "1"}}1{{end}}'
+    cmd: ./scripts/media/reconcile
+
   deploy:otel-collector:
     desc: Deploy the OTEL collector to Fly.io
     dir: iac/otel-collector
