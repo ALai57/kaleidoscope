@@ -3,6 +3,7 @@
             [cheshire.core :as json]
             [kaleidoscope.api.albums :as albums-api]
             [kaleidoscope.http-api.http-utils :as hu]
+            [kaleidoscope.http-api.tenant :as http-tenant]
             [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.utils.core :as utils]
@@ -10,9 +11,6 @@
             [ring.util.http-response :refer [created not-found ok]]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
-
-(def MEDIA-FOLDER
-  "media")
 
 (defn get-file-extension
   "Return a safe file extension (letters/digits only, max 10 chars) from an
@@ -49,9 +47,11 @@
           hostname (hu/tenant-hostname req)
           extension (get-file-extension filename)
 
-          static-content-adapter (-> static-content-adapters
-                                     (get (hu/asset-store req))
-                                     (assoc :photos-folder MEDIA-FOLDER))]
+          ;; The single per-env media store when registered (bucket from config),
+          ;; else the request's per-tenant asset-store adapter (prod pre-cutover).
+          static-content-adapter (get static-content-adapters
+                                       http-tenant/media-store
+                                       (get static-content-adapters (hu/asset-store req)))]
       (try
         (albums-api/new-image (assoc components :static-content-adapter static-content-adapter)
                               hostname
@@ -67,10 +67,22 @@
    [:photo-id :uuid]
    [:image-category :string]
    [:path :string]
-   [:storage-driver :string]
-   [:storage-root :string]
    [:modified-at inst?]
    [:created-at inst?]])
+
+(defn serve-photo
+  "Serve a photo version's bytes. Reads the version row (tenant-scoped) for its
+  intrinsic `path`, then serves from the single per-env media store when
+  registered, else from the request's per-tenant asset-store adapter (prod
+  pre-cutover — behavior identical to before)."
+  [{:keys [components parameters] :as request}]
+  (span/with-span! {:name "kaleidoscope.photos.get-file"}
+    (let [db               (tenant/scope (:database components) (hu/tenant-hostname request))
+          [{:keys [path]}] (albums-api/get-full-photos db (:path parameters))
+          media-store      (get (:static-content-adapters components) http-tenant/media-store)]
+      (if media-store
+        (hu/adapter-response media-store (assoc request :uri path))
+        (hu/get-resource (:static-content-adapters components) (assoc request :uri path))))))
 
 (def CreatePhotoResponse
   [:map
@@ -174,12 +186,7 @@
                                                                          {:schema [:any]}}}})
                                   :parameters {:path {:photo-id :uuid
                                                       :filename string?}}
-                                  :handler    (fn [{:keys [components parameters] :as request}]
-                                                (span/with-span! {:name (format "kaleidoscope.photos.get-file")}
-                                                  (let [path-params (:path parameters)
-                                                        db          (tenant/scope (:database components) (hu/tenant-hostname request))
-                                                        [{:keys [path] :as version} :as photo-versions] (albums-api/get-full-photos db path-params)]
-                                                    (hu/get-resource (:static-content-adapters components) (assoc request :uri path)))))}}]
+                                  :handler    serve-photo}}]
 
    ])
 

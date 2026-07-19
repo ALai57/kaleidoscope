@@ -10,6 +10,13 @@
   fixed resolver points at. Shared with the s3 launcher in init/env.clj."
   "ephemeral-tenant-assets")
 
+(def media-store
+  "Name of the single per-environment media store (photos), registered by the s3
+  launcher when KALEIDOSCOPE_MEDIA_BUCKET is set. Resolved directly for photo
+  read/upload, independent of the request's per-tenant :asset-store — the object
+  key is intrinsic (media/<uuid>/...), the bucket comes from config."
+  "media")
+
 (defn host-resolver
  "Prod/local: the tenant is the request's Host header — hostname, name, and
   store all derive from it (the tenant's own bucket)."

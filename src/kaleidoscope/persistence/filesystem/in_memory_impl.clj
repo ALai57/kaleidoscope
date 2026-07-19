@@ -73,8 +73,7 @@
   [m]
   (assoc (map->MemFS m)
          :storage-driver "in-memory"
-         :storage-root "media"
-         :photos-folder "media-folder"))
+         :storage-root "media"))
 
 (def example-fs
   "An in-memory filesystem used for testing"

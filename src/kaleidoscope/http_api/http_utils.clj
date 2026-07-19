@@ -39,17 +39,18 @@
   or a route's `:store` shared store (e.g. the SPA shell) when named."
   [request] (:asset-store (:tenant request)))
 
-(defn get-resource
-  [static-content-adapters {:keys [uri headers] :as request}]
-  (log/infof "Getting resource at %s for %s" uri (asset-store request))
-  (let [bucket  (asset-store request)
-        adapter (get static-content-adapters bucket)
-        result  (when adapter
-                  (fs/get adapter uri (if-let [version (get-in request [:headers "if-none-match"])]
-                                        {:version version}
-                                        {})))]
+(defn adapter-response
+  "Build a Ring response for `uri` served from an explicit `adapter` (a
+  DistributedFileSystem). Callers that resolve the adapter by tenant use
+  `get-resource`; callers with a specific store (e.g. the media store) pass it
+  directly."
+  [adapter {:keys [uri] :as request}]
+  (let [result (when adapter
+                 (fs/get adapter uri (if-let [version (get-in request [:headers "if-none-match"])]
+                                       {:version version}
+                                       {})))]
     (cond
-      (nil? adapter)              (do (log/warnf "Invalid request: no static-content adapter for store %s" bucket)
+      (nil? adapter)              (do (log/warnf "Invalid request: no static-content adapter for uri %s" uri)
                                       {:status 404})
       (fs/folder? uri)            (-> {:status 200
                                        :body   result}
@@ -60,6 +61,11 @@
                                        :headers {"ETag" (fs/object-version result)}
                                        :body    (fs/object-content result)}
                                       (cc/cache-control uri)))))
+
+(defn get-resource
+  [static-content-adapters {:keys [uri] :as request}]
+  (log/infof "Getting resource at %s for %s" uri (asset-store request))
+  (adapter-response (get static-content-adapters (asset-store request)) request))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; HTTP responses

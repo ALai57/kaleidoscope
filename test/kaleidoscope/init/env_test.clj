@@ -1,6 +1,7 @@
 (ns kaleidoscope.init.env-test
   (:require [clojure.test :refer :all]
             [kaleidoscope.api.image-transcriber :as transcriber]
+            [kaleidoscope.http-api.tenant :as tenant]
             [kaleidoscope.init.env :as sut]
             [kaleidoscope.main :as main]
             [malli.instrument :as mi]))
@@ -81,6 +82,30 @@
       (is (nil? (notifier :subject             "image-resize-requested"
                           :message             "s3://host/media/photo/raw.png"
                           :message-attributes  {"hostname" "host" "extension" "png"}))))))
+
+(deftest media-store-is-plain-store-when-no-fallback
+  (let [adapters ((get-in sut/kaleidoscope-static-content-adapter-boot-instructions
+                          [:launchers "s3"])
+                  {"KALEIDOSCOPE_MEDIA_BUCKET" "kal-media"})]
+    (is (= "kal-media" (:bucket (get adapters tenant/media-store))))))
+
+(deftest media-store-is-read-through-overlay-when-fallback-set
+  (let [adapters ((get-in sut/kaleidoscope-static-content-adapter-boot-instructions
+                          [:launchers "s3"])
+                  {"KALEIDOSCOPE_MEDIA_BUCKET"          "kal-media"
+                   "KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET" "kal-media-prod"})
+        media    (get adapters tenant/media-store)]
+    (is (= "kal-media" (:bucket (:writer media))))                            ;; writes -> own bucket only
+    (is (= ["kal-media" "kal-media-prod"] (map :bucket (:readers media))))))  ;; reads -> own then prod
+
+(deftest media-store-absent-when-media-bucket-unset
+  ;; The Phase-1 linchpin: prod deploys this build with MEDIA_BUCKET unset, so
+  ;; the media store must simply not be registered (uploads/serves fall back to
+  ;; the per-tenant adapter, byte-identical to before).
+  (let [adapters ((get-in sut/kaleidoscope-static-content-adapter-boot-instructions
+                          [:launchers "s3"])
+                  {})]
+    (is (nil? (get adapters tenant/media-store)))))
 
 (deftest image-transcriber-boots-mock-by-default-test
   (testing "the default launcher yields a MockTranscriber under :kaleidoscope-image-transcriber"
