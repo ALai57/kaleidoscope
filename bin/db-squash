@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+## Squash a contiguous range of already-applied migrations.
+## See docs/operations.md ("Squashing migrations") for the ordered runbook.
+##
+## Usage:
+##   bin/db-squash <subcommand> [--environment=FILE] -- FROM TO [NAME]
+##
+## Subcommands:
+##   squash-list    Read-only preview of the migrations in [FROM TO].
+##   squash-create  Rewrite repo files, collapsing [FROM TO] into one. REWRITES REPO FILES.
+##   squash-apply   Reconcile ONE database's schema_migrations. Run per environment.
+
+SUBCOMMAND="$1"
+shift
+
+ENV_FILE=""
+ARGS=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --environment=*)
+            ENV_FILE="${1#*=}"
+            ;;
+        --)
+            shift
+            ARGS+=("$@")
+            break
+            ;;
+        *)
+            ARGS+=("$1")
+            ;;
+    esac
+    shift
+done
+
+## Validate the subcommand and its positional args before touching the JVM/DB, so a
+## missing FROM/TO fails with usage instead of a cryptic Clojure arity error.
+usage() {
+    cat >&2 <<'EOF'
+Usage: bin/db-squash <subcommand> [--environment=FILE] -- FROM TO [NAME]
+  squash-list   FROM TO        Preview the migrations in range (read-only)
+  squash-create FROM TO NAME   Collapse range into one file (REWRITES REPO FILES)
+  squash-apply  FROM TO NAME   Reconcile one database's schema_migrations
+
+FROM/TO are migration ids (inclusive); NAME is a kebab-case slug (not purely numeric).
+Squash runs against the Postgres connector, so target a real Postgres env, e.g.
+  task db:squash:list ENV=.env.aws -- 20260412000001 20260415000006
+EOF
+    exit 1
+}
+
+case "$SUBCOMMAND" in
+    squash-list)
+        [ "${#ARGS[@]}" -eq 2 ] || { echo "error: squash-list requires FROM TO" >&2; usage; } ;;
+    squash-create|squash-apply)
+        [ "${#ARGS[@]}" -eq 3 ] || { echo "error: $SUBCOMMAND requires FROM TO NAME" >&2; usage; } ;;
+    *)
+        echo "error: unknown subcommand '$SUBCOMMAND'" >&2; usage ;;
+esac
+
+## Apply the environment variable file if necessary
+if [ -n "$ENV_FILE" ]; then
+    echo "Applying environment file: $(pwd)/$ENV_FILE"
+    source "$ENV_FILE"
+fi
+
+echo "Running migration squash: ${SUBCOMMAND} ${ARGS[*]}"
+clojure -A:dev -M -m kaleidoscope.persistence.rdbms.migrations "$SUBCOMMAND" "${ARGS[@]}"

@@ -32,6 +32,20 @@ tasks:
     desc: Open a psql shell to the target database (default ENV=.env.local)
     cmd: ./bin/psql-connect --environment={{.ENV}}
 
+  db:squash:list:
+    desc: 'Preview the migrations a squash would collapse — read-only (usage: task db:squash:list -- FROM TO)'
+    cmd: ./bin/db-squash squash-list --environment={{.ENV}} -- {{.CLI_ARGS}}
+
+  db:squash:create:
+    desc: 'Collapse migrations [FROM TO] into one file — REWRITES REPO FILES (usage: task db:squash:create -- FROM TO NAME)'
+    prompt: This deletes the original migration files and writes one squashed file. Continue?
+    cmd: ./bin/db-squash squash-create --environment={{.ENV}} -- {{.CLI_ARGS}}
+
+  db:squash:apply:
+    desc: 'Reconcile ONE database''s schema_migrations after a squash — run per environment (usage: task db:squash:apply ENV=.env.aws -- FROM TO NAME)'
+    prompt: This rewrites schema_migrations on the target database. Continue?
+    cmd: ./bin/db-squash squash-apply --environment={{.ENV}} -- {{.CLI_ARGS}}
+
   build:uberjar:
     desc: Compile and package the standalone JAR
     cmd: ./bin/uberjar

@@ -35,6 +35,41 @@ where the migrated schema serves the still-running old code is safe. Avoid
 destructive column drops/renames in the same deploy as the code that stops using
 them — split those across two deploys.
 
+## Squashing migrations
+
+Migratus (>= 1.5) can collapse a contiguous run of **already-applied** migrations
+into a single file, via three Taskfile subcommands. Squashing is a manual, one-time
+repo operation — it is never part of `task deploy`.
+
+Squash is two-sided: `db:squash:create` rewrites the repo files (once), while
+`db:squash:apply` reconciles a single database's `schema_migrations` table (run once
+per durable database). The new file reuses the **highest id** in the range, so a DB
+that already applied the originals never re-runs it, and a fresh DB simply runs the
+one combined file.
+
+**Hard precondition:** every durable environment must have applied the *entire* range
+before you squash. `db:squash:create` deletes the granular files, so a database left
+mid-range would desync permanently. `squash-create`/`squash-list` themselves refuse
+to run if any migration in range is unapplied in the connected DB.
+
+Squashing `FROM`..`TO`, in this exact order:
+
+1. **Bring every durable DB current.** `task db:migrate ENV=.env.aws` (prod Neon) and
+   any other long-lived DB, until `task db:squash:list ENV=<env> -- FROM TO` returns
+   clean against each.
+2. **Preview (read-only):** `task db:squash:list -- FROM TO`.
+3. **Rewrite files against a fully-applied local DB:** `task db:migrate` then
+   `task db:squash:create -- FROM TO consolidate-<slug>`. Review the generated file
+   and commit the deletions + new file together.
+4. **Reconcile each durable DB:** `task db:squash:apply ENV=.env.aws -- FROM TO consolidate-<slug>`
+   (repeat per durable env). This mutates only the tracking table; it runs no SQL.
+5. **Disposable DBs need nothing.** Local embedded, CI, and ephemeral Neon branches are
+   created fresh and run the new combined file. For your own dev DB, `task db:reset` is
+   simpler than `squash:apply`.
+
+The squash `NAME` must not be purely numeric (ids are parsed as numbers; kebab-case
+names are left as strings). The underlying runner is `bin/db-squash`.
+
 ## Synthetic monitoring (Checkly)
 
 Synthetic checks live in `checkly/` as a standard Playwright project
