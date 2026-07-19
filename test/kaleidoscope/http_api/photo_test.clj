@@ -53,7 +53,7 @@
     (photo/process-photo-upload! req file)
 
     (testing "The photo bytes land in the isolated asset store, not the pinned tenant's own bucket"
-      (is (match? {photo/MEDIA-FOLDER map?} @ephemeral-store))
+      (is (match? {albums-api/MEDIA-FOLDER map?} @ephemeral-store))
       (is (= {} @tenant-store)))
 
     (testing "The DB photo row is scoped to the pinned tenant, not the raw ephemeral Host header"

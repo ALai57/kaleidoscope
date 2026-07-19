@@ -141,27 +141,174 @@ tenant hostname and serves that tenant's content in isolation.
   photos — reads and writes against this one pinned tenant's DB rows, so the
   Neon branch must actually contain that tenant's data (see the DB-seeding
   prerequisite below).
-- **Isolated assets.** `/static/*` and `/media/*` are served from
+- **Isolated site chrome.** `/static/*` is served from
   `s3://kal-ephemeral/tenant-assets/<slug>/` — an S3 prefix scoped to this one
   ephemeral env (`KALEIDOSCOPE_TENANT_ASSET_BUCKET`/`_PREFIX`), never the real
   per-tenant bucket from `resources/tenants.json`.
   `task ephemeral:seed-tenant-assets NAME=<slug> TENANT=<hostname>` (run by
   `up`, before `deploy-app`) syncs
-  `test-resources/ephemeral-sample-assets/<hostname>/` into that prefix, so
-  ephemeral reads and writes never touch prod media. The same split makes
-  uploads safe: a photo upload writes its bytes to the isolated
-  `tenant-assets/<slug>/` store while the DB row is recorded under the
-  pinned tenant — there is no path from an ephemeral upload back to prod
-  media.
+  `test-resources/ephemeral-sample-assets/<hostname>/` into that prefix.
+- **Photos: per-env media bucket + read-through (no seeding).** Photos are
+  served and uploaded via a single media store (`KALEIDOSCOPE_MEDIA_BUCKET`),
+  keyed by the object's intrinsic identity (`media/<uuid>/<category>.<ext>`) —
+  the same key resolves in every environment. Each ephemeral env gets its **own
+  disposable bucket** `kal-eph-<slug>-media` (created on `up`, emptied+deleted
+  on `down` — the bucket **is** the namespace, so keys carry no prefix) and
+  **reads through to prod media read-only** via
+  `KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET`. Existing photos load with **zero
+  copy/seed** — the branched DB's `media/<uuid>/…` keys resolve against the env's
+  own bucket for its uploads, else the immutable prod corpus. New uploads land
+  in the env's own bucket and are disposed whole at teardown. Pre-Phase-2 the
+  read-through source is the pinned tenant's own bucket (`PROD_MEDIA_BUCKET`
+  defaults to `$TENANT`); set `PROD_MEDIA_BUCKET=kal-media-prod` after
+  consolidation. Isolation is structural: the media store is a `ReadThroughFS`
+  whose *writer* is the env's own bucket, so an ephemeral env can never mutate
+  the shared read-only prod media (see `persistence/filesystem/read_through.clj`).
+- **IAM grants (ephemeral user).** The ephemeral deploy IAM user needs, beyond
+  its existing `kal-ephemeral` access: (a) `s3:CreateBucket`/`s3:DeleteBucket`
+  + object read-write scoped to the `kal-eph-*-media` name pattern (per-env
+  bucket lifecycle + uploads), and (b) **read-only** (`s3:GetObject`) on the
+  prod media bucket(s) it reads through to — the least-privilege tradeoff of
+  read-through. Pre-Phase-2 that read grant spans every tenant bucket a shared
+  ephemeral user might read; it narrows to `kal-media-prod` after consolidation.
 - **Notifier disabled.** `deploy-app` sets `KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE=none`
   so any image upload against an ephemeral env can't trigger the production
   resize/notification topic.
+- **Orphaned media buckets.** A *failed* teardown (crashed `down`, killed CI
+  job) can leave a `kal-eph-<slug>-media` bucket behind — each holds a live
+  read credential on prod media and counts against the ~100/account bucket
+  ceiling. `task ephemeral:reap` finds and (with `--apply`) deletes per-env
+  media buckets whose Fly app no longer exists; run it by hand when orphans are
+  suspected (auto-scheduling is a deferred follow-up).
 - **`KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS`/`_BUCKET`/`_PREFIX` are removed** —
   superseded by the fixed-resolver + tenant-asset vars above.
 - **DB-seeding prerequisite.** The Neon branch (`provision-db`) must already
   contain the pinned tenant's rows — especially `themes` — or the env boots
   fine but renders empty content for that tenant. Ephemeral envs branch from
   `staging`, so keep `staging` seeded with every onboarded tenant's data.
+
+## Media object storage
+
+Photos live in a single per-environment object store, keyed by the object's
+intrinsic identity (`media/<photo-id>/<category>.<ext>`) — never by tenant,
+hostname, environment, or bucket. Location is `f(intrinsic-id, env-config)`: the
+object supplies the key, the environment supplies the bucket.
+
+- **Env vars.** `KALEIDOSCOPE_MEDIA_BUCKET` selects the bucket photos serve and
+  upload from (prod: `kal-media-prod`). When unset, the app falls back to the
+  per-tenant asset adapter — prod runs this way until the Phase-2 cutover, so
+  deploying the media code to prod is inert until the bucket is set.
+  `KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET` (optional, ephemeral only) makes the media
+  store a read-through overlay that reads prod media read-only after its own
+  bucket (see "Ephemeral tenancy / asset isolation").
+- **Consolidation (Phase-2 prerequisite).** Prod media currently lives in the
+  per-tenant buckets (`andrewslai.com`, `caheriaguilar.com`,
+  `sahiltalkingcents.com`, `wedding`). `task media:consolidate`
+  (`scripts/media/consolidate-buckets`) server-side-syncs each bucket's `media/`
+  prefix into `s3://kal-media-prod/media/`. Because keys are UUID paths, the
+  buckets merge losslessly (no `--delete`, no collisions). It is idempotent —
+  run it incrementally before the maintenance window, then once more in-window
+  to catch the delta — and verifies a sample of objects, failing loudly on any
+  miss.
+- **The resizer follows the URL.** On upload the app derives the raw object's
+  `s3://bucket/key` from the store's `write-location` and puts that in the
+  resize-notify message body. The deployed Lambda parses only that URL and writes
+  renditions into that same bucket; it reads no message attributes and its IAM
+  already covers `s3:::*`, so **the resizer needs no code or IAM change** when the
+  media bucket flips — it follows whatever bucket the URL names. The
+  `photo_resize_contract_test` pins this message shape in CI.
+- **Resize round-trip fitness function.** `task media:verify-resize`
+  (`scripts/media/verify-resize-roundtrip`, `TARGET_URL=<env>`) uploads a photo
+  and polls until its resized rendition appears, failing loudly and naming the
+  broken hop (notify shape, SNS→SQS subscription, or the resizer Lambda/IAM). It
+  is the authoritative reopen gate for the Phase-2 window and should run on a
+  schedule against prod so a drifted resizer contract surfaces as an alert, not
+  a user-reported blank gallery. Needs `AUTH0_CLIENT_ID`/`AUTH0_CLIENT_SECRET`.
+
+### Phase-2 prod cutover runbook (one maintenance window)
+
+The media code (media store, `new-image`'s `write-location` notify, the
+read/write routing) and the `DROP COLUMN storage_root/storage_driver` migration
+already shipped on `master`. Prod may already be running that build but is
+**inert** with `KALEIDOSCOPE_MEDIA_BUCKET` unset — old per-tenant adapter, notify
+URL unchanged, columns harmlessly dropped. This window is **operational only**.
+We accept brief downtime (single-owner CMS) rather than an expand/contract dance;
+the tradeoff is that code and schema roll back together (the migration `down` is
+lossless — see below). Take a prod DB snapshot before starting.
+
+1. **Quiesce.** Stop the prod app (or enable maintenance mode) so no photo is
+   written mid-cutover.
+2. **Final consolidation.** `task media:consolidate` once more so `kal-media-prod`
+   holds every object written since the last incremental sync; the script's
+   sample verification must pass.
+3. **Resizer — verify only, nothing to deploy.** The resizer is bucket-agnostic
+   (parses `s3://bucket/key` from the message body, writes renditions into that
+   same bucket, IAM already grants `s3:::*`). Confirm `new-image`'s URL is built
+   from `write-location` (so it names `kal-media-prod` post-flip) and the
+   SNS→SQS subscription still delivers. There is no resizer cutover ordering — it
+   follows whatever bucket the URL names.
+4. **Deploy the current build to prod.** Applies the `DROP COLUMN` migration
+   (co-shipped with the code that stopped writing the columns → safe) and ships
+   the media-store write + `write-location` `s3://…` notify.
+5. **Flip.** Set `KALEIDOSCOPE_MEDIA_BUCKET=kal-media-prod` in prod secrets and
+   restart. Prod now serves and writes the single bucket and notifies the resizer
+   with `bucket=kal-media-prod`.
+6. **Gate + reopen.** Quick eyeball:
+   ```bash
+   curl -s -o /dev/null -w "existing: %{http_code}\n" "https://andrewslai.com/v2/photos/<known-id>/raw.JPG"   # 200
+   curl -s -F "file=@sample.jpg" "https://andrewslai.com/v2/photos"                                           # 201; note id
+   curl -s -o /dev/null -w "gallery: %{http_code}\n" "https://andrewslai.com/v2/photos/<id>/gallery.jpg"      # 200 once the resizer runs
+   ```
+   The **authoritative reopen gate is `task media:verify-resize`** — reopen only
+   when it exits green.
+
+- **Rollback lever.** If the smoke test fails, unset `KALEIDOSCOPE_MEDIA_BUCKET`
+  (prod reverts to the per-tenant bucket + old adapter; the notify URL is
+  unchanged so the old resizer still works). If the schema must revert too, run
+  the migration `down` (`resources/migrations/…-drop-photo-storage-location.down.sql`
+  — re-add + backfill `storage_root = hostname`, `storage_driver = 's3'`;
+  derivable, lossless). The pre-window DB snapshot is the backstop.
+- **Per-tenant buckets** are kept as a read-only cold backup for one retention
+  cycle after the soak, then deleted (confirm at Phase-2 close).
+
+### Reconciliation / reclamation (offline)
+
+The store is append-only: deleting a photo drops its row and leaves the blob (an
+orphan). Reclamation is a periodic offline job, never on the write path.
+
+- **`task media:reconcile`** (`scripts/media/reconcile` → `tasks/reconcile.clj`)
+  diffs the source of truth (live `photo_versions` rows) against the stored
+  objects: `orphans = stored − referenced` (quarantined to a `trash/` prefix,
+  later lifecycle-expired — **never hard-deleted**), `dangling = referenced −
+  stored` (alert: possible data loss), and `mismatched` (rows whose
+  `content_hash` disagrees with the stored bytes — the integrity pass that gives
+  the checksum column a present reader).
+- **The dangerous logic is typed and tested.** The set-math and safety gates live
+  in Clojure (`reconcile-plan`, unit-tested over in-memory sets), not bash — the
+  launcher is a thin `clojure -M -m` wrapper.
+- **Gated + reversible.** It refuses to quarantine when the referenced set shrank
+  suspiciously (>10% vs the last run) or a DB health check fails; orphans go to
+  `trash/` (reversible via bucket versioning), not a hard delete. Dry-run by
+  default; `APPLY=1` to act.
+- **Inputs.** `KALEIDOSCOPE_MEDIA_BUCKET`, `RECONCILE_STORED_KEYS` (a
+  newline-delimited keys file materialized from the bucket's S3 Inventory export
+  or `aws s3 ls s3://<bucket>/ --recursive | awk '{print $4}'`), and
+  `KALEIDOSCOPE_DB_*`. Optional: `RECONCILE_LAST_REFERENCED_COUNT` (shrink gate),
+  `RECONCILE_VERIFY_HASHES=1` (re-head + checksum each hashed object).
+- **NEVER reconcile against a corrupted index.** The index is the sole source of
+  truth for liveness/ownership — restore it from point-in-time recovery *first*.
+  Run cadence: monthly.
+
+### Bucket lifecycle & versioning
+
+Configure on the media bucket(s) (`kal-media-prod`) — via the console or IaC:
+
+- **Versioning: enabled** — makes deletes (including reconciliation's) reversible.
+- **Lifecycle rules:** (a) abort incomplete multipart uploads after 7 days;
+  (b) transition cold objects to a cheaper class (Intelligent-Tiering, or
+  IA→Glacier) — bounds even orphaned bytes to cold-tier pricing; (c) expire the
+  `trash/` prefix after a retention window (e.g. 4 weeks); (d) expire noncurrent
+  versions after N days.
 
 ## Claude Code workspaces
 

@@ -36,6 +36,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def MEDIA-FOLDER
+  "The intrinsic key prefix for every media object: media/<photo-id>/<cat>.<ext>.
+  A fixed constant, not read off the store — the key is a pure function of the
+  object's identity, never of which tenant/bucket/env serves it (see PLAN.md)."
+  "media")
+
+(defn sha256-hex
+  "Lowercase hex SHA-256 of a byte array. Bytes are masked to unsigned before
+  formatting so no byte renders as a sign-extended multi-digit value."
+  [^bytes ba]
+  (let [digest (.digest (java.security.MessageDigest/getInstance "SHA-256") ba)]
+    (apply str (map #(format "%02x" (bit-and % 0xff)) digest))))
+
 (def get-photos
   (rdbms/make-finder :photos))
 
@@ -102,16 +115,14 @@
    ])
 
 (defn make-image-version
-  [static-content-adapter photo-id hostname extension now-time image-version-name]
+  [_static-content-adapter photo-id hostname extension now-time image-version-name]
   (let [id (utils/uuid)
         image-category (name image-version-name)
-        path (format "%s/%s/%s.%s" (:photos-folder static-content-adapter) photo-id image-category extension)]
+        path (format "%s/%s/%s.%s" MEDIA-FOLDER photo-id image-category extension)]
     (-> {:image-category image-category
          :photo-id       photo-id
          :hostname       hostname
          :id             id
-         :storage-driver (:storage-driver static-content-adapter)
-         :storage-root   (:storage-root static-content-adapter)
          :path           path
          :filename       (format "%s.%s" image-category extension)
          :created-at     now-time
@@ -140,19 +151,34 @@
 
         photo (create-photo! database {:id photo-id :hostname hostname})
 
-        versions (map (partial make-image-version static-content-adapter photo-id hostname extension now-time) IMAGE-VERSIONS)
-        results (create-photo-version-2! database versions)]
+        ;; Checksum the uploaded bytes and stamp it on the RAW version only — the
+        ;; other categories are renditions the resizer produces later (different
+        ;; bytes, checksum out of scope here). Nil on the rest keeps the inserted
+        ;; rows column-uniform. Reconciliation verifies stored bytes against this.
+        content-hash (str "sha256:" (sha256-hex (java.nio.file.Files/readAllBytes (.toPath ^java.io.File tempfile))))
+        versions (map (fn [image-version-name]
+                        (assoc (make-image-version static-content-adapter photo-id hostname extension now-time image-version-name)
+                               :content-hash (when (= :raw image-version-name) content-hash)))
+                      IMAGE-VERSIONS)
+        results (create-photo-version-2! database versions)
+
+        ;; Compute the raw object's location ONCE, from the store's own
+        ;; write-location, and reuse it for both the write and the resize notify —
+        ;; so "where the raw is" cannot be derived twice and drift (any :prefix is
+        ;; folded in automatically). The resizer parses this s3://bucket/key from
+        ;; the message body and writes renditions into that same bucket.
+        raw-key              (format "%s/%s/raw.%s" MEDIA-FOLDER photo-id extension)
+        {:keys [bucket key]} (fs/write-location static-content-adapter raw-key)]
 
     (fs/put-file static-content-adapter
-                 (format "%s/%s/raw.%s" (:photos-folder static-content-adapter) photo-id extension)
+                 raw-key
                  (u/->file-input-stream tempfile)
                  (dissoc file :tempfile :file-input-stream))
     (try
-      (let [image-path (format "s3://%s/media/%s/raw.%s" hostname photo-id extension)]
+      (let [image-path (format "s3://%s/%s" bucket key)]
         (log/infof "Notifying image resizer for async processing of %s" image-path)
         (notify-image-resizer! :subject "image-resize-requested"
-                               :message image-path
-                               :message-attributes {"hostname" hostname "extension" extension}))
+                               :message image-path))
       (catch Throwable e
         (log/errorf "Caught error publishing to Image Notifier topic for image '%s'" filename)
         (log/error (ex-message e))

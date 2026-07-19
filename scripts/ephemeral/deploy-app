@@ -15,10 +15,16 @@ APP="$(fly_app_name "$SLUG")"
 BRANCH="$(neon_branch_name "$SLUG")"
 
 # The pinned tenant this env impersonates (Task 5's registry) and the isolated
-# S3 prefix its /static/*, /media/* are served from — see seed-tenant-assets.
+# S3 prefix its /static/* site chrome is served from — see seed-tenant-assets.
 TENANT="${TENANT:-$DEFAULT_TENANT}"
 known_tenant? "$TENANT" || die "Unknown TENANT '$TENANT' (not in $TENANTS_FILE)."
 ASSET_PREFIX="$(tenant_asset_prefix "$SLUG")"
+
+# Photos: this env's own media bucket (writes) reading through to prod media
+# read-only. Pre-Phase-2 the read-through source is the pinned tenant's own
+# bucket (= $TENANT); set PROD_MEDIA_BUCKET=kal-media-prod after consolidation.
+MEDIA_BUCKET="$(media_bucket "$SLUG")"
+PROD_MEDIA_BUCKET="${PROD_MEDIA_BUCKET:-$TENANT}"
 
 load_staging_env
 require_cmd fly
@@ -74,10 +80,14 @@ parse_conn_string "$(neon_conn_string "$BRANCH")"
 # [env] above so there's no conflicting definition (see PLAN's convention note).
 # The frontend/static keys below live only in secrets — no [env] entry to delete.
 #   KALEIDOSCOPE_CLIENT_BUCKET/_PREFIX       -> /, /index.html, /assets/* (the SPA shell)
-#   KALEIDOSCOPE_TENANT_ASSET_BUCKET/_PREFIX -> the pinned tenant's /static/*, /media/*,
+#   KALEIDOSCOPE_TENANT_ASSET_BUCKET/_PREFIX -> the pinned tenant's /static/* site chrome,
 #                                                served from the isolated tenant-assets/<slug>/
 #                                                prefix (seed-tenant-assets), never the real
 #                                                per-tenant bucket.
+#   KALEIDOSCOPE_MEDIA_BUCKET                 -> photos: this env's own disposable bucket
+#                                                (writes land here, disposed at teardown)
+#   KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET        -> read-through source for existing photos:
+#                                                prod media, read-only (no copy/seed)
 PREFIX="$(s3_prefix "$SLUG")"
 
 # Guard: the backend is about to serve /, /index.html, /assets/* from this exact
@@ -112,6 +122,8 @@ fly secrets set --app "$APP" --stage \
   KALEIDOSCOPE_TENANT="$TENANT" \
   KALEIDOSCOPE_TENANT_ASSET_BUCKET="$EPHEMERAL_BUCKET" \
   KALEIDOSCOPE_TENANT_ASSET_PREFIX="$ASSET_PREFIX" \
+  KALEIDOSCOPE_MEDIA_BUCKET="$MEDIA_BUCKET" \
+  KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET="$PROD_MEDIA_BUCKET" \
   KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE="none" \
   KALEIDOSCOPE_RECIPE_FETCHER_TYPE="${KALEIDOSCOPE_RECIPE_FETCHER_TYPE:-none}" \
   FIRECRAWL_API_KEY="${FIRECRAWL_API_KEY:-}" \

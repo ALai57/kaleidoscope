@@ -14,6 +14,7 @@
             [kaleidoscope.http-api.virtual-hosting :as vh]
             [kaleidoscope.persistence.filesystem.in-memory-impl :as memory]
             [kaleidoscope.persistence.filesystem.local :as local-fs]
+            [kaleidoscope.persistence.filesystem.read-through :as rt]
             [kaleidoscope.persistence.filesystem.s3-impl :as s3-storage]
             [kaleidoscope.http-api.auth.access-control :as ac]
             [kaleidoscope.api.firecrawl :as firecrawl]
@@ -244,7 +245,20 @@
                                                     (s3-storage/make-s3
                                                      (cond-> {:bucket (get env "KALEIDOSCOPE_TENANT_ASSET_BUCKET")}
                                                        (get env "KALEIDOSCOPE_TENANT_ASSET_PREFIX")
-                                                       (assoc :prefix (get env "KALEIDOSCOPE_TENANT_ASSET_PREFIX")))))))
+                                                       (assoc :prefix (get env "KALEIDOSCOPE_TENANT_ASSET_PREFIX")))))
+
+                                             ;; The single per-env media store (photos). Bucket from config; keys are
+                                             ;; the intrinsic media/<uuid>/... path (no prefix — the bucket is the
+                                             ;; namespace). With a fallback bucket it read-throughs to prod media
+                                             ;; read-only: writes hit only the own bucket, reads try own then prod.
+                                             (get env "KALEIDOSCOPE_MEDIA_BUCKET")
+                                             (assoc tenant/media-store
+                                                    (let [own  (s3-storage/make-s3 {:bucket (get env "KALEIDOSCOPE_MEDIA_BUCKET")})
+                                                          prod (when-let [b (get env "KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET")]
+                                                                 (s3-storage/make-s3 {:bucket b}))]
+                                                      (if prod
+                                                        (rt/->ReadThroughFS own [own prod])
+                                                        own)))))
                "in-memory"        (fn [_env] {"kaleidoscope.pub"                 (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "kaleidoscope.client"              (memory/make-mem-fs {:store (atom memory/example-fs)})
                                               "andrewslai.com"                   (memory/make-mem-fs {:store (atom memory/example-fs)})

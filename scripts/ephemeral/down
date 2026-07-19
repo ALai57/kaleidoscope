@@ -32,6 +32,9 @@ fly apps destroy "$APP" --yes || warn "Fly app '$APP' not destroyed (may not exi
 log "Emptying S3 prefix s3://$EPHEMERAL_BUCKET/$(s3_prefix "$SLUG") ..."
 aws s3 rm "s3://$EPHEMERAL_BUCKET/$(s3_prefix "$SLUG")" --recursive || warn "S3 prefix not emptied (may be empty already)."
 
+# The env's own media bucket is disposed whole — no per-env leak to reconcile.
+empty_and_delete_media_bucket "$(media_bucket "$SLUG")"
+
 if neon_branch_exists "$BRANCH"; then
   log "Deleting Neon branch '$BRANCH'..."
   neonctl branches delete "$BRANCH" \

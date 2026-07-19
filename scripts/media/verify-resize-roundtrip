@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# End-to-end fitness function for the image-resize pipeline: upload a photo and
+# assert a rendition appears. Proves the whole chain — upload -> write-location
+# s3://bucket/key notify -> SNS -> SQS -> resizer Lambda -> rendition in the
+# media bucket -> served back — still works, not just the cutover moment.
+#
+#   TARGET_URL=https://andrewslai.com scripts/media/verify-resize-roundtrip
+#   scripts/media/verify-resize-roundtrip --url=https://kal-eph-pr-42.fly.dev
+#
+# Run as the FINAL post-flip gate in the Phase-2 runbook (replacing reliance on
+# the eyeball curl) and on a schedule against prod so a drifted resizer contract
+# surfaces as an alert, not a user-reported blank gallery. Fails loudly (non-zero
+# exit) naming the broken hop.
+#
+# Auth: uses the same Auth0 M2M client-credentials flow as scripts/ephemeral/
+# smoke-test (the /v2/photos routes require a token). Set AUTH0_CLIENT_ID and
+# AUTH0_CLIENT_SECRET.
+set -euo pipefail
+
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." &>/dev/null && pwd)"
+
+TARGET_URL="${TARGET_URL:-https://andrewslai.com}"
+for arg in "$@"; do
+  case "$arg" in
+    --url=*) TARGET_URL="${arg#*=}" ;;
+    *) printf 'Unknown argument: %s\n' "$arg" >&2; exit 2 ;;
+  esac
+done
+
+FIXTURE="${FIXTURE:-$REPO_ROOT/resources/avatars/happy_emoji.jpg}"
+TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-120}"
+POLL_INTERVAL="${POLL_INTERVAL:-5}"
+AUTH0_DOMAIN="${AUTH0_DOMAIN:-dev-722l4eivlaenj2h1.us.auth0.com}"
+AUTH0_AUDIENCE="${AUTH0_AUDIENCE:-https://api.andrewslai.com}"
+
+log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+require_cmd() { command -v "$1" >/dev/null 2>&1 || die "Required command not found on PATH: $1"; }
+
+require_cmd curl
+require_cmd jq
+[ -f "$FIXTURE" ] || die "Fixture image not found: $FIXTURE (set FIXTURE=<path>)."
+if [ -z "${AUTH0_CLIENT_ID:-}" ] || [ -z "${AUTH0_CLIENT_SECRET:-}" ]; then
+  die "Set AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET (the /v2/photos routes require a token)."
+fi
+
+# The rendition filename mirrors the upload's extension: happy_emoji.jpg -> gallery.jpg.
+ext="${FIXTURE##*.}"
+ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+
+log "Fetching Auth0 M2M token..."
+TOKEN="$(curl -s -X POST "https://${AUTH0_DOMAIN}/oauth/token" \
+  -H 'Content-Type: application/json' \
+  -d "{\"grant_type\":\"client_credentials\",\"client_id\":\"${AUTH0_CLIENT_ID}\",\"client_secret\":\"${AUTH0_CLIENT_SECRET}\",\"audience\":\"${AUTH0_AUDIENCE}\"}" \
+  | jq -r '.access_token')"
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+  die "Could not obtain M2M token — check AUTH0_CLIENT_ID/SECRET and API authorization."
+fi
+
+log "Uploading $FIXTURE to $TARGET_URL/v2/photos ..."
+upload_response="$(curl -sf -X POST -H "Authorization: Bearer $TOKEN" \
+  -F "file=@$FIXTURE" "$TARGET_URL/v2/photos")" \
+  || die "Upload hop failed: POST $TARGET_URL/v2/photos did not return success."
+
+# The create response is a JSON array of {photo-id, versions}.
+photo_id="$(printf '%s' "$upload_response" | jq -r '.[0]["photo-id"]')"
+if [ -z "$photo_id" ] || [ "$photo_id" = "null" ]; then
+  die "Upload hop failed: no photo-id in response: $upload_response"
+fi
+log "Uploaded photo-id=$photo_id; polling for the resized gallery rendition..."
+
+gallery_url="$TARGET_URL/v2/photos/$photo_id/gallery.$ext"
+tmpbody="$(mktemp)"
+trap 'rm -f "$tmpbody"' EXIT
+
+deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  code="$(curl -s -o "$tmpbody" -w '%{http_code}' -H "Authorization: Bearer $TOKEN" "$gallery_url" || echo 000)"
+  if [ "$code" = "200" ] && [ -s "$tmpbody" ]; then
+    log "PASS  resize round-trip: gallery.$ext for $photo_id is present ($(wc -c < "$tmpbody") bytes)."
+    exit 0
+  fi
+  sleep "$POLL_INTERVAL"
+done
+
+die "Resize hop failed: $gallery_url did not return a non-empty 200 within ${TIMEOUT_SECONDS}s (last status: ${code:-none}). Check notify shape, SNS->SQS subscription, or the resizer Lambda/IAM."

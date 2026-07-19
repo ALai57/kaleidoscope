@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Reap orphaned per-env media buckets left behind by a FAILED ephemeral teardown.
+#
+#   scripts/ephemeral/reap-orphan-buckets              # dry-run (default): print the kill list
+#   scripts/ephemeral/reap-orphan-buckets --apply      # actually empty + delete them
+#
+# `down` empties-then-deletes kal-eph-<slug>-media on teardown, but a crashed
+# `down`, killed CI job, or AWS hiccup can leave one behind — each holds a live
+# read credential on prod media and eats into the ~100/account bucket ceiling.
+# This finds every kal-eph-*-media bucket whose Fly app (kal-eph-<slug>) no
+# longer exists and deletes it. Run by hand when orphans are suspected;
+# auto-scheduling is a deferred follow-up.
+#
+# Safety:
+#   - Only ever touches buckets matching the kal-eph-*-media name pattern (a
+#     prod or per-tenant bucket can never match), and only when the matching
+#     Fly app is absent.
+#   - Refuses to reap a bucket younger than a grace period (default 6h,
+#     REAP_GRACE_HOURS) so an env mid-provision — bucket created, Fly app not
+#     yet — is never swept.
+#   - --dry-run is the default; nothing is deleted without --apply.
+#   - Aborts if it can't list Fly apps (can't prove liveness → never reap blind).
+set -euo pipefail
+# shellcheck source=scripts/ephemeral/lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
+
+APPLY=0
+for arg in "$@"; do
+  case "$arg" in
+    --apply)   APPLY=1 ;;
+    --dry-run) APPLY=0 ;;
+    *) die "Unknown argument '$arg' (expected --apply or --dry-run)." ;;
+  esac
+done
+
+GRACE_SECONDS=$(( ${REAP_GRACE_HOURS:-6} * 3600 ))
+
+load_staging_env
+require_cmd aws
+require_cmd jq
+require_cmd fly
+
+# The set of live ephemeral slugs. If this can't be determined (fly not
+# authenticated), the whole script aborts under set -e — better than reaping a
+# bucket whose app we simply failed to see.
+LIVE_SLUGS="$(list_ephemeral_slugs)"
+is_live_slug() { printf '%s\n' "$LIVE_SLUGS" | grep -qxF "$1"; }
+
+if [ "$APPLY" = "1" ]; then
+  log "Reaping orphaned media buckets (--apply): buckets with no live Fly app, older than $((GRACE_SECONDS / 3600))h, will be DELETED."
+else
+  log "Dry-run (default): listing orphaned media buckets. Re-run with --apply to delete."
+fi
+
+reaped=0
+kept=0
+# Candidate buckets: name matches kal-eph-*-media AND older than the grace
+# period. jq's `now` is the current epoch; normalize the AWS +00:00 offset to Z
+# so fromdateiso8601 can parse CreationDate.
+while IFS= read -r bucket; do
+  [ -n "$bucket" ] || continue
+  slug="${bucket#kal-eph-}"
+  slug="${slug%-media}"
+  if is_live_slug "$slug"; then
+    log "KEEP  $bucket  (Fly app $(fly_app_name "$slug") is live)"
+    kept=$((kept + 1))
+  elif [ "$APPLY" = "1" ]; then
+    log "REAP  $bucket  (no live Fly app) — deleting"
+    empty_and_delete_media_bucket "$bucket"
+    reaped=$((reaped + 1))
+  else
+    log "REAP  $bucket  (no live Fly app) — would delete (pass --apply)"
+    reaped=$((reaped + 1))
+  fi
+done < <(aws s3api list-buckets --output json \
+           | jq -r --argjson grace "$GRACE_SECONDS" '
+               .Buckets[]
+               | select(.Name | test("^kal-eph-.+-media$"))
+               | (.CreationDate | sub("\\+00:00$"; "Z") | fromdateiso8601) as $created
+               | select((now - $created) > $grace)
+               | .Name')
+
+if [ "$APPLY" = "1" ]; then
+  log "Done. Reaped $reaped orphan bucket(s); kept $kept live."
+else
+  log "Done (dry-run). $reaped orphan bucket(s) would be reaped; $kept live kept. Re-run with --apply to delete."
+fi

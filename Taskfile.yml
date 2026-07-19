@@ -190,6 +190,59 @@ tasks:
     interactive: true
     cmd: ./scripts/ephemeral/checkly-test {{if .NAME}}--name={{.NAME}}{{end}}
 
+  ephemeral:reap:
+    desc: Reap orphaned per-env media buckets left by failed teardowns (dry-run unless APPLY=1)
+    summary: |
+      Finds every kal-eph-*-media bucket whose Fly app (kal-eph-<slug>) no longer
+      exists — the residue of a crashed `down` or killed CI job — and deletes it.
+      Each orphan holds a live read credential on prod media and counts against
+      the ~100/account bucket ceiling. Dry-run by default (prints the kill list);
+      pass APPLY=1 to actually empty+delete. A grace period (REAP_GRACE_HOURS,
+      default 6) protects a bucket whose env is still mid-provision. Run by hand
+      when orphans are suspected; auto-scheduling is a deferred follow-up.
+      Usage: task ephemeral:reap  OR  task ephemeral:reap APPLY=1
+    cmd: ./scripts/ephemeral/reap-orphan-buckets {{if eq .APPLY "1"}}--apply{{else}}--dry-run{{end}}
+
+  media:consolidate:
+    desc: Consolidate every per-tenant media bucket into kal-media-prod (Phase-2 prerequisite)
+    summary: |
+      Server-side `aws s3 sync` of each per-tenant bucket's media/ prefix (from
+      resources/tenants.json) into s3://kal-media-prod/media/. UUID-keyed objects
+      merge losslessly (no --delete). Idempotent — run incrementally before the
+      maintenance window, then once more in-window to catch the delta. Verifies a
+      sample of consolidated objects and fails loudly on any miss.
+      Usage: task media:consolidate  OR  PROD_MEDIA_BUCKET=kal-media-prod task media:consolidate
+    cmd: ./scripts/media/consolidate-buckets
+
+  media:verify-resize:
+    desc: Upload a photo and assert a rendition appears — end-to-end resize fitness function
+    summary: |
+      Drives the whole resize chain against a live env: upload -> write-location
+      s3://bucket/key notify -> SNS -> SQS -> resizer Lambda -> rendition served
+      back. Polls GET /v2/photos/<id>/gallery.<ext> until 200 or timeout and fails
+      loudly naming the broken hop. Use as the final post-flip gate in the Phase-2
+      runbook (replacing the eyeball curl) and on a schedule against prod.
+      Needs AUTH0_CLIENT_ID/SECRET. TARGET_URL selects the env (default prod).
+      Usage: TARGET_URL=https://andrewslai.com task media:verify-resize
+    cmd: ./scripts/media/verify-resize-roundtrip {{if .URL}}--url={{.URL}}{{end}}
+
+  media:reconcile:
+    desc: Offline reconciliation/reclamation of the media store (dry-run unless APPLY=1)
+    summary: |
+      Diffs the source of truth (live photo_versions rows) against the stored
+      objects: orphans = stored - referenced (quarantined to trash/, never hard
+      deleted), dangling = referenced - stored (data-loss alert), mismatched =
+      rows whose content_hash disagrees with the stored bytes (integrity alert).
+      Gated: refuses on a suspicious index shrink or a failed index-health check.
+      The set-math + gates are typed, unit-tested Clojure; this only launches it.
+      Required env: KALEIDOSCOPE_MEDIA_BUCKET, RECONCILE_STORED_KEYS (keys file
+      from the S3 Inventory export), KALEIDOSCOPE_DB_*. NEVER run against a
+      corrupted index — restore from PITR first. Monthly cadence.
+      Usage: task media:reconcile  OR  task media:reconcile APPLY=1
+    env:
+      RECONCILE_APPLY: '{{if eq .APPLY "1"}}1{{end}}'
+    cmd: ./scripts/media/reconcile
+
   deploy:otel-collector:
     desc: Deploy the OTEL collector to Fly.io
     dir: iac/otel-collector

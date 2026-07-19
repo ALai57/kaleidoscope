@@ -52,8 +52,6 @@
   {:photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4" ;; From db-seed
    :hostname       "andrewslai.com"
    :path           "some/path"
-   :storage-driver "local"
-   :storage-root   "resources/"
    :filename       "100x100.jpeg"
    :image-category "thumbnail"})
 
@@ -230,21 +228,17 @@
                                                                                       "thumbnail")]))))
 
     (testing "Can retrieve the version from the DB"
-      (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
+      (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
                     :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                     :hostname       "andrewslai.com"
-                    :filename       "thumbnail.png"
-                    :storage-driver "in-memory"
-                    :storage-root   "media"}]
+                    :filename       "thumbnail.png"}]
                   (albums-api/get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
     (testing "Can retrieve the version from the DB with string"
-      (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
+      (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
                     :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                     :hostname       "andrewslai.com"
-                    :filename       "thumbnail.png"
-                    :storage-driver "in-memory"
-                    :storage-root   "media"}]
+                    :filename       "thumbnail.png"}]
                   (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))))
 
 
@@ -261,21 +255,17 @@
                                                                           "thumbnail")])
 
       (testing "Can retrieve the version from the DB"
-        (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
+        (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
                       :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                       :hostname       "andrewslai.com"
-                      :filename       "thumbnail.png"
-                      :storage-driver "in-memory"
-                      :storage-root   "media"}]
+                      :filename       "thumbnail.png"}]
                     (albums-api/get-full-photos database {:id #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
       (testing "Can retrieve the version from the DB with string"
-        (is (match? [{:path           (re-pattern (format "media-folder/%s/thumbnail.png" UUID-REGEX))
+        (is (match? [{:path           (re-pattern (format "media/%s/thumbnail.png" UUID-REGEX))
                       :photo-id       #uuid "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"
                       :hostname       "andrewslai.com"
-                      :filename       "thumbnail.png"
-                      :storage-driver "in-memory"
-                      :storage-root   "media"}]
+                      :filename       "thumbnail.png"}]
                     (albums-api/get-full-photos database {:id "f3c84f81-4c9f-42c0-9e68-c4aeedf7cae4"})))))))
 
 
@@ -298,12 +288,10 @@
                                          :file-input-stream (u/->file-input-stream (io/file (io/resource "public/images/lock.svg")))}))))
 
     (testing "Can retrieve the version from the DB"
-      (is (match? [{:path           (re-pattern (format "media-folder/%s/raw.png" UUID-REGEX))
+      (is (match? [{:path           (re-pattern (format "media/%s/raw.png" UUID-REGEX))
                     :photo-id       #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"
                     :hostname       "andrewslai.com"
-                    :filename       "raw.png"
-                    :storage-driver "in-memory"
-                    :storage-root   "media"}
+                    :filename       "raw.png"}
                    {:filename "thumbnail.png"}
                    {:filename "gallery.png"}
                    {:filename "monitor.png"}
@@ -311,12 +299,10 @@
                   (albums-api/get-full-photos database {:id #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
     (testing "Can retrieve the version from the DB with string"
-      (is (match? [{:path           (re-pattern (format "media-folder/%s/raw.png" UUID-REGEX))
+      (is (match? [{:path           (re-pattern (format "media/%s/raw.png" UUID-REGEX))
                     :photo-id       #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"
                     :hostname       "andrewslai.com"
-                    :filename       "raw.png"
-                    :storage-driver "in-memory"
-                    :storage-root   "media"}
+                    :filename       "raw.png"}
                    {:filename "thumbnail.png"}
                    {:filename "gallery.png"}
                    {:filename "monitor.png"}
@@ -324,22 +310,47 @@
                   (albums-api/get-full-photos database {:id "11111111-4c9f-42c0-9e68-c4aeedf7cae4"}))))
 
     (testing "Sends notifications"
-      (is (= [{:message            "s3://andrewslai.com/media/11111111-4c9f-42c0-9e68-c4aeedf7cae4/raw.png"
-               :subject            "image-resize-requested"
-               :message-attributes {"hostname"  "andrewslai.com"
-                                    "extension" "png"}}]
+      ;; The resize notify message is the raw's write-location URL (s3://bucket/key),
+      ;; derived once and reused for the write. The in-memory store reports its
+      ;; :storage-root ("media") as the bucket; a real S3 store reports the host
+      ;; bucket. No message-attributes — the resizer reads only the URL body.
+      (is (= [{:message "s3://media/media/11111111-4c9f-42c0-9e68-c4aeedf7cae4/raw.png"
+               :subject "image-resize-requested"}]
              @captured-notification)))
     (testing "File exists in Filesystem"
-      (is (match? {"media-folder"
+      (is (match? {"media"
                    {"11111111-4c9f-42c0-9e68-c4aeedf7cae4"
                     {"raw.png"
-                     {:path     (re-pattern (format "media-folder/%s/raw.png" UUID-REGEX))
+                     {:path     (re-pattern (format "media/%s/raw.png" UUID-REGEX))
                       :name     "raw.png"
                       :content  tu/file-input-stream?
                       :metadata {:filename      "myfile.png"
                                  :more-metadata 12345}
                       }}}}
                   @mock-fs)))))
+
+(deftest new-image-sets-content-hash-on-raw-only-test
+  ;; Phase 3: the raw version carries a sha256 checksum of the uploaded bytes,
+  ;; consumed by reconciliation. Renditions (thumbnail/gallery/...) are produced
+  ;; later by the resizer, so they carry no hash yet. Read from the base table
+  ;; (get-photo-versions) — the full_photos view intentionally omits content_hash.
+  (let [database (embedded-h2/fresh-db!)
+        img      (io/file (io/resource "public/images/example-image.png"))
+        expected (str "sha256:" (albums-api/sha256-hex (java.nio.file.Files/readAllBytes (.toPath img))))
+        {:keys [photo-id]} (albums-api/new-image {:database               database
+                                                  :static-content-adapter (in-mem/make-mem-fs {:store (atom {})})
+                                                  :notify-image-resizer!  (fn [& _] nil)}
+                                                 "andrewslai.com"
+                                                 {:filename  "example-image.png"
+                                                  :extension "png"
+                                                  :tempfile  img})
+        by-cat   (into {} (map (juxt :image-category identity))
+                       (albums-api/get-photo-versions database {:photo-id photo-id}))]
+    (testing "the raw version's content_hash is sha256 of the uploaded bytes"
+      (is (= expected (:content-hash (get by-cat "raw")))))
+    (testing "rendition versions carry no content_hash yet"
+      (is (nil? (:content-hash (get by-cat "thumbnail"))))
+      (is (nil? (:content-hash (get by-cat "gallery")))))))
 
 (deftest get-full-photos-scoped-handle-confines-by-tenant-test
   ;; The photo GET handlers used to thread :hostname into the query map by
