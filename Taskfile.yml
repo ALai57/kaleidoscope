@@ -190,6 +190,19 @@ tasks:
     interactive: true
     cmd: ./scripts/ephemeral/checkly-test {{if .NAME}}--name={{.NAME}}{{end}}
 
+  ephemeral:reap:
+    desc: Reap orphaned per-env media buckets left by failed teardowns (dry-run unless APPLY=1)
+    summary: |
+      Finds every kal-eph-*-media bucket whose Fly app (kal-eph-<slug>) no longer
+      exists — the residue of a crashed `down` or killed CI job — and deletes it.
+      Each orphan holds a live read credential on prod media and counts against
+      the ~100/account bucket ceiling. Dry-run by default (prints the kill list);
+      pass APPLY=1 to actually empty+delete. A grace period (REAP_GRACE_HOURS,
+      default 6) protects a bucket whose env is still mid-provision. Run by hand
+      when orphans are suspected; auto-scheduling is a deferred follow-up.
+      Usage: task ephemeral:reap  OR  task ephemeral:reap APPLY=1
+    cmd: ./scripts/ephemeral/reap-orphan-buckets {{if eq .APPLY "1"}}--apply{{else}}--dry-run{{end}}
+
   deploy:otel-collector:
     desc: Deploy the OTEL collector to Fly.io
     dir: iac/otel-collector
