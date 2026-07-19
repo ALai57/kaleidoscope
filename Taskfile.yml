@@ -214,6 +214,18 @@ tasks:
       Usage: task media:consolidate  OR  PROD_MEDIA_BUCKET=kal-media-prod task media:consolidate
     cmd: ./scripts/media/consolidate-buckets
 
+  media:verify-resize:
+    desc: Upload a photo and assert a rendition appears — end-to-end resize fitness function
+    summary: |
+      Drives the whole resize chain against a live env: upload -> write-location
+      s3://bucket/key notify -> SNS -> SQS -> resizer Lambda -> rendition served
+      back. Polls GET /v2/photos/<id>/gallery.<ext> until 200 or timeout and fails
+      loudly naming the broken hop. Use as the final post-flip gate in the Phase-2
+      runbook (replacing the eyeball curl) and on a schedule against prod.
+      Needs AUTH0_CLIENT_ID/SECRET. TARGET_URL selects the env (default prod).
+      Usage: TARGET_URL=https://andrewslai.com task media:verify-resize
+    cmd: ./scripts/media/verify-resize-roundtrip {{if .URL}}--url={{.URL}}{{end}}
+
   deploy:otel-collector:
     desc: Deploy the OTEL collector to Fly.io
     dir: iac/otel-collector

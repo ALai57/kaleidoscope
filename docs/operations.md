@@ -217,6 +217,13 @@ object supplies the key, the environment supplies the bucket.
   already covers `s3:::*`, so **the resizer needs no code or IAM change** when the
   media bucket flips — it follows whatever bucket the URL names. The
   `photo_resize_contract_test` pins this message shape in CI.
+- **Resize round-trip fitness function.** `task media:verify-resize`
+  (`scripts/media/verify-resize-roundtrip`, `TARGET_URL=<env>`) uploads a photo
+  and polls until its resized rendition appears, failing loudly and naming the
+  broken hop (notify shape, SNS→SQS subscription, or the resizer Lambda/IAM). It
+  is the authoritative reopen gate for the Phase-2 window and should run on a
+  schedule against prod so a drifted resizer contract surfaces as an alert, not
+  a user-reported blank gallery. Needs `AUTH0_CLIENT_ID`/`AUTH0_CLIENT_SECRET`.
 
 ## Claude Code workspaces
 
