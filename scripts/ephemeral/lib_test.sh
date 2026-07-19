@@ -72,6 +72,10 @@ check "resolve_slug_or_select honors --name" "recipes" "$(resolve_slug_or_select
 # tenant_asset_prefix: pure string helper, mirrors s3_prefix's shape.
 check "tenant_asset_prefix formats the S3 key prefix" "tenant-assets/my-slug/" "$(tenant_asset_prefix my-slug)"
 
+# media_bucket: pure string helper — the per-env media bucket name. The bucket
+# IS the namespace, so this must be globally unique per slug (no prefix in keys).
+check "media_bucket formats the per-env media bucket name" "kal-eph-my-slug-media" "$(media_bucket my-slug)"
+
 # known_tenant?: validates a hostname against the real tenant registry
 # (resources/tenants.json) via jq. A known hostname exits 0; an unknown one
 # (typo, never-registered domain) exits non-zero so callers can `die` loudly

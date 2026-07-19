@@ -141,21 +141,45 @@ tenant hostname and serves that tenant's content in isolation.
   photos — reads and writes against this one pinned tenant's DB rows, so the
   Neon branch must actually contain that tenant's data (see the DB-seeding
   prerequisite below).
-- **Isolated assets.** `/static/*` and `/media/*` are served from
+- **Isolated site chrome.** `/static/*` is served from
   `s3://kal-ephemeral/tenant-assets/<slug>/` — an S3 prefix scoped to this one
   ephemeral env (`KALEIDOSCOPE_TENANT_ASSET_BUCKET`/`_PREFIX`), never the real
   per-tenant bucket from `resources/tenants.json`.
   `task ephemeral:seed-tenant-assets NAME=<slug> TENANT=<hostname>` (run by
   `up`, before `deploy-app`) syncs
-  `test-resources/ephemeral-sample-assets/<hostname>/` into that prefix, so
-  ephemeral reads and writes never touch prod media. The same split makes
-  uploads safe: a photo upload writes its bytes to the isolated
-  `tenant-assets/<slug>/` store while the DB row is recorded under the
-  pinned tenant — there is no path from an ephemeral upload back to prod
-  media.
+  `test-resources/ephemeral-sample-assets/<hostname>/` into that prefix.
+- **Photos: per-env media bucket + read-through (no seeding).** Photos are
+  served and uploaded via a single media store (`KALEIDOSCOPE_MEDIA_BUCKET`),
+  keyed by the object's intrinsic identity (`media/<uuid>/<category>.<ext>`) —
+  the same key resolves in every environment. Each ephemeral env gets its **own
+  disposable bucket** `kal-eph-<slug>-media` (created on `up`, emptied+deleted
+  on `down` — the bucket **is** the namespace, so keys carry no prefix) and
+  **reads through to prod media read-only** via
+  `KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET`. Existing photos load with **zero
+  copy/seed** — the branched DB's `media/<uuid>/…` keys resolve against the env's
+  own bucket for its uploads, else the immutable prod corpus. New uploads land
+  in the env's own bucket and are disposed whole at teardown. Pre-Phase-2 the
+  read-through source is the pinned tenant's own bucket (`PROD_MEDIA_BUCKET`
+  defaults to `$TENANT`); set `PROD_MEDIA_BUCKET=kal-media-prod` after
+  consolidation. Isolation is structural: the media store is a `ReadThroughFS`
+  whose *writer* is the env's own bucket, so an ephemeral env can never mutate
+  the shared read-only prod media (see `persistence/filesystem/read_through.clj`).
+- **IAM grants (ephemeral user).** The ephemeral deploy IAM user needs, beyond
+  its existing `kal-ephemeral` access: (a) `s3:CreateBucket`/`s3:DeleteBucket`
+  + object read-write scoped to the `kal-eph-*-media` name pattern (per-env
+  bucket lifecycle + uploads), and (b) **read-only** (`s3:GetObject`) on the
+  prod media bucket(s) it reads through to — the least-privilege tradeoff of
+  read-through. Pre-Phase-2 that read grant spans every tenant bucket a shared
+  ephemeral user might read; it narrows to `kal-media-prod` after consolidation.
 - **Notifier disabled.** `deploy-app` sets `KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE=none`
   so any image upload against an ephemeral env can't trigger the production
   resize/notification topic.
+- **Orphaned media buckets.** A *failed* teardown (crashed `down`, killed CI
+  job) can leave a `kal-eph-<slug>-media` bucket behind — each holds a live
+  read credential on prod media and counts against the ~100/account bucket
+  ceiling. `task ephemeral:reap` finds and (with `--apply`) deletes per-env
+  media buckets whose Fly app no longer exists; run it by hand when orphans are
+  suspected (auto-scheduling is a deferred follow-up).
 - **`KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS`/`_BUCKET`/`_PREFIX` are removed** —
   superseded by the fixed-resolver + tenant-asset vars above.
 - **DB-seeding prerequisite.** The Neon branch (`provision-db`) must already

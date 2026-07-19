@@ -114,6 +114,42 @@ otel_service_name() { printf 'kal-eph-%s' "$1"; }
 s3_prefix()         { printf 'eph-%s/' "$1"; }
 tenant_asset_prefix() { printf 'tenant-assets/%s/' "$1"; }
 
+# --- per-env media bucket (photos) -------------------------------------------
+# Each ephemeral env writes photos to its OWN disposable bucket (created on up,
+# emptied+deleted on down) and reads through to prod media read-only. The bucket
+# IS the namespace — keys are the bare intrinsic media/<uuid>/... path, no prefix
+# — so teardown is one whole-bucket delete with no per-env leak to reconcile.
+# The read-through source (KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET) is the pinned
+# tenant's own bucket pre-Phase-2 (PROD_MEDIA_BUCKET defaults to $TENANT in
+# deploy-app), and kal-media-prod after consolidation.
+media_bucket() { printf 'kal-eph-%s-media' "$1"; }
+
+# Create the per-env media bucket idempotently. us-east-1 rejects an explicit
+# LocationConstraint; every other region requires one — handle both.
+create_media_bucket() {
+  local bucket="$1" region="${AWS_REGION:-us-east-1}"
+  if aws s3api head-bucket --bucket "$bucket" 2>/dev/null; then
+    warn "Media bucket '$bucket' already exists — reusing it."
+    return 0
+  fi
+  log "Creating per-env media bucket '$bucket' in $region..."
+  if [ "$region" = "us-east-1" ]; then
+    aws s3api create-bucket --bucket "$bucket" --region "$region"
+  else
+    aws s3api create-bucket --bucket "$bucket" --region "$region" \
+      --create-bucket-configuration "LocationConstraint=$region"
+  fi
+}
+
+# Empty then delete the per-env media bucket (a bucket must be empty to delete).
+# Best-effort: a missing/already-empty bucket is not an error at teardown.
+empty_and_delete_media_bucket() {
+  local bucket="$1"
+  log "Emptying + deleting per-env media bucket '$bucket'..."
+  aws s3 rm "s3://$bucket" --recursive || warn "Media bucket '$bucket' not emptied (may be empty already)."
+  aws s3api delete-bucket --bucket "$bucket" || warn "Media bucket '$bucket' not deleted (may not exist)."
+}
+
 # --- ephemeral app discovery -------------------------------------------------
 # Turn `fly apps list --json` (on stdin) into the slug of every kal-eph-* app,
 # one per line. Pure (no fly/network) so it's unit-testable against fixtures.
