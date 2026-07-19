@@ -42,6 +42,13 @@
   object's identity, never of which tenant/bucket/env serves it (see PLAN.md)."
   "media")
 
+(defn sha256-hex
+  "Lowercase hex SHA-256 of a byte array. Bytes are masked to unsigned before
+  formatting so no byte renders as a sign-extended multi-digit value."
+  [^bytes ba]
+  (let [digest (.digest (java.security.MessageDigest/getInstance "SHA-256") ba)]
+    (apply str (map #(format "%02x" (bit-and % 0xff)) digest))))
+
 (def get-photos
   (rdbms/make-finder :photos))
 
@@ -144,7 +151,15 @@
 
         photo (create-photo! database {:id photo-id :hostname hostname})
 
-        versions (map (partial make-image-version static-content-adapter photo-id hostname extension now-time) IMAGE-VERSIONS)
+        ;; Checksum the uploaded bytes and stamp it on the RAW version only — the
+        ;; other categories are renditions the resizer produces later (different
+        ;; bytes, checksum out of scope here). Nil on the rest keeps the inserted
+        ;; rows column-uniform. Reconciliation verifies stored bytes against this.
+        content-hash (str "sha256:" (sha256-hex (java.nio.file.Files/readAllBytes (.toPath ^java.io.File tempfile))))
+        versions (map (fn [image-version-name]
+                        (assoc (make-image-version static-content-adapter photo-id hostname extension now-time image-version-name)
+                               :content-hash (when (= :raw image-version-name) content-hash)))
+                      IMAGE-VERSIONS)
         results (create-photo-version-2! database versions)
 
         ;; Compute the raw object's location ONCE, from the store's own

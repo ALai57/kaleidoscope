@@ -329,6 +329,29 @@
                       }}}}
                   @mock-fs)))))
 
+(deftest new-image-sets-content-hash-on-raw-only-test
+  ;; Phase 3: the raw version carries a sha256 checksum of the uploaded bytes,
+  ;; consumed by reconciliation. Renditions (thumbnail/gallery/...) are produced
+  ;; later by the resizer, so they carry no hash yet. Read from the base table
+  ;; (get-photo-versions) — the full_photos view intentionally omits content_hash.
+  (let [database (embedded-h2/fresh-db!)
+        img      (io/file (io/resource "public/images/example-image.png"))
+        expected (str "sha256:" (albums-api/sha256-hex (java.nio.file.Files/readAllBytes (.toPath img))))
+        {:keys [photo-id]} (albums-api/new-image {:database               database
+                                                  :static-content-adapter (in-mem/make-mem-fs {:store (atom {})})
+                                                  :notify-image-resizer!  (fn [& _] nil)}
+                                                 "andrewslai.com"
+                                                 {:filename  "example-image.png"
+                                                  :extension "png"
+                                                  :tempfile  img})
+        by-cat   (into {} (map (juxt :image-category identity))
+                       (albums-api/get-photo-versions database {:photo-id photo-id}))]
+    (testing "the raw version's content_hash is sha256 of the uploaded bytes"
+      (is (= expected (:content-hash (get by-cat "raw")))))
+    (testing "rendition versions carry no content_hash yet"
+      (is (nil? (:content-hash (get by-cat "thumbnail"))))
+      (is (nil? (:content-hash (get by-cat "gallery")))))))
+
 (deftest get-full-photos-scoped-handle-confines-by-tenant-test
   ;; The photo GET handlers used to thread :hostname into the query map by
   ;; hand (and the file-serving handler omitted it entirely). Scoping the db
