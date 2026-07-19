@@ -203,6 +203,17 @@ tasks:
       Usage: task ephemeral:reap  OR  task ephemeral:reap APPLY=1
     cmd: ./scripts/ephemeral/reap-orphan-buckets {{if eq .APPLY "1"}}--apply{{else}}--dry-run{{end}}
 
+  media:consolidate:
+    desc: Consolidate every per-tenant media bucket into kal-media-prod (Phase-2 prerequisite)
+    summary: |
+      Server-side `aws s3 sync` of each per-tenant bucket's media/ prefix (from
+      resources/tenants.json) into s3://kal-media-prod/media/. UUID-keyed objects
+      merge losslessly (no --delete). Idempotent — run incrementally before the
+      maintenance window, then once more in-window to catch the delta. Verifies a
+      sample of consolidated objects and fails loudly on any miss.
+      Usage: task media:consolidate  OR  PROD_MEDIA_BUCKET=kal-media-prod task media:consolidate
+    cmd: ./scripts/media/consolidate-buckets
+
   deploy:otel-collector:
     desc: Deploy the OTEL collector to Fly.io
     dir: iac/otel-collector

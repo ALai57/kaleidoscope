@@ -187,6 +187,37 @@ tenant hostname and serves that tenant's content in isolation.
   fine but renders empty content for that tenant. Ephemeral envs branch from
   `staging`, so keep `staging` seeded with every onboarded tenant's data.
 
+## Media object storage
+
+Photos live in a single per-environment object store, keyed by the object's
+intrinsic identity (`media/<photo-id>/<category>.<ext>`) — never by tenant,
+hostname, environment, or bucket. Location is `f(intrinsic-id, env-config)`: the
+object supplies the key, the environment supplies the bucket.
+
+- **Env vars.** `KALEIDOSCOPE_MEDIA_BUCKET` selects the bucket photos serve and
+  upload from (prod: `kal-media-prod`). When unset, the app falls back to the
+  per-tenant asset adapter — prod runs this way until the Phase-2 cutover, so
+  deploying the media code to prod is inert until the bucket is set.
+  `KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET` (optional, ephemeral only) makes the media
+  store a read-through overlay that reads prod media read-only after its own
+  bucket (see "Ephemeral tenancy / asset isolation").
+- **Consolidation (Phase-2 prerequisite).** Prod media currently lives in the
+  per-tenant buckets (`andrewslai.com`, `caheriaguilar.com`,
+  `sahiltalkingcents.com`, `wedding`). `task media:consolidate`
+  (`scripts/media/consolidate-buckets`) server-side-syncs each bucket's `media/`
+  prefix into `s3://kal-media-prod/media/`. Because keys are UUID paths, the
+  buckets merge losslessly (no `--delete`, no collisions). It is idempotent —
+  run it incrementally before the maintenance window, then once more in-window
+  to catch the delta — and verifies a sample of objects, failing loudly on any
+  miss.
+- **The resizer follows the URL.** On upload the app derives the raw object's
+  `s3://bucket/key` from the store's `write-location` and puts that in the
+  resize-notify message body. The deployed Lambda parses only that URL and writes
+  renditions into that same bucket; it reads no message attributes and its IAM
+  already covers `s3:::*`, so **the resizer needs no code or IAM change** when the
+  media bucket flips — it follows whatever bucket the URL names. The
+  `photo_resize_contract_test` pins this message shape in CI.
+
 ## Claude Code workspaces
 
 Kaleidoscope's AI features (the workflow engine and project scorer) call the
