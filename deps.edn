@@ -51,7 +51,7 @@
                                        com.github.flow-storm/flow-storm-dbg {:mvn/version "3.16.0"}
                                        com.h2database/h2                    {:mvn/version "2.4.240"}
                                        io.zonky.test/embedded-postgres      {:mvn/version "2.2.2"}
-                                       migratus/migratus                    {:mvn/version "1.4.9"}
+                                       migratus/migratus                    {:mvn/version "1.6.7"}
                                        }
 
                  :jvm-opts ["-Dclojure.storm.instrumentEnable=true"
@@ -67,7 +67,7 @@
                                 ring/ring-mock                  {:mvn/version "0.4.0"}
                                 com.h2database/h2               {:mvn/version "2.4.240"}
                                 io.zonky.test/embedded-postgres {:mvn/version "2.2.2"}
-                                migratus/migratus               {:mvn/version "1.4.9"}
+                                migratus/migratus               {:mvn/version "1.6.7"}
                                 lambdaisland/deep-diff2         {:mvn/version "2.14.235"}
                                 peridot/peridot                 {:mvn/version "0.5.4"}
                                 }}
