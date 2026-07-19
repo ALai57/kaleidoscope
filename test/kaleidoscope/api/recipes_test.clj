@@ -17,6 +17,10 @@
     (log/with-min-level :error
       (f))))
 
+;; Close each test's embedded Postgres so its SysV shm segment is reclaimed
+;; before the next test starts (macOS shmmni=32 otherwise starves initdb).
+(use-fixtures :each embedded-pg/with-clean-dbs)
+
 (def host "andrewslai.com")
 
 (def example-content

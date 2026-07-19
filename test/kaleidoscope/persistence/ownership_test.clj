@@ -14,6 +14,10 @@
     (log/with-min-level :error
       (f))))
 
+;; Close each test's embedded Postgres so its SysV shm segment is reclaimed
+;; before the next test starts (macOS shmmni=32 otherwise starves initdb).
+(use-fixtures :each embedded-postgres/with-clean-dbs)
+
 (deftest get-owned-single-column-test
   (let [database (tenant/scope (embedded-postgres/fresh-db!) "andrewslai.com")
         owner-id "owner@example.com"

@@ -15,8 +15,13 @@
 
 (use-fixtures :each
               (fn [f]
-                (log/with-min-level tm/*test-log-level*
-                                    (f))))
+                (try
+                  (log/with-min-level tm/*test-log-level*
+                                      (f))
+                  ;; Close each test's embedded Postgres so its SysV shm segment
+                  ;; is reclaimed (macOS shmmni=32 otherwise starves initdb).
+                  (finally
+                    (embedded-postgres/close-open-dbs!)))))
 
 (def example-album
   {:album-name     "Test album"

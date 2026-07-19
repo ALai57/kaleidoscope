@@ -1,9 +1,13 @@
 (ns kaleidoscope.persistence.rdbms-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
             [matcher-combinators.test :refer [match?]]
             [next.jdbc :as next]))
+
+;; Close each test's embedded Postgres so its SysV shm segment is reclaimed
+;; before the next test starts (macOS shmmni=32 otherwise starves initdb).
+(use-fixtures :each embedded-postgres/with-clean-dbs)
 
 ;; These reproduce the exact incident that caused Bugsnag to bucket two
 ;; unrelated production errors as one: both a missing-relation error and a
