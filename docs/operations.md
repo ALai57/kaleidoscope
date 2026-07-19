@@ -299,6 +299,17 @@ orphan). Reclamation is a periodic offline job, never on the write path.
   truth for liveness/ownership — restore it from point-in-time recovery *first*.
   Run cadence: monthly.
 
+### Bucket lifecycle & versioning
+
+Configure on the media bucket(s) (`kal-media-prod`) — via the console or IaC:
+
+- **Versioning: enabled** — makes deletes (including reconciliation's) reversible.
+- **Lifecycle rules:** (a) abort incomplete multipart uploads after 7 days;
+  (b) transition cold objects to a cheaper class (Intelligent-Tiering, or
+  IA→Glacier) — bounds even orphaned bytes to cold-tier pricing; (c) expire the
+  `trash/` prefix after a retention window (e.g. 4 weeks); (d) expire noncurrent
+  versions after N days.
+
 ## Claude Code workspaces
 
 Kaleidoscope's AI features (the workflow engine and project scorer) call the
