@@ -225,6 +225,52 @@ object supplies the key, the environment supplies the bucket.
   schedule against prod so a drifted resizer contract surfaces as an alert, not
   a user-reported blank gallery. Needs `AUTH0_CLIENT_ID`/`AUTH0_CLIENT_SECRET`.
 
+### Phase-2 prod cutover runbook (one maintenance window)
+
+The media code (media store, `new-image`'s `write-location` notify, the
+read/write routing) and the `DROP COLUMN storage_root/storage_driver` migration
+already shipped on `master`. Prod may already be running that build but is
+**inert** with `KALEIDOSCOPE_MEDIA_BUCKET` unset — old per-tenant adapter, notify
+URL unchanged, columns harmlessly dropped. This window is **operational only**.
+We accept brief downtime (single-owner CMS) rather than an expand/contract dance;
+the tradeoff is that code and schema roll back together (the migration `down` is
+lossless — see below). Take a prod DB snapshot before starting.
+
+1. **Quiesce.** Stop the prod app (or enable maintenance mode) so no photo is
+   written mid-cutover.
+2. **Final consolidation.** `task media:consolidate` once more so `kal-media-prod`
+   holds every object written since the last incremental sync; the script's
+   sample verification must pass.
+3. **Resizer — verify only, nothing to deploy.** The resizer is bucket-agnostic
+   (parses `s3://bucket/key` from the message body, writes renditions into that
+   same bucket, IAM already grants `s3:::*`). Confirm `new-image`'s URL is built
+   from `write-location` (so it names `kal-media-prod` post-flip) and the
+   SNS→SQS subscription still delivers. There is no resizer cutover ordering — it
+   follows whatever bucket the URL names.
+4. **Deploy the current build to prod.** Applies the `DROP COLUMN` migration
+   (co-shipped with the code that stopped writing the columns → safe) and ships
+   the media-store write + `write-location` `s3://…` notify.
+5. **Flip.** Set `KALEIDOSCOPE_MEDIA_BUCKET=kal-media-prod` in prod secrets and
+   restart. Prod now serves and writes the single bucket and notifies the resizer
+   with `bucket=kal-media-prod`.
+6. **Gate + reopen.** Quick eyeball:
+   ```bash
+   curl -s -o /dev/null -w "existing: %{http_code}\n" "https://andrewslai.com/v2/photos/<known-id>/raw.JPG"   # 200
+   curl -s -F "file=@sample.jpg" "https://andrewslai.com/v2/photos"                                           # 201; note id
+   curl -s -o /dev/null -w "gallery: %{http_code}\n" "https://andrewslai.com/v2/photos/<id>/gallery.jpg"      # 200 once the resizer runs
+   ```
+   The **authoritative reopen gate is `task media:verify-resize`** — reopen only
+   when it exits green.
+
+- **Rollback lever.** If the smoke test fails, unset `KALEIDOSCOPE_MEDIA_BUCKET`
+  (prod reverts to the per-tenant bucket + old adapter; the notify URL is
+  unchanged so the old resizer still works). If the schema must revert too, run
+  the migration `down` (`resources/migrations/…-drop-photo-storage-location.down.sql`
+  — re-add + backfill `storage_root = hostname`, `storage_driver = 's3'`;
+  derivable, lossless). The pre-window DB snapshot is the backstop.
+- **Per-tenant buckets** are kept as a read-only cold backup for one retention
+  cycle after the soak, then deleted (confirm at Phase-2 close).
+
 ## Claude Code workspaces
 
 Kaleidoscope's AI features (the workflow engine and project scorer) call the
