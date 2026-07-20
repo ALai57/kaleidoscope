@@ -202,6 +202,32 @@
     (fn new-handler [request]
       (handler (assoc request :components components)))))
 
+(def api-route-groups
+  "Root-rooted JSON API resource route groups, dual-mounted at their legacy root
+  paths and under /api/v1 during the transition. Excludes reitit-photos-routes
+  (already namespaced at /v2/photos — folding it under /api/v1 is deferred) and
+  the ping/openapi/index/admin infra routes."
+  [reitit-albums-routes
+   reitit-articles-routes
+   reitit-audiences-routes
+   reitit-branches-routes
+   reitit-compositions-routes
+   reitit-groups-routes
+   reitit-interests-routes
+   reitit-projects-routes
+   reitit-score-definition-routes
+   reitit-agent-routes
+   reitit-task-routes
+   reitit-workflow-routes
+   reitit-project-workflow-routes
+   reitit-workspace-roots-routes
+   reitit-portfolio-routes
+   reitit-recipes-routes
+   reitit-recipe-labels-routes
+   reitit-recipe-label-groups-routes
+   reitit-recipe-audiences-routes
+   reitit-themes-routes])
+
 (defn kaleidoscope-app
   ([]
    (kaleidoscope-app {}))
@@ -217,38 +243,20 @@
                                          mw/coercion-middleware))]
      (ring/ring-handler
       (ring/router
-       [
-        ;; Administrative/helpers
-        reitit-ping-routes
-        reitit-openapi-routes
-        reitit-index-routes
-        reitit-admin-routes
-
-        ;; API routes
-        reitit-albums-routes
-        reitit-articles-routes
-        reitit-audiences-routes
-        reitit-branches-routes
-        reitit-compositions-routes
-        reitit-groups-routes
-        reitit-interests-routes
-        reitit-photos-routes
-        reitit-projects-routes
-        reitit-score-definition-routes
-        reitit-agent-routes
-        reitit-task-routes
-        reitit-workflow-routes
-        reitit-project-workflow-routes
-        reitit-workspace-roots-routes
-        reitit-portfolio-routes
-        reitit-recipes-routes
-        reitit-recipe-labels-routes
-        reitit-recipe-label-groups-routes
-        reitit-recipe-audiences-routes
-        reitit-themes-routes
-        ;; reitit-stripe-routes and reitit-registration-routes intentionally
-        ;; not mounted yet - not ready for production.
-        ]
+       (into [;; Administrative/helpers + already-namespaced photos (root only)
+              reitit-ping-routes
+              reitit-openapi-routes
+              reitit-index-routes
+              reitit-admin-routes
+              reitit-photos-routes]
+             (concat
+              ;; API resource groups at their legacy root paths …
+              api-route-groups
+              ;; … and the same groups under /api/v1 (:no-doc keeps the
+              ;; transition duplicates out of the OpenAPI spec).
+              [(into ["/api/v1" {:no-doc true}] api-route-groups)]))
+       ;; reitit-stripe-routes and reitit-registration-routes intentionally
+       ;; not mounted yet - not ready for production.
        reitit-config)
       (ring/create-default-handler
        {:not-found (fn [request]

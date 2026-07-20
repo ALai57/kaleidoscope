@@ -278,6 +278,28 @@
       (is (= 200 (:status (handler (req :get "/recipes")))))
       (is (= 401 (:status (handler (req :post "/recipes"))))))))
 
+(deftest api-v1-dual-mount-test
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+    (testing "GET /api/v1/recipes reaches the same public handler as GET /recipes"
+      (is (match? {:status 200 :body sequential?}
+                  (app (mock/request :get "https://andrewslai.com/recipes"))))
+      (is (match? {:status 200 :body sequential?}
+                  (app (mock/request :get "https://andrewslai.com/api/v1/recipes")))))
+    (testing "GET /api/v1/projects-portfolio is public, like the root path"
+      (is (match? {:status 200}
+                  (app (mock/request :get "https://andrewslai.com/api/v1/projects-portfolio")))))
+    (testing "POST /api/v1/recipes still requires a writer (401 unauthenticated)"
+      (is (match? {:status 401}
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
+                           (mock/json-body {}))))))))
+
 (deftest auth-runs-before-coercion-test
   ;; 2026-07-04 production incident: POST /workflows requires a :name field
   ;; in its body. An unauthenticated request with no/invalid body was being
