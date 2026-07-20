@@ -157,7 +157,16 @@
                      (.build))
         client   @anthropic-http-client
         response (.send client request (HttpResponse$BodyHandlers/ofLines))
+        status   (.statusCode response)
         sb       (StringBuilder.)]
+    ;; A non-200 body is a JSON error, not SSE — its lines never start with
+    ;; "data: ", so without this check the stream loop below appends nothing
+    ;; and returns "", making a 401/429 look like a successful empty response.
+    ;; Fail loud like post-anthropic-sync so the caller sees the real error.
+    (when-not (= 200 status)
+      (let [body (str/join "\n" (iterator-seq (.iterator ^java.util.stream.Stream (.body response))))]
+        (log/errorf "Anthropic streaming API error %d: %s" status body)
+        (throw (ex-info "Anthropic API error" {:status status :body body}))))
     (let [^java.util.stream.Stream lines (.body response)]
       (.forEach lines
                 (reify java.util.function.Consumer
