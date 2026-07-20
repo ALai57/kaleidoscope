@@ -275,6 +275,20 @@ lossless — see below). Take a prod DB snapshot before starting.
 - **Per-tenant buckets** are kept as a read-only cold backup for one retention
   cycle after the soak, then deleted (confirm at Phase-2 close).
 
+> **⚠️ GUARD — do NOT delete the per-tenant buckets yet.** They still serve
+> **article-embedded images**. The Phase-2 flip only re-points the photo API
+> (`/v2/photos/*`) at `kal-media-prod`; the generic **`/media/*` route**
+> (`http_api/kaleidoscope.clj`) still resolves via the tenant's per-tenant
+> `:asset-store` adapter (the hostname bucket), so `<img src="/media/processed/…">`
+> in articles keeps reading from the per-tenant buckets. Deleting those buckets
+> 404s every article image. Retiring them is blocked on a **separate
+> `article-embedded-asset-acl` plan** that must (1) re-point `/media/*` at the
+> media store — the bytes are already in `kal-media-prod` via `media:consolidate`,
+> which syncs all `media/…` keys including `media/processed/…` — and (2) decide
+> the access-control model for those assets (`/media/*` GET is currently blanket
+> `public-access`; audience-scoped articles may need authorized images). Only
+> after that plan ships may the per-tenant buckets be retired.
+
 ### Reconciliation / reclamation (offline)
 
 The store is append-only: deleting a photo drops its row and leaves the blob (an
