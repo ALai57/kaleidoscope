@@ -10,6 +10,7 @@
             [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.workflows :as workflows-persistence]
             [kaleidoscope.workflows.mock :as workflow-mock]
+            [kaleidoscope.workflows.protocol :as workflow-protocol]
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]))
 
@@ -195,6 +196,29 @@
                     :output (json/encode {:reply "Which beats matter most to you?"})})
     (workflows-persistence/update-workflow-run! db (:id run) {:status "awaiting_input"})
     {:run run :step step}))
+
+(deftest run-curation-awaiting-input-carries-step-run-id-test
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
+        interest (make-interest! db)
+        ;; A Librarian that decides the interest is too thin and pauses the
+        ;; clarify step for user input, the way the real refine step does.
+        executor (reify workflow-protocol/IWorkflowExecutor
+                   (execute-step! [_this db _project step-run _output-stream]
+                     (workflows-persistence/update-step-run!
+                      db (:id step-run)
+                      {:status "awaiting_input"
+                       :output (json/encode {:reply "Which beats matter most to you?"})}))
+                   (recommend-workflows [_this _project _live] nil))
+        result   (curation/run-curation! db executor user-id (:id interest)
+                                         {:scrutiny "standard"})]
+    (testing "the pause result carries the step-run-id the client must POST answers back to"
+      (is (match? {:status "awaiting_input" :run-id uuid? :step-run-id uuid?}
+                  result)))
+    (testing "the step-run-id names the step that is actually awaiting input"
+      (let [paused (->> (:steps (workflows-persistence/get-workflow-run db (:run-id result)))
+                        (filter #(= "awaiting_input" (:status %)))
+                        first)]
+        (is (= (:id paused) (:step-run-id result)))))))
 
 (deftest respond-to-curation-step-folds-answers-and-resumes-test
   (let [db         (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")

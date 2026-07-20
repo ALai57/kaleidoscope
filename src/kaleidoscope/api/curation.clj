@@ -76,9 +76,16 @@
   failure — a malformed discovery shelves nothing rather than throwing."
   [output]
   (try
-    (->> (:candidates (json/decode output true))
-         (mapv #(set/rename-keys % {:est_time :est-time})))
-    (catch Exception _ [])))
+    (let [candidates (->> (:candidates (json/decode output true))
+                          (mapv #(set/rename-keys % {:est_time :est-time})))]
+      (when (empty? candidates)
+        (log/warnf "Discover step yielded no candidates (output length %d)"
+                   (count (or output ""))))
+      candidates)
+    (catch Exception e
+      (log/warnf "Failed to parse Discover output (length %d): %s"
+                 (count (or output "")) (.getMessage e))
+      [])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interest Curation workflow (seeded lazily, like the default workflows)
@@ -152,14 +159,17 @@
        first
        :output))
 
-(defn- pending-questions
+(defn- paused-step
   [run]
-  (when-let [paused (->> (:steps run)
-                         (filter #(= "awaiting_input" (:status %)))
-                         first)]
-    (let [reply (:reply (try (json/decode (:output paused) true)
-                             (catch Exception _ nil)))]
-      (if reply [reply] []))))
+  (->> (:steps run)
+       (filter #(= "awaiting_input" (:status %)))
+       first))
+
+(defn- pending-questions
+  [step]
+  (let [reply (:reply (try (json/decode (:output step) true)
+                           (catch Exception _ nil)))]
+    (if reply [reply] [])))
 
 (defn- shelve!
   "The deterministic score→shelve tail of a curation run: parse the Discover
@@ -170,12 +180,15 @@
         config     (:config run)
         threshold  (or (:relevance-threshold config) 6.0)
         shelf-size (or (:shelf-size config) default-shelf-size)
-        selected   (-> (parse-candidates (discover-output run))
-                       (drop-below-threshold threshold)
+        discovered (parse-candidates (discover-output run))
+        above      (drop-below-threshold discovered threshold)
+        selected   (-> above
                        (tag-origin (:trusted-sources taste))
                        (split-candidates (novelty-quota shelf-size (:novelty-ratio taste))))
         _          (recommendations-persistence/archive-shelved! db (:id interest))
         shelved    (recommendations-persistence/create-recommendations! db (:id interest) selected)]
+    (log/infof "Curation run %s shelved %d/%d (%d discovered, %d above threshold %.1f)"
+               (:id run) (count shelved) shelf-size (count discovered) (count above) (double threshold))
     {:status  "completed"
      :run-id  (:id run)
      :shelved shelved
@@ -188,23 +201,36 @@
   results. Shared by run-curation! and respond-to-curation-step!."
   [db executor user-id interest-id run-id]
   (let [interest (interests-persistence/get-interest db interest-id user-id)
-        run      (workflows-api/advance-step! db executor (:project-id interest)
-                                              user-id run-id
-                                              (java.io.ByteArrayOutputStream.))]
+        run      (try
+                   (workflows-api/advance-step! db executor (:project-id interest)
+                                                user-id run-id
+                                                (java.io.ByteArrayOutputStream.))
+                   ;; A step failure (e.g. an Anthropic 401) is thrown from
+                   ;; advance-step! after the run is marked "failed". Turn it
+                   ;; into a structured error so the caller sees a real failure
+                   ;; instead of an empty shelf.
+                   (catch Exception e
+                     (log/errorf "Curation run %s failed during advance: %s" run-id (.getMessage e))
+                     {:error (.getMessage e)}))]
     (cond
       (:error run)
-      {:status "error" :error (:error run)}
+      (do (log/warnf "Curation run %s returned error: %s" run-id (:error run))
+          {:status "error" :error (:error run)})
 
       (= "awaiting_input" (:status run))
-      {:status    "awaiting_input"
-       :run-id    run-id
-       :questions (pending-questions run)}
+      (let [step (paused-step run)]
+        {:status      "awaiting_input"
+         :run-id      run-id
+         :step-run-id (:id step)
+         :questions   (pending-questions step)})
 
       :else
       (let [fresh-run (workflows-persistence/get-workflow-run db run-id)]
         (if (= "completed" (:status fresh-run))
           (shelve! db interest fresh-run)
-          {:status "error" :run-id run-id})))))
+          (do (log/warnf "Curation run %s ended in non-completed status %s; shelving nothing"
+                         run-id (:status fresh-run))
+              {:status "error" :run-id run-id}))))))
 
 (defn run-curation!
   "Run the Interest Curation workflow for an interest and refresh its shelf.
