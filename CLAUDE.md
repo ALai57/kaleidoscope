@@ -18,6 +18,8 @@ persistence/   → Data access only (RDBMS, filesystem)
 
 All backends are pluggable via protocols: DB, storage, auth, scoring, and workflow execution each have a protocol + multiple implementations (real + mock/embedded for testing).
 
+Static chrome (`/static/*`, `/favicon.ico`) is served from one shared `kaleidoscope.client` store for all tenants — multi-tenancy is enforced by DB `hostname` scoping and `themes.config`, not by per-tenant static buckets. `/media/*` article images remain per-tenant (deferred to the `article-embedded-asset-acl` plan).
+
 ---
 
 ## Commands

@@ -16,6 +16,7 @@
             [kaleidoscope.models.albums :refer [example-album example-album-2]]
             [kaleidoscope.models.articles :as models.articles]
             [kaleidoscope.persistence.filesystem :as fs]
+            [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
             [kaleidoscope.test-main :as tm]
             [kaleidoscope.test-utils :as tu]
             [kaleidoscope.utils.core :as util]
@@ -93,6 +94,29 @@
                  :headers {"Content-Type" #"text/html"}
                  :body    "<div>Hello</div>"}
                 (handler (mock/request :get "https://andrewslai.com/"))))))
+
+(deftest static-chrome-serves-from-the-shared-client-store-test
+  ;; /static/* and /favicon.ico serve from kaleidoscope.client for every tenant —
+  ;; not the per-tenant asset-store. Give the client store a marker the tenant
+  ;; store lacks; if the request 200s, it was served from the shared store.
+  (let [system   (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS
+                                     {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                                      "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                                      "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "public-access"
+                                      "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"})
+        adapters (:kaleidoscope-static-content-adapters system)
+        mkfile   (fn [name s] (in-mem/file {:name name :version "1"
+                                            :content (java.io.ByteArrayInputStream. (.getBytes (str s)))}))]
+    ;; client store has the marker + favicon; the per-tenant store is empty
+    (reset! (:store (get adapters "kaleidoscope.client"))
+            {"static" {"marker.txt"  (mkfile "marker.txt" "CLIENT")
+                       "favicon.ico" (mkfile "favicon.ico" "FAV")}})
+    (reset! (:store (get adapters "andrewslai.com")) {})
+    (let [app (->> system env/prepare-kaleidoscope kaleidoscope/kaleidoscope-app tu/wrap-clojure-response)]
+      (testing "/static/* is served from kaleidoscope.client though the tenant store is empty"
+        (is (= 200 (:status (app (mock/request :get "https://andrewslai.com/static/marker.txt"))))))
+      (testing "/favicon.ico is served from kaleidoscope.client (static/favicon.ico)"
+        (is (= 200 (:status (app (mock/request :get "https://andrewslai.com/favicon.ico")))))))))
 
 (deftest swagger-test
   (let [handler (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"

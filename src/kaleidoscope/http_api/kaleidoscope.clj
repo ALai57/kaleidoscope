@@ -135,6 +135,7 @@
    ["/index.html" {:get {:handler (partial found "/")}}]
    ["/favicon.ico" {:get {:span-name "kaleidoscope.favicon.get"
                           :uri       "static/favicon.ico"
+                          :store     "kaleidoscope.client"
                           :handler   get-static-resource}}]
    ["/"           {:get {:span-name "kaleidoscope.index.get"
                          :uri       "index.html"
@@ -149,8 +150,7 @@
 
    ["/static/*" {:conflicting true
                  :get         {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
-                               ;; Probably shouldn't load all static resources from kaleidoscope
-                               ;;:host      "kaleidoscope.pub"
+                               :store     "kaleidoscope.client"
                                :handler   get-static-resource}}]
    ["/media/*" {:get {:span-name (fn [{:keys [uri] :as _request}] (format "kaleidoscope.%s.get" (str/replace uri #"/" ".")))
                       :handler   get-static-resource}}]])

@@ -3,14 +3,13 @@
 #
 #   scripts/ephemeral/up --name=<slug>     # or omit --name to use the git branch
 #
-# Orchestrates: provision-db -> build-frontend -> seed-tenant-assets ->
-# deploy-app -> smoke-test -> checkly-test. build-frontend runs before
-# deploy-app so the SPA is already in S3 when the app boots; seed-tenant-assets
-# runs right after so the pinned tenant's isolated /static/*, /media/* prefix
-# is populated before deploy-app boots the backend and the first smoke-test
-# request hits /. checkly-test runs the recipes Monitoring-as-Code check
-# against the live env (skipped with a warning when Checkly/Auth0 creds are
-# absent).
+# Orchestrates: provision-db -> build-frontend -> deploy-app -> smoke-test ->
+# checkly-test. build-frontend runs before deploy-app so the SPA — and, since
+# the frontend now ships /static/* site chrome alongside it — the pinned
+# tenant's static assets are already in S3 when the app boots and the first
+# smoke-test request hits /. checkly-test runs the recipes Monitoring-as-Code
+# check against the live env (skipped with a warning when Checkly/Auth0
+# creds are absent).
 set -euo pipefail
 # shellcheck source=scripts/ephemeral/lib.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
@@ -27,7 +26,6 @@ create_media_bucket "$(media_bucket "$SLUG")"
 
 "$EPHEMERAL_DIR/provision-db"    --name="$SLUG"
 "$EPHEMERAL_DIR/build-frontend"  --name="$SLUG"
-"$EPHEMERAL_DIR/seed-tenant-assets" --name="$SLUG"
 "$EPHEMERAL_DIR/deploy-app"      --name="$SLUG"
 "$EPHEMERAL_DIR/smoke-test"      --name="$SLUG"
 "$EPHEMERAL_DIR/checkly-test"    --name="$SLUG"
