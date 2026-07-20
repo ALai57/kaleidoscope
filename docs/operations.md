@@ -186,10 +186,20 @@ tenant hostname and serves that tenant's content in isolation.
   suspected (auto-scheduling is a deferred follow-up).
 - **`KALEIDOSCOPE_EPHEMERAL_HOST_ALIAS`/`_BUCKET`/`_PREFIX` are removed** —
   superseded by the fixed-resolver + tenant-asset vars above.
-- **DB-seeding prerequisite.** The Neon branch (`provision-db`) must already
-  contain the pinned tenant's rows — especially `themes` — or the env boots
-  fine but renders empty content for that tenant. Ephemeral envs branch from
-  `staging`, so keep `staging` seeded with every onboarded tenant's data.
+- **DB source: forked from prod `production`.** `provision-db` forks the
+  ephemeral Neon branch from prod's `production` branch (`EPHEMERAL_DB_PARENT`),
+  so it boots with real
+  tenant data — no separate seeding step, and no stale `staging` to maintain.
+  Neon forks are copy-on-write, so ephemeral writes never touch prod; the
+  tradeoff is that each throwaway, publicly-reachable env holds a **copy of prod
+  data** (fine for a single-owner CMS — revisit if prod ever holds third-party
+  PII). Override `EPHEMERAL_DB_PARENT` to fork a different branch.
+  **Migration note:** `provision-db` then runs pending migrations against the
+  fork. That is clean only if prod's `schema_migrations` already carries the
+  squashed baseline id (`20260718000007`) — the durable-DB reconciliation from
+  the Squashing-migrations runbook. If the migrate step errors with
+  "already exists", prod wasn't reconciled: run `task db:squash:apply ENV=.env.aws`
+  first.
 
 ## Media object storage
 

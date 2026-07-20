@@ -54,7 +54,13 @@ load_staging_env() {
 
 # --- derived names -----------------------------------------------------------
 EPHEMERAL_BUCKET="${EPHEMERAL_BUCKET:-kal-ephemeral}"
-STAGING_BRANCH="${STAGING_BRANCH:-staging}"
+# Parent Neon branch each ephemeral env forks from. Defaults to prod's
+# `production` branch so an env boots with real tenant data (a `staging` fork
+# that isn't kept seeded boots empty). Neon branches are copy-on-write, so the
+# fork is isolated — ephemeral writes never touch prod — but note it materializes
+# a COPY of prod data in a throwaway, publicly-reachable env. Override to fork
+# elsewhere.
+EPHEMERAL_DB_PARENT="${EPHEMERAL_DB_PARENT:-production}"
 # Sibling kaleidoscope-ui checkout (overridable). Built and pushed per env in Phase 5.
 FRONTEND_DIR="${FRONTEND_DIR:-$REPO_ROOT/../kaleidoscope-ui}"
 

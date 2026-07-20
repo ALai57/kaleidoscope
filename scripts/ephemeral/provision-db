@@ -3,8 +3,12 @@
 #
 #   scripts/ephemeral/provision-db --name=<slug>
 #
-# Creates eph-<slug> forked from the long-lived `staging` branch (never from
-# prod's `main`), then runs the same migrations bin/db-migrate runs, against it.
+# Creates eph-<slug> forked from prod's `production` branch (EPHEMERAL_DB_PARENT),
+# so the env boots with real tenant data, then runs pending migrations against
+# it. Neon
+# forks are copy-on-write: ephemeral writes never touch prod. (Migrate is clean
+# only if prod's schema_migrations already has the squashed baseline id — see
+# docs/operations.md "Squashing migrations"; otherwise run db:squash:apply first.)
 set -euo pipefail
 # shellcheck source=scripts/ephemeral/lib.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
@@ -19,10 +23,10 @@ require_cmd clojure
 if neon_branch_exists "$BRANCH"; then
   warn "Neon branch '$BRANCH' already exists — reusing it."
 else
-  log "Creating Neon branch '$BRANCH' from '$STAGING_BRANCH'..."
+  log "Creating Neon branch '$BRANCH' from '$EPHEMERAL_DB_PARENT'..."
   neonctl branches create \
     --project-id "$NEON_PROJECT_ID" --api-key "$NEON_API_KEY" \
-    --name "$BRANCH" --parent "$STAGING_BRANCH"
+    --name "$BRANCH" --parent "$EPHEMERAL_DB_PARENT"
 fi
 
 log "Fetching connection string and running migrations against '$BRANCH'..."
