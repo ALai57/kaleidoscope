@@ -229,28 +229,94 @@ object supplies the key, the environment supplies the bucket.
   run it incrementally before the maintenance window, then once more in-window
   to catch the delta — and verifies a sample of objects, failing loudly on any
   miss.
-- **The resizer follows the URL.** On upload the app derives the raw object's
-  `s3://bucket/key` from the store's `write-location` and puts that in the
-  resize-notify message body. The deployed Lambda parses only that URL and writes
-  renditions into that same bucket; it reads no message attributes and its IAM
-  already covers `s3:::*`, so **the resizer needs no code or IAM change** when the
-  media bucket flips — it follows whatever bucket the URL names. The
-  `photo_resize_contract_test` pins this message shape in CI.
+- **The resizer is now in-process — the AWS Lambda is retired.** Renditions used
+  to be produced by an out-of-process AWS Lambda notified over SNS→SQS from the
+  raw's `s3://bucket/key` (`write-location`); that notify path is gone (upload no
+  longer publishes to it). `KALEIDOSCOPE_IMAGE_RESIZER_TYPE` (`in-process`
+  default, `none` to disable — e.g. as a rollback lever) now selects the in-JVM
+  resizer described below. The old `../image-resizer` Lambda/Terraform is
+  **retired but not yet torn down** — tear it down once prod's in-process resize
+  is verified (`task media:verify-resize`); tracked as a follow-up, not done in
+  this change.
 - **Resize round-trip fitness function.** `task media:verify-resize`
   (`scripts/media/verify-resize-roundtrip`, `TARGET_URL=<env>`) uploads a photo
-  and polls until its resized rendition appears, failing loudly and naming the
-  broken hop (notify shape, SNS→SQS subscription, or the resizer Lambda/IAM). It
+  and polls until its resized rendition appears, failing loudly if it never does.
+  Same script, same behavior as the Lambda era (the script's own header comment
+  describing the SNS/SQS/Lambda hops is now historical detail, not the current
+  mechanism) — it now proves the in-process resize path end-to-end instead. It
   is the authoritative reopen gate for the Phase-2 window and should run on a
-  schedule against prod so a drifted resizer contract surfaces as an alert, not
-  a user-reported blank gallery. Needs `AUTH0_CLIENT_ID`/`AUTH0_CLIENT_SECRET`.
+  schedule against prod so a drifted resize path surfaces as an alert, not a
+  user-reported blank gallery; also run it against an ephemeral env as an
+  acceptance gate before trusting the in-process resizer at cutover. Needs
+  `AUTH0_CLIENT_ID`/`AUTH0_CLIENT_SECRET`.
+
+### In-process image resizer
+
+Renditions (`thumbnail`/`gallery`/`monitor`/`mobile` — see `RENDITIONS` in
+`kaleidoscope.api.resize`) are produced inside the app JVM, not by an external
+service. Two paths feed the same store:
+
+- **Background warm.** Upload (`new-image`) and the busy branch of the serve-path
+  heal (below) call `enqueue-warm!`, which drops a task onto an in-memory
+  `LinkedBlockingQueue` (bound `QUEUE-CAPACITY` = 512). A small pool of daemon
+  worker threads drains it, resizing every `RENDITIONS` category for that photo.
+  `enqueue-warm!` never blocks the caller — on a full queue it drops the task,
+  logs a **WARN**, and increments `resize/dropped-enqueue-count` so a drop is
+  never silent (the serve-path heal or `media:reconcile` catches it later).
+- **Fast-fail synchronous self-heal.** A GET for a rendition that 404s calls
+  `heal-or-enqueue!`: if the raw is missing, `:no-raw` (nothing to heal). Else it
+  `tryAcquire`s a decode permit for at most `ACQUIRE-TIMEOUT-MS` (250ms) — if one
+  is free, it resizes **synchronously** and serves the fresh bytes; if the
+  resizer is busy, it falls back to enqueuing an async warm for just that one
+  category and serves the **raw** meanwhile, with `Cache-Control: no-store` (so
+  no cache/CDN ever pins the unoptimized original under the rendition's key).
+  `ACQUIRE-TIMEOUT-MS` is distinct from `RESIZE-TIMEOUT-MS` (the decode's own
+  deadline) — the fast-fail bound is what keeps a busy resizer from ever parking
+  a web request thread.
+- **Memory bound.** One JVM-wide `Semaphore(MAX-CONCURRENT)` caps concurrent
+  decodes; `MAX-CONCURRENT = floor(heap-budget / peak-decode-bytes)`, boot-derived
+  rather than hand-tuned. **`MAX-CONCURRENT` (and the heap-budget/peak-decode
+  constants it's derived from) is currently an ESTIMATE, not a measurement** —
+  see the `HEAP-BUDGET-BYTES`/`PEAK-RENDITION-BYTES` docstrings in `resize.clj`;
+  validate it with a real profiling measurement (peak decode heap for a
+  subsampled 1920x1080 resize on a representative large raw) before leaning on it
+  under real prod load. ImageIO/Thumbnailator always decode **subsampled** (never
+  at native resolution), and `MAX-SOURCE-PIXELS` rejects decompression-bomb
+  sources via a header-only read *before* any decode.
+- **No DB during resize.** Neither `resize-one!` nor `heal-or-enqueue!` touch the
+  database — only the media object store. This preserves Neon scale-to-zero: the
+  resizer can warm/heal renditions without waking a suspended DB.
+- **The raw-serving window is one-time per rendition, not per-deploy.**
+  Renditions persist in the durable object store (same append-only model as
+  reconciliation — see below) across restarts and deploys. Once a
+  `(photo, category)` rendition has been made, it is served directly forever
+  after; the "serve the raw while healing" window only ever happens **once** per
+  rendition — the brief gap between an upload and its first view/warm completing,
+  or the one-time initial-cutover backfill — never again on a later deploy or
+  restart.
+- **Observability.** Every `resize-one!`/`heal-or-enqueue!`/`enqueue-warm!` call
+  logs its outcome and wraps an OTEL span (`kaleidoscope.resize.*`); worker
+  threads log through the normal Timbre appender (not just stdout) since they run
+  outside any HTTP request's Bugsnag scope. The enqueue-drop WARN above is the
+  one thing designed to be loud rather than just traced.
+- **`media:reconcile` is the operator backstop for never-viewed renditions.** The
+  fast-fail heal above only fires when someone actually *requests* a missing
+  rendition — a photo nobody views never gets healed that way. `task
+  media:reconcile --apply` regenerates those too: it narrows the plan's
+  `dangling = referenced − stored` set to just rendition keys
+  (`missing-renditions`, pure/unit-tested) and resizes each one synchronously
+  before the process exits. It is a manual/periodic operator job (see
+  "Reconciliation / reclamation" below for cadence), not an automatic guarantee —
+  the automatic convergence for *viewed* renditions is the 404 heal itself.
 
 ### Phase-2 prod cutover runbook (one maintenance window)
 
-The media code (media store, `new-image`'s `write-location` notify, the
-read/write routing) and the `DROP COLUMN storage_root/storage_driver` migration
-already shipped on `master`. Prod may already be running that build but is
-**inert** with `KALEIDOSCOPE_MEDIA_BUCKET` unset — old per-tenant adapter, notify
-URL unchanged, columns harmlessly dropped. This window is **operational only**.
+The media code (media store, read/write routing, the in-process resizer), the
+retirement of the old notify-the-Lambda path, and the `DROP COLUMN
+storage_root/storage_driver` migration already shipped on `master`. Prod may
+already be running that build but is **inert** with `KALEIDOSCOPE_MEDIA_BUCKET`
+unset — old per-tenant adapter, resize gate a no-op (no media store to resize
+against), columns harmlessly dropped. This window is **operational only**.
 We accept brief downtime (single-owner CMS) rather than an expand/contract dance;
 the tradeoff is that code and schema roll back together (the migration `down` is
 lossless — see below). Take a prod DB snapshot before starting.
@@ -260,33 +326,45 @@ lossless — see below). Take a prod DB snapshot before starting.
 2. **Final consolidation.** `task media:consolidate` once more so `kal-media-prod`
    holds every object written since the last incremental sync; the script's
    sample verification must pass.
-3. **Resizer — verify only, nothing to deploy.** The resizer is bucket-agnostic
-   (parses `s3://bucket/key` from the message body, writes renditions into that
-   same bucket, IAM already grants `s3:::*`). Confirm `new-image`'s URL is built
-   from `write-location` (so it names `kal-media-prod` post-flip) and the
-   SNS→SQS subscription still delivers. There is no resizer cutover ordering — it
-   follows whatever bucket the URL names.
+3. **Resizer — already part of the build, nothing separate to verify.** The
+   resizer is in-process now (see "In-process image resizer" above), not an
+   external SNS/SQS/Lambda hop — it ships inside the same app deployed in the
+   next step. Just confirm `KALEIDOSCOPE_IMAGE_RESIZER_TYPE=in-process` is set in
+   prod secrets (it is `fly.toml`'s default already).
 4. **Deploy the current build to prod.** Applies the `DROP COLUMN` migration
    (co-shipped with the code that stopped writing the columns → safe) and ships
-   the media-store write + `write-location` `s3://…` notify.
+   the media-store write plus the in-process resizer.
 5. **Flip.** Set `KALEIDOSCOPE_MEDIA_BUCKET=kal-media-prod` in prod secrets and
-   restart. Prod now serves and writes the single bucket and notifies the resizer
-   with `bucket=kal-media-prod`.
-6. **Gate + reopen.** Quick eyeball:
+   restart. Prod now serves and writes the single bucket, and uploads warm their
+   own renditions in-process.
+6. **Pre-warm renditions.** Run `task media:reconcile --apply` once against prod
+   so every photo already in `kal-media-prod` (consolidated in step 2, from
+   before the in-process resizer existed) gets its renditions backfilled *before*
+   real visitors arrive — closing the one-time raw-serving window described above
+   for the whole pre-existing corpus in one pass, rather than one photo at a time
+   as galleries happen to be viewed.
+7. **Gate + reopen.** Quick eyeball:
    ```bash
    curl -s -o /dev/null -w "existing: %{http_code}\n" "https://andrewslai.com/v2/photos/<known-id>/raw.JPG"   # 200
    curl -s -F "file=@sample.jpg" "https://andrewslai.com/v2/photos"                                           # 201; note id
-   curl -s -o /dev/null -w "gallery: %{http_code}\n" "https://andrewslai.com/v2/photos/<id>/gallery.jpg"      # 200 once the resizer runs
+   curl -s -o /dev/null -w "gallery: %{http_code}\n" "https://andrewslai.com/v2/photos/<id>/gallery.jpg"      # 200 (pre-warmed, or the fast-fail heal makes it on this first request)
    ```
    The **authoritative reopen gate is `task media:verify-resize`** — reopen only
    when it exits green.
 
 - **Rollback lever.** If the smoke test fails, unset `KALEIDOSCOPE_MEDIA_BUCKET`
-  (prod reverts to the per-tenant bucket + old adapter; the notify URL is
-  unchanged so the old resizer still works). If the schema must revert too, run
-  the migration `down` (`resources/migrations/…-drop-photo-storage-location.down.sql`
-  — re-add + backfill `storage_root = hostname`, `storage_driver = 's3'`;
-  derivable, lossless). The pre-window DB snapshot is the backstop.
+  (prod reverts to the per-tenant bucket + old adapter — the in-process resizer's
+  serve-path heal only ever engages against the media store, so it's inert on the
+  reverted path too). To disable just the resizer while keeping the media-store
+  flip, set `KALEIDOSCOPE_IMAGE_RESIZER_TYPE=none` instead — this is a full kill
+  switch, not a degrade-to-raw: no warm on upload, and `serve-photo`'s heal branch
+  never engages (the noop gate's `:store` is `nil`, which fails the check that
+  guards it), so a missing rendition 404s exactly as it would have before this
+  feature existed, rather than falling back to the raw. If the
+  schema must revert too, run the migration `down`
+  (`resources/migrations/…-drop-photo-storage-location.down.sql` — re-add +
+  backfill `storage_root = hostname`, `storage_driver = 's3'`; derivable,
+  lossless). The pre-window DB snapshot is the backstop.
 - **Per-tenant buckets** are kept as a read-only cold backup for one retention
   cycle after the soak, then deleted (confirm at Phase-2 close).
 
@@ -320,13 +398,22 @@ orphan). Reclamation is a periodic offline job, never on the write path.
   stored` (alert: possible data loss), and `mismatched` (rows whose
   `content_hash` disagrees with the stored bytes — the integrity pass that gives
   the checksum column a present reader).
-- **The dangerous logic is typed and tested.** The set-math and safety gates live
-  in Clojure (`reconcile-plan`, unit-tested over in-memory sets), not bash — the
+- **`APPLY=1` also backfills missing renditions.** `dangling` narrowed to
+  rendition keys (`missing-renditions`, pure — see `reconcile.clj`) is the
+  never-viewed tail the in-process resizer's serve-path 404 heal can't reach on
+  its own (see "In-process image resizer" above); `--apply` regenerates each one
+  synchronously, after the orphan quarantine, before the process exits. This is
+  the operator backstop, run manually or on a schedule — not an automatic
+  guarantee.
+- **The dangerous logic is typed and tested.** The set-math and safety gates —
+  and the rendition-backfill selection — live in Clojure (`reconcile-plan`,
+  `missing-renditions`, unit-tested over in-memory sets), not bash — the
   launcher is a thin `clojure -M -m` wrapper.
-- **Gated + reversible.** It refuses to quarantine when the referenced set shrank
-  suspiciously (>10% vs the last run) or a DB health check fails; orphans go to
-  `trash/` (reversible via bucket versioning), not a hard delete. Dry-run by
-  default; `APPLY=1` to act.
+- **Gated + reversible.** It refuses to quarantine — or backfill — when the
+  referenced set shrank suspiciously (>10% vs the last run) or a DB health check
+  fails, since either means the `referenced` set itself can't be trusted; orphans
+  go to `trash/` (reversible via bucket versioning), not a hard delete. Dry-run by
+  default; `APPLY=1` to act (quarantine + backfill both).
 - **Inputs.** `KALEIDOSCOPE_MEDIA_BUCKET`, `RECONCILE_STORED_KEYS` (a
   newline-delimited keys file materialized from the bucket's S3 Inventory export
   or `aws s3 ls s3://<bucket>/ --recursive | awk '{print $4}'`), and

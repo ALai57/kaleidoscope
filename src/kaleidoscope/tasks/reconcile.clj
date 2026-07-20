@@ -15,13 +15,21 @@
   earns the content_hash column). Gated: refuse if the referenced set shrank
   suspiciously or the index is unhealthy; reversible via the trash/ prefix +
   bucket versioning; NEVER run against a corrupted index (restore from PITR
-  first — see docs/operations.md)."
+  first — see docs/operations.md).
+
+  `dangling` doubles as the operator backstop for the in-process resizer
+  (`api/resize.clj`): `missing-renditions` (pure) narrows it to rendition
+  keys, and `--apply` regenerates each one (`backfill-missing-renditions!`)
+  — the durable sweep for renditions nobody has viewed since upload; a
+  viewed one self-heals on its own 404 via `heal-or-enqueue!`."
   (:require [clojure.set :as set]
             [clojure.java.io :as io]
             [clojure.string :as string]
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as creds]
             [kaleidoscope.api.albums :as albums]
+            [kaleidoscope.api.resize :as resize]
+            [kaleidoscope.persistence.filesystem.s3-impl :as s3-storage]
             [next.jdbc :as next]
             [taoensso.timbre :as log]))
 
@@ -100,6 +108,36 @@
      :mismatched mismatched
      :gate       gate}))
 
+(def ^:private rendition-key-pattern
+  "Matches a rendition object path: media/<photo-id>/<category>.<ext>. A raw
+  is `media/<photo-id>/raw.<ext>` — same shape, filtered out below by
+  category membership in resize/RENDITIONS rather than the regex, so this
+  stays a single pattern for the whole media/ namespace."
+  #"^media/([^/]+)/([^./]+)\.([^./]+)$")
+
+(defn missing-renditions
+  "Pure. From a `:dangling` set (referenced - stored — rows the index still
+  points at whose object is gone), select the keys that name a RENDITION
+  (category ∈ (keys resize/RENDITIONS), i.e. never `raw`) and return the set
+  of `{:photo-id .. :ext ..}` whose rendition(s) are missing — deduped, since
+  several missing categories for the same photo collapse to one backfill
+  unit (the driver regenerates every RENDITIONS category for that photo/ext
+  in one pass, idempotently skipping ones that already exist).
+
+  This is the durable answer to 'which renditions never got made' for photos
+  nobody has viewed since upload — a viewed photo's missing rendition
+  self-heals via the serve-path 404 heal on its own; this set is what
+  `media:reconcile --apply` backfills as the operator backstop for the rest.
+  No S3, no store — just string matching over the key set the plan already
+  computed."
+  [dangling]
+  (into #{}
+        (keep (fn [k]
+                (when-let [[_ photo-id category ext] (re-matches rendition-key-pattern k)]
+                  (when (contains? resize/RENDITIONS category)
+                    {:photo-id photo-id :ext ext}))))
+        dangling))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Effectful driver — thin glue around the pure core (not unit-tested; the
 ;; risky logic is above). Reads the sets, calls reconcile-plan, executes only
@@ -129,6 +167,31 @@
     (log/infof "Quarantining orphan %s -> %s" k (quarantine-key k))
     (s3-invoke! {:op :CopyObject :request {:Bucket bucket :CopySource (str bucket "/" k) :Key (quarantine-key k)}})
     (s3-invoke! {:op :DeleteObject :request {:Bucket bucket :Key k}})))
+
+(defn backfill-missing-renditions!
+  "Regenerate every rendition named in `missing` (a `missing-renditions` set)
+  against `gate`'s media store — the operator backstop for the never-viewed
+  tail (a viewed photo already self-heals via the serve-path 404 heal).
+
+  Resizes SYNCHRONOUSLY, acquiring a permit and calling `resize-one!` exactly
+  as `heal-or-enqueue!`/`run-worker!` do (see `resize-one!`'s docstring for
+  the permit-ownership contract this must not violate). Deliberately does
+  NOT go through `enqueue-warm!` + the queue/worker pool: this is a one-shot
+  offline process, and draining a queue by interrupting workers races
+  `run-worker!`'s blocking `.take` (an interrupt can land mid-take and abort
+  a still-queued task) — a synchronous call returns only once every attempt
+  has actually completed, so the caller can `stop!` the gate and exit
+  immediately after, with no drain race to get wrong.
+
+  Already-present renditions come back `:hit` (cheap, idempotent); genuine
+  failures (`:bad-source`/`:failed`) are logged and left for a later run —
+  this is a best-effort backfill, not a transaction."
+  [gate missing]
+  (doseq [{:keys [photo-id ext]} missing
+          category              (keys resize/RENDITIONS)]
+    (.acquire ^java.util.concurrent.Semaphore (:permit gate))
+    (let [{:keys [outcome]} (resize/resize-one! gate photo-id category ext)]
+      (log/infof "reconcile backfill: photo %s category %s -> %s" photo-id category (name outcome)))))
 
 (defn index-healthy?
   "Cheap sanity check before any destructive action: the index connection works
@@ -165,7 +228,12 @@
 (defn -main
   "Operator entry point (thin launcher calls this). Reads env-supplied config,
   assembles the sets, runs the pure `reconcile-plan`, prints the report, and —
-  only when the gate is :ok and RECONCILE_APPLY=1 — quarantines orphans.
+  only when the gate is :ok and RECONCILE_APPLY=1 — quarantines orphans, then
+  backfills every missing rendition (`missing-renditions` of `:dangling`) by
+  resizing it synchronously against a resize gate built over
+  KALEIDOSCOPE_MEDIA_BUCKET. This is the operator backstop for renditions
+  nobody has viewed since upload; a viewed photo's missing rendition
+  self-heals on its own via the serve-path 404 heal (`heal-or-enqueue!`).
 
   Env: KALEIDOSCOPE_MEDIA_BUCKET, RECONCILE_STORED_KEYS (newline-delimited keys
   file), KALEIDOSCOPE_DB_* (index connection), optional
@@ -203,9 +271,25 @@
       (log/infof "Reconcile plan: %s" (report plan))
       (when (seq (:dangling plan))   (log/warnf "DANGLING (possible data loss): %s" (:dangling plan)))
       (when (seq (:mismatched plan)) (log/warnf "MISMATCHED (integrity): %s" (:mismatched plan)))
-      (cond
-        (not= :ok (:gate plan)) (log/errorf "Gate %s — refusing to quarantine. Investigate before re-running." (:gate plan))
-        (not apply?)            (log/infof "Dry-run: would quarantine %d orphan(s) to %s. Set RECONCILE_APPLY=1 to apply." (count (:orphans plan)) TRASH-PREFIX)
-        :else                   (do (log/infof "Applying: quarantining %d orphan(s)..." (count (:orphans plan)))
-                                    (execute-plan! invoke bucket plan)))
+      (let [missing (missing-renditions (:dangling plan))]
+        (cond
+          (not= :ok (:gate plan))
+          (log/errorf "Gate %s — refusing to quarantine or backfill. Investigate before re-running." (:gate plan))
+
+          (not apply?)
+          (log/infof (str "Dry-run: would quarantine %d orphan(s) to %s and backfill %d missing "
+                           "rendition(s). Set RECONCILE_APPLY=1 to apply.")
+                      (count (:orphans plan)) TRASH-PREFIX (count missing))
+
+          :else
+          (do (log/infof "Applying: quarantining %d orphan(s)..." (count (:orphans plan)))
+              (execute-plan! invoke bucket plan)
+              (if (empty? missing)
+                (log/info "No missing renditions to backfill.")
+                (do (log/infof "Backfilling %d missing-rendition photo(s)..." (count missing))
+                    (let [store      (s3-storage/make-s3 {:bucket bucket})
+                          resize-gate (resize/make-resize-gate store)]
+                      (try
+                        (backfill-missing-renditions! resize-gate missing)
+                        (finally (resize/stop! resize-gate)))))))))
       (log/info "Reconcile complete."))))

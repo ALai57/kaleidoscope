@@ -62,6 +62,29 @@
 (deftest orphans-are-quarantined-not-hard-deleted
   (is (= "trash/media/abc/raw.jpg" (sut/quarantine-key "media/abc/raw.jpg"))))
 
+(deftest missing-renditions-selects-only-dangling-rendition-keys
+  (let [dangling #{"media/p1/raw.jpg"            ;; raw — never a "rendition"
+                   "media/p1/thumbnail.jpg"      ;; rendition, missing
+                   "media/p2/gallery.png"        ;; rendition, missing
+                   "media/p2/monitor.png"        ;; second missing category, same photo+ext
+                   "some/other/key.txt"          ;; not a media key at all
+                   "media/p3/notacategory.jpg"}] ;; media-shaped, but category isn't a rendition
+    (testing "only rendition keys (never raw, never non-media) contribute, deduped per photo+ext"
+      (is (= #{{:photo-id "p1" :ext "jpg"}
+               {:photo-id "p2" :ext "png"}}
+             (sut/missing-renditions dangling))))))
+
+(deftest missing-renditions-is-empty-when-nothing-dangling-is-a-rendition
+  (is (= #{} (sut/missing-renditions #{"media/p1/raw.jpg" "trash/media/p2/thumbnail.jpg" "readme.md"}))))
+
+(deftest missing-renditions-composes-with-the-plans-dangling-set
+  (let [plan (sut/reconcile-plan {:stored     #{"media/p1/raw.jpg"}
+                                  :referenced #{"media/p1/raw.jpg" "media/p1/thumbnail.jpg" "media/p2/raw.png"}})]
+    (testing "dangling still reports every referenced-but-missing key"
+      (is (= #{"media/p1/thumbnail.jpg" "media/p2/raw.png"} (:dangling plan))))
+    (testing "missing-renditions narrows that to just the rendition (never raw)"
+      (is (= #{{:photo-id "p1" :ext "jpg"}} (sut/missing-renditions (:dangling plan)))))))
+
 (deftest derivable-keys-reduces-rows-to-referenced-set-and-hashes
   (let [{:keys [referenced hashes]}
         (sut/derivable-keys [{:path "media/a/raw.jpg"       :content-hash "sha256:aaa"}
