@@ -1,5 +1,7 @@
 (ns kaleidoscope.api.albums-test
   (:require [kaleidoscope.api.albums :as albums-api]
+            [kaleidoscope.api.resize :as resize]
+            [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.persistence.tenant :as tenant]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
             [kaleidoscope.persistence.rdbms.embedded-postgres-impl :as embedded-postgres]
@@ -11,7 +13,49 @@
             [matcher-combinators.test :refer [match?]]
             [taoensso.timbre :as log]
             [clojure.java.io :as io]
-            [kaleidoscope.test-utils :as tu]))
+            [kaleidoscope.test-utils :as tu])
+  (:import [java.io ByteArrayInputStream ByteArrayOutputStream]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; new-image's async warm needs a store that can be read more than once —
+;; see kaleidoscope.api.resize-test/RepeatableMemFS. MemFS instead returns
+;; the literal InputStream it was given at put-file time, which is exhausted
+;; after one read; the resize worker reads the raw once per rendition
+;; category, so a plain MemFS would starve categories 2-4. This double
+;; stores byte[] and hands back a fresh stream on every get-file.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defrecord RepeatableMemFS [files]
+  fs/DistributedFileSystem
+  (ls [_ _path _options] nil)
+  (get-file [_ path _options]
+    (if-let [bs (get @files path)]
+      (fs/object {:version (fs/md5 path) :content (ByteArrayInputStream. bs)})
+      fs/does-not-exist-response))
+  (put-file [_ path input-stream _metadata]
+    (let [baos (ByteArrayOutputStream.)]
+      (io/copy input-stream baos)
+      (swap! files assoc path (.toByteArray baos)))
+    (fs/object {:version (fs/md5 path) :content (ByteArrayInputStream. (byte-array 0))})))
+
+(defn- repeatable-store
+  []
+  (->RepeatableMemFS (atom {})))
+
+(defn- rendition-exists?
+  [store photo-id category ext]
+  (not (fs/does-not-exist? (fs/get-file store (format "media/%s/%s.%s" photo-id category ext) {}))))
+
+(defn- wait-until
+  "Poll `pred-fn` every 20ms until truthy or `timeout-ms` elapses. Only for
+  waiting on the resize gate's async worker — the assertion itself is
+  behavioral (the renditions eventually appear), never a timing measurement."
+  [pred-fn timeout-ms]
+  (let [deadline (+ (System/currentTimeMillis) timeout-ms)]
+    (loop []
+      (cond
+        (pred-fn)                             true
+        (> (System/currentTimeMillis) deadline) false
+        :else                                  (do (Thread/sleep 20) (recur))))))
 
 (use-fixtures :each
               (fn [f]
@@ -271,63 +315,58 @@
 
 (deftest new-image-test
   (let [database (embedded-h2/fresh-db!)
-        mock-fs (atom {})
-        captured-notification (atom [])]
-    (testing "Create photo version"
-      (is (match? {:photo-id uuid?
-                   :versions vector?}
-                  (albums-api/new-image {:database               database
-                                         :static-content-adapter (in-mem/make-mem-fs {:store mock-fs})
-                                         :notify-image-resizer!  (fn [& inputs] (swap! captured-notification conj (apply hash-map inputs)))}
-                                        "andrewslai.com"
-                                        {:filename          "myfile.png"
-                                         :photo-id          #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"
-                                         :more-metadata     12345
-                                         :extension         "png"
-                                         :tempfile          (io/file (io/resource "public/images/lock.svg"))
-                                         :file-input-stream (u/->file-input-stream (io/file (io/resource "public/images/lock.svg")))}))))
+        store    (repeatable-store)
+        gate     (resize/make-resize-gate store {:max-concurrent 1})
+        photo-id #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"]
+    (try
+      (testing "Create photo version"
+        (is (match? {:photo-id uuid?
+                     :versions vector?}
+                    (albums-api/new-image {:database               database
+                                           :static-content-adapter store
+                                           :resize-gate            gate}
+                                          "andrewslai.com"
+                                          {:filename          "myfile.png"
+                                           :photo-id          photo-id
+                                           :more-metadata     12345
+                                           :extension         "png"
+                                           ;; a real decodable PNG, not lock.svg — the resize
+                                           ;; gate's worker now actually decodes the raw to
+                                           ;; produce renditions, unlike the old notify-only flow.
+                                           :tempfile          (io/file (io/resource "public/images/example-image.png"))
+                                           :file-input-stream (u/->file-input-stream (io/file (io/resource "public/images/example-image.png")))}))))
 
-    (testing "Can retrieve the version from the DB"
-      (is (match? [{:path           (re-pattern (format "media/%s/raw.png" UUID-REGEX))
-                    :photo-id       #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"
-                    :hostname       "andrewslai.com"
-                    :filename       "raw.png"}
-                   {:filename "thumbnail.png"}
-                   {:filename "gallery.png"}
-                   {:filename "monitor.png"}
-                   {:filename "mobile.png"}]
-                  (albums-api/get-full-photos database {:id #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"}))))
+      (testing "Can retrieve the version from the DB"
+        (is (match? [{:path           (re-pattern (format "media/%s/raw.png" UUID-REGEX))
+                      :photo-id       photo-id
+                      :hostname       "andrewslai.com"
+                      :filename       "raw.png"}
+                     {:filename "thumbnail.png"}
+                     {:filename "gallery.png"}
+                     {:filename "monitor.png"}
+                     {:filename "mobile.png"}]
+                    (albums-api/get-full-photos database {:id photo-id}))))
 
-    (testing "Can retrieve the version from the DB with string"
-      (is (match? [{:path           (re-pattern (format "media/%s/raw.png" UUID-REGEX))
-                    :photo-id       #uuid "11111111-4c9f-42c0-9e68-c4aeedf7cae4"
-                    :hostname       "andrewslai.com"
-                    :filename       "raw.png"}
-                   {:filename "thumbnail.png"}
-                   {:filename "gallery.png"}
-                   {:filename "monitor.png"}
-                   {:filename "mobile.png"}]
-                  (albums-api/get-full-photos database {:id "11111111-4c9f-42c0-9e68-c4aeedf7cae4"}))))
+      (testing "Can retrieve the version from the DB with string"
+        (is (match? [{:path           (re-pattern (format "media/%s/raw.png" UUID-REGEX))
+                      :photo-id       photo-id
+                      :hostname       "andrewslai.com"
+                      :filename       "raw.png"}
+                     {:filename "thumbnail.png"}
+                     {:filename "gallery.png"}
+                     {:filename "monitor.png"}
+                     {:filename "mobile.png"}]
+                    (albums-api/get-full-photos database {:id (str photo-id)}))))
 
-    (testing "Sends notifications"
-      ;; The resize notify message is the raw's write-location URL (s3://bucket/key),
-      ;; derived once and reused for the write. The in-memory store reports its
-      ;; :storage-root ("media") as the bucket; a real S3 store reports the host
-      ;; bucket. No message-attributes — the resizer reads only the URL body.
-      (is (= [{:message "s3://media/media/11111111-4c9f-42c0-9e68-c4aeedf7cae4/raw.png"
-               :subject "image-resize-requested"}]
-             @captured-notification)))
-    (testing "File exists in Filesystem"
-      (is (match? {"media"
-                   {"11111111-4c9f-42c0-9e68-c4aeedf7cae4"
-                    {"raw.png"
-                     {:path     (re-pattern (format "media/%s/raw.png" UUID-REGEX))
-                      :name     "raw.png"
-                      :content  tu/file-input-stream?
-                      :metadata {:filename      "myfile.png"
-                                 :more-metadata 12345}
-                      }}}}
-                  @mock-fs)))))
+      (testing "The raw object was written before the DB rows were created"
+        (is (rendition-exists? store photo-id "raw" "png")))
+
+      (testing "new-image enqueues a warm, and the worker eventually produces every rendition"
+        (is (wait-until #(every? (fn [category] (rendition-exists? store photo-id category "png"))
+                                  (keys resize/RENDITIONS))
+                        5000)
+            "all four renditions must eventually appear via the async resize gate"))
+      (finally (resize/stop! gate)))))
 
 (deftest new-image-sets-content-hash-on-raw-only-test
   ;; Phase 3: the raw version carries a sha256 checksum of the uploaded bytes,
@@ -337,20 +376,24 @@
   (let [database (embedded-h2/fresh-db!)
         img      (io/file (io/resource "public/images/example-image.png"))
         expected (str "sha256:" (albums-api/sha256-hex (java.nio.file.Files/readAllBytes (.toPath img))))
-        {:keys [photo-id]} (albums-api/new-image {:database               database
-                                                  :static-content-adapter (in-mem/make-mem-fs {:store (atom {})})
-                                                  :notify-image-resizer!  (fn [& _] nil)}
-                                                 "andrewslai.com"
-                                                 {:filename  "example-image.png"
-                                                  :extension "png"
-                                                  :tempfile  img})
-        by-cat   (into {} (map (juxt :image-category identity))
-                       (albums-api/get-photo-versions database {:photo-id photo-id}))]
-    (testing "the raw version's content_hash is sha256 of the uploaded bytes"
-      (is (= expected (:content-hash (get by-cat "raw")))))
-    (testing "rendition versions carry no content_hash yet"
-      (is (nil? (:content-hash (get by-cat "thumbnail"))))
-      (is (nil? (:content-hash (get by-cat "gallery")))))))
+        store    (repeatable-store)
+        gate     (resize/make-resize-gate store {:max-concurrent 1})]
+    (try
+      (let [{:keys [photo-id]} (albums-api/new-image {:database               database
+                                                       :static-content-adapter store
+                                                       :resize-gate            gate}
+                                                      "andrewslai.com"
+                                                      {:filename  "example-image.png"
+                                                       :extension "png"
+                                                       :tempfile  img})
+            by-cat (into {} (map (juxt :image-category identity))
+                         (albums-api/get-photo-versions database {:photo-id photo-id}))]
+        (testing "the raw version's content_hash is sha256 of the uploaded bytes"
+          (is (= expected (:content-hash (get by-cat "raw")))))
+        (testing "rendition versions carry no content_hash yet"
+          (is (nil? (:content-hash (get by-cat "thumbnail"))))
+          (is (nil? (:content-hash (get by-cat "gallery"))))))
+      (finally (resize/stop! gate)))))
 
 (deftest get-full-photos-scoped-handle-confines-by-tenant-test
   ;; The photo GET handlers used to thread :hostname into the query map by

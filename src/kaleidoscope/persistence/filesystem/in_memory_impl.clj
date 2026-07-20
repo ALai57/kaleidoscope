@@ -59,11 +59,7 @@
                         :type     :file}
                        'file)]
       (swap! store assoc-in p file)
-      file))
-
-  fs/WriteLocation
-  (write-location [this path]
-    {:bucket (:storage-root this) :key path}))
+      file)))
 
 (defn in-memory-fs?
   [x]

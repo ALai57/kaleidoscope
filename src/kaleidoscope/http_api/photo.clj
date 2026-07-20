@@ -43,7 +43,7 @@
    {:keys [filename tempfile] :as file}]
   (span/with-span! {:name "kaleidoscope.api.photo.upload-and-process"}
     (log/infof "Processing file %s" filename)
-    (let [{:keys [static-content-adapters database notify-image-resizer!]} components
+    (let [{:keys [static-content-adapters database]} components
           hostname (hu/tenant-hostname req)
           extension (get-file-extension filename)
 

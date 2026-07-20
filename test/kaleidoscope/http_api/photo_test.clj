@@ -2,6 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.test :refer [deftest is testing]]
             [kaleidoscope.api.albums :as albums-api]
+            [kaleidoscope.api.resize :as resize]
             [kaleidoscope.http-api.photo :as photo]
             [kaleidoscope.persistence.filesystem.in-memory-impl :as in-mem]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
@@ -42,20 +43,23 @@
   (let [database          (embedded-h2/fresh-db!)
         tenant-store      (atom {})
         ephemeral-store   (atom {})
+        gate              (resize/make-resize-gate (in-mem/make-mem-fs {:store ephemeral-store}) {:max-concurrent 1})
         req               {:headers    {"host" "kal-eph-xyz.fly.dev"}
                             :tenant     {:hostname "andrewslai.com" :asset-store "ephemeral-tenant-assets"}
                             :components {:database                database
                                          :static-content-adapters {"andrewslai.com"          (in-mem/make-mem-fs {:store tenant-store})
                                                                     "ephemeral-tenant-assets" (in-mem/make-mem-fs {:store ephemeral-store})}
-                                         :notify-image-resizer!   (fn [& _] nil)}}
+                                         :resize-gate             gate}}
         file              {:filename "myfile.png"
                             :tempfile (io/file (io/resource "public/images/lock.svg"))}]
-    (photo/process-photo-upload! req file)
+    (try
+      (photo/process-photo-upload! req file)
 
-    (testing "The photo bytes land in the isolated asset store, not the pinned tenant's own bucket"
-      (is (match? {albums-api/MEDIA-FOLDER map?} @ephemeral-store))
-      (is (= {} @tenant-store)))
+      (testing "The photo bytes land in the isolated asset store, not the pinned tenant's own bucket"
+        (is (match? {albums-api/MEDIA-FOLDER map?} @ephemeral-store))
+        (is (= {} @tenant-store)))
 
-    (testing "The DB photo row is scoped to the pinned tenant, not the raw ephemeral Host header"
-      (is (seq (albums-api/get-full-photos database {:hostname "andrewslai.com"})))
-      (is (empty? (albums-api/get-full-photos database {:hostname "kal-eph-xyz.fly.dev"}))))))
+      (testing "The DB photo row is scoped to the pinned tenant, not the raw ephemeral Host header"
+        (is (seq (albums-api/get-full-photos database {:hostname "andrewslai.com"})))
+        (is (empty? (albums-api/get-full-photos database {:hostname "kal-eph-xyz.fly.dev"}))))
+      (finally (resize/stop! gate)))))

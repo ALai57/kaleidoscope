@@ -17,12 +17,6 @@
   (get-file [_ path options] "Retrieve a single file")
   (put-file [_ path input-stream metadata] "Put a file"))
 
-(defprotocol WriteLocation
-  "Where `put-file` physically writes `path`, as `{:bucket .. :key ..}`. Lets a
-  caller (the resize notifier) name the exact object `put-file` created, folding
-  in any bucket prefix so the notify URL can never drift from the write target."
-  (write-location [_ path]))
-
 (defn folder?
   [url]
   (string/ends-with? (str url) "/"))
