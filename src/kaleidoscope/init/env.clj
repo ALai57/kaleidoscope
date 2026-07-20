@@ -3,7 +3,6 @@
   components."
   (:require [cheshire.core :as json]
             [clojure.java.io :as io]
-            [cognitect.aws.client.api :as aws]
             [kaleidoscope.clients.bugsnag :as bugsnag]
             [kaleidoscope.clients.error-reporter :as er]
             [kaleidoscope.clients.session-tracker :as st]
@@ -19,6 +18,7 @@
             [kaleidoscope.http-api.auth.access-control :as ac]
             [kaleidoscope.api.firecrawl :as firecrawl]
             [kaleidoscope.api.image-transcriber :as transcriber]
+            [kaleidoscope.api.resize :as resize]
             [kaleidoscope.scoring.mock :as scoring-mock]
             [kaleidoscope.scoring.llm-scorer :as llm-scorer]
             [kaleidoscope.workflows.mock :as workflow-mock]
@@ -90,15 +90,6 @@
    :maxLifetime 240000                                      ;; Retire connections after 4 mins
    })
 
-(defn env->kaleidoscope-image-notifier
-  {:malli/schema [:=> [:cat :map]
-                  [:map
-                   [:image-notifier-arn [:string {:error/message "Missing Image Notifier ARN. Set via KALEIDOSCOPE_IMAGE_NOTIFIER_ARN environment variable"}]]]]
-   :malli/scope  #{:output}}
-  [env]
-  {:image-notifier-arn (get env "KALEIDOSCOPE_IMAGE_NOTIFIER_ARN")})
-
-
 (defn env->kaleidoscope-local-fs
   {:malli/schema [:=> [:cat :map]
                   [:map
@@ -130,6 +121,21 @@
   {:api-key       (get env "KALEIDOSCOPE_BUGSNAG_KEY")
    :app-version   (:version (vu/get-version-details))
    :release-stage (environment-name env)})
+
+(defn env->kaleidoscope-image-resizer-type
+  "Resolve KALEIDOSCOPE_IMAGE_RESIZER_TYPE to `:in-process` or `:none`,
+  defaulting to `:in-process`. NOT a boot-instruction launcher: the resize
+  gate this selects is built OVER the media store, which only exists once
+  `kaleidoscope-static-content-adapters` has already booted, and a launcher
+  only ever receives `env` — never the other already-built components (see
+  `prepare-kaleidoscope`, which reads this directly instead)."
+  [env]
+  (case (get env "KALEIDOSCOPE_IMAGE_RESIZER_TYPE" "in-process")
+    "in-process" :in-process
+    "none"       :none
+    (throw (ex-info (format "KALEIDOSCOPE_IMAGE_RESIZER_TYPE had invalid value [%s]. Valid options are: (\"in-process\" \"none\")"
+                            (get env "KALEIDOSCOPE_IMAGE_RESIZER_TYPE"))
+                    {}))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot instructions for starting system components from the environment
@@ -196,27 +202,6 @@
    :launchers {"public-access"           (fn [_env] ac/public-access)
                "use-access-control-list" (fn [_env] kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST)}
    :default   "use-access-control-list"})
-
-(def kaleidoscope-notify-image-resizer-boot-instructions
-  {:name      :kaleidoscope-notify-image-resizer
-   :path      "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE"
-   :launchers {"none"    (fn [_env] (fn [& _args] nil))
-               "println" (fn [_env] (fn [& args] (println "Arguments to image notifier" args)))
-               "sns"     (fn [env]
-                           (let [{:keys [image-notifier-arn]} (env->kaleidoscope-image-notifier env)
-                                 client                        (aws/client {:api :sns})]
-                             (fn [& {:keys [subject message message-attributes]}]
-                               (aws/invoke client
-                                           {:op      :Publish
-                                            :request {:TopicArn          image-notifier-arn
-                                                      :Subject           subject
-                                                      :Message           message
-                                                      :MessageAttributes (into {}
-                                                                               (map (fn [[k v]]
-                                                                                      [k {:DataType    "String"
-                                                                                          :StringValue v}]))
-                                                                               message-attributes)}}))))}
-   :default   "sns"})
 
 (defn read-tenants
   "Tenant registry — single source of truth (also read by scripts/ephemeral/lib.sh
@@ -366,7 +351,6 @@
    kaleidoscope-authorization-boot-instructions
    kaleidoscope-static-content-adapter-boot-instructions
    kaleidoscope-tenant-resolver-boot-instructions
-   kaleidoscope-notify-image-resizer-boot-instructions
    kaleidoscope-scorer-boot-instructions
    kaleidoscope-workflow-executor-boot-instructions
    kaleidoscope-recipe-fetcher-boot-instructions
@@ -404,38 +388,54 @@
                                          name
                                          (keys launchers))
                                  {})))))
-           {}
+           ;; `:env` is carried alongside the launched components so
+           ;; `prepare-kaleidoscope` can read config (e.g.
+           ;; KALEIDOSCOPE_IMAGE_RESIZER_TYPE) for wiring that depends on
+           ;; components launchers don't have access to — a launcher only
+           ;; ever receives `env`, never the other already-built components.
+           {:env env}
            boot-instructions)))
 
 (defn prepare-kaleidoscope
-  [{:keys [database-connection
+  [{:keys [env
+           database-connection
            exception-reporter
            kaleidoscope-authentication
            kaleidoscope-authorization
            kaleidoscope-static-content-adapters
            kaleidoscope-tenant-resolver
-           kaleidoscope-notify-image-resizer
            kaleidoscope-scorer
            kaleidoscope-workflow-executor
            kaleidoscope-recipe-fetcher
            kaleidoscope-image-transcriber
            kaleidoscope-timeline-generator]
     :as   system}]
-  {:database                database-connection
-   :exception-reporter      (partial er/report! exception-reporter)
-   :session-tracking        {:name ::session-tracking
-                             :wrap (mw/session-tracking-stack exception-reporter)}
-   :auth-stack              {:name ::auth-stack
-                             :wrap (apply comp (mw/auth-stack kaleidoscope-authentication
-                                                              kaleidoscope-authorization))}
-   :static-content-adapters kaleidoscope-static-content-adapters
-   :tenant-resolver         kaleidoscope-tenant-resolver
-   :notify-image-resizer!   kaleidoscope-notify-image-resizer
-   :scorer                  kaleidoscope-scorer
-   :workflow-executor       kaleidoscope-workflow-executor
-   :recipe-fetcher          kaleidoscope-recipe-fetcher
-   :image-transcriber       kaleidoscope-image-transcriber
-   :timeline-generator      kaleidoscope-timeline-generator})
+  (let [media-store (get kaleidoscope-static-content-adapters tenant/media-store)
+        ;; The resize gate is built HERE, not as a boot-instruction launcher:
+        ;; it wraps the media store, which is itself a value nested inside
+        ;; the already-built `kaleidoscope-static-content-adapters`
+        ;; component — a launcher only ever receives `env`, never sibling
+        ;; components. Every boot path gets a `:resize-gate` (real or
+        ;; no-op) so callers never have to nil-guard against its absence.
+        resize-gate (if (and media-store
+                             (= :in-process (env->kaleidoscope-image-resizer-type env)))
+                      (resize/make-resize-gate media-store)
+                      (resize/noop-gate))]
+    {:database                database-connection
+     :exception-reporter      (partial er/report! exception-reporter)
+     :session-tracking        {:name ::session-tracking
+                               :wrap (mw/session-tracking-stack exception-reporter)}
+     :auth-stack              {:name ::auth-stack
+                               :wrap (apply comp (mw/auth-stack kaleidoscope-authentication
+                                                                kaleidoscope-authorization))}
+     :static-content-adapters kaleidoscope-static-content-adapters
+     :tenant-resolver         kaleidoscope-tenant-resolver
+     :resize-gate             resize-gate
+     :scorer                  kaleidoscope-scorer
+     :workflow-executor       kaleidoscope-workflow-executor
+     :recipe-fetcher          kaleidoscope-recipe-fetcher
+     :image-transcriber       kaleidoscope-image-transcriber
+     :timeline-generator      kaleidoscope-timeline-generator}))
 
 (defn make-http-handler
   [system]

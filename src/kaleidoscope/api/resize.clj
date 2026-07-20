@@ -305,9 +305,24 @@
                         (range max-concurrent))]
      (assoc gate :workers workers))))
 
+(defn noop-gate
+  "A resize gate that does nothing: `:store` is nil, so `enqueue-warm!`
+  short-circuits without touching a queue and `heal-or-enqueue!` always
+  reports `:no-raw` (warm off *and* heal off — one unambiguous meaning).
+  It also fails the `(= media-store (:store resize-gate))` check
+  `serve-photo` guards on, so the serve-path heal never engages either.
+
+  Used whenever the resizer is disabled (`KALEIDOSCOPE_IMAGE_RESIZER_TYPE=none`)
+  or no media store is configured — every boot path supplies a `:resize-gate`
+  so callers never have to nil-guard against its absence. Has no worker
+  threads, so `stop!` on it is a no-op."
+  []
+  {:store nil})
+
 (defn stop!
   "Interrupt and join every worker thread in `gate`. Tests must call this
-  for every gate they start, or worker threads leak across test runs."
+  for every gate they start, or worker threads leak across test runs.
+  A no-op on `noop-gate` (no `:workers`)."
   [gate]
   (doseq [^Thread t (:workers gate)]
     (.interrupt t))
@@ -329,21 +344,25 @@
 
   Returns `true` if the task was enqueued, `false` if the queue was full
   (`offer` returned false) — in which case a WARN is logged and
-  `dropped-enqueue-count` is bumped so the drop is never silent."
+  `dropped-enqueue-count` is bumped so the drop is never silent. A no-op
+  (returns `false`, nothing logged/spanned) on a `noop-gate` (`:store nil`)
+  — there is no queue to offer onto."
   [gate photo-id ext & categories]
-  (let [cats (or (seq categories) (keys RENDITIONS))
-        task {:photo-id photo-id :ext ext :categories cats}]
-    (span/with-span! {:name       "kaleidoscope.resize.enqueue-warm!"
-                       :attributes {"resize.photo-id"   (str photo-id)
-                                    "resize.categories" (str cats)}}
-      (if (.offer ^LinkedBlockingQueue (:queue gate) task)
-        true
-        (do
-          (swap! dropped-enqueue-count inc)
-          (log/warnf "resize queue full (capacity %d); dropping warm task for photo %s categories %s"
-                     QUEUE-CAPACITY photo-id cats)
-          (span/add-span-data! {:attributes {"resize.dropped" true}})
-          false)))))
+  (if (nil? (:store gate))
+    false
+    (let [cats (or (seq categories) (keys RENDITIONS))
+          task {:photo-id photo-id :ext ext :categories cats}]
+      (span/with-span! {:name       "kaleidoscope.resize.enqueue-warm!"
+                         :attributes {"resize.photo-id"   (str photo-id)
+                                      "resize.categories" (str cats)}}
+        (if (.offer ^LinkedBlockingQueue (:queue gate) task)
+          true
+          (do
+            (swap! dropped-enqueue-count inc)
+            (log/warnf "resize queue full (capacity %d); dropping warm task for photo %s categories %s"
+                       QUEUE-CAPACITY photo-id cats)
+            (span/add-span-data! {:attributes {"resize.dropped" true}})
+            false))))))
 
 (defn heal-or-enqueue!
   "Serve-path fast-fail self-heal: called when a GET for a rendition 404s.
@@ -375,26 +394,31 @@
     :no-raw        — the raw object itself is missing; nothing to heal from.
     :bad-source    — the raw exceeds MAX-SOURCE-PIXELS or isn't decodable by
                      ImageIO; permanent and cheap to re-detect, so not worth
-                     enqueueing."
+                     enqueueing.
+
+  On a `noop-gate` (`:store nil`) always returns `:no-raw` without touching
+  any store — warm off *and* heal off is one unambiguous meaning."
   [gate photo-id category ext]
-  (let [{:keys [store ^Semaphore permit]} gate
-        raw-path (media-raw-path photo-id ext)]
-    (span/with-span! {:name       "kaleidoscope.resize.heal-or-enqueue!"
-                       :attributes {"resize.photo-id" (str photo-id)
-                                    "resize.category" (str category)}}
-      (if (fs/does-not-exist? (fs/get-file store raw-path {}))
-        :no-raw
-        (if (.tryAcquire permit ACQUIRE-TIMEOUT-MS TimeUnit/MILLISECONDS)
-          ;; Permit acquired: hand it to resize-one! exactly as run-worker!
-          ;; does. resize-one! owns releasing it from here on.
-          (let [{:keys [outcome bytes]} (resize-one! gate photo-id category ext)]
-            (case outcome
-              :made       {:made bytes}
-              :hit        (let [rendition-path (media-rendition-path photo-id category ext)
-                                 obj            (fs/get-file store rendition-path {})]
-                            {:made (.readAllBytes ^java.io.InputStream (fs/object-content obj))})
-              :bad-source :bad-source
-              :failed     (do (enqueue-warm! gate photo-id ext category)
-                               :busy)))
-          (do (enqueue-warm! gate photo-id ext category)
-              :busy))))))
+  (if (nil? (:store gate))
+    :no-raw
+    (let [{:keys [store ^Semaphore permit]} gate
+          raw-path (media-raw-path photo-id ext)]
+      (span/with-span! {:name       "kaleidoscope.resize.heal-or-enqueue!"
+                         :attributes {"resize.photo-id" (str photo-id)
+                                      "resize.category" (str category)}}
+        (if (fs/does-not-exist? (fs/get-file store raw-path {}))
+          :no-raw
+          (if (.tryAcquire permit ACQUIRE-TIMEOUT-MS TimeUnit/MILLISECONDS)
+            ;; Permit acquired: hand it to resize-one! exactly as run-worker!
+            ;; does. resize-one! owns releasing it from here on.
+            (let [{:keys [outcome bytes]} (resize-one! gate photo-id category ext)]
+              (case outcome
+                :made       {:made bytes}
+                :hit        (let [rendition-path (media-rendition-path photo-id category ext)
+                                   obj            (fs/get-file store rendition-path {})]
+                              {:made (.readAllBytes ^java.io.InputStream (fs/object-content obj))})
+                :bad-source :bad-source
+                :failed     (do (enqueue-warm! gate photo-id ext category)
+                                 :busy)))
+            (do (enqueue-warm! gate photo-id ext category)
+                :busy)))))))

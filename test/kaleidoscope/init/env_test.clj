@@ -1,6 +1,7 @@
 (ns kaleidoscope.init.env-test
   (:require [clojure.test :refer :all]
             [kaleidoscope.api.image-transcriber :as transcriber]
+            [kaleidoscope.api.resize :as resize]
             [kaleidoscope.http-api.tenant :as tenant]
             [kaleidoscope.init.env :as sut]
             [kaleidoscope.main :as main]
@@ -72,16 +73,60 @@
     (is (= "wedding"          (:bucket (get (s3-launcher {}) "caheriaguilar.and.andrewslai.com")))) ; bucket≠host proves file read
     (is (= "kaleidoscope.pub" (:bucket (get (s3-launcher {}) "kaleidoscope.pub"))))))
 
-(deftest notify-image-resizer-none-launcher-accepts-keyword-args
-  (testing "the \"none\" no-op notifier tolerates the keyword-arg call made by new-image"
-    (let [none-launcher (get-in sut/kaleidoscope-notify-image-resizer-boot-instructions
-                                [:launchers "none"])
-          notifier      (none-launcher {})]
-      ;; new-image invokes the notifier with these six positional args; a bare
-      ;; clojure.core/identity throws ArityException here (Bugsnag 6a567ddc).
-      (is (nil? (notifier :subject             "image-resize-requested"
-                          :message             "s3://host/media/photo/raw.png"
-                          :message-attributes  {"hostname" "host" "extension" "png"}))))))
+(deftest env->kaleidoscope-image-resizer-type-test
+  (testing "defaults to :in-process when KALEIDOSCOPE_IMAGE_RESIZER_TYPE is unset"
+    (is (= :in-process (sut/env->kaleidoscope-image-resizer-type {}))))
+
+  (testing "resolves \"in-process\" and \"none\""
+    (is (= :in-process (sut/env->kaleidoscope-image-resizer-type {"KALEIDOSCOPE_IMAGE_RESIZER_TYPE" "in-process"})))
+    (is (= :none (sut/env->kaleidoscope-image-resizer-type {"KALEIDOSCOPE_IMAGE_RESIZER_TYPE" "none"}))))
+
+  (testing "throws on an unrecognized value"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"KALEIDOSCOPE_IMAGE_RESIZER_TYPE had invalid value \[bogus\]"
+                          (sut/env->kaleidoscope-image-resizer-type {"KALEIDOSCOPE_IMAGE_RESIZER_TYPE" "bogus"})))))
+
+(def ^:private base-boot-env
+  {"KALEIDOSCOPE_DB_TYPE"            "embedded-h2"
+   "KALEIDOSCOPE_AUTH_TYPE"          "always-unauthenticated"
+   "KALEIDOSCOPE_AUTHORIZATION_TYPE" "public-access"})
+
+(deftest prepare-kaleidoscope-resize-gate-test
+  (testing "in-process with a media store present builds a real gate over that store"
+    (let [system (sut/start-system! sut/DEFAULT-BOOT-INSTRUCTIONS
+                                    (merge base-boot-env
+                                           {"KALEIDOSCOPE_STATIC_CONTENT_TYPE" "s3"
+                                            "KALEIDOSCOPE_MEDIA_BUCKET"        "kal-media-test"
+                                            "KALEIDOSCOPE_IMAGE_RESIZER_TYPE"  "in-process"}))
+          {:keys [resize-gate static-content-adapters]} (sut/prepare-kaleidoscope system)
+          media-store (get static-content-adapters tenant/media-store)]
+      (try
+        (is (some? media-store))
+        (is (= media-store (:store resize-gate)))
+        (is (some? (:queue resize-gate)))
+        (finally (resize/stop! resize-gate)))))
+
+  (testing "\"none\" yields a no-op gate even when a media store is present"
+    (let [system (sut/start-system! sut/DEFAULT-BOOT-INSTRUCTIONS
+                                    (merge base-boot-env
+                                           {"KALEIDOSCOPE_STATIC_CONTENT_TYPE" "s3"
+                                            "KALEIDOSCOPE_MEDIA_BUCKET"        "kal-media-test"
+                                            "KALEIDOSCOPE_IMAGE_RESIZER_TYPE"  "none"}))
+          {:keys [resize-gate]} (sut/prepare-kaleidoscope system)]
+      (is (nil? (:store resize-gate)))
+      (is (false? (resize/enqueue-warm! resize-gate (random-uuid) "png")))
+      (is (= :no-raw (resize/heal-or-enqueue! resize-gate (random-uuid) "thumbnail" "png")))
+      (resize/stop! resize-gate)))
+
+  (testing "no media store present (default local dev config) yields a no-op gate, regardless of the KALEIDOSCOPE_IMAGE_RESIZER_TYPE default"
+    (let [system (sut/start-system! sut/DEFAULT-BOOT-INSTRUCTIONS
+                                    (merge base-boot-env
+                                           {"KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}))
+          {:keys [resize-gate]} (sut/prepare-kaleidoscope system)]
+      (is (nil? (:store resize-gate)))
+      (is (false? (resize/enqueue-warm! resize-gate (random-uuid) "png")))
+      (is (= :no-raw (resize/heal-or-enqueue! resize-gate (random-uuid) "thumbnail" "png")))
+      (resize/stop! resize-gate))))
 
 (deftest media-store-is-plain-store-when-no-fallback
   (let [adapters ((get-in sut/kaleidoscope-static-content-adapter-boot-instructions

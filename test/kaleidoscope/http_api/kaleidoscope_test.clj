@@ -779,8 +779,7 @@
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "custom-authenticated-user"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"
-                  "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE" "println"}
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
@@ -1009,8 +1008,7 @@
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "public-access"
-                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"
-                  "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE" "println"}
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
@@ -1055,8 +1053,7 @@
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "public-access"
-                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"
-                  "KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE" "println"}
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
