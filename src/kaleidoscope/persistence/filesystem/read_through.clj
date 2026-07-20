@@ -15,8 +15,4 @@
   (put-file [_ path input-stream metadata]
     (fs/put-file writer path input-stream metadata))
   (ls [_ path options]
-    (fs/ls writer path options))
-
-  fs/WriteLocation
-  (write-location [_ path]
-    (fs/write-location writer path)))
+    (fs/ls writer path options)))

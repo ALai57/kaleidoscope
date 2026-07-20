@@ -4,13 +4,16 @@
 #   scripts/media/reconcile                 # dry-run (default)
 #   RECONCILE_APPLY=1 scripts/media/reconcile
 #
-# ALL real logic — the dangerous set-math (orphans/dangling/mismatched) and the
-# safety gates (shrink, index-health) — is typed, unit-tested Clojure in
-# src/kaleidoscope/tasks/reconcile.clj. This script only execs it, so a
-# field-split surprise in bash can never mis-compute which bytes get quarantined.
+# ALL real logic — the dangerous set-math (orphans/dangling/mismatched), the
+# safety gates (shrink, index-health), and the missing-rendition backfill — is
+# typed, unit-tested Clojure in src/kaleidoscope/tasks/reconcile.clj. This
+# script only execs it, so a field-split surprise in bash can never
+# mis-compute which bytes get quarantined or regenerated.
 #
 # Required env:
 #   KALEIDOSCOPE_MEDIA_BUCKET   the media bucket to reconcile (e.g. kal-media-prod)
+#                               — also the store the RECONCILE_APPLY=1 rendition
+#                               backfill resizes into
 #   RECONCILE_STORED_KEYS       newline-delimited keys file, materialized from the
 #                               bucket's S3 Inventory export (or
 #                               `aws s3 ls s3://<bucket>/ --recursive | awk '{print $4}'`)
@@ -18,11 +21,14 @@
 # Optional env:
 #   RECONCILE_LAST_REFERENCED_COUNT  previous run's referenced count (shrink gate)
 #   RECONCILE_VERIFY_HASHES=1        re-head + checksum each hashed object (integrity)
-#   RECONCILE_APPLY=1                actually quarantine orphans to trash/ (default dry-run)
+#   RECONCILE_APPLY=1                quarantine orphans to trash/ AND backfill any
+#                                    missing renditions (default: dry-run report only)
 #
 # NEVER run against a corrupted index — restore it from PITR first (see
 # docs/operations.md). Orphans are quarantined to a trash/ prefix (reversible via
-# bucket versioning), never hard-deleted.
+# bucket versioning), never hard-deleted. Missing renditions (referenced rows
+# whose object is gone) are regenerated in place — safe and idempotent, since a
+# rendition is always recomputable from its raw.
 set -euo pipefail
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." &>/dev/null && pwd)"
 cd "$REPO_ROOT"

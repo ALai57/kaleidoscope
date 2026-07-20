@@ -162,11 +162,7 @@
         (if (:cognitect.anomalies/category result)
           (do (log/error "Could not put object" result)
               fs/does-not-exist-response)
-          (fs/get this path {:etag (s3.put/etag result)})))))
-
-  fs/WriteLocation
-  (write-location [_ path]
-    {:bucket bucket :key (prefixed-key prefix path)}))
+          (fs/get this path {:etag (s3.put/etag result)}))))))
 
 (defn make-s3
   [{:keys [bucket region] :as m}]

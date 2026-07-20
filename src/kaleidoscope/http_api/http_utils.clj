@@ -67,6 +67,24 @@
   (log/infof "Getting resource at %s for %s" uri (asset-store request))
   (adapter-response (get static-content-adapters (asset-store request)) request))
 
+(defn adapter-response-no-store
+  "Like `adapter-response`, but for bytes served at a URL that isn't really
+  theirs — the serve-path self-heal's raw-as-rendition fallback (a busy
+  resize gate serves the *raw* photo's bytes at a rendition's URL while the
+  real rendition is enqueued in the background). Emits `Cache-Control:
+  no-store` and omits ETag entirely, so a CDN or browser can never pin the
+  raw's bytes under the rendition's cache key — the very next request must
+  be free to see the real rendition once it exists."
+  [adapter {:keys [uri] :as request}]
+  (let [result (when adapter (fs/get adapter uri {}))]
+    (cond
+      (nil? adapter)              (do (log/warnf "Invalid request: no static-content adapter for uri %s" uri)
+                                      {:status 404})
+      (fs/does-not-exist? result) (not-found)
+      :else                       {:status  200
+                                   :headers {"Cache-Control" "no-store"}
+                                   :body    (fs/object-content result)})))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; HTTP responses
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

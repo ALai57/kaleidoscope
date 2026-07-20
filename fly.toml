@@ -37,8 +37,7 @@ primary_region = "iad"
   KALEIDOSCOPE_EXCEPTION_REPORTER_TYPE    = "bugsnag"
   KALEIDOSCOPE_ENV                        = "production"
 
-  # Set to "none" until SNS/image-resizer is migrated off AWS
-  KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE        = "none"
+  KALEIDOSCOPE_IMAGE_RESIZER_TYPE         = "in-process"
 
   # AI / pluggable components. Real backends below require ANTHROPIC_API_KEY
   # (scorer, workflow executor, claude-vision transcriber) and FIRECRAWL_API_KEY

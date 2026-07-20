@@ -1,5 +1,6 @@
 (ns kaleidoscope.api.albums
-  (:require [kaleidoscope.persistence.filesystem :as fs]
+  (:require [kaleidoscope.api.resize :as resize]
+            [kaleidoscope.persistence.filesystem :as fs]
             [kaleidoscope.persistence.rdbms :as rdbms]
             [kaleidoscope.utils.core :as u]
             [kaleidoscope.utils.core :as utils]
@@ -143,48 +144,43 @@
                      :ex-subtype :UnableToCreatePhotoVersion))))
 
 (defn new-image
-  [{:keys [static-content-adapter database notify-image-resizer!] :as components}
+  [{:keys [static-content-adapter database resize-gate] :as components}
    hostname
    {:keys [filename tempfile extension photo-id] :as file}]
   (let [photo-id (or photo-id (utils/uuid))
         now-time (utils/now)
-
-        photo (create-photo! database {:id photo-id :hostname hostname})
 
         ;; Checksum the uploaded bytes and stamp it on the RAW version only — the
         ;; other categories are renditions the resizer produces later (different
         ;; bytes, checksum out of scope here). Nil on the rest keeps the inserted
         ;; rows column-uniform. Reconciliation verifies stored bytes against this.
         content-hash (str "sha256:" (sha256-hex (java.nio.file.Files/readAllBytes (.toPath ^java.io.File tempfile))))
-        versions (map (fn [image-version-name]
-                        (assoc (make-image-version static-content-adapter photo-id hostname extension now-time image-version-name)
-                               :content-hash (when (= :raw image-version-name) content-hash)))
-                      IMAGE-VERSIONS)
-        results (create-photo-version-2! database versions)
 
-        ;; Compute the raw object's location ONCE, from the store's own
-        ;; write-location, and reuse it for both the write and the resize notify —
-        ;; so "where the raw is" cannot be derived twice and drift (any :prefix is
-        ;; folded in automatically). The resizer parses this s3://bucket/key from
-        ;; the message body and writes renditions into that same bucket.
-        raw-key              (format "%s/%s/raw.%s" MEDIA-FOLDER photo-id extension)
-        {:keys [bucket key]} (fs/write-location static-content-adapter raw-key)]
+        raw-key (format "%s/%s/raw.%s" MEDIA-FOLDER photo-id extension)]
 
+    ;; Write the raw bytes FIRST: a failed write must throw before any
+    ;; photo/version row exists, rather than leaving rows that point at an
+    ;; object that was never actually stored.
     (fs/put-file static-content-adapter
                  raw-key
                  (u/->file-input-stream tempfile)
                  (dissoc file :tempfile :file-input-stream))
-    (try
-      (let [image-path (format "s3://%s/%s" bucket key)]
-        (log/infof "Notifying image resizer for async processing of %s" image-path)
-        (notify-image-resizer! :subject "image-resize-requested"
-                               :message image-path))
-      (catch Throwable e
-        (log/errorf "Caught error publishing to Image Notifier topic for image '%s'" filename)
-        (log/error (ex-message e))
-        (throw e)))
-    {:photo-id photo-id
-     :versions (vec results)}))
+
+    (let [photo    (create-photo! database {:id photo-id :hostname hostname})
+          versions (map (fn [image-version-name]
+                          (assoc (make-image-version static-content-adapter photo-id hostname extension now-time image-version-name)
+                                 :content-hash (when (= :raw image-version-name) content-hash)))
+                        IMAGE-VERSIONS)
+          results  (create-photo-version-2! database versions)]
+      ;; Only once the rows exist do we hand the raw off for async resizing —
+      ;; enqueue-warm! is non-blocking (offer, never wait) and never throws.
+      ;; `resize-gate` is nil for any caller that hasn't been wired up yet
+      ;; (gate wiring into env/config is a separate task) — degrade to a
+      ;; no-op rather than NPE on `(:queue nil)`.
+      (when resize-gate
+        (resize/enqueue-warm! resize-gate photo-id extension))
+      {:photo-id photo-id
+       :versions (vec results)})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photos in albums
