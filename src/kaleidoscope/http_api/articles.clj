@@ -140,8 +140,7 @@
                                                                           :article-url   article-url
                                                                           :article-tags  (get-in request [:body-params :article-tags] "thoughts")
                                                                           :article-title (get-in request [:body-params :article-title] "[New article]")
-                                                                          :author        (or (oidc/get-full-name (:identity request))
-                                                                                        (oidc/get-user-id (:identity request)))}
+                                                                          :author        (oidc/display-name (:identity request))}
                                                                          commit)]
                               (log/info result)
                               (ok result))
@@ -226,8 +225,7 @@
                                 (ok (articles-api/create-branch! (tenant/scope (:database components) hostname)
                                                                  (assoc body-params
                                                                         :hostname hostname
-                                                                        :author   (or (oidc/get-full-name (:identity request))
-                                                                                      (oidc/get-user-id (:identity request)))))))
+                                                                        :author   (oidc/display-name (:identity request))))))
                               (catch Exception e
                                 (log/error "Caught exception " e))))}}]
 

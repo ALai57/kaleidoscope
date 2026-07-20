@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.recipes
   (:require [clojure.string :as str]
+            [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.api.authorization :as authz]
             [kaleidoscope.api.recipes :as recipes-api]
             [kaleidoscope.api.recipe-scraper :as scraper]
@@ -92,7 +93,7 @@
                                          {:hostname   hostname
                                           :recipe-url (or (not-empty recipe-url)
                                                           (->slug (:title content)))
-                                          :author     (or (:name identity) (:user-id identity))})))))}}]
+                                          :author     (oidc/display-name identity)})))))}}]
 
    ["/scrape"
     {:post {:summary    "Fetch + extract a recipe draft from a URL (persists the raw scrape + processing run)"

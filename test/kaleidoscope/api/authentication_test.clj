@@ -43,6 +43,21 @@
   (testing "Missing email_verified claim returns nil"
     (is (nil? (oidc/get-verified-email {:email "a@a.com"})))))
 
+(deftest display-name-test
+  (testing "The :name profile claim is preferred"
+    (is (= "Andrew Lai" (oidc/display-name {:name "Andrew Lai" :user-id "a@a.com"}))))
+
+  (testing "Falls back to the classified :user-id (email) when :name is absent"
+    (is (= "a@a.com" (oidc/display-name {:user-id "a@a.com"}))))
+
+  (testing "Never surfaces the raw :sub for social logins that lack a :name claim"
+    (is (= "a@a.com"
+           (oidc/display-name {:sub     "google-oauth2|108047630435291371835"
+                               :user-id "a@a.com"}))))
+
+  (testing "Returns nil when neither a name nor a user-id is present"
+    (is (nil? (oidc/display-name {:sub "google-oauth2|108047630435291371835"})))))
+
 (deftest classify-identity-test
   (testing "Verified email produces :verified-user with email as :user-id"
     (is (= {:type    :verified-user

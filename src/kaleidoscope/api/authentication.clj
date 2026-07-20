@@ -21,6 +21,18 @@
   [id-token]
   (:sub id-token))
 
+(defn display-name
+  "Human-readable name for an identity, used e.g. as an article/recipe author.
+
+  Prefers the profile `:name` claim, then falls back to the classified
+  `:user-id` (an email for verified users; see `classify-identity`). It never
+  returns the raw `:sub`, which for social logins is an opaque identifier like
+  \"google-oauth2|108047630435291371835\" — Auth0 access tokens omit `:name`,
+  so a `:sub` fallback would surface that string to readers."
+  [identity]
+  (or (get-full-name identity)
+      (:user-id identity)))
+
 (defn get-email
   [id-token]
   (or (:email id-token)
