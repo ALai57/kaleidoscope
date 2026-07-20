@@ -1,25 +1,25 @@
-# In-Process Image Resize (Postgres Job Queue) Implementation Plan
+# In-Process Image Resize (on-demand + eager warm) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **Revision 2026-07-20 (post three-lens review — Hickey / van Rossum / Fowler).** Changes folded in: idempotency is now a **DB constraint** (nullable `active_photo_id` + plain UNIQUE, mirroring the sibling `workflow_jobs`), not a racy app-code check; enqueue is a real **Transactional Outbox** (raw-to-store first, then one DB tx for photo+versions+job); failures get a **watched surface** (ERROR log + OTEL span event + `failed-count`), since the worker runs outside Bugsnag's request scope; a **pre-decode pixel-budget guard** backstops the subsampled decode; **concurrency is a value** (`:max-concurrent`, default 1 = ⌊Xmx / peak-rendition-bytes⌋), not a shape; **backoff/time is a pure fn** in `api/resize`, not SQL, and uses the sibling's *linear* curve; the resize unit has a **hard timeout** and the **reaper runs independently** of the drain loop (poison-by-hang); a lease-reap (crash) does **not** burn an attempt (only exceptions do); and the **separate-worker-process path is cut** from this plan (added the day a second machine exists). See Decisions.
+> **Revision 2026-07-20 (owner decision, post two rounds of Hickey/van Rossum/Fowler review).** The durable Postgres job-queue approach is **dropped**. Chosen design: **best-effort in-memory resize + self-healing on 404 + a clear success/failure log.** The 404 self-heal is what makes "best-effort" safe — a rendition lost to a restart, or never generated, is regenerated on first view. This dissolves the queue's hard problems (retry-stranding, signal contract, reaper, dual-engine DDL) rather than fixing them, and is right-sized for a single-owner CMS. van Rossum's "ship the small version" + Fowler's "the broken image repairs itself" + the memory arithmetic, combined.
 
-**Goal:** Replace the disabled AWS SNS→SQS→Lambda image resizer with in-process resizing, driven by a durable Postgres job queue drained by a **bounded** (default single-slot) worker — producing the same renditions (`thumbnail` 100×100, `gallery` 165×165, `monitor` 1920×1080, `mobile` 1200×630) at the same keys (`media/<photo-id>/<name>.<ext>`) in the same media store as the raw, with no AWS pipeline.
+**Goal:** Replace the disabled AWS SNS→SQS→Lambda image resizer with in-process resizing — renditions (`thumbnail` 100×100, `gallery` 165×165, `monitor` 1920×1080, `mobile` 1200×630) generated **on-demand-and-cached** at `media/<photo-id>/<name>.<ext>` in the same media store as the raw, with a **best-effort eager warm** at upload so common views are pre-generated. No AWS pipeline, no DB queue.
 
-**Architecture:** On upload the app writes the raw to the store, then — in **one DB transaction** — inserts the photo row, the version rows, and one `media_resize_jobs` row (a Transactional Outbox: no window where the raw exists with no job, or a job with no raw), and after commit **signals** the worker in-process. The worker is **event-driven, not polling** — it blocks on that signal, so the DB drains to zero and Neon suspends when no uploads are happening (preserving scale-to-zero). On a wake (or at boot) it reaps stalled leases, then claims jobs with `SELECT … FOR UPDATE SKIP LOCKED` and runs up to `:max-concurrent` at a time (**default 1** = ⌊512 MB / one 1920×1080 decode⌋), reading the raw from the media store, resizing with **Thumbnailator (subsampled decode)**, and `put-file`-ing each rendition into the same store the raw lives in — so renditions land in `kal-media-prod` (prod) or `kal-eph-<slug>-media` (ephemeral) automatically. Because the signal is an in-memory hand-off, the worker lives **in the web process** (a separate process could only poll or `LISTEN`, both of which defeat scale-to-zero). Jobs are durable, idempotent (re-run overwrites the same keys), retried with linear backoff; a resize unit has a hard timeout so a hanging decode can't freeze a slot; a crash is healed by the boot reap on the next restart; failures are logged + traced + counted.
+**Architecture:** A pure resize core (`resize-to`). An idempotent, effectful **`ensure-rendition!`** — "if the object is missing, read the raw, resize, write it" — called by two paths: (1) an **eager warm** fired async after upload (best-effort; if the process dies before it runs, no harm); (2) the **serve path**, synchronously, when a rendition GET would 404 (**self-heal** — this is the durability net *and* it closes the window where a version-row URL exists before its object). Both paths share **one `Semaphore(1)`**, so at most one image is ever decoded at a time — the memory bound on the 1 vCPU / `-Xmx512m` box (with subsampled decode + a pre-decode pixel guard). **Nothing touches the DB during resize** (only S3), so Neon scale-to-zero is untouched. Each attempt logs success/failure (structured + an OTEL span) — the clear record, in place of a durable failure table. A small in-memory **negative cache** prevents a poison image from being re-decoded on every view.
 
-**Tech Stack:** Clojure, next.jdbc + HoneySQL (+ `with-transaction`), Migratus (H2/Postgres-portable DDL), `net.coobird/thumbnailator` (pure-Java, ImageIO, subsampled reads), the existing `DistributedFileSystem` media store, OTEL (`span/with-span!`, span events), Kaocha + matcher-combinators (embedded-h2 default; **embedded-postgres for `SKIP LOCKED` runtime SQL**, per `workflows_test.clj`), Fly.io.
+**Tech Stack:** Clojure, `net.coobird/thumbnailator` (pure-Java, ImageIO, subsampled reads), `java.util.concurrent.Semaphore`, the existing `DistributedFileSystem` media store, OTEL (`span/with-span!`), Kaocha + matcher-combinators (embedded-h2 / in-memory), Fly.io. **No migration, no persistence layer, no worker/reaper.**
 
 ## Global Constraints
 
-- **Mirror `plans/2026-07-16-workflow-postgres-job-queue` conventions** — the sibling queue. DDL applies under **both** embedded-H2 and Postgres: **no partial indexes, no `SKIP LOCKED` in DDL**. The "one active job" invariant uses the sibling's portable trick — a plain `UNIQUE INDEX` on a **nullable** column (multiple NULLs don't collide in either engine). Runtime queue SQL (`SKIP LOCKED`, `interval`) is **Postgres-only**, exercised only via `embedded-postgres/fresh-db!`; embedded-H2 tests must never call `claim-next-job!`/`reap-stalled-jobs!`.
-- **3-layer separation:** `persistence/media_resize_jobs.clj` = data access only (stores already-computed values — it does **not** compute backoff/time); `api/resize.clj` = pure resize + pure backoff + worker orchestration; enqueue happens in `api/albums.clj` inside the outbox transaction. Store access stays behind `DistributedFileSystem`.
-- **Preserve DB scale-to-zero — the worker MUST be event-driven, never idle-polling.** The DB is tuned for Neon scale-to-zero (`env->pg-conn`: `minimumIdle 0`, `idleTimeout 120s` → the pool drains and Neon suspends after ~5 min idle). A worker that polls `claim-next-job!` on a timer holds a connection forever and **kills scale-to-zero.** So: enqueue delivers an **in-process signal**; the worker **drains-to-empty then blocks** on that signal (no DB touch when idle); recovery is **reap-at-boot + reap-on-wake** (not a timed reaper). The DB is touched only during upload-triggered bursts, when it is already awake. This requires the worker to be **in the same process** as the enqueuer (see Decision 2 — a separate worker process would have to poll or hold a `LISTEN` connection, both of which defeat scale-to-zero).
-- **Bounded concurrency is a value.** `:max-concurrent` (default 1) = ⌊`-Xmx` / peak single-rendition heap⌋. Single-slot is `N=1`, documented arithmetic — not a shape welded into the loop.
-- **Peak heap bound = subsampled decode + a pre-decode pixel-budget guard.** Thumbnailator subsamples so the decoded buffer tracks the largest rendition (1920×1080), not source megapixels; a header-only dimension read rejects decompression-bomb / absurd sources (> `MAX-SOURCE-PIXELS`) *before* any decode.
-- **Transactional Outbox.** Raw → store first; then photo + versions + job in **one** `with-transaction`. The only residual failure (whole tx rolls back after the raw is written) leaves an orphan object with no DB trace — reclaimed by the existing `task media:reconcile` sweep, not lost data.
-- **Idempotent + durable + observable.** Re-run overwrites the same rendition keys; a crash mid-resize leaves the job reap-able; terminal `failed` emits an ERROR log + OTEL span event + is counted (`failed-count`) — the worker is outside Bugsnag's request scope, so it must signal for itself.
-- **Migrations** numbered `…-slug.up/down.sql`, `--;;` separators. **Every change ships with tests.** Keep `docs/operations.md` current.
+- **Best-effort + self-heal, not durable queue.** Eager resize may be lost (restart) — that is acceptable *because* the serve path regenerates on 404. Correctness of "a rendition eventually exists" rests on the serve-path heal, not on the eager warm.
+- **One decode at a time.** A single process-wide `Semaphore(1)` (`resize/permit`) guards every decode — eager and serve — so peak heap is one 1920×1080 decode regardless of concurrent uploads/views. `MAX-CONCURRENT` is a `def` with the ⌊`-Xmx` / peak-rendition-heap⌋ arithmetic in a comment — **not** a config env var (its only non-default value OOMs the box).
+- **Never fully decode at native resolution.** Thumbnailator reads subsampled; a header-only dimension read rejects sources over `MAX-SOURCE-PIXELS` *before* any decode (decompression-bomb / absurd-upload backstop).
+- **No DB during resize** → Neon scale-to-zero preserved. Resize touches only the object store.
+- **Idempotent.** `ensure-rendition!` overwrites the same key; a half-warmed photo self-completes on view.
+- **3-layer separation:** `api/resize.clj` = pure core + effectful `ensure-rendition!` + eager submit; `http_api/photo.clj` calls the serve-path heal; store access behind `DistributedFileSystem`. No HTTP in `api/`.
+- **Same renditions/keys/store as the old Lambda.** The `photo_versions` rendition rows already exist (created by `new-image`); resize only produces the objects.
+- **Every change ships with tests** (embedded-h2 / in-memory). Keep `docs/operations.md` current.
 
 ---
 
@@ -27,178 +27,105 @@
 
 | File | Responsibility | Change |
 |---|---|---|
-| `resources/migrations/…-add-media-resize-jobs.up/down.sql` | `media_resize_jobs` table: nullable `active_photo_id` + UNIQUE, claimable index | Create |
 | `deps.edn` | add `net.coobird/thumbnailator` | Modify |
-| `src/kaleidoscope/persistence/media_resize_jobs.clj` | data access only: enqueue (outbox), claim, complete, retry (stores given `available_at`), reap (no attempt burn), fail, counts | Create |
-| `src/kaleidoscope/api/resize.clj` | pure `resize-renditions` + `source-pixels`/guard + pure `next-available-at`; effectful `resize-job!` (timeout), `drain-once!` (bounded pool), `run-worker!` (drain + independent reaper), failure signaling | Create |
-| `src/kaleidoscope/api/albums.clj` | `new-image`: raw-first, then outbox tx (photo+versions+job); drop the notify/`write-location` URL block | Modify |
-| `src/kaleidoscope/init/env.clj` | `KALEIDOSCOPE_IMAGE_RESIZER_TYPE` (`in-process` \| `none`); start ONE in-web worker thread when `in-process` | Modify |
+| `src/kaleidoscope/api/resize.clj` | pure `resize-to` + `RENDITIONS` + `source-pixels` guard; effectful `ensure-rendition!` (semaphore, timeout, negative-cache, log+span); `warm-photo!` (async best-effort eager) | Create |
+| `src/kaleidoscope/api/albums.clj` | `new-image`: raw-first, drop the notify/`write-location` block, fire `warm-photo!` after the rows commit | Modify |
+| `src/kaleidoscope/http_api/photo.clj` | `serve-photo`: on a missing rendition (raw present), `ensure-rendition!` synchronously then serve; else current behavior | Modify |
+| `src/kaleidoscope/init/env.clj` | `KALEIDOSCOPE_IMAGE_RESIZER_TYPE` (`in-process` \| `none`) → the `warm`/`ensure` fns or no-ops | Modify |
 | `fly.toml`, `scripts/ephemeral/deploy-app` | resize config replaces the `IMAGE_NOTIFIER_TYPE=none` line | Modify |
-| tests: `persistence/media_resize_jobs_test.clj`, `api/resize_test.clj`, `api/albums_test.clj`, `init/env_test.clj` | queue + resize + outbox + config coverage | Create/Modify |
-| `docs/operations.md` | resize queue, worker, config, memory bound, monitoring, AWS-resizer retirement | Modify |
+| tests: `api/resize_test.clj`, `api/albums_test.clj`, `http_api/photo_test.clj` | pure core + ensure + eager + self-heal coverage | Create/Modify |
+| `docs/operations.md` | on-demand+eager model, memory bound, self-heal, logging, AWS-resizer retirement | Modify |
 
 ---
 
-## Task 1: Migration — `media_resize_jobs` with a declarative "one active job" constraint
+## Task 1: Pure resize core — `resize-to`, `RENDITIONS`, pixel guard
 
-**Files:** Create `resources/migrations/20260720000001-add-media-resize-jobs.up/down.sql`; test `persistence/media_resize_jobs_test.clj`.
+**Files:** Create `src/kaleidoscope/api/resize.clj`; test `test/kaleidoscope/api/resize_test.clj`.
 
-**Interfaces (Produces):** table `media_resize_jobs (id, photo_id, active_photo_id, hostname, raw_path, status, attempts, max_attempts, available_at, locked_at, locked_by, last_error, created_at, updated_at)`; `UNIQUE INDEX media_resize_jobs_one_active ON (active_photo_id)` (nullable → many terminal jobs coexist, at most one active per photo — **DB-enforced**, no partial index); `INDEX … ON (status, available_at)`.
+**Interfaces (all PURE):**
+- `RENDITIONS` = `{"thumbnail" [100 100] "gallery" [165 165] "monitor" [1920 1080] "mobile" [1200 630]}` (mirrors `albums/IMAGE-VERSIONS` + the old Go resizer).
+- `MAX-SOURCE-PIXELS` = `100000000` (100 MP backstop).
+- `source-pixels [^bytes raw-bytes]` → `long` from the image **header only** (`ImageIO/getImageReaders` → `.getWidth/.getHeight`, no `read`). Throws on undecodable input.
+- `resize-to [^bytes raw-bytes ext ^long w ^long h]` → `^bytes` — one rendition, Thumbnailator subsampled decode + aspect-fit (`.size(w,h).keepAspectRatio(true)`), output format from `ext` (jpg q≈0.85 / png).
 
-- [ ] **Step 1: Failing test** (applies under **both** engines; the nullable-UNIQUE is the guard):
-
-```clojure
-(deftest migration-applies-and-one-active-job-per-photo
-  (testing "H2 applies the migration (guards non-portable DDL)"
-    (let [db  (embedded-h2/fresh-db!)
-          pid #uuid "11111111-1111-1111-1111-111111111111"
-          j1  (sut/enqueue-job! db {:photo-id pid :hostname "andrewslai.com" :raw-path "media/111/raw.jpg"})
-          j2  (sut/enqueue-job! db {:photo-id pid :hostname "andrewslai.com" :raw-path "media/111/raw.jpg"})]
-      (is (match? {:status "queued" :attempts 0} j1))
-      (is (= (:id j1) (:id j2)))                       ;; idempotent: the UNIQUE index collapses the duplicate
-      (sut/complete-job! db (:id j1))
-      (let [j3 (sut/enqueue-job! db {:photo-id pid :hostname "andrewslai.com" :raw-path "media/111/raw.jpg"})]
-        (is (not= (:id j1) (:id j3)))))))              ;; re-enqueue allowed after done (active_photo_id was NULLed)
-```
-
-- [ ] **Step 2: Run → FAIL.** **Step 3: Write migration:**
-
-```sql
-CREATE TABLE media_resize_jobs (
-  id              uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  photo_id        uuid NOT NULL,
-  active_photo_id uuid,                                  -- = photo_id while active; NULL when done/failed
-  hostname        varchar NOT NULL,
-  raw_path        varchar NOT NULL,
-  status          varchar NOT NULL DEFAULT 'queued',     -- queued | running | done | failed
-  attempts        int NOT NULL DEFAULT 0,
-  max_attempts    int NOT NULL DEFAULT 5,
-  available_at    timestamp NOT NULL DEFAULT now(),
-  locked_at       timestamp,
-  locked_by       varchar,
-  last_error      varchar,
-  created_at      timestamp NOT NULL DEFAULT now(),
-  updated_at      timestamp NOT NULL DEFAULT now()
-);
---;;
-CREATE UNIQUE INDEX media_resize_jobs_one_active ON media_resize_jobs (active_photo_id);
---;;
-CREATE INDEX media_resize_jobs_claimable ON media_resize_jobs (status, available_at);
-```
-`down.sql`: `DROP TABLE IF EXISTS media_resize_jobs;`
-
-- [ ] **Step 4: Run → PASS.** **Step 5: Commit** `feat(media): add media_resize_jobs queue (nullable active_photo_id UNIQUE, H2/PG-portable)`.
+- [ ] **Step 1: Failing test** (no I/O): `resize-to` on a fixture (`public/images/example-image.png`) for each `RENDITIONS` entry → non-empty bytes, decodes to `w'≤w ∧ h'≤h`; `source-pixels` → the fixture's actual pixel count.
+- [ ] **Step 2: Run → FAIL.** **Step 3: Implement** (add `net.coobird/thumbnailator {:mvn/version "0.4.20"}`). **Step 4: Run → PASS.** **Step 5: Commit.**
 
 ---
 
-## Task 2: Persistence — data access (stores values; no time/policy)
-
-**Files:** `src/kaleidoscope/persistence/media_resize_jobs.clj`; extend the test.
-
-**Interfaces (Produces):**
-- `enqueue-job! [db {:keys [photo-id hostname raw-path]}]` → job. Insert with `active_photo_id = photo_id`; on UNIQUE conflict return the existing active job (`INSERT … ON CONFLICT (active_photo_id) DO NOTHING` then `SELECT`, or the H2 `MERGE` path — mirror the sibling's dual-engine helpers). **Idempotency is the DB's job, not a check-then-insert.**
-- `claim-next-job! [db owner]` → job (`running`, `attempts`+1, lock set) or `nil`. Postgres-only `SKIP LOCKED`.
-- `complete-job! [db id]` → `status 'done'`, `active_photo_id = NULL`.
-- `retry-job! [db id available-at error]` → `status 'queued'`, `available_at = available-at` (**caller-supplied value**), `last_error = error`, `active_photo_id` stays = `photo_id`. Does **not** compute time.
-- `fail-job! [db id error]` → `status 'failed'`, `active_photo_id = NULL`, `last_error = error`.
-- `reap-stalled-jobs! [db lease-seconds]` → requeue `running` jobs whose `locked_at` < now − lease **without incrementing `attempts`** (a crash/OOM-kill is not the image's fault). Postgres-only.
-- `failed-count [db]`, `pending-count [db]`, `get-job [db id]` — observability/tests.
-
-- [ ] **Step 1: Failing tests** — enqueue idempotency + re-enqueue-after-complete (H2 ok, exercises the UNIQUE); `claim-next-job!` hands two queued jobs to two owners via `SKIP LOCKED`, none twice (embedded-postgres); `retry-job!` stores the given `available_at` and increments nothing but is claimable only after it; `fail-job!` NULLs `active_photo_id` (so the photo can be re-enqueued); `reap-stalled-jobs!` requeues an old `running` job **with `attempts` unchanged** (embedded-postgres).
-- [ ] **Step 2–5:** implement (mirror the sibling's H2/PG `insert`/`ON CONFLICT` helpers), run (embedded-postgres for the `SKIP LOCKED`/reap paths), commit.
-
----
-
-## Task 3: Pure core — renditions, pixel guard, backoff
-
-**Files:** `src/kaleidoscope/api/resize.clj`; test `api/resize_test.clj`.
-
-**Interfaces (all PURE — no DB, no store, no clock as hidden state):**
-- `RENDITIONS` = `{"thumbnail" [100 100] "gallery" [165 165] "monitor" [1920 1080] "mobile" [1200 630]}`.
-- `MAX-SOURCE-PIXELS` (e.g. `100000000` = 100 MP) — the decompression-bomb / absurd-upload backstop.
-- `source-pixels [^bytes raw-bytes]` → `long` (width×height) read from the image **header only** (`ImageReader.getWidth/getHeight` via `ImageIO/getImageReaders`, no `read`). Throws on undecodable input.
-- `resize-renditions [^bytes raw-bytes ext]` → `{category → ^bytes}`. Thumbnailator with subsampled decode + aspect-ratio fit (`.size(w,h).keepAspectRatio(true)`), `.outputFormat` from `ext` (jpg q≈0.85 / png). Pure bytes→bytes.
-- `next-available-at [attempts ^Instant now]` → `Instant` = `now + min(300, 30·attempts) seconds` (**linear, mirroring the sibling** — reconciles the old `2^attempts`). Pure; `now` is passed in, not read from a hidden clock.
-
-- [ ] **Step 1: Failing tests** (no DB/S3):
-  - `resize-renditions` on a fixture → 4 categories, each non-empty, each decodes to an image whose w ≤ box.w and h ≤ box.h (fit preserved).
-  - `source-pixels` on the fixture → the fixture's actual pixel count.
-  - `next-available-at`: `(next-available-at 1 t)` = `t+30s`; `(next-available-at 20 t)` = `t+300s` (capped); pure/deterministic for a fixed `now`.
-
-- [ ] **Step 2: Run → FAIL.** **Step 3: Implement** (add `net.coobird/thumbnailator {:mvn/version "0.4.20"}` to `deps.edn`). **Step 4: Run → PASS.** **Step 5: Commit.**
-
----
-
-## Task 4: Effectful resize + worker (timeout, bounded pool, independent reaper, signaling)
+## Task 2: `ensure-rendition!` — idempotent, bounded, logged
 
 **Files:** extend `api/resize.clj`; extend `resize_test.clj`.
 
 **Interfaces (Produces):**
-- `resize-job! [{:keys [media-store]} job]` — guard: `(when (> (source-pixels raw) MAX-SOURCE-PIXELS) (throw …))`; else read raw from `media-store`, `resize-renditions`, `put-file` each to `media/<photo-id>/<cat>.<ext>` **wrapped in a hard timeout** (`RESIZE-TIMEOUT-MS`, e.g. 60s, via a cancellable future) so a hanging decode frees the slot. Idempotent overwrite. Effectful; returns `{:written [cats]}`.
-- `drain-once! [{:keys [database media-store owner max-concurrent] :or {max-concurrent 1}}]` — claim up to `max-concurrent` jobs and run them on a bounded pool of that size; per job: success → `complete-job!`; exception → log ERROR (+ OTEL span event with `photo_id`/error) → `retry-job!` db id `(next-available-at attempts (now))` err, **or** `fail-job!` (+ ERROR + span event + this is the watched terminal signal) when `attempts >= max_attempts`. Returns per-job outcomes.
-- `run-worker! [{:keys [database media-store owner lease-seconds max-concurrent signal] :as ctx} running?]` → `{:stop! fn :signal! fn}`. **Event-driven, not polling** (preserves DB scale-to-zero). One loop: at boot, `reap-stalled-jobs!` then drain-to-empty; then **block waiting on `signal`** (a blocking in-process queue / `core.async` channel). On a wake: `reap-stalled-jobs!` (reap-on-wake — cheap, and the DB is already awake from the enqueue), then `drain-once!` repeatedly until it returns "no work", then block again. `signal!` (returned, and handed to the enqueuer) is called after each outbox commit to wake the worker. **No timer, no idle SQL** → the DB suspends between upload bursts. Hung jobs are bounded by `RESIZE-TIMEOUT-MS` (not a reaper); crashed jobs are healed by the boot reap on the next Fly restart. Clean shutdown via `running?` + a poison-pill on `signal`.
+- `permit` — a process-wide `(Semaphore. 1)`; `MAX-CONCURRENT` = 1 (`def` + arithmetic comment).
+- `RESIZE-TIMEOUT-MS` (e.g. 60000).
+- `ensure-rendition! [store photo-id category ext]` → `{:status :hit|:made|:failed}` (+ serves-caller the object on `:made`/`:hit`). Behavior:
+  1. If the rendition object already exists (`fs/get-file` not-missing) → `:hit`, done (no decode, no permit).
+  2. Negative-cache check: if `(photo-id, category)` failed within `NEG-CACHE-TTL-MS` → `:failed` fast (no decode). Prevents re-decoding a poison image on every view.
+  3. Else acquire `permit` (bounded), under a `RESIZE-TIMEOUT-MS` deadline: read `media/<photo-id>/raw.<ext>` from `store`; guard `(> (source-pixels raw) MAX-SOURCE-PIXELS)` → throw; `resize-to` for `category`'s dims; `put-file` to `media/<photo-id>/<category>.<ext>`. Release permit.
+  4. Success → log INFO + OTEL span event `(photo-id category :made)` → `:made`. Failure/timeout → log ERROR + OTEL span event `(photo-id category :failed err)` + record in negative cache → `:failed`. Never throws to the caller (both paths handle a `:failed` gracefully).
+- `warm-photo! [store photo-id ext]` — fire-and-forget `(future …)` that calls `ensure-rendition!` for all four categories (best-effort eager warm; the shared permit serializes it against serve-path heals). Catches `Throwable` (a warm failure must never crash the request or a thread).
 
-- [ ] **Step 1: Failing tests:**
-  - `resize-job!` against an in-memory store seeded with `media/<id>/raw.png` → the 4 rendition objects now exist at the right keys, non-empty.
-  - a source over `MAX-SOURCE-PIXELS` → `resize-job!` throws (guard fires) before decoding.
-  - `drain-once!` (embedded-postgres): enqueue + seed store → job `done`, renditions present; a job whose store lacks the raw → the job is `retried` with a future `available_at` and `attempts` incremented; after `max_attempts` → `failed` and `(failed-count db)` = 1.
-  - `next-available-at` is used for the retry delay (assert the stored `available_at` matches).
-- [ ] **Step 2–5:** implement (timeout via `deref`+`future-cancel`; note honestly in a comment that ImageIO may not interrupt promptly, so the timeout bounds the *logical* slot + marks retry even if an OS thread lingers), run (embedded-postgres), commit.
+- [ ] **Step 1: Failing tests** (in-memory store):
+  - store seeded with `media/<id>/raw.png`, no renditions → `ensure-rendition!` for `"gallery"` returns `:made` and the object now exists, fitted; a second call returns `:hit` (idempotent, no re-decode — assert via a counter/spy that `resize-to` ran once).
+  - raw missing → `:failed`, no throw; a second immediate call is `:failed` fast (negative cache, `resize-to`/`get` not re-attempted).
+  - `source-pixels > MAX-SOURCE-PIXELS` → `:failed`, no decode.
+  - `warm-photo!` on a seeded raw → eventually all four rendition objects exist (deref the future / poll).
+- [ ] **Step 2–5:** implement (permit, timeout via a cancellable future, a small `atom` negative cache with TTL, OTEL span events), run, commit.
 
 ---
 
-## Task 5: Enqueue on upload — Transactional Outbox in `new-image`
+## Task 3: Eager warm on upload — `new-image`
 
 **Files:** Modify `src/kaleidoscope/api/albums.clj`; update `albums_test.clj`.
 
-**Interfaces:** `new-image` becomes: compute `raw-key`; **`put-file` the raw to the store FIRST** (fail → honest error, nothing committed); then **one `with-transaction`**: `create-photo!`, `create-photo-version-2!`, and `media-resize-jobs/enqueue-job! {:photo-id :hostname :raw-path raw-key}`; then **after the tx commits, call `resize-signal!`** (the worker's `signal!`, threaded through `components`) to wake the event-driven worker. The `notify-image-resizer!` component, the `write-location`/`s3://…` message block, and the `:message-attributes` are all **removed** — the worker reads the store directly, so there is no URL contract. (Grep for `write-location`; if `new-image` was its only consumer, delete it + `photo_resize_contract_test`.) The signal fires *after* commit (not inside the tx) so a rolled-back enqueue never wakes the worker to a non-existent job; and it is a best-effort in-memory nudge — if it's lost, the boot reap + next-upload wake still drains the job (correctness never depends on the signal, only latency does).
+**Interfaces:** `new-image`: compute `raw-key`; **`put-file` the raw FIRST** (fail → error, no rows); create the photo + version rows; **after they commit, call `warm-photo!`** (via a `resize-warm!` fn threaded through `components`, so `none`/tests stub it). **Remove** the `notify-image-resizer!` component, the `write-location`/`s3://…` message block, and `:message-attributes` — there is no resizer URL contract now. (Grep `write-location`; if `new-image` was its only consumer, delete it + `photo_resize_contract_test`.)
 
-- [ ] **Step 1: Update failing test** — `new-image-test`'s notify assertion becomes: after `new-image`, `media_resize_jobs` has exactly one `queued` row for the photo with `raw_path = media/<id>/raw.<ext>`, **and** the photo/version rows exist — proving they committed together. Add a test: if `enqueue-job!` throws inside the tx, the photo/version inserts roll back (no orphan rows), while the raw object remains (reconcilable). Remove the `s3://…`/message-attributes assertions.
-- [ ] **Step 2–3:** thread a `resize-enqueue!` fn through `components` (replacing `notify-image-resizer!`); reorder to raw-first + `with-transaction`; delete the notify/`write-location` block (and `photo_resize_contract_test` if `write-location` is now unused). **Step 4–5:** run focused, commit.
-
----
-
-## Task 6: Config + in-web worker — `init/env.clj`
-
-**Files:** Modify `src/kaleidoscope/init/env.clj`; test `env_test.clj`.
-
-**Interfaces:** boot instruction `KALEIDOSCOPE_IMAGE_RESIZER_TYPE`:
-- `in-process` (default) → create **one shared in-process signal** (a bounded blocking queue), start **one** `resize/run-worker!` bound to it (guarded so exactly one starts; shutdown hook stops it via `running?`+poison-pill), and expose `resize-enqueue!` = insert-a-job (called inside the outbox tx) **and** the worker's `signal!` (called by `new-image` after commit). `:max-concurrent` from `KALEIDOSCOPE_RESIZE_MAX_CONCURRENT` (default `"1"`). **The worker and the enqueuer share the same process** so the signal is an in-memory hand-off (the scale-to-zero requirement — see Constraints/Decision 9).
-- `none` → no-op enqueue, no worker (tests / an env that doesn't resize).
-
-**No `KALEIDOSCOPE_WORKER_INLINE`, no `main.clj` `"worker"` branch, no separate-process topology** — see Decision 2. The worker loop is a plain fn, so promoting it to its own Fly process later is a config+deploy change, not a code change.
-
-- [ ] **Step 1: Failing test** — `in-process` launcher yields an enqueue fn that writes a `media_resize_jobs` row; `none` yields a no-op. (Worker-thread startup covered by the Task 4 drain integration test, not a live-thread unit assertion.)
-- [ ] **Step 2–5:** implement the boot instruction + single-worker startup/shutdown, run, commit.
+- [ ] **Step 1: Update failing test** — `new-image-test`'s notify assertion becomes: after `new-image`, the raw object exists and `resize-warm!` was invoked with the photo-id (spy); with a real in-memory store + the real `warm-photo!`, the rendition objects eventually appear. Remove the `s3://…`/message-attributes assertions.
+- [ ] **Step 2–3:** thread `resize-warm!` through `components`; reorder raw-first; fire warm after the rows exist; delete the notify/`write-location` block (+ `photo_resize_contract_test` if now unused). **Step 4–5:** run focused, commit.
 
 ---
 
-## Task 7: Deploy config + docs
+## Task 4: Serve-path self-heal — `serve-photo`
 
-**Files:** `fly.toml`, `scripts/ephemeral/deploy-app`, `docs/operations.md`.
+**Files:** Modify `src/kaleidoscope/http_api/photo.clj`; update `photo_test.clj`.
 
-- [ ] **Step 1:** `fly.toml` — replace `KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE="none"` + its "until SNS migrated off AWS" comment with `KALEIDOSCOPE_IMAGE_RESIZER_TYPE="in-process"`.
-- [ ] **Step 2:** `deploy-app` — swap the `KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE=none` secret for `KALEIDOSCOPE_IMAGE_RESIZER_TYPE=in-process` so ephemeral envs resize into their own bucket.
-- [ ] **Step 3:** `docs/operations.md` — document: the `media_resize_jobs` queue + the Transactional Outbox ordering; the **event-driven, in-process worker and why (Neon scale-to-zero)** — signal-on-enqueue, drain-to-empty, reap-at-boot + reap-on-wake, **no idle polling**, so the DB still suspends between upload bursts; the bounded worker (`:max-concurrent` arithmetic on 512 MB) + subsampled decode + `MAX-SOURCE-PIXELS` guard; the linear backoff + `max_attempts` + `RESIZE-TIMEOUT-MS` + lease default (state it, comfortably > `RESIZE-TIMEOUT-MS`); the **monitoring surface** (ERROR log + OTEL span event on terminal fail + `failed-count` — the worker is outside Bugsnag's request scope); why the worker stays in-process (a separate process would break scale-to-zero); and that the AWS SNS/SQS/Lambda resizer (`../image-resizer`) is retired (tear down its Terraform once prod resize is verified).
-- [ ] **Step 4:** run `task media:verify-resize` against an ephemeral env as the acceptance gate. Commit.
+**Interfaces:** `serve-photo` (the `/v2/photos/:photo-id/:filename` handler) — after resolving the version row's `path` and attempting to serve from the media store: **if the result is not-found AND `category` ∈ `RENDITIONS` (a rendition, not the raw) AND the raw object exists**, call `ensure-rendition! store photo-id category ext` synchronously, then:
+- `:made`/`:hit` → serve the (now present) rendition.
+- `:failed` → serve the **raw** as a graceful fallback if it exists (image shows, unoptimized), else the existing `not-found`.
+Non-rendition paths and hits are unchanged. This makes a version-row URL work on first GET even before the eager warm finishes, and heals any rendition lost to a restart.
+
+- [ ] **Step 1: Failing test** — seed the DB with a photo + version rows and the store with only the **raw** (no `gallery` object). `GET /v2/photos/<id>/gallery.<ext>` → **200** (self-healed), and the `gallery` object now exists in the store. A second GET → 200 `:hit` (no re-decode). A GET for a rendition whose raw is also missing → `not-found` (or raw-fallback path asserted absent). Drive `serve-photo` directly (as the existing photo tests do).
+- [ ] **Step 2–5:** implement the missing-rendition branch (reuse `hu/adapter-response`; call `ensure-rendition!`), run, commit.
+
+---
+
+## Task 5: Config + deploy + docs
+
+**Files:** `src/kaleidoscope/init/env.clj`, `fly.toml`, `scripts/ephemeral/deploy-app`, `docs/operations.md`; test `env_test.clj`.
+
+- [ ] **Step 1:** `env.clj` — boot instruction `KALEIDOSCOPE_IMAGE_RESIZER_TYPE`: `in-process` (default) → real `resize-warm!` (= `warm-photo!` bound to the media store) and the serve heal is active; `none` → `resize-warm!` is a no-op (tests / an env that doesn't resize; the serve heal simply finds no raw or is disabled). Test: `in-process` yields a warm fn that warms; `none` yields a no-op.
+- [ ] **Step 2:** `fly.toml` — replace `KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE="none"` + its "until SNS migrated off AWS" comment with `KALEIDOSCOPE_IMAGE_RESIZER_TYPE="in-process"`. `deploy-app` — swap the `IMAGE_NOTIFIER_TYPE=none` secret for `IMAGE_RESIZER_TYPE=in-process`.
+- [ ] **Step 3:** `docs/operations.md` — document: the on-demand+eager model (best-effort warm at upload, synchronous self-heal on a rendition 404); the memory bound (`Semaphore(1)` + subsampled decode + `MAX-SOURCE-PIXELS`); that **no DB is touched during resize → scale-to-zero preserved**; the negative cache; the success/failure log + OTEL span as the observability surface; and that the AWS SNS/SQS/Lambda resizer (`../image-resizer`) is retired (tear down its Terraform once prod resize is verified).
+- [ ] **Step 4:** run `task media:verify-resize` against an ephemeral env (upload ⇒ rendition appears — via warm or the poll's first GET self-heal) as the acceptance gate. Commit.
 
 ---
 
 ## Decisions
 
-1. **PRIMARY (decided): the event-driven Postgres queue.** The design this plan builds. Chosen because the stated goal is a **persistent way to track what has been resized** plus **automatic recovery of an upload burst across a restart** — and the event-driven queue delivers exactly that (durable `media_resize_jobs` rows; boot-reap + drain self-heals crashes with no manual step; `failed-count` observability) **while preserving Neon scale-to-zero** (signal-driven, no idle polling — Decision 9). The Transactional Outbox (Decision 4) additionally makes upload→resize integrity a real DB property, and the queue matches the idiom the sibling `workflow-postgres-job-queue` establishes.
-   - **Documented fallback (the "cut") — NOT the primary:** a `Semaphore(1)` async single-thread executor (van Rossum's proposal) also bounds heap, decouples the request, and is scale-to-zero-safe — but its **in-memory backlog is lost on a restart** (recoverable only via a manual `media:reconcile` `dangling` sweep), surrendering precisely the durability and tracking that motivated the queue. Choose it only if durability is later judged unnecessary. Collapsing to it is a small, contained change (delete the table/persistence/reaper/backoff/signal; keep the pure `resize-renditions` core + the raw-first ordering) — the pure core is what keeps the reversal cheap. But the plan's primary path is the queue.
-2. **In-web worker only; a separate process is not merely YAGNI here — it is incompatible with scale-to-zero.** Beyond the maintenance/cost argument (a `worker` `-main` branch that never runs on a 1-machine deploy and doubles cost if it does), a separate worker process **cannot** get the in-memory enqueue signal, so it would have to poll or hold a Postgres `LISTEN` connection — either of which keeps Neon awake and defeats scale-to-zero (Decision 9). So the worker stays in the web process by design, not just by frugality. Keep it a plain fn (the seam), but do not build the separate-process path.
-3. **Idempotency is a DB constraint, not an app-code check.** A read-then-check-then-insert is a race under concurrent enqueue (retried request, caller-supplied `photo-id`). The sibling's nullable-`active_photo_id` + plain `UNIQUE` gives a real DB guarantee that still allows re-enqueue after terminal, with no partial index (H2-portable). This deleted the apologetic app-code comment entirely.
-4. **Transactional Outbox.** Raw→store first (irreducible non-transactional seam; a failure here commits nothing), then photo+versions+job in one tx. Eliminates the "raw with no job, forever" orphan Fowler flagged. The only residual — whole tx rolls back after the raw write — is an untracked orphan object reclaimed by `task media:reconcile`, not lost user data.
-5. **Backoff/time are values computed in `api/resize`, stored by persistence.** `next-available-at attempts now` is a pure fn (testable with no DB; `now` passed in). Persistence stores the value. This pulls the DB clock and the backoff policy out of the data layer and shrinks the Postgres-only surface. Curve is **linear** `min(300, 30·attempts)`, matching the sibling (reconciles the earlier `2^attempts`).
-6. **Concurrency is a value.** `:max-concurrent` default 1 = ⌊`-Xmx512m` / one 1920×1080 decode⌋. Single-slot is `N=1` with arithmetic behind it, not dogma; raising `-Xmx` or the box raises the safe number without touching the loop. (With `N=1` in prod the `SKIP LOCKED` path isn't exercised in prod — the test guards the multi-worker/future-process case.)
-7. **Poison handling is complete on both axes.** Poison-by-exception → linear backoff + `max_attempts` → `failed`. Poison-by-hang → `RESIZE-TIMEOUT-MS` bounds the unit so a stuck decode can't freeze the slot. Crash/OOM-kill mid-resize → the **independent** reaper requeues **without burning an attempt** (transient, not the image's fault), so a big photo isn't marched to `failed` by restarts.
-8. **Failures are signaled, not just stored.** The worker runs outside Bugsnag's request-scoped middleware, so terminal `failed` emits an ERROR log + an OTEL span event (`photo_id`, `last_error`, attempts) + is counted (`failed-count`). "Queryable" is not monitoring; this gives one surface a human/check actually reads — the dead-letter arm the old SNS→SQS→**DLQ** pipeline had.
-9. **Preserve Neon scale-to-zero — the worker is event-driven, never idle-polling.** The DB deliberately drains to zero connections when idle (`env->pg-conn`: `minimumIdle 0`, `idleTimeout 120s`) so Neon suspends compute after ~5 min — a real cost lever. A timer-polled queue worker holds a connection forever and **kills that**. So the worker blocks on an in-process enqueue signal and only touches the DB during upload-triggered bursts (when it's already awake): drain-to-empty on wake, then block; recovery is **reap-at-boot + reap-on-wake** (a crash is always followed by a Fly restart → boot reap; a hang is bounded by `RESIZE-TIMEOUT-MS`), so no periodic reaper poll is needed. Steady-state idle = zero resize-related DB activity → the DB suspends exactly as before. This is *why* the worker must be in-process (Decision 2): the signal is an in-memory hand-off; a separate process could only poll or `LISTEN`, both of which break scale-to-zero. Correctness never depends on the signal arriving — only latency does (a lost signal is caught by the next wake / boot reap).
+1. **Best-effort in-memory + self-heal, not a durable queue (owner decision).** Two review rounds showed the event-driven queue's durability was undermined by its own best-effort in-memory *trigger* (retry-stranding, lost-signal), collapsing its advantage over the simpler design to "a queryable failure record." Rather than add a timed-wake + signal contract + oldest-pending metric to rescue it, we take the smaller design: eager warm is best-effort; **the serve-path 404 heal is the recovery net** (a missing rendition regenerates on view). This is durable *enough* — the raw (the irreplaceable byte-stream) is always written synchronously; renditions are recomputable and self-heal on demand.
+2. **The 404 self-heal doubles as three fixes.** It is (a) the durability net for a warm lost to a restart; (b) the closer of the "version-row URL exists before its object" broken-image window Fowler flagged (the first GET makes the object); (c) a natural cache-fill — renditions exist after first view whether or not the eager warm ran.
+3. **One `Semaphore(1)` across both paths — a `def`, not a knob.** Peak heap = one 1920×1080 decode = ⌊512 MB / peak⌋ = 1. van Rossum: don't ship a config env var whose only non-default value OOMs the box.
+4. **Synchronous heal in the serve path — bounded, accepted.** A cold rendition GET blocks ~1–2 s for one decode and serializes on the permit under a burst of cold views (slow, never OOM). For a single-owner CMS this is fine; the eager warm keeps the common path already-cached. `RESIZE-TIMEOUT-MS` bounds a hung decode so it can't wedge a request or the permit.
+5. **Negative cache stops poison hammering.** A rendition that fails to generate is cached-as-failed for `NEG-CACHE-TTL-MS`, so repeated GETs of a broken image don't re-decode it on every request (which would hold the permit and starve legit resizes). The pixel guard rejects decompression bombs before any decode.
+6. **Observability = a clear success/failure log + OTEL span (owner decision), not a failure table.** Each `ensure-rendition!` logs its outcome with `photo-id`/`category`/reason and emits a span event. The worker runs outside Bugsnag's request scope, so ensure that worker/`future` ERRORs reach the log appender (not only stdout). Sufficient for a single owner; no durable `failed` ledger.
+7. **Raw-first ordering; residual orphan is reclaimable.** Raw → store first (fail commits nothing), then the photo/version rows. A crash after the raw write leaves an orphan object with no row — detected by `media:reconcile`'s `orphans = stored − referenced` set (the store→DB direction), not lost data.
+8. **AWS resizer retired.** After prod resize is verified, tear down `../image-resizer`'s Terraform (SNS/SQS/DLQ/Lambda/IAM). The Go resizer's `imaging.Fit` + dims are preserved by `resize-to` + `RENDITIONS`, so output is equivalent. Teardown is a follow-up.
 
 ## Self-Review
 
-- **Spec coverage:** in-process resize replacing the Lambda (Tasks 3–5) ✅; Postgres queue mirroring the sibling incl. the nullable-UNIQUE idempotency (Tasks 1–2, Decision 3) ✅; Transactional Outbox ordering + post-commit signal (Task 5, Decision 4) ✅; bounded concurrency as a value + subsampled decode + pixel guard (Tasks 3–4, Decisions 6, Constraints) ✅; timeout + crash-vs-poison attempts (Task 4, Decision 7) ✅; **event-driven worker preserves scale-to-zero — no idle polling, reap-on-boot/wake (Constraints, Tasks 4/6, Decision 9)** ✅; monitoring surface (Task 4/7, Decision 8) ✅; pure backoff/time (Task 3, Decision 5) ✅; in-process-only worker (scale-to-zero-forced, not just YAGNI), separate process cut (Task 6, Decision 2) ✅; config/docs/AWS retirement + acceptance gate (Task 7) ✅; queue↔Semaphore(1) reversal documented, now more attractive under scale-to-zero (Decision 1) ✅.
-- **Placeholder scan:** DDL, pure tests, claim SQL shape, and the outbox ordering are concrete; `<photo-id>` etc. are runtime values; numeric knobs (`MAX-SOURCE-PIXELS`, `RESIZE-TIMEOUT-MS`, lease default) have stated defaults.
-- **Type consistency:** `RENDITIONS` dims = `albums/IMAGE-VERSIONS` = the Go resizer; job columns mirror `workflow_jobs` (+ `active_photo_id`); `next-available-at`/`resize-job!`/`drain-once!`/`run-worker!`/`enqueue-job!` names consistent across Tasks 2–6; `retry-job!` takes a caller-computed `available_at` (Task 2) fed by `next-available-at` (Task 4).
+- **Spec coverage:** in-process resize replacing the Lambda (Tasks 1–4) ✅; best-effort eager warm (Task 3) ✅; **self-healing on 404** (Task 4, Decisions 1–2) ✅; memory bound — semaphore/subsampled/pixel-guard (Tasks 1–2, Constraints, Decision 3) ✅; scale-to-zero (no DB in resize — Constraints, Decision 6-adjacent) ✅; clear success/failure log + span (Task 2, Decision 6) ✅; negative cache + timeout (Task 2, Decisions 4–5) ✅; raw-first + reconcile backstop (Task 3, Decision 7) ✅; config/docs/AWS retirement + acceptance (Task 5, Decision 8) ✅.
+- **Dropped from the prior draft (intentionally):** `media_resize_jobs` table + migration, persistence layer, reaper, backoff/attempts, dual-engine DDL split, the event-driven signal contract, config knobs — all moot without the queue. Recorded in the revision note.
+- **Placeholder scan:** pure tests, the ensure/heal behavior, and the constants (`MAX-SOURCE-PIXELS`, `RESIZE-TIMEOUT-MS`, `NEG-CACHE-TTL-MS`, `MAX-CONCURRENT`) have stated values/defaults; `<photo-id>` etc. are runtime.
+- **Type consistency:** `RENDITIONS` dims = `albums/IMAGE-VERSIONS` = the Go resizer; `resize-to`/`source-pixels`/`ensure-rendition!`/`warm-photo!`/`resize-warm!` names consistent across Tasks 1–5; `ensure-rendition!` returns `{:status …}` consumed identically by the eager and serve paths.
