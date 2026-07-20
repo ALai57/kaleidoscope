@@ -28,7 +28,8 @@
    [kaleidoscope.http-api.themes :refer [reitit-themes-routes]]
    [kaleidoscope.trace :as-alias trace]
    [reitit.ring :as ring]
-   [ring.util.http-response :refer [found]]
+   [ring.middleware.content-type :refer [wrap-content-type]]
+   [ring.util.http-response :refer [found not-found]]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
@@ -127,6 +128,28 @@
 (defn get-static-resource
   [{:keys [components] :as request}]
   (http-utils/get-resource (:static-content-adapters components) request))
+
+(def reserved-backend-prefixes
+  "Path prefixes the backend owns. A request whose URI is one of these (or nested
+  under it) is never a frontend page: an *unmatched* path under one must 404, not
+  serve the SPA shell, so a bad asset/API URL fails honestly instead of returning
+  HTML to a fetch caller (a soft 404)."
+  ["/api/v1" "/api-docs" "/assets" "/static" "/media" "/v2/photos"
+   "/openapi.json" "/favicon.ico" "/ping"])
+
+(defn reserved-backend-path?
+  [uri]
+  (boolean (some (fn [p] (or (= uri p) (str/starts-with? uri (str p "/"))))
+                 reserved-backend-prefixes)))
+
+(defn spa-shell-request?
+  "True when an unmatched request should fall through to the SPA shell for
+  client-side routing: a GET/HEAD navigation for a path the backend does not
+  reserve. Anything else — a non-GET, or an unmatched path under a reserved
+  backend prefix — is a genuine miss and must 404."
+  [{:keys [request-method uri]}]
+  (and (contains? #{:get :head} request-method)
+       (not (reserved-backend-path? uri))))
 
 (def reitit-index-routes
   "All served from a common bucket: the Kaleidoscope app bucket."
@@ -260,21 +283,23 @@
        reitit-config)
       (ring/create-default-handler
        {:not-found (fn [request]
-                     (tap> {:req        request
-                            :components components})
-                     ;; May not have the middleware components!
-                     ;; Redirect to index.html for client-side routing.
-                     ;; This handler bypasses the reitit middleware stack, so set the
-                     ;; shared-shell store (:asset-store) and :uri manually — the same
-                     ;; values wrap-resolve-tenant/wrap-force-uri would apply.
-                     (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
-                       (get-static-resource (-> request
-                                                (assoc :tenant {:asset-store "kaleidoscope.client"})
-                                                (assoc :uri "index.html")
-                                                ;; Components must be added here because this isn't
-                                                ;; wrapped with middleware the same way other routes are
-                                                (assoc :components components)))))}
-       )))))
+                     (if (spa-shell-request? request)
+                       ;; Client-side routing: serve the SPA shell. This handler
+                       ;; bypasses the reitit middleware stack, so set the
+                       ;; shared-shell store (:asset-store) and :uri manually —
+                       ;; the same values wrap-resolve-tenant/wrap-force-uri
+                       ;; would apply — and inject :components directly. It also
+                       ;; skips base-middleware's wrap-content-type, so apply it
+                       ;; here explicitly (same middleware, same :uri-based
+                       ;; guess matched routes get) or the shell would come back
+                       ;; without a Content-Type header.
+                       (span/with-span! {:name "kaleidoscope.default.handler.get"}
+                         ((wrap-content-type get-static-resource)
+                          (-> request
+                              (assoc :tenant {:asset-store "kaleidoscope.client"})
+                              (assoc :uri "index.html")
+                              (assoc :components components))))
+                       (not-found {:reason "Not found"})))})))))
 
 (comment
 

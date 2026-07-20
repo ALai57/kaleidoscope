@@ -95,6 +95,31 @@
                  :body    "<div>Hello</div>"}
                 (handler (mock/request :get "https://andrewslai.com/"))))))
 
+(deftest spa-fallback-serves-shell-for-page-paths-test
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+    (testing "a deep, parameterized page path deep-links to the SPA shell"
+      (is (match? {:status  200
+                   :headers {"Content-Type" #"text/html"}
+                   :body    "<div>Hello</div>"}
+                  (app (mock/request :get (str "https://andrewslai.com/library/"
+                                               (random-uuid) "/acquisitions"))))))
+    (testing "a bare unknown page path also serves the shell"
+      (is (match? {:status 200 :body "<div>Hello</div>"}
+                  (app (mock/request :get "https://andrewslai.com/about")))))
+    (testing "an unmatched /api/v1 path 404s instead of serving the shell"
+      (is (match? {:status 404}
+                  (app (mock/request :get "https://andrewslai.com/api/v1/does-not-exist")))))
+    (testing "a non-GET unmatched path 404s instead of serving HTML"
+      (is (match? {:status 404}
+                  (app (mock/request :post "https://andrewslai.com/library/whatever")))))))
+
 (deftest static-chrome-serves-from-the-shared-client-store-test
   ;; /static/* and /favicon.ico serve from kaleidoscope.client for every tenant —
   ;; not the per-tenant asset-store. Give the client store a marker the tenant
