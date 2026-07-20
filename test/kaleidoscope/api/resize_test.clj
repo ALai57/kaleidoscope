@@ -246,6 +246,30 @@
           (is (wait-until #(= 1 (.availablePermits permit)) 5000)
               "the permit is only released once the in-flight decode actually finishes, via the future's own `finally`"))))))
 
+(deftest resize-one-worker-interrupt-before-decode-future-releases-permit
+  (testing "an interrupt landing inside fs/get-file — before resize-one!'s decode future is ever
+            created — releases the permit immediately, since no future's `finally` will ever exist
+            to release it later (this is the s3_impl.clj get-file-uses-its-own-future case)"
+    (let [raw           (fixture-bytes)
+          entered-latch (CountDownLatch. 1)
+          release-latch (CountDownLatch. 1)
+          store         (->LatchingRawFS "media/pint2/raw.png" raw (atom {}) entered-latch release-latch)
+          gate          (resize/make-resize-gate store {:max-concurrent 1})]
+      (is (true? (resize/enqueue-warm! gate "pint2" "png" "gallery")))
+      (is (.await entered-latch 5000 TimeUnit/MILLISECONDS)
+          "the worker must reach the (now-blocked) raw read within the deadline")
+      (let [^Thread worker    (first (:workers gate))
+            ^Semaphore permit (:permit gate)]
+        ;; The worker thread is parked inside `fs/get-file`'s raw read
+        ;; (blocked in `.await release-latch`), well before resize-one!'s
+        ;; decode future is ever created. stop! interrupts it there.
+        (resize/stop! gate)
+        (is (false? (.isAlive worker))
+            "stop! must terminate the worker even though the interrupt landed inside get-file, before any decode future existed")
+        (is (= 1 (.availablePermits permit))
+            "the permit must be released immediately: no decode future was ever created to own its release, so resize-one! itself must release it or it leaks forever")
+        (.countDown release-latch)))))
+
 (deftest enqueue-warm-worker-eventually-creates-every-rendition
   (testing "enqueue-warm! with no explicit categories drains to all four RENDITIONS via the worker"
     (let [raw   (fixture-bytes)

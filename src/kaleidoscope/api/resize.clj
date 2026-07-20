@@ -173,7 +173,8 @@
         released?      (atom false)
         release!       (fn []
                           (when (compare-and-set! released? false true)
-                            (.release permit)))]
+                            (.release permit)))
+        decode-fut     (atom nil)]
     (span/with-span! {:name       "kaleidoscope.resize.resize-one!"
                        :attributes {"resize.photo-id" (str photo-id)
                                     "resize.category" (str category)}}
@@ -191,7 +192,9 @@
                         (log/errorf "resize failed: raw missing for photo %s (%s)" photo-id raw-path)
                         {:outcome :failed})
                     (let [raw-bytes (.readAllBytes ^java.io.InputStream (fs/object-content raw-obj))
-                          pixels    (try (source-pixels raw-bytes) (catch Throwable _ nil))]
+                          pixels    (try (source-pixels raw-bytes)
+                                         (catch InterruptedException e (throw e))
+                                         (catch Throwable _ nil))]
                       (if (or (nil? pixels) (> (long pixels) (long MAX-SOURCE-PIXELS)))
                         (do (release!)
                             (log/errorf "resize bad-source: photo %s category %s (pixels=%s limit=%s)"
@@ -207,6 +210,7 @@
                                                     photo-id category)
                                         {:outcome :failed})
                                       (finally (release!))))
+                              _      (reset! decode-fut fut)
                               result (deref fut RESIZE-TIMEOUT-MS ::timeout)]
                           (if (= result ::timeout)
                             (do
@@ -222,20 +226,33 @@
                                            photo-id category (alength ^bytes (:bytes result))))
                               result))))))))
               (catch InterruptedException _
-                ;; The only interruptible blocking point in this body is the
-                ;; `deref` above — `stop!` interrupts worker threads, and if
-                ;; that interrupt lands while a worker is blocked there, the
-                ;; in-flight future is still running (ImageIO decodes aren't
-                ;; interruptible). Do NOT release! here: the future's own
-                ;; `finally` releases the permit when the decode actually
-                ;; finishes, exactly like the ::timeout path above — an early
-                ;; release here would let a fresh task double up on the same
-                ;; memory slot. Restore the interrupt flag so `run-worker!`'s
+                ;; Interruptible blocking points in this body: the `deref`
+                ;; above, and (via `fs/get-file`'s own internal future/deref)
+                ;; the raw/rendition reads before the decode future exists.
+                ;; `stop!` interrupts worker threads, and where that interrupt
+                ;; lands determines who owns the permit:
+                ;;  - If it lands while blocked on `deref` (decode-fut already
+                ;;    created), the in-flight future is still running (ImageIO
+                ;;    decodes aren't interruptible) and its own `finally`
+                ;;    releases the permit when the decode actually finishes —
+                ;;    releasing here too would let a fresh task double up on
+                ;;    the same memory slot, so we must NOT release.
+                ;;  - If it lands earlier (e.g. inside `fs/get-file`, before
+                ;;    the decode future was ever created), there is no future
+                ;;    to release it later — skipping release! here would leak
+                ;;    the permit forever. So: release iff no future took
+                ;;    ownership.
+                ;; Either way, restore the interrupt flag so `run-worker!`'s
                 ;; loop (and its next `.acquire`) still observes it and exits
                 ;; instead of silently surviving past `stop!`.
                 (.interrupt (Thread/currentThread))
-                (log/warnf "resize interrupted: photo %s category %s — permit stays held until the in-flight decode finishes"
-                           photo-id category)
+                (when (nil? @decode-fut)
+                  (release!))
+                (log/warnf "resize interrupted: photo %s category %s — permit %s"
+                           photo-id category
+                           (if (nil? @decode-fut)
+                             "released (no decode was in flight)"
+                             "stays held until the in-flight decode finishes"))
                 {:outcome :failed})
               (catch Throwable t
                 (release!)
