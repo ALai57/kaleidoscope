@@ -164,13 +164,15 @@ tenant hostname and serves that tenant's content in isolation.
   consolidation. Isolation is structural: the media store is a `ReadThroughFS`
   whose *writer* is the env's own bucket, so an ephemeral env can never mutate
   the shared read-only prod media (see `persistence/filesystem/read_through.clj`).
-- **IAM grants (ephemeral user).** The ephemeral deploy IAM user needs, beyond
-  its existing `kal-ephemeral` access: (a) `s3:CreateBucket`/`s3:DeleteBucket`
-  + object read-write scoped to the `kal-eph-*-media` name pattern (per-env
-  bucket lifecycle + uploads), and (b) **read-only** (`s3:GetObject`) on the
-  prod media bucket(s) it reads through to — the least-privilege tradeoff of
-  read-through. Pre-Phase-2 that read grant spans every tenant bucket a shared
-  ephemeral user might read; it narrows to `kal-media-prod` after consolidation.
+- **IAM grants (ephemeral user).** Codified in `iac/artifact-bucket/media.tf`
+  (the `kal-ephemeral-media-s3` inline policy on the existing
+  `kaleidoscope_ephemeral` user): (a) `s3:CreateBucket`/`s3:DeleteBucket` +
+  object read-write scoped to the `kal-eph-*-media` name pattern (per-env bucket
+  lifecycle + uploads), and (b) **read-only** (`s3:GetObject`/`s3:ListBucket`) on
+  `kal-media-prod` — the least-privilege tradeoff of read-through. Because the
+  read grant is scoped to `kal-media-prod` only, ephemeral read-through resolves
+  existing photos against it, so deploy with `PROD_MEDIA_BUCKET=kal-media-prod`
+  (and consolidate into it first).
 - **Notifier disabled.** `deploy-app` sets `KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE=none`
   so any image upload against an ephemeral env can't trigger the production
   resize/notification topic.
@@ -301,14 +303,14 @@ orphan). Reclamation is a periodic offline job, never on the write path.
 
 ### Bucket lifecycle & versioning
 
-Configure on the media bucket(s) (`kal-media-prod`) — via the console or IaC:
+Configured in `iac/artifact-bucket/media.tf` (the `kal_media_prod` bucket +
+versioning + lifecycle resources):
 
 - **Versioning: enabled** — makes deletes (including reconciliation's) reversible.
 - **Lifecycle rules:** (a) abort incomplete multipart uploads after 7 days;
-  (b) transition cold objects to a cheaper class (Intelligent-Tiering, or
-  IA→Glacier) — bounds even orphaned bytes to cold-tier pricing; (c) expire the
-  `trash/` prefix after a retention window (e.g. 4 weeks); (d) expire noncurrent
-  versions after N days.
+  (b) transition every object to Intelligent-Tiering at day 0 — bounds even
+  orphaned bytes to cold-tier pricing; (c) expire the `trash/` prefix after 28
+  days; (d) expire noncurrent versions after 30 days.
 
 ## Claude Code workspaces
 
