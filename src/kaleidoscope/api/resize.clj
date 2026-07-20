@@ -1,10 +1,18 @@
 (ns kaleidoscope.api.resize
-  "Pure image-resize core — in-process replacement for the disabled AWS
-  Lambda resizer. No filesystem, network, or DB access: every function here
-  is bytes-in, bytes/long-out, so it can be unit tested without any I/O
-  fixtures beyond raw image bytes."
-  (:require [clojure.string :as string])
+  "In-process replacement for the disabled AWS Lambda resizer.
+
+  Two halves:
+  1. A PURE core (`RENDITIONS`, `MAX-SOURCE-PIXELS`, `resize-to`,
+     `source-pixels`) — bytes-in, bytes/long-out, no I/O.
+  2. The resize gate — an in-memory queue + bounded worker pool + shared
+     permit that drives resizing against a `DistributedFileSystem` media
+     store (`make-resize-gate`, `resize-one!`, `enqueue-warm!`)."
+  (:require [clojure.string :as string]
+            [kaleidoscope.persistence.filesystem :as fs]
+            [steffan-westcott.clj-otel.api.trace.span :as span]
+            [taoensso.timbre :as log])
   (:import [java.io ByteArrayInputStream ByteArrayOutputStream]
+           [java.util.concurrent LinkedBlockingQueue Semaphore]
            [javax.imageio ImageIO]
            [net.coobird.thumbnailator Thumbnails]))
 
@@ -58,3 +66,248 @@
         (.outputFormat (output-format ext))
         (.toOutputStream baos))
     (.toByteArray baos)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; The resize gate — in-memory queue + bounded worker pool + shared permit
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def HEAP-BUDGET-BYTES
+  "ESTIMATE, not measured — pending the profiling call-out in the plan's
+  Task 2 Step 0 (measure peak decode heap for a 1920x1080 subsample on a
+  representative large raw, then replace this value). The target box is
+  ~1 GB / `-Xmx512m`; this conservatively reserves ~200 MB of that for
+  simultaneous in-flight decode buffers, leaving headroom for Jetty, the
+  JVM itself, and normal request handling."
+  (* 200 1024 1024))
+
+(def PEAK-RENDITION-BYTES
+  "ESTIMATE, not measured — see HEAP-BUDGET-BYTES. Rough upper bound on the
+  heap a single subsampled decode-and-resize can consume (subsampled source
+  read + Thumbnailator's working buffers + the encoded output byte array).
+  `source-pixels`/MAX-SOURCE-PIXELS already reject decompression-bomb
+  sources before any decode, and ImageIO/Thumbnailator read subsampled
+  (never at native resolution) — a resize to the largest rendition box
+  (1920x1080, `monitor`) should peak in the tens of MB; 100 MB is a
+  generous round-up pending measurement."
+  (* 100 1024 1024))
+
+(def MAX-CONCURRENT
+  "Number of decodes allowed to run at once — derived data, not a knob:
+  floor(heap budget / peak-per-decode), never less than 1. With the
+  estimates above this currently yields 2."
+  (max 1 (quot HEAP-BUDGET-BYTES PEAK-RENDITION-BYTES)))
+
+(assert (>= HEAP-BUDGET-BYTES PEAK-RENDITION-BYTES)
+        "HEAP-BUDGET-BYTES must afford at least one concurrent decode")
+
+(def ACQUIRE-TIMEOUT-MS
+  "How long the *serve* path (a later task's `heal-or-enqueue!`) is willing
+  to wait for a free decode permit before giving up and falling back to
+  enqueue + serve-raw. Distinct from RESIZE-TIMEOUT-MS — this bounds how
+  long a web request thread blocks; that bounds how long a decode may run."
+  250)
+
+(def RESIZE-TIMEOUT-MS
+  "Deadline for a single decode+encode+write. See `resize-one!` for the
+  ImageIO-uninterruptible caveat this deadline can't fully solve."
+  60000)
+
+(def QUEUE-CAPACITY
+  "Bound on the resize gate's backlog of warm tasks. `enqueue-warm!` never
+  blocks on a full queue — it drops and logs (see `dropped-enqueue-count`)."
+  512)
+
+(defn- media-raw-path
+  ^String [photo-id ext]
+  (format "media/%s/raw.%s" photo-id ext))
+
+(defn- media-rendition-path
+  ^String [photo-id category ext]
+  (format "media/%s/%s.%s" photo-id category ext))
+
+(defn resize-one!
+  "Produce (or reuse) one rendition of one photo in `gate`'s store.
+
+  PRECONDITION: the caller has already acquired exactly one permit from
+  `(:permit gate)` before calling this function. Ownership of *releasing*
+  that permit transfers to this call:
+  - On the fast paths (`:hit`, `:failed` for a missing raw, `:bad-source`)
+    the permit is released before this function returns.
+  - On the decode path, the actual resize+write runs inside a `future` so
+    a RESIZE-TIMEOUT-MS deadline can be enforced via `deref`. ImageIO
+    decodes are not interruptible, so a timed-out decode's underlying
+    thread keeps running to completion regardless — the permit is
+    released from that future's own `finally`, i.e. only when the decode
+    thread *actually* ends, not when this function returns `:failed` on
+    the deadline. Releasing early here would let a fresh task acquire the
+    same slot while the old decode is still consuming its share of
+    HEAP-BUDGET-BYTES, silently doubling concurrent memory use — exactly
+    what the Semaphore exists to prevent.
+
+  Returns one of:
+    {:outcome :hit}                — the rendition object already existed
+                                      (checked *after* the permit was
+                                      acquired — a best-effort work-saver
+                                      once some decode has completed, not a
+                                      per-key lock: at MAX-CONCURRENT > 1,
+                                      two callers can still race into a
+                                      concurrent decode of the same cold
+                                      key. That's bounded (<= MAX-CONCURRENT)
+                                      and idempotent (identical overwrite),
+                                      not a hazard.)
+    {:outcome :made :bytes bytes}  — decoded, resized, and written.
+    {:outcome :bad-source}         — raw exceeds MAX-SOURCE-PIXELS, or
+                                      isn't a decodable image. Permanent
+                                      and cheap to re-detect (header-only
+                                      read), so deliberately not cached.
+    {:outcome :failed}             — raw missing, a store error, a decode
+                                      timeout, or any other transient
+                                      problem. Not cached — a later view
+                                      (serve-path heal) or `media:reconcile`
+                                      re-attempts."
+  [gate photo-id category ext]
+  (let [{:keys [store ^Semaphore permit]} gate
+        [w h]          (get RENDITIONS category)
+        rendition-path (media-rendition-path photo-id category ext)
+        raw-path       (media-raw-path photo-id ext)
+        released?      (atom false)
+        release!       (fn []
+                          (when (compare-and-set! released? false true)
+                            (.release permit)))]
+    (span/with-span! {:name       "kaleidoscope.resize.resize-one!"
+                       :attributes {"resize.photo-id" (str photo-id)
+                                    "resize.category" (str category)}}
+      (let [outcome
+            (try
+              (cond
+                (not (fs/does-not-exist? (fs/get-file store rendition-path {})))
+                (do (release!)
+                    {:outcome :hit})
+
+                :else
+                (let [raw-obj (fs/get-file store raw-path {})]
+                  (if (fs/does-not-exist? raw-obj)
+                    (do (release!)
+                        (log/errorf "resize failed: raw missing for photo %s (%s)" photo-id raw-path)
+                        {:outcome :failed})
+                    (let [raw-bytes (.readAllBytes ^java.io.InputStream (fs/object-content raw-obj))
+                          pixels    (try (source-pixels raw-bytes) (catch Throwable _ nil))]
+                      (if (or (nil? pixels) (> (long pixels) (long MAX-SOURCE-PIXELS)))
+                        (do (release!)
+                            (log/errorf "resize bad-source: photo %s category %s (pixels=%s limit=%s)"
+                                        photo-id category pixels MAX-SOURCE-PIXELS)
+                            {:outcome :bad-source})
+                        (let [fut (future
+                                    (try
+                                      (let [resized (resize-to raw-bytes ext w h)]
+                                        (fs/put-file store rendition-path (ByteArrayInputStream. resized) {})
+                                        {:outcome :made :bytes resized})
+                                      (catch Throwable t
+                                        (log/errorf t "resize failed during decode/write: photo %s category %s"
+                                                    photo-id category)
+                                        {:outcome :failed})
+                                      (finally (release!))))
+                              result (deref fut RESIZE-TIMEOUT-MS ::timeout)]
+                          (if (= result ::timeout)
+                            (do
+                              (log/errorf (str "resize timed out after %dms: photo %s category %s — the "
+                                                "decode is not interruptible and may still be running; its "
+                                                "permit stays held until it actually finishes, never "
+                                                "released early")
+                                          RESIZE-TIMEOUT-MS photo-id category)
+                              {:outcome :failed})
+                            (do
+                              (when (= :made (:outcome result))
+                                (log/infof "resize made: photo %s category %s (%d bytes)"
+                                           photo-id category (alength ^bytes (:bytes result))))
+                              result))))))))
+              (catch Throwable t
+                (release!)
+                (log/errorf t "resize failed: unexpected error for photo %s category %s" photo-id category)
+                {:outcome :failed}))]
+        (span/add-span-data! {:attributes {"resize.outcome" (name (:outcome outcome))}})
+        outcome))))
+
+(defn- run-worker!
+  "Body of one resize-gate worker thread: pull tasks off the queue forever,
+  resizing every requested category under a held permit. Each task
+  iteration is wrapped in `catch Throwable` — a single bad task (or a bug
+  in `resize-one!`) must never kill the loop, since these are the only
+  threads that will ever drain the queue. `InterruptedException` is the
+  one thing allowed to end the loop, for `stop!`."
+  [gate]
+  (let [{:keys [^LinkedBlockingQueue queue ^Semaphore permit]} gate]
+    (try
+      (while (not (.isInterrupted (Thread/currentThread)))
+        (try
+          (let [task (.take queue)]
+            (doseq [category (:categories task)]
+              (.acquire permit)
+              (resize-one! gate (:photo-id task) category (:ext task))))
+          (catch InterruptedException e
+            (throw e))
+          (catch Throwable t
+            (log/error t "resize worker: unexpected error processing a task; continuing"))))
+      (catch InterruptedException _
+        (log/info "resize worker: stopping (interrupted)")))))
+
+(defn make-resize-gate
+  "Build a resize gate over `store` (a `DistributedFileSystem`): a bounded
+  `LinkedBlockingQueue` of warm tasks, a `Semaphore` capping concurrent
+  decodes, and that many daemon worker threads draining the queue.
+
+  `opts` — `{:max-concurrent n}` overrides MAX-CONCURRENT so tests can pin
+  a known permit count instead of depending on the (estimate-derived)
+  default. Not exposed for production tuning."
+  ([store] (make-resize-gate store {}))
+  ([store {:keys [max-concurrent] :or {max-concurrent MAX-CONCURRENT}}]
+   (let [queue   (LinkedBlockingQueue. (int QUEUE-CAPACITY))
+         permit  (Semaphore. (int max-concurrent))
+         gate    {:store store :queue queue :permit permit :max-concurrent max-concurrent}
+         workers (mapv (fn [i]
+                          (doto (Thread. ^Runnable (fn [] (run-worker! gate))
+                                         (format "resize-worker-%d" i))
+                            (.setDaemon true)
+                            (.start)))
+                        (range max-concurrent))]
+     (assoc gate :workers workers))))
+
+(defn stop!
+  "Interrupt and join every worker thread in `gate`. Tests must call this
+  for every gate they start, or worker threads leak across test runs."
+  [gate]
+  (doseq [^Thread t (:workers gate)]
+    (.interrupt t))
+  (doseq [^Thread t (:workers gate)]
+    (.join t 5000)))
+
+(def dropped-enqueue-count
+  "Total number of `enqueue-warm!` calls dropped because the gate's queue
+  was full. Exists so a drop is observable (not just logged) — from a
+  caller's perspective a drop is silent otherwise, and the plan requires
+  it not be: a full queue is caught later by the serve-path 404 heal or
+  `media:reconcile`, but must be visible in the meantime."
+  (atom 0))
+
+(defn enqueue-warm!
+  "Non-blocking `offer` of a warm task for `photo-id` onto `gate`'s queue —
+  one category per arg, or every RENDITIONS category if none are given.
+  Used by upload, the busy serve path, and reconcile.
+
+  Returns `true` if the task was enqueued, `false` if the queue was full
+  (`offer` returned false) — in which case a WARN is logged and
+  `dropped-enqueue-count` is bumped so the drop is never silent."
+  [gate photo-id ext & categories]
+  (let [cats (or (seq categories) (keys RENDITIONS))
+        task {:photo-id photo-id :ext ext :categories cats}]
+    (span/with-span! {:name       "kaleidoscope.resize.enqueue-warm!"
+                       :attributes {"resize.photo-id"   (str photo-id)
+                                    "resize.categories" (str cats)}}
+      (if (.offer ^LinkedBlockingQueue (:queue gate) task)
+        true
+        (do
+          (swap! dropped-enqueue-count inc)
+          (log/warnf "resize queue full (capacity %d); dropping warm task for photo %s categories %s"
+                     QUEUE-CAPACITY photo-id cats)
+          (span/add-span-data! {:attributes {"resize.dropped" true}})
+          false)))))
