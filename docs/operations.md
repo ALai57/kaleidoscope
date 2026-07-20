@@ -99,8 +99,7 @@ prompts you to pick one (auto-selecting when there's only one), so it needs a TT
 Pass `NAME=<slug>` to skip the prompt or run non-interactively (e.g. in CI). The
 `ephemeral:down`, `ephemeral:build-frontend`, and `ephemeral:smoke-test` tasks share
 this same optional-`NAME`, prompt-if-omitted behavior; the remaining `ephemeral:*`
-tasks (`up`, `provision-db`, `deploy-app`, `seed-tenant-assets`) still require an
-explicit `NAME`.
+tasks (`up`, `provision-db`, `deploy-app`) still require an explicit `NAME`.
 
 `ephemeral:build-frontend` only supplies staging AWS creds and a clean `npm ci`,
 then delegates the actual build and S3 sync to `npm run ephemeral:deploy` in the
@@ -141,13 +140,19 @@ tenant hostname and serves that tenant's content in isolation.
   photos — reads and writes against this one pinned tenant's DB rows, so the
   Neon branch must actually contain that tenant's data (see the DB-seeding
   prerequisite below).
-- **Isolated site chrome.** `/static/*` is served from
-  `s3://kal-ephemeral/tenant-assets/<slug>/` — an S3 prefix scoped to this one
-  ephemeral env (`KALEIDOSCOPE_TENANT_ASSET_BUCKET`/`_PREFIX`), never the real
-  per-tenant bucket from `resources/tenants.json`.
-  `task ephemeral:seed-tenant-assets NAME=<slug> TENANT=<hostname>` (run by
-  `up`, before `deploy-app`) syncs
-  `test-resources/ephemeral-sample-assets/<hostname>/` into that prefix.
+- **Static site chrome: shared client store, no seeding.** `/static/*` (and
+  `/favicon.ico`) are served from the same shared `kaleidoscope.client` store
+  as the SPA shell (`/`, `/assets/*`) — populated by the frontend deploy
+  (`build-frontend`), not by the backend. There's nothing for the backend to
+  seed here.
+- **Article images (`/media/*`): per-tenant asset-store, unseeded.**
+  `/media/*` (article-embedded images) still reads from the per-tenant
+  `:asset-store`, isolated to this env's own
+  `s3://kal-ephemeral/tenant-assets/<slug>/` prefix
+  (`KALEIDOSCOPE_TENANT_ASSET_BUCKET`/`_PREFIX`), never the real per-tenant
+  bucket from `resources/tenants.json`. Nothing currently populates this
+  prefix in ephemeral, so `/media/*` article images 404 there — a known gap
+  pending the `article-embedded-asset-acl` plan.
 - **Photos: per-env media bucket + read-through (no seeding).** Photos are
   served and uploaded via a single media store (`KALEIDOSCOPE_MEDIA_BUCKET`),
   keyed by the object's intrinsic identity (`media/<uuid>/<category>.<ext>`) —
