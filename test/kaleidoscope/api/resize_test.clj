@@ -283,6 +283,74 @@
             "the worker must eventually produce all four renditions")
         (finally (resize/stop! gate))))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; heal-or-enqueue! — the serve-path fast-fail self-heal
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest heal-or-enqueue-idle-gate-makes-the-rendition
+  (testing "raw present, gate idle: tryAcquire succeeds, resize-one! runs synchronously
+            under the acquired permit, and bytes come back with no re-read"
+    (let [raw   (fixture-bytes)
+          store (mem-store {"media/heal1/raw.png" raw})
+          gate  (resize/make-resize-gate store {:max-concurrent 1})]
+      (try
+        (let [result (resize/heal-or-enqueue! gate "heal1" "gallery" "png")]
+          (is (map? result))
+          (is (pos? (alength ^bytes (:made result))))
+          (let [[out-w out-h] (decode-dimensions (:made result))]
+            (is (<= out-w 165))
+            (is (<= out-h 165))))
+        (is (rendition-exists? store "heal1" "gallery" "png")
+            "the healed rendition must now exist in the store")
+
+        (testing "a second call sees the object already exists (:hit) and still returns bytes,
+                  fetched from the store since a hit alone carries none"
+          (let [result2 (resize/heal-or-enqueue! gate "heal1" "gallery" "png")]
+            (is (map? result2))
+            (is (pos? (alength ^bytes (:made result2))))))
+        (finally (resize/stop! gate))))))
+
+(deftest heal-or-enqueue-no-raw-is-no-raw
+  (testing "the raw itself is missing: nothing to heal from"
+    (let [store (mem-store {})
+          gate  (resize/make-resize-gate store {:max-concurrent 1})]
+      (try
+        (is (= :no-raw (resize/heal-or-enqueue! gate "nope" "gallery" "png")))
+        (finally (resize/stop! gate))))))
+
+(deftest heal-or-enqueue-bad-source-raw-is-bad-source
+  (testing "an undecodable raw is :bad-source — permanent, not enqueued, not :busy"
+    (let [store (mem-store {"media/healbad/raw.png" (byte-array [1 2 3 4 5])})
+          gate  (resize/make-resize-gate store {:max-concurrent 1})]
+      (try
+        (is (= :bad-source (resize/heal-or-enqueue! gate "healbad" "gallery" "png")))
+        (finally (resize/stop! gate))))))
+
+(deftest heal-or-enqueue-busy-gate-enqueues-and-reports-busy
+  (testing "no permit free within ACQUIRE-TIMEOUT-MS: enqueue-warm! runs for this
+            category alone and :busy is returned — the worker later drains it"
+    (let [raw           (fixture-bytes)
+          entered-latch (CountDownLatch. 1)
+          release-latch (CountDownLatch. 1)
+          store         (->LatchingRawFS "media/healbusy-occupier/raw.png" raw
+                                          (atom {"media/healbusy/raw.png" raw})
+                                          entered-latch release-latch)
+          gate          (resize/make-resize-gate store {:max-concurrent 1})]
+      (try
+        ;; Occupy the single permit with an in-flight decode of a *different* key.
+        (is (true? (resize/enqueue-warm! gate "healbusy-occupier" "png" "gallery")))
+        (is (.await entered-latch 5000 TimeUnit/MILLISECONDS)
+            "the occupier's decode must be in flight (permit held) before probing heal-or-enqueue!")
+        (is (zero? (.availablePermits ^Semaphore (:permit gate)))
+            "sanity: the one permit is held by the occupier during the probe")
+
+        (is (= :busy (resize/heal-or-enqueue! gate "healbusy" "gallery" "png")))
+
+        (.countDown release-latch)
+        (is (wait-until #(rendition-exists? store "healbusy" "gallery" "png") 5000)
+            "the enqueued warm task must eventually be drained by the worker once the occupier releases")
+        (finally (resize/stop! gate))))))
+
 (deftest enqueue-warm-drop-on-full-queue-is-observable
   (testing "offer false (queue full) is never silent — it's counted and the caller is told"
     (let [store (mem-store {})

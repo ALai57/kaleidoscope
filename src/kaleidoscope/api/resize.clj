@@ -12,7 +12,7 @@
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log])
   (:import [java.io ByteArrayInputStream ByteArrayOutputStream]
-           [java.util.concurrent LinkedBlockingQueue Semaphore]
+           [java.util.concurrent LinkedBlockingQueue Semaphore TimeUnit]
            [javax.imageio ImageIO]
            [net.coobird.thumbnailator Thumbnails]))
 
@@ -344,3 +344,57 @@
                      QUEUE-CAPACITY photo-id cats)
           (span/add-span-data! {:attributes {"resize.dropped" true}})
           false)))))
+
+(defn heal-or-enqueue!
+  "Serve-path fast-fail self-heal: called when a GET for a rendition 404s.
+  Tries to make the rendition right now, but never blocks the web request
+  thread beyond ACQUIRE-TIMEOUT-MS waiting for a decode permit — if none is
+  immediately free, falls back to enqueueing an async warm for just this
+  category and tells the caller to serve the raw meanwhile.
+
+  PERMIT-OWNERSHIP CONTRACT: identical to `run-worker!`'s. On a successful
+  `tryAcquire`, `resize-one!` is called exactly as the worker calls it —
+  holding the one acquired permit, with `resize-one!` (and, on the decode
+  path, its future's `finally`) owning the release. This function must NOT
+  itself release that permit under any outcome; doing so would race a fresh
+  task into the same memory slot while a decode may still be running (see
+  `resize-one!`'s docstring for why that early-release bug is exactly what
+  the Semaphore exists to prevent).
+
+  Returns one of:
+    {:made bytes}  — the rendition now exists in the store; bytes are ready
+                     to serve without a re-read (fetched from the store on a
+                     `:hit` outcome, since a hit alone carries no bytes).
+    :busy          — no permit was free within ACQUIRE-TIMEOUT-MS, or the
+                     resize attempt failed transiently (`:failed`). Either
+                     way a warm task for this single category was enqueued
+                     (best-effort — `enqueue-warm!` never blocks and drops
+                     silently-but-counted on a full queue) so a later view
+                     or `media:reconcile` retries it. The caller should serve
+                     the raw right now.
+    :no-raw        — the raw object itself is missing; nothing to heal from.
+    :bad-source    — the raw exceeds MAX-SOURCE-PIXELS or isn't decodable by
+                     ImageIO; permanent and cheap to re-detect, so not worth
+                     enqueueing."
+  [gate photo-id category ext]
+  (let [{:keys [store ^Semaphore permit]} gate
+        raw-path (media-raw-path photo-id ext)]
+    (span/with-span! {:name       "kaleidoscope.resize.heal-or-enqueue!"
+                       :attributes {"resize.photo-id" (str photo-id)
+                                    "resize.category" (str category)}}
+      (if (fs/does-not-exist? (fs/get-file store raw-path {}))
+        :no-raw
+        (if (.tryAcquire permit ACQUIRE-TIMEOUT-MS TimeUnit/MILLISECONDS)
+          ;; Permit acquired: hand it to resize-one! exactly as run-worker!
+          ;; does. resize-one! owns releasing it from here on.
+          (let [{:keys [outcome bytes]} (resize-one! gate photo-id category ext)]
+            (case outcome
+              :made       {:made bytes}
+              :hit        (let [rendition-path (media-rendition-path photo-id category ext)
+                                 obj            (fs/get-file store rendition-path {})]
+                            {:made (.readAllBytes ^java.io.InputStream (fs/object-content obj))})
+              :bad-source :bad-source
+              :failed     (do (enqueue-warm! gate photo-id ext category)
+                               :busy)))
+          (do (enqueue-warm! gate photo-id ext category)
+              :busy))))))

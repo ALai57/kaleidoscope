@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [cheshire.core :as json]
             [kaleidoscope.api.albums :as albums-api]
+            [kaleidoscope.api.resize :as resize]
             [kaleidoscope.http-api.http-utils :as hu]
             [kaleidoscope.http-api.tenant :as http-tenant]
             [kaleidoscope.persistence.tenant :as tenant]
@@ -70,19 +71,67 @@
    [:modified-at inst?]
    [:created-at inst?]])
 
+(defn- filename->category+ext
+  "\"gallery.jpg\" -> [\"gallery\" \"jpg\"]; nil if `filename` isn't a single
+  dotted name (see `albums-api/make-image-version`, the only thing that ever
+  names these objects — every rendition/raw filename has exactly this shape)."
+  [filename]
+  (when-let [[_ category ext] (re-matches #"(.+)\.([a-zA-Z0-9]+)" (or filename ""))]
+    [category ext]))
+
+(defn- raw-media-path
+  ^String [photo-id ext]
+  (format "%s/%s/raw.%s" albums-api/MEDIA-FOLDER photo-id ext))
+
 (defn serve-photo
   "Serve a photo version's bytes. Reads the version row (tenant-scoped) for its
   intrinsic `path`, then serves from the single per-env media store when
   registered, else from the request's per-tenant asset-store adapter (prod
-  pre-cutover — behavior identical to before)."
+  pre-cutover — behavior identical to before).
+
+  Serve-path self-heal: a rendition GET that 404s (the resize gate hasn't
+  produced it yet — e.g. the async warm from upload is still queued/running)
+  gets one chance to heal right here, rather than making every viewer wait
+  on `media:reconcile` or a retried upload. Only engaged when the store the
+  request just missed against IS the resize gate's own store — never for the
+  legacy per-tenant asset-store fallback, and never for a non-rendition path
+  (e.g. `raw.<ext>`) where there's nothing to regenerate.
+    - `{:made bytes}` from `heal-or-enqueue!` — a decode permit was free, the
+      rendition now exists: serve those bytes directly, 200, no re-read.
+    - `:busy` — no permit was free (or the resize attempt failed transiently);
+      a warm task for this category was enqueued and the caller falls back
+      to serving the *raw* bytes at the rendition's URL, marked `no-store` so
+      nothing caches the raw under the rendition's key.
+    - `:bad-source`/`:no-raw` — permanent problems; fall through to the
+      original 404 (already ERROR-logged by `heal-or-enqueue!`/`resize-one!`
+      — breakage stays visible, not silently masked)."
   [{:keys [components parameters] :as request}]
   (span/with-span! {:name "kaleidoscope.photos.get-file"}
     (let [db               (tenant/scope (:database components) (hu/tenant-hostname request))
           [{:keys [path]}] (albums-api/get-full-photos db (:path parameters))
-          media-store      (get (:static-content-adapters components) http-tenant/media-store)]
-      (if media-store
-        (hu/adapter-response media-store (assoc request :uri path))
-        (hu/get-resource (:static-content-adapters components) (assoc request :uri path))))))
+          media-store      (get (:static-content-adapters components) http-tenant/media-store)
+          response         (if media-store
+                             (hu/adapter-response media-store (assoc request :uri path))
+                             (hu/get-resource (:static-content-adapters components) (assoc request :uri path)))
+          resize-gate      (:resize-gate components)]
+      (if (and (= 404 (:status response))
+               media-store
+               resize-gate
+               (= media-store (:store resize-gate)))
+        (let [{:keys [photo-id filename]} (:path parameters)
+              [category ext]              (filename->category+ext filename)]
+          (if (and category (contains? resize/RENDITIONS category))
+            (let [heal-result (resize/heal-or-enqueue! resize-gate photo-id category ext)]
+              (cond
+                (map? heal-result)
+                {:status 200 :body (:made heal-result)}
+
+                (= :busy heal-result)
+                (hu/adapter-response-no-store media-store (assoc request :uri (raw-media-path photo-id ext)))
+
+                :else response))
+            response))
+        response))))
 
 (def CreatePhotoResponse
   [:map
