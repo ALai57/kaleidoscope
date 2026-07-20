@@ -302,7 +302,7 @@ service. Two paths feed the same store:
 - **`media:reconcile` is the operator backstop for never-viewed renditions.** The
   fast-fail heal above only fires when someone actually *requests* a missing
   rendition — a photo nobody views never gets healed that way. `task
-  media:reconcile --apply` regenerates those too: it narrows the plan's
+  media:reconcile APPLY=1` regenerates those too: it narrows the plan's
   `dangling = referenced − stored` set to just rendition keys
   (`missing-renditions`, pure/unit-tested) and resizes each one synchronously
   before the process exits. It is a manual/periodic operator job (see
@@ -337,7 +337,7 @@ lossless — see below). Take a prod DB snapshot before starting.
 5. **Flip.** Set `KALEIDOSCOPE_MEDIA_BUCKET=kal-media-prod` in prod secrets and
    restart. Prod now serves and writes the single bucket, and uploads warm their
    own renditions in-process.
-6. **Pre-warm renditions.** Run `task media:reconcile --apply` once against prod
+6. **Pre-warm renditions.** Run `task media:reconcile APPLY=1` once against prod
    so every photo already in `kal-media-prod` (consolidated in step 2, from
    before the in-process resizer existed) gets its renditions backfilled *before*
    real visitors arrive — closing the one-time raw-serving window described above
