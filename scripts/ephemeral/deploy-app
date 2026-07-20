@@ -21,10 +21,12 @@ known_tenant? "$TENANT" || die "Unknown TENANT '$TENANT' (not in $TENANTS_FILE).
 ASSET_PREFIX="$(tenant_asset_prefix "$SLUG")"
 
 # Photos: this env's own media bucket (writes) reading through to prod media
-# read-only. Pre-Phase-2 the read-through source is the pinned tenant's own
-# bucket (= $TENANT); set PROD_MEDIA_BUCKET=kal-media-prod after consolidation.
+# read-only. Defaults to kal-media-prod — the ephemeral IAM read grant is scoped
+# to that bucket only (iac/artifact-bucket/media.tf), so consolidate into it
+# before relying on read-through. Only override PROD_MEDIA_BUCKET if you have
+# also widened that read grant to the target bucket.
 MEDIA_BUCKET="$(media_bucket "$SLUG")"
-PROD_MEDIA_BUCKET="${PROD_MEDIA_BUCKET:-$TENANT}"
+PROD_MEDIA_BUCKET="${PROD_MEDIA_BUCKET:-kal-media-prod}"
 
 load_staging_env
 require_cmd fly

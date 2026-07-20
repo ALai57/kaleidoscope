@@ -158,10 +158,12 @@ tenant hostname and serves that tenant's content in isolation.
   `KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET`. Existing photos load with **zero
   copy/seed** — the branched DB's `media/<uuid>/…` keys resolve against the env's
   own bucket for its uploads, else the immutable prod corpus. New uploads land
-  in the env's own bucket and are disposed whole at teardown. Pre-Phase-2 the
-  read-through source is the pinned tenant's own bucket (`PROD_MEDIA_BUCKET`
-  defaults to `$TENANT`); set `PROD_MEDIA_BUCKET=kal-media-prod` after
-  consolidation. Isolation is structural: the media store is a `ReadThroughFS`
+  in the env's own bucket and are disposed whole at teardown. The read-through
+  source (`PROD_MEDIA_BUCKET`) defaults to `kal-media-prod`, which the ephemeral
+  IAM read grant is scoped to (`iac/artifact-bucket/media.tf`) — so consolidate
+  into `kal-media-prod` before relying on read-through, and only override
+  `PROD_MEDIA_BUCKET` if you have also widened that read grant. Isolation is
+  structural: the media store is a `ReadThroughFS`
   whose *writer* is the env's own bucket, so an ephemeral env can never mutate
   the shared read-only prod media (see `persistence/filesystem/read_through.clj`).
 - **IAM grants (ephemeral user).** Codified in `iac/artifact-bucket/media.tf`

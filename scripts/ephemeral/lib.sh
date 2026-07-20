@@ -119,9 +119,10 @@ tenant_asset_prefix() { printf 'tenant-assets/%s/' "$1"; }
 # emptied+deleted on down) and reads through to prod media read-only. The bucket
 # IS the namespace — keys are the bare intrinsic media/<uuid>/... path, no prefix
 # — so teardown is one whole-bucket delete with no per-env leak to reconcile.
-# The read-through source (KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET) is the pinned
-# tenant's own bucket pre-Phase-2 (PROD_MEDIA_BUCKET defaults to $TENANT in
-# deploy-app), and kal-media-prod after consolidation.
+# The read-through source (KALEIDOSCOPE_MEDIA_FALLBACK_BUCKET) is kal-media-prod
+# (PROD_MEDIA_BUCKET default in deploy-app), which the ephemeral IAM read grant
+# is scoped to (iac/artifact-bucket/media.tf) — so consolidate into it before
+# relying on read-through.
 media_bucket() { printf 'kal-eph-%s-media' "$1"; }
 
 # Create the per-env media bucket idempotently. us-east-1 rejects an explicit
