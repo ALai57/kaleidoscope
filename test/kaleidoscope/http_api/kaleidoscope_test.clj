@@ -249,6 +249,35 @@
                                     :request-method :get
                                     :headers        {}})))))))
 
+(deftest api-v1-acl-twin-coverage-test
+  ;; Every API resource rule must have an /api/v1 twin present in the real ACL.
+  ;; The twins are derived (not hand-written), so this is a guard against a
+  ;; future edit that adds a root resource rule but forgets its twin — which
+  ;; would 401 that route under /api/v1 (fail-closed, but broken).
+  (let [present (set (map (juxt (comp str :pattern) :request-method :handler)
+                          kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST))]
+    (doseq [rule kaleidoscope/api-resource-access-rules]
+      (let [twin (kaleidoscope/with-api-v1-prefix rule)]
+        (is (contains? present ((juxt (comp str :pattern) :request-method :handler) twin))
+            (str "missing /api/v1 twin for " (:pattern rule)))))))
+
+(deftest api-v1-acl-authorizes-like-root-test
+  ;; Tested at the auth-stack level (below the router, like the fails-closed
+  ;; test) so it doesn't depend on Task 2's route mounting.
+  (let [rules   kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST
+        stack   (mw/auth-stack (bb/authenticated-backend {:realm_access {:roles []}}) rules)
+        handler (reduce (fn [h a-mw] (a-mw h))
+                        (fn [_req] {:status 200 :body "reached"})
+                        (reverse stack))
+        req     (fn [method uri] {:uri uri :request-method method :headers {}})]
+    (testing "GET /api/v1/recipes is public, like GET /recipes"
+      (is (= 200 (:status (handler (req :get "/api/v1/recipes"))))))
+    (testing "POST /api/v1/recipes requires a writer, like POST /recipes"
+      (is (= 401 (:status (handler (req :post "/api/v1/recipes"))))))
+    (testing "a root resource path is unchanged"
+      (is (= 200 (:status (handler (req :get "/recipes")))))
+      (is (= 401 (:status (handler (req :post "/recipes"))))))))
+
 (deftest auth-runs-before-coercion-test
   ;; 2026-07-04 production incident: POST /workflows requires a :name field
   ;; in its body. An unauthenticated request with no/invalid body was being

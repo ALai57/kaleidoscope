@@ -32,45 +32,31 @@
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
-(def KALEIDOSCOPE-ACCESS-CONTROL-LIST
-  [{:pattern #"^/admin.*"        :handler auth/require-*-admin}
-   {:pattern #"^/articles.*"     :handler auth/require-*-writer}
+(def api-resource-access-rules
+  "Authorization for the JSON API resource routes — the rules that get an
+  /api/v1 twin. The twins are DERIVED from this one list (see
+  KALEIDOSCOPE-ACCESS-CONTROL-LIST), so the two address spaces cannot drift.
+  Order matters where patterns overlap under buddy's whole-string matching:
+  `^/projects-portfolio` (public) must precede `^/projects.*` (writer)."
+  [{:pattern #"^/articles.*"     :handler auth/require-*-writer}
    {:pattern #"^/branches.*"     :handler auth/require-*-writer}
    {:pattern #"^/compositions.*" :handler auth/public-access}
-   {:pattern #"^/$"              :handler auth/public-access}
-   {:pattern #"^/index.html$"    :handler auth/public-access}
-   {:pattern #"^/ping"           :handler auth/public-access}
-
    {:pattern #"^/groups.*"            :handler auth/require-*-writer}
    {:pattern #"^/interests.*"         :handler auth/require-*-writer}
    {:pattern #"^/projects-portfolio"  :handler auth/public-access}
    {:pattern #"^/projects.*"          :handler auth/require-*-writer}
    {:pattern #"^/score-definitions.*" :handler auth/require-*-writer}
-   {:pattern #"^/agents.*"             :handler auth/require-*-writer}
+   {:pattern #"^/agents.*"            :handler auth/require-*-writer}
    {:pattern #"^/workflows.*"         :handler auth/require-*-writer}
    {:pattern #"^/workspace-roots.*"   :handler auth/require-*-writer}
-
-   {:pattern #"^/media.*" :request-method :post :handler auth/require-*-writer}
-   {:pattern #"^/media.*" :request-method :get  :handler auth/public-access}
-
-   {:pattern #"^/v2/photos.*"  :request-method :post :handler auth/require-*-writer}
-   {:pattern #"^/v2/photos.*"  :request-method :put  :handler auth/require-*-admin}
-   {:pattern #"^/v2/photos"    :request-method :get  :handler auth/require-*-writer}
-   {:pattern #"^/v2/photos/.*" :request-method :get  :handler auth/public-access}
-
    {:pattern #"^/themes.*"    :request-method :put    :handler auth/require-*-writer}
    {:pattern #"^/themes.*"    :request-method :post   :handler auth/require-*-writer}
    {:pattern #"^/themes.*"    :request-method :delete :handler auth/require-*-writer}
    {:pattern #"^/themes.*"    :request-method :get    :handler auth/public-access}
-
-
    {:pattern #"^/albums.*"            :handler auth/require-*-admin}
    {:pattern #"^/article-audiences.*" :handler auth/require-*-admin}
-
-   ;; Recipes: GETs are public so shared/public recipes and their label chips
-   ;; render for anonymous readers (the recipe list itself is access-filtered
-   ;; internally by get-visible-recipes); writes require a writer. Sharing uses
-   ;; writer (not admin like article-audiences) to keep it usable — see PLAN.md.
+   ;; Recipes: GETs public so shared/public recipes render for anonymous
+   ;; readers (list is access-filtered internally); writes require a writer.
    {:pattern #"^/recipes.*"             :request-method :get    :handler auth/public-access}
    {:pattern #"^/recipes.*"             :request-method :post   :handler auth/require-*-writer}
    {:pattern #"^/recipes.*"             :request-method :put    :handler auth/require-*-writer}
@@ -79,49 +65,62 @@
    {:pattern #"^/recipe-labels.*"       :handler auth/require-*-writer}
    {:pattern #"^/recipe-label-groups.*" :request-method :get    :handler auth/public-access}
    {:pattern #"^/recipe-label-groups.*" :handler auth/require-*-writer}
-   {:pattern #"^/recipe-audiences.*"    :handler auth/require-*-writer}
+   {:pattern #"^/recipe-audiences.*"    :handler auth/require-*-writer}])
 
-   ;; Everything below is intentionally public — listed explicitly so the
-   ;; catch-all at the bottom can safely reject anything NOT named here.
-   ;;
-   ;; Before 2026-07-03 this list relied on buddy-auth's default :policy
-   ;; :allow for any URI that didn't match a pattern above — meaning a new
-   ;; route mounted in kaleidoscope-app that didn't happen to match one of
-   ;; these regexes was served with *zero* authorization enforcement, not
-   ;; "denied by default." No sensitive route was found relying on that gap
-   ;; at the time (see PLAN.md, "Critical finding #4"), but the failure mode
-   ;; is silent and total — a single missed or mistyped pattern is a full,
-   ;; invisible data exposure with no error and no test failure to catch it.
-   {:pattern #"^/openapi\.json$" :handler auth/public-access}
-   {:pattern #"^/api-docs.*"     :handler auth/public-access}
-   {:pattern #"^/favicon\.ico$"  :handler auth/public-access}
-   {:pattern #"^/assets.*"       :handler auth/public-access}
-   {:pattern #"^/static.*"       :handler auth/public-access}
-   ;; `/` and `/favicon.ico` carry route-level :uri route-data
-   ;; ("index.html", "static/favicon.ico") that wrap-force-uri rewrites
-   ;; :uri to *before* wrap-access-rules runs (wrap-force-uri is earlier —
-   ;; more outer — in the middleware stack). Access rules see the rewritten
-   ;; value, not the original request path, so both forms need a pattern.
-   {:pattern #"^index\.html$"         :handler auth/public-access}
-   {:pattern #"^static/favicon\.ico$" :handler auth/public-access}
-   ;; Pre-auth signup flow — must be reachable before the caller has an
-   ;; identity to check a role against.
-   {:pattern #"^/registration.*" :handler auth/public-access}
-   {:pattern #"^/check-domain.*" :handler auth/public-access}
-   ;; Stripe payment-intent creation — must be reachable before checkout
-   ;; completes (standard Stripe Elements pattern: the client needs a
-   ;; client-secret before the payer is necessarily authenticated). Not
-   ;; itself a data-exposure risk (a PaymentIntent doesn't charge anything
-   ;; until confirmed with a real payment method), but it is an
-   ;; unauthenticated write to a paid third-party API with no rate limiting
-   ;; in front of it — worth revisiting as a cost/abuse question separately
-   ;; from authorization correctness.
-   {:pattern #"^/v1/payments.*"  :handler auth/public-access}
+(defn with-api-v1-prefix
+  "Rewrite a resource rule's :pattern from ^/foo… to ^/api/v1/foo…, preserving
+  :request-method and :handler. Used to derive each root resource rule's
+  /api/v1 twin so authorization can't diverge between the two address spaces."
+  [rule]
+  (update rule :pattern
+          (fn [p] (re-pattern (str/replace-first (str p) #"^\^/" "^/api/v1/")))))
 
-   ;; Fail closed: anything not explicitly named above is rejected, not
-   ;; allowed. This was already written by a previous author and left
-   ;; disabled (commented out) — re-enabled as the load-bearing fix here.
-   {:pattern #"^/.*" :handler (constantly false)}])
+(def KALEIDOSCOPE-ACCESS-CONTROL-LIST
+  (vec
+   (concat
+    ;; Root-only: infra, admin, media, and the already-namespaced photos.
+    ;; None of these get an /api/v1 twin (admin/photos/media are not part of
+    ;; the dual-mounted resource surface; infra is single-address).
+    [{:pattern #"^/admin.*"        :handler auth/require-*-admin}
+     {:pattern #"^/$"              :handler auth/public-access}
+     {:pattern #"^/index.html$"    :handler auth/public-access}
+     {:pattern #"^/ping"           :handler auth/public-access}
+
+     {:pattern #"^/media.*" :request-method :post :handler auth/require-*-writer}
+     {:pattern #"^/media.*" :request-method :get  :handler auth/public-access}
+
+     {:pattern #"^/v2/photos.*"  :request-method :post :handler auth/require-*-writer}
+     {:pattern #"^/v2/photos.*"  :request-method :put  :handler auth/require-*-admin}
+     {:pattern #"^/v2/photos"    :request-method :get  :handler auth/require-*-writer}
+     {:pattern #"^/v2/photos/.*" :request-method :get  :handler auth/public-access}]
+
+    ;; API resource rules at their legacy root paths …
+    api-resource-access-rules
+    ;; … and their derived /api/v1 twins. Kept in the same order so overlapping
+    ;; rules (projects-portfolio before projects.*) retain their precedence.
+    (map with-api-v1-prefix api-resource-access-rules)
+
+    ;; Everything below is intentionally public — listed explicitly so the
+    ;; fail-closed catch-all can safely reject anything NOT named here.
+    ;; A single missed/mistyped pattern is a full, invisible data exposure
+    ;; with no error and no test failure to catch it (see 2026-07-03 PLAN.md,
+    ;; "Critical finding #4").
+    [{:pattern #"^/openapi\.json$" :handler auth/public-access}
+     {:pattern #"^/api-docs.*"     :handler auth/public-access}
+     {:pattern #"^/favicon\.ico$"  :handler auth/public-access}
+     {:pattern #"^/assets.*"       :handler auth/public-access}
+     {:pattern #"^/static.*"       :handler auth/public-access}
+     ;; `/` and `/favicon.ico` carry route-level :uri that wrap-force-uri
+     ;; rewrites before wrap-access-rules runs, so both forms need a pattern.
+     {:pattern #"^index\.html$"         :handler auth/public-access}
+     {:pattern #"^static/favicon\.ico$" :handler auth/public-access}
+     {:pattern #"^/registration.*" :handler auth/public-access}
+     {:pattern #"^/check-domain.*" :handler auth/public-access}
+     {:pattern #"^/v1/payments.*"  :handler auth/public-access}
+
+     ;; Fail closed: anything not explicitly named above is rejected. MUST
+     ;; stay last.
+     {:pattern #"^/.*" :handler (constantly false)}])))
 
 ;; Add a tracing middleware data
 
