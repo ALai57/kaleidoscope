@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.kaleidoscope
   (:require
+   [cheshire.core :as json]
    [clojure.stacktrace :as stacktrace]
    [clojure.string :as str]
    [kaleidoscope.api.authorization :as auth]
@@ -135,7 +136,7 @@
   serve the SPA shell, so a bad asset/API URL fails honestly instead of returning
   HTML to a fetch caller (a soft 404)."
   ["/api/v1" "/api-docs" "/assets" "/static" "/media" "/v2/photos"
-   "/openapi.json" "/favicon.ico" "/ping"])
+   "/openapi.json" "/favicon.ico" "/ping" "/index.html"])
 
 (defn reserved-backend-path?
   [uri]
@@ -299,7 +300,15 @@
                               (assoc :tenant {:asset-store "kaleidoscope.client"})
                               (assoc :uri "index.html")
                               (assoc :components components))))
-                       (not-found {:reason "Not found"})))})))))
+                       ;; This handler is outside the reitit/muuntaja stack, so
+                       ;; nothing encodes the body — it must already be a
+                       ;; serializable type (String), not a Clojure map, or the
+                       ;; Jetty adapter 500s. JSON for API paths, plain otherwise.
+                       (if (str/starts-with? (:uri request) "/api/v1")
+                         (-> (not-found (json/encode {:reason "Not found"}))
+                             (assoc-in [:headers "Content-Type"] "application/json"))
+                         (-> (not-found "Not found")
+                             (assoc-in [:headers "Content-Type"] "text/plain")))))})))))
 
 (comment
 

@@ -28,6 +28,7 @@
             [matcher-combinators.result :as result]
             [matcher-combinators.test :refer [match?]]
             [peridot.multipart :as mp]
+            [ring.core.protocols :as ring-protocols]
             [ring.mock.request :as mock]
             [taoensso.timbre :as log]))
 
@@ -119,6 +120,35 @@
     (testing "a non-GET unmatched path 404s instead of serving HTML"
       (is (match? {:status 404}
                   (app (mock/request :post "https://andrewslai.com/library/whatever")))))))
+
+(defn- serialize-body
+  "Write a response body through Ring's protocol exactly as the Jetty adapter
+  would, returning the bytes as a string. Throws if the body type is not
+  serializable (e.g. a Clojure map) — which is the production failure we guard."
+  [response]
+  (let [os (java.io.ByteArrayOutputStream.)]
+    (ring-protocols/write-body-to-stream (:body response) response os)
+    (.toString os "UTF-8")))
+
+(deftest spa-fallback-404-body-is-serializable-test
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app)]  ;; raw app — no wrap-clojure-response
+    (testing "unknown /api/v1 path: JSON 404 with a body the adapter can serialize"
+      (let [resp (app (mock/request :get "https://andrewslai.com/api/v1/does-not-exist"))]
+        (is (= 404 (:status resp)))
+        (is (string? (:body resp)))
+        (is (re-find #"application/json" (get-in resp [:headers "Content-Type"])))
+        (is (= "{\"reason\":\"Not found\"}" (serialize-body resp)))))
+    (testing "non-GET unmatched page path: text/plain 404, serializable"
+      (let [resp (app (mock/request :post "https://andrewslai.com/library/whatever"))]
+        (is (= 404 (:status resp)))
+        (is (string? (:body resp)))
+        (is (= "Not found" (serialize-body resp)))))))
 
 (deftest static-chrome-serves-from-the-shared-client-store-test
   ;; /static/* and /favicon.ico serve from kaleidoscope.client for every tenant —
