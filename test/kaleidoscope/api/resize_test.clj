@@ -212,6 +212,40 @@
               (is (rendition-exists? store "stampede" "gallery" "png")))))
         (finally (resize/stop! gate))))))
 
+(deftest resize-one-worker-interrupt-does-not-release-permit-early
+  (testing "stop! interrupting a worker blocked in `deref` neither releases the permit early
+            nor leaves the worker thread running past stop!"
+    (let [raw           (fixture-bytes)
+          store         (mem-store {"media/pint/raw.png" raw})
+          gate          (resize/make-resize-gate store {:max-concurrent 1})
+          entered-latch (CountDownLatch. 1)
+          release-latch (CountDownLatch. 1)
+          orig          resize/resize-to]
+      (with-redefs [resize/resize-to (fn [bs ext ^long w ^long h]
+                                        ;; Stands in for a slow, uninterruptible ImageIO
+                                        ;; decode: signal that the future has started, then
+                                        ;; block (on the future's own thread, not the
+                                        ;; worker's) until the test releases it.
+                                        (.countDown entered-latch)
+                                        (.await release-latch)
+                                        (orig bs ext w h))]
+        (is (true? (resize/enqueue-warm! gate "pint" "png" "gallery")))
+        (is (.await entered-latch 5000 TimeUnit/MILLISECONDS)
+            "the worker's future must start the (now-blocked) decode within the deadline")
+        (let [^Thread worker    (first (:workers gate))
+              ^Semaphore permit (:permit gate)]
+          ;; The worker thread is now parked in `resize-one!`'s
+          ;; `(deref fut RESIZE-TIMEOUT-MS ::timeout)`, holding the one permit.
+          ;; stop! interrupts it there.
+          (resize/stop! gate)
+          (is (false? (.isAlive worker))
+              "stop! must terminate the worker even though it was interrupted mid-deref, not leave it looping past the interrupt")
+          (is (zero? (.availablePermits permit))
+              "the permit must NOT be released early: the decode is still running (blocked on release-latch) on the future's own thread")
+          (.countDown release-latch)
+          (is (wait-until #(= 1 (.availablePermits permit)) 5000)
+              "the permit is only released once the in-flight decode actually finishes, via the future's own `finally`"))))))
+
 (deftest enqueue-warm-worker-eventually-creates-every-rendition
   (testing "enqueue-warm! with no explicit categories drains to all four RENDITIONS via the worker"
     (let [raw   (fixture-bytes)

@@ -221,6 +221,22 @@
                                 (log/infof "resize made: photo %s category %s (%d bytes)"
                                            photo-id category (alength ^bytes (:bytes result))))
                               result))))))))
+              (catch InterruptedException _
+                ;; The only interruptible blocking point in this body is the
+                ;; `deref` above — `stop!` interrupts worker threads, and if
+                ;; that interrupt lands while a worker is blocked there, the
+                ;; in-flight future is still running (ImageIO decodes aren't
+                ;; interruptible). Do NOT release! here: the future's own
+                ;; `finally` releases the permit when the decode actually
+                ;; finishes, exactly like the ::timeout path above — an early
+                ;; release here would let a fresh task double up on the same
+                ;; memory slot. Restore the interrupt flag so `run-worker!`'s
+                ;; loop (and its next `.acquire`) still observes it and exits
+                ;; instead of silently surviving past `stop!`.
+                (.interrupt (Thread/currentThread))
+                (log/warnf "resize interrupted: photo %s category %s — permit stays held until the in-flight decode finishes"
+                           photo-id category)
+                {:outcome :failed})
               (catch Throwable t
                 (release!)
                 (log/errorf t "resize failed: unexpected error for photo %s category %s" photo-id category)
