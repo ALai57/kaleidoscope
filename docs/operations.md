@@ -180,9 +180,11 @@ tenant hostname and serves that tenant's content in isolation.
   read grant is scoped to `kal-media-prod` only, ephemeral read-through resolves
   existing photos against it, so deploy with `PROD_MEDIA_BUCKET=kal-media-prod`
   (and consolidate into it first).
-- **Notifier disabled.** `deploy-app` sets `KALEIDOSCOPE_IMAGE_NOTIFIER_TYPE=none`
-  so any image upload against an ephemeral env can't trigger the production
-  resize/notification topic.
+- **In-process resize, self-contained.** `deploy-app` sets
+  `KALEIDOSCOPE_IMAGE_RESIZER_TYPE=in-process`, so an ephemeral env resizes its
+  own uploads in-process into its own `kal-eph-<slug>-media` bucket — there is no
+  external SNS/SQS/Lambda topic to trigger (the AWS resizer is retired; see the
+  in-process resizer notes under "Media object storage").
 - **Orphaned media buckets.** A *failed* teardown (crashed `down`, killed CI
   job) can leave a `kal-eph-<slug>-media` bucket behind — each holds a live
   read credential on prod media and counts against the ~100/account bucket
