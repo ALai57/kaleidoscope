@@ -96,10 +96,10 @@
      {:pattern #"^/v2/photos"    :request-method :get  :handler auth/require-*-writer}
      {:pattern #"^/v2/photos/.*" :request-method :get  :handler auth/public-access}]
 
-    ;; API resource rules at their legacy root paths …
-    api-resource-access-rules
-    ;; … and their derived /api/v1 twins. Kept in the same order so overlapping
-    ;; rules (projects-portfolio before projects.*) retain their precedence.
+    ;; API resource rules exist ONLY as their derived /api/v1 twins — the legacy
+    ;; root mounts were retired, so root resource paths intentionally fall to the
+    ;; fail-closed catch-all below. Order preserved so overlapping rules
+    ;; (projects-portfolio before projects.*) retain their precedence.
     (map with-api-v1-prefix api-resource-access-rules)
 
     ;; Everything below is intentionally public — listed explicitly so the

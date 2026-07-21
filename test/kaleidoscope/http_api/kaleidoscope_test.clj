@@ -332,33 +332,34 @@
                                     :request-method :get
                                     :headers        {}})))))))
 
-(deftest api-v1-acl-twin-coverage-test
-  ;; Every API resource rule must have an /api/v1 twin present in the real ACL.
-  ;; The twins are derived (not hand-written), so this is a guard against a
-  ;; future edit that adds a root resource rule but forgets its twin — which
-  ;; would 401 that route under /api/v1 (fail-closed, but broken).
-  (let [present (set (map (juxt (comp str :pattern) :request-method :handler)
-                          kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST))]
+(deftest api-v1-acl-twins-present-and-root-rules-absent-test
+  ;; Post-retirement invariant: every API resource rule is present ONLY as its
+  ;; /api/v1 twin. The root form must be gone — otherwise a future re-added root
+  ;; resource route would inherit a stale, still-public ACL rule instead of the
+  ;; fail-closed catch-all.
+  (let [triple  (juxt (comp str :pattern) :request-method :handler)
+        present (set (map triple kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST))]
     (doseq [rule kaleidoscope/api-resource-access-rules]
       (let [twin (kaleidoscope/with-api-v1-prefix rule)]
-        (is (contains? present ((juxt (comp str :pattern) :request-method :handler) twin))
-            (str "missing /api/v1 twin for " (:pattern rule)))))))
+        (is (contains? present (triple twin))
+            (str "missing /api/v1 twin for " (:pattern rule)))
+        (is (not (contains? present (triple rule)))
+            (str "root resource rule should be retired: " (:pattern rule)))))))
 
-(deftest api-v1-acl-authorizes-like-root-test
+(deftest api-v1-acl-authorizes-resources-test
   ;; Tested at the auth-stack level (below the router, like the fails-closed
-  ;; test) so it doesn't depend on Task 2's route mounting.
+  ;; test) so it doesn't depend on route mounting.
   (let [rules   kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST
         stack   (mw/auth-stack (bb/authenticated-backend {:realm_access {:roles []}}) rules)
         handler (reduce (fn [h a-mw] (a-mw h))
                         (fn [_req] {:status 200 :body "reached"})
                         (reverse stack))
         req     (fn [method uri] {:uri uri :request-method method :headers {}})]
-    (testing "GET /api/v1/recipes is public, like GET /recipes"
+    (testing "GET /api/v1/recipes is public"
       (is (= 200 (:status (handler (req :get "/api/v1/recipes"))))))
-    (testing "POST /api/v1/recipes requires a writer, like POST /recipes"
+    (testing "POST /api/v1/recipes requires a writer"
       (is (= 401 (:status (handler (req :post "/api/v1/recipes"))))))
-    (testing "a root resource path is unchanged"
-      (is (= 200 (:status (handler (req :get "/recipes")))))
+    (testing "a root resource path now matches the fail-closed catch-all (401)"
       (is (= 401 (:status (handler (req :post "/recipes"))))))))
 
 (deftest recipes-root-serves-shell-not-api-test
