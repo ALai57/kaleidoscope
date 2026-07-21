@@ -96,10 +96,10 @@
      {:pattern #"^/v2/photos"    :request-method :get  :handler auth/require-*-writer}
      {:pattern #"^/v2/photos/.*" :request-method :get  :handler auth/public-access}]
 
-    ;; API resource rules at their legacy root paths …
-    api-resource-access-rules
-    ;; … and their derived /api/v1 twins. Kept in the same order so overlapping
-    ;; rules (projects-portfolio before projects.*) retain their precedence.
+    ;; API resource rules exist ONLY as their derived /api/v1 twins — the legacy
+    ;; root mounts were retired, so root resource paths intentionally fall to the
+    ;; fail-closed catch-all below. Order preserved so overlapping rules
+    ;; (projects-portfolio before projects.*) retain their precedence.
     (map with-api-v1-prefix api-resource-access-rules)
 
     ;; Everything below is intentionally public — listed explicitly so the
@@ -273,12 +273,11 @@
               reitit-index-routes
               reitit-admin-routes
               reitit-photos-routes]
-             (concat
-              ;; API resource groups at their legacy root paths …
-              api-route-groups
-              ;; … and the same groups under /api/v1 (:no-doc keeps the
-              ;; transition duplicates out of the OpenAPI spec).
-              [(into ["/api/v1" {:no-doc true}] api-route-groups)]))
+             ;; Resource groups now live ONLY under /api/v1. Their legacy root
+             ;; mounts are retired — an unmatched root GET (e.g. /recipes) falls
+             ;; through to the SPA shell (see the default handler below). Drop
+             ;; :no-doc so the /api/v1 resources appear in the OpenAPI spec.
+             [(into ["/api/v1"] api-route-groups)])
        ;; reitit-stripe-routes and reitit-registration-routes intentionally
        ;; not mounted yet - not ready for production.
        reitit-config)

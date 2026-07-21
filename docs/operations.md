@@ -83,16 +83,15 @@ and is served the SPA shell (`index.html`) for client-side routing:
 | `/v2/photos/*` | Photos (already namespaced; not yet folded under `/api/v1`) |
 | `/favicon.ico`, `/index.html`, `/openapi.json`, `/api-docs/*`, `/ping` | Infra |
 
-**Transition state:** the API is **dual-mounted** — every resource is reachable
-at both its legacy root path (`/recipes`) and under `/api/v1` (`/api/v1/recipes`),
-with identical authorization (the `/api/v1` ACL rules are derived from the root
-rules in `http_api/kaleidoscope.clj`). An unmatched path under a reserved prefix
-returns a real `404`; any other GET/HEAD path returns the SPA shell.
-
-**Retirement (future, gated on the frontend):** once `kaleidoscope-ui` calls
-`/api/v1/*` and the Checkly suites are repointed, the root API mounts are
-removed so the root is pages-only and `/recipes` (etc.) deep-link to the app.
-Until then, the Checkly checks below intentionally still target the root paths.
+**Resolved (2026-07-21):** the legacy root mounts have been **retired**. JSON
+API resource routes are served **only** under `/api/v1/*`; the matching root
+paths (`/recipes`, `/compositions`, …) are now frontend pages served by the SPA
+shell. `/v2/photos/*` (photos), `/media/*` (article assets), `/admin`, and infra
+(`/ping`, `/`, `/openapi.json`) remain at root. The `/api/v1` ACL rules are
+derived from `api-resource-access-rules` in `http_api/kaleidoscope.clj` (no root
+twins remain, so a re-added root route falls to the fail-closed catch-all). An
+unmatched path under a reserved prefix returns a real `404`; any other GET/HEAD
+path returns the SPA shell. The Checkly suites below target `/api/v1`.
 
 **API responses are `Cache-Control: no-store`.** JSON handlers set no caching
 policy of their own, so `mw/wrap-default-cache-control` stamps every response

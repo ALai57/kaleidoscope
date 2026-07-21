@@ -114,6 +114,9 @@
     (testing "a bare unknown page path also serves the shell"
       (is (match? {:status 200 :body "<div>Hello</div>"}
                   (app (mock/request :get "https://andrewslai.com/about")))))
+    (testing "a retired API path (/recipes) now serves the SPA shell"
+      (is (match? {:status 200 :body "<div>Hello</div>"}
+                  (app (mock/request :get "https://andrewslai.com/recipes")))))
     (testing "an unmatched /api/v1 path 404s instead of serving the shell"
       (is (match? {:status 404}
                   (app (mock/request :get "https://andrewslai.com/api/v1/does-not-exist")))))
@@ -134,10 +137,10 @@
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)]
-    (testing "JSON API routes (root + /api/v1 twin) are marked no-store"
-      (doseq [uri ["/compositions"        "/api/v1/compositions"
-                   "/recipes"             "/api/v1/recipes"
-                   "/recipe-labels"       "/api/v1/recipe-labels"]]
+    (testing "JSON API routes (/api/v1) are marked no-store"
+      (doseq [uri ["/api/v1/compositions"
+                   "/api/v1/recipes"
+                   "/api/v1/recipe-labels"]]
         (is (match? {:headers {"Cache-Control" cc/no-cache}}
                     (app (mock/request :get (str "https://andrewslai.com" uri))))
             uri)))
@@ -279,17 +282,17 @@
     "GET `/admin` is not publicly accessible"
     {:status 401} (mock/request :get "https://andrewslai.com/admin")
 
-    "GET `/projects-portfolio` is publicly accessible"
-    {:status 200} (mock/request :get "https://andrewslai.com/projects-portfolio")
+    "GET `/api/v1/projects-portfolio` is publicly accessible"
+    {:status 200} (mock/request :get "https://andrewslai.com/api/v1/projects-portfolio")
 
-    "GET `/compositions` is publicly accessible"
-    {:status 200} (mock/request :get "https://andrewslai.com/compositions")
+    "GET `/api/v1/compositions` is publicly accessible"
+    {:status 200} (mock/request :get "https://andrewslai.com/api/v1/compositions")
 
-    "GET `/articles/does-not-exist` is not publicly accessible"
-    {:status 401} (mock/request :get "https://andrewslai.com/articles/does-not-exist")
+    "GET `/api/v1/articles/does-not-exist` is not publicly accessible"
+    {:status 401} (mock/request :get "https://andrewslai.com/api/v1/articles/does-not-exist")
 
-    "POST `/articles/new-article` is not publicly accessible"
-    {:status 401} (mock/request :post "https://andrewslai.com/articles/new-article/branches/new-branch/versions")
+    "POST `/api/v1/articles/new-article` is not publicly accessible"
+    {:status 401} (mock/request :post "https://andrewslai.com/api/v1/articles/new-article/branches/new-branch/versions")
 
     ;; GET /v2/photos/:photo-id is public while GET /v2/photos (the list
     ;; endpoint) requires a writer role. buddy-auth's :pattern matcher uses
@@ -329,50 +332,56 @@
                                     :request-method :get
                                     :headers        {}})))))))
 
-(deftest api-v1-acl-twin-coverage-test
-  ;; Every API resource rule must have an /api/v1 twin present in the real ACL.
-  ;; The twins are derived (not hand-written), so this is a guard against a
-  ;; future edit that adds a root resource rule but forgets its twin — which
-  ;; would 401 that route under /api/v1 (fail-closed, but broken).
-  (let [present (set (map (juxt (comp str :pattern) :request-method :handler)
-                          kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST))]
+(deftest api-v1-acl-twins-present-and-root-rules-absent-test
+  ;; Post-retirement invariant: every API resource rule is present ONLY as its
+  ;; /api/v1 twin. The root form must be gone — otherwise a future re-added root
+  ;; resource route would inherit a stale, still-public ACL rule instead of the
+  ;; fail-closed catch-all.
+  (let [triple  (juxt (comp str :pattern) :request-method :handler)
+        present (set (map triple kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST))]
     (doseq [rule kaleidoscope/api-resource-access-rules]
       (let [twin (kaleidoscope/with-api-v1-prefix rule)]
-        (is (contains? present ((juxt (comp str :pattern) :request-method :handler) twin))
-            (str "missing /api/v1 twin for " (:pattern rule)))))))
+        (is (contains? present (triple twin))
+            (str "missing /api/v1 twin for " (:pattern rule)))
+        (is (not (contains? present (triple rule)))
+            (str "root resource rule should be retired: " (:pattern rule)))))))
 
-(deftest api-v1-acl-authorizes-like-root-test
+(deftest api-v1-acl-authorizes-resources-test
   ;; Tested at the auth-stack level (below the router, like the fails-closed
-  ;; test) so it doesn't depend on Task 2's route mounting.
+  ;; test) so it doesn't depend on route mounting.
   (let [rules   kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST
         stack   (mw/auth-stack (bb/authenticated-backend {:realm_access {:roles []}}) rules)
         handler (reduce (fn [h a-mw] (a-mw h))
                         (fn [_req] {:status 200 :body "reached"})
                         (reverse stack))
         req     (fn [method uri] {:uri uri :request-method method :headers {}})]
-    (testing "GET /api/v1/recipes is public, like GET /recipes"
+    (testing "GET /api/v1/recipes is public"
       (is (= 200 (:status (handler (req :get "/api/v1/recipes"))))))
-    (testing "POST /api/v1/recipes requires a writer, like POST /recipes"
+    (testing "POST /api/v1/recipes requires a writer"
       (is (= 401 (:status (handler (req :post "/api/v1/recipes"))))))
-    (testing "a root resource path is unchanged"
-      (is (= 200 (:status (handler (req :get "/recipes")))))
+    (testing "a root resource path now matches the fail-closed catch-all (401)"
       (is (= 401 (:status (handler (req :post "/recipes"))))))))
 
-(deftest api-v1-dual-mount-test
+(deftest recipes-root-serves-shell-not-api-test
+  ;; After root-mount retirement, /recipes is a FRONTEND page (SPA shell),
+  ;; not the JSON API. The API lives only under /api/v1.
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)]
-    (testing "GET /api/v1/recipes reaches the same public handler as GET /recipes"
-      (is (match? {:status 200 :body sequential?}
-                  (app (mock/request :get "https://andrewslai.com/recipes"))))
+    (testing "GET /recipes serves the SPA shell (HTML), not the recipes API"
+      (is (match? {:status  200
+                   :headers {"Content-Type" #"text/html"}
+                   :body    "<div>Hello</div>"}
+                  (app (mock/request :get "https://andrewslai.com/recipes")))))
+    (testing "GET /api/v1/recipes still reaches the public JSON handler"
       (is (match? {:status 200 :body sequential?}
                   (app (mock/request :get "https://andrewslai.com/api/v1/recipes")))))
-    (testing "GET /api/v1/projects-portfolio is public, like the root path"
+    (testing "GET /api/v1/projects-portfolio is public"
       (is (match? {:status 200}
                   (app (mock/request :get "https://andrewslai.com/api/v1/projects-portfolio")))))
     (testing "POST /api/v1/recipes still requires a writer (401 unauthenticated)"
@@ -398,7 +407,7 @@
                  tu/wrap-clojure-response)]
     (testing "An unauthenticated request with a body that fails schema validation still gets 401, not 400"
       (is (match? {:status 401}
-                  (app (-> (mock/request :post "https://andrewslai.com/workflows")
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/workflows")
                            (mock/json-body {}))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -408,7 +417,7 @@
   ([article]
    (create-branch article ""))
   ([article host]
-   (-> (mock/request :post (str host "/branches"))
+   (-> (mock/request :post (str host "/api/v1/branches"))
        (mock/json-body article)
        (mock/header "Authorization" "Bearer x"))))
 
@@ -418,7 +427,7 @@
   ([query]
    (get-branches query ""))
   ([query host]
-   (cond-> (mock/request :get (str host "/branches"))
+   (cond-> (mock/request :get (str host "/api/v1/branches"))
      true  (mock/header "Authorization" "Bearer x")
      query (mock/query-string query))))
 
@@ -426,7 +435,7 @@
   ([article-url branch version]
    (create-version "localhost" article-url branch version))
   ([host article-url branch version]
-   (-> (mock/request :post (format "%s/articles/%s/branches/%s/versions"
+   (-> (mock/request :post (format "%s/api/v1/articles/%s/branches/%s/versions"
                                    host
                                    article-url
                                    branch))
@@ -437,18 +446,18 @@
   ([branch-id]
    (get-version "localhost" branch-id))
   ([host branch-id]
-   (-> (mock/request :get (format "%s/branches/%s/versions" host branch-id))
+   (-> (mock/request :get (format "%s/api/v1/branches/%s/versions" host branch-id))
        (mock/header "Authorization" "Bearer x"))))
 
 (defn get-composition
   [article-url]
-  (mock/request :get (format "/compositions/%s" article-url)))
+  (mock/request :get (format "/api/v1/compositions/%s" article-url)))
 
 (defn publish-branch
   ([article-url branch-name]
    (publish-branch "localhost" article-url branch-name))
   ([host article-url branch-name]
-   (-> (mock/request :put (format "%s/articles/%s/branches/%s/publish"
+   (-> (mock/request :put (format "%s/api/v1/articles/%s/branches/%s/publish"
                                   host
                                   article-url
                                   branch-name))
@@ -474,9 +483,9 @@
                         (mock/header "Authorization" "Bearer x")
                         app)))))
 
-    "/articles"                  {:status 200 :body (has-count 4)}
-    "/articles/my-first-article" {:status 200 :body (malli-matcher models.articles/GetArticleResponse)}
-    "/articles/does-not-exist"   {:status 404}
+    "/api/v1/articles"                  {:status 200 :body (has-count 4)}
+    "/api/v1/articles/my-first-article" {:status 200 :body (malli-matcher models.articles/GetArticleResponse)}
+    "/api/v1/articles/does-not-exist"   {:status 404}
     ))
 
 (deftest published-article-retrieval-test
@@ -499,9 +508,9 @@
         (is (match? expected
                     (app (mock/request :get (str "http://andrewslai.com" endpoint)))))))
 
-    "/compositions"                  {:status 200 :body (has-count 4)}
-    "/compositions/my-first-article" {:status 200 :body (malli-matcher models.articles/GetCompositionResponse)}
-    "/compositions/does-not-exist"   {:status 404}))
+    "/api/v1/compositions"                  {:status 200 :body (has-count 4)}
+    "/api/v1/compositions/my-first-article" {:status 200 :body (malli-matcher models.articles/GetCompositionResponse)}
+    "/api/v1/compositions/does-not-exist"   {:status 404}))
 
 (deftest fixed-resolver-scopes-content-test
   (testing "Under the fixed tenant resolver, a fly.dev host still serves the pinned tenant's content"
@@ -522,7 +531,7 @@
                           kaleidoscope/kaleidoscope-app
                           tu/wrap-clojure-response)]
       (is (match? {:status 200 :body (m/embeds [{:article-url "my-first-article"}])}
-                  (app (mock/request :get "https://kal-eph-xyz.fly.dev/compositions")))))))
+                  (app (mock/request :get "https://kal-eph-xyz.fly.dev/api/v1/compositions")))))))
 
 (deftest create-branch-happy-path-test
   (let [app     (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -629,30 +638,30 @@
 
     (testing "Cannot retrieve an published article by `/compositions` endpoint if it isn't public"
       (is (match? {:status 404}
-                  (app (-> (mock/request :get (format "https://andrewslai.com/compositions/%s" (:article-url article)))
+                  (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/compositions/%s" (:article-url article)))
                            (mock/header "Authorization" "Bearer user first-user"))))))
 
     (testing "Successfully add user `test@test.com` to allowed user list on article"
-      (let [result     (app (-> (mock/request :post "https://andrewslai.com/groups")
+      (let [result     (app (-> (mock/request :post "https://andrewslai.com/api/v1/groups")
                                 (mock/header "Authorization" "Bearer user first-user")
                                 (mock/json-body {:display-name "my-display-name"})))
             group-id   (get-in result [:body 0 :id])
             article-id (get-in create-response [:body 0 :article-id])]
-        (app (-> (mock/request :post (format "https://andrewslai.com/groups/%s/members" group-id))
+        (app (-> (mock/request :post (format "https://andrewslai.com/api/v1/groups/%s/members" group-id))
                  (mock/header "Authorization" "Bearer user first-user")
                  (mock/json-body {:email "first-user@test.com"
                                   :alias "Androo"})))
         (is (match? {:status 200
                      :body   [{:group-id   group-id
                                :article-id article-id}]}
-                    (app (-> (mock/request :put "https://andrewslai.com/article-audiences")
+                    (app (-> (mock/request :put "https://andrewslai.com/api/v1/article-audiences")
                              (mock/json-body {:group-id   group-id
                                               :article-id article-id})
                              (mock/header "Authorization" "Bearer x")))))))
 
     (testing "Can retrieve an published article by `/compositions` endpoint when authenticated"
       (is (match? {:status 200 :body (merge article branch version {:author "Test User"})}
-                  (app (-> (mock/request :get (format "https://andrewslai.com/compositions/%s" (:article-url article)))
+                  (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/compositions/%s" (:article-url article)))
                            (mock/header "Authorization" "Bearer user first-user"))))))
 
     (testing "Cannot commit to published branch"
@@ -718,11 +727,11 @@
 
     (testing "andrewslai.com cannot see caheriaguilar.com's themes"
       (is (match? {:status 404}
-                  (app (mock/request :get "https://andrewslai.com/themes")))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/themes")))))
 
     (testing "caheriaguilar.com can see its own theme"
       (is (match? {:status 200 :body (m/embeds [{:display-name "caheri-theme"}])}
-                  (app (mock/request :get "https://caheriaguilar.com/themes")))))))
+                  (app (mock/request :get "https://caheriaguilar.com/api/v1/themes")))))))
 
 (deftest get-versions-does-not-leak-across-tenants-test
   ;; The wrong-host case above is stopped by access control (401). This is
@@ -771,7 +780,7 @@
                       env/prepare-kaleidoscope
                       kaleidoscope/kaleidoscope-app
                       tu/wrap-clojure-response)
-        response (app (mock/request :get "/projects-portfolio"))]
+        response (app (mock/request :get "/api/v1/projects-portfolio"))]
     (is (match? {:status 200 :body (malli/validator portfolio/Portfolio)}
                 response))))
 
@@ -983,10 +992,10 @@
     (testing "No groups to start"
       (is (match? {:status 200
                    :body   empty?}
-                  (app (-> (mock/request :get "https://andrewslai.com/groups")
+                  (app (-> (mock/request :get "https://andrewslai.com/api/v1/groups")
                            (mock/header "Authorization" "Bearer user first-user"))))))
 
-    (let [result (app (-> (mock/request :post "https://andrewslai.com/groups")
+    (let [result (app (-> (mock/request :post "https://andrewslai.com/api/v1/groups")
                           (mock/header "Authorization" "Bearer user first-user")
                           (mock/json-body {:display-name "my-display-name"})))
           id     (get-in result [:body 0 :id])]
@@ -999,12 +1008,12 @@
         (testing "A different user ID creates a second group"
           (is (match? {:status 200
                        :body   [{:id string?}]}
-                      (app (-> (mock/request :put (format "https://andrewslai.com/groups/%s" second-user-group-id))
+                      (app (-> (mock/request :put (format "https://andrewslai.com/api/v1/groups/%s" second-user-group-id))
                                (mock/header "Authorization" "Bearer user second-user")
                                (mock/json-body {:display-name "my-display-name"}))))))
 
         (testing "I can retrieve groups I own"
-          (let [response (app (-> (mock/request :get "https://andrewslai.com/groups")
+          (let [response (app (-> (mock/request :get "https://andrewslai.com/api/v1/groups")
                                   (mock/header "Authorization" "Bearer user first-user")))]
             (is (match? {:status 200
                          :body   [{:group-id id}]}
@@ -1017,16 +1026,16 @@
         (testing "I cannot delete groups I do not own, even though I hold admin on this site"
           (log/with-min-level :error
             (is (match? {:status 404}
-                        (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s" second-user-group-id))
+                        (app (-> (mock/request :delete (format "https://andrewslai.com/api/v1/groups/%s" second-user-group-id))
                                  (mock/header "Authorization" "Bearer user first-user"))))))))
 
       (testing "Deleted group doesn't exist"
         (is (match? {:status 204}
-                    (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s" id))
+                    (app (-> (mock/request :delete (format "https://andrewslai.com/api/v1/groups/%s" id))
                              (mock/header "Authorization" "Bearer user first-user")))))
         (is (match? {:status 200
                      :body   empty?}
-                    (app (-> (mock/request :get "https://andrewslai.com/groups")
+                    (app (-> (mock/request :get "https://andrewslai.com/api/v1/groups")
                              (mock/header "Authorization" "Bearer user first-user")))))))))
 
 (deftest retrieve-group-test
@@ -1039,7 +1048,7 @@
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)
 
-        result   (app (-> (mock/request :post "https://andrewslai.com/groups")
+        result   (app (-> (mock/request :post "https://andrewslai.com/api/v1/groups")
                           (mock/header "Authorization" "Bearer user first-user")
                           (mock/json-body {:display-name "my-display-name"})))
         group-id (get-in result [:body 0 :id])]
@@ -1049,7 +1058,7 @@
                    :body   [{:id group-id}]}
                   result)))
 
-    (let [add-member-result (app (-> (mock/request :post (format "https://andrewslai.com/groups/%s/members" group-id))
+    (let [add-member-result (app (-> (mock/request :post (format "https://andrewslai.com/api/v1/groups/%s/members" group-id))
                                      (mock/header "Authorization" "Bearer user first-user")
                                      (mock/json-body {:email "my-email@email.com"
                                                       :alias "Androo"})))
@@ -1060,7 +1069,7 @@
                     add-member-result)))
 
       (testing "Retrieve group with members"
-        (let [response (app (-> (mock/request :get "https://andrewslai.com/groups")
+        (let [response (app (-> (mock/request :get "https://andrewslai.com/api/v1/groups")
                                 (mock/header "Authorization" "Bearer user first-user")))]
           (is (match? {:status 200
                        :body   [{:group-id     group-id
@@ -1072,13 +1081,13 @@
                       response))))
 
       (testing "Remove member from group"
-        (let [response (app (-> (mock/request :delete (format "https://andrewslai.com/groups/%s/members/%s" group-id member-id))
+        (let [response (app (-> (mock/request :delete (format "https://andrewslai.com/api/v1/groups/%s/members/%s" group-id member-id))
                                 (mock/header "Authorization" "Bearer user first-user")))]
           (is (match? {:status 204}
                       response))
           (is (match? {:status 200
                        :body   [{:memberships empty?}]}
-                      (app (-> (mock/request :get "https://andrewslai.com/groups")
+                      (app (-> (mock/request :get "https://andrewslai.com/api/v1/groups")
                                (mock/header "Authorization" "Bearer user first-user"))))))))))
 
 (deftest index.html-test
@@ -1107,9 +1116,9 @@
                  tu/wrap-clojure-response)]
     (testing "No albums in DB to start"
       (is (match? {:status 200 :body (comp (partial = 3) count)}
-                  (app (mock/request :get "https://andrewslai.com/albums")))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/albums")))))
 
-    (let [{:keys [body] :as result} (app (-> (mock/request :post "https://andrewslai.com/albums")
+    (let [{:keys [body] :as result} (app (-> (mock/request :post "https://andrewslai.com/api/v1/albums")
                                              (mock/json-body example-album)))]
 
       (testing "Create new album"
@@ -1120,15 +1129,15 @@
         (is (match? {:status 200 :body (-> example-album
                                            (assoc :modified-at string?
                                                   :created-at  string?))}
-                    (app (mock/request :get (format "https://andrewslai.com/albums/%s" (:id body)))))))
+                    (app (mock/request :get (format "https://andrewslai.com/api/v1/albums/%s" (:id body)))))))
 
       (testing "Update album"
         (is (match? {:status 200 :body {:id (:id body)}}
-                    (-> (mock/request :put (format "https://andrewslai.com/albums/%s" (:id body)))
+                    (-> (mock/request :put (format "https://andrewslai.com/api/v1/albums/%s" (:id body)))
                         (mock/json-body {:album-name "Updated name"})
                         app)))
         (is (match? {:status 200 :body {:album-name "Updated name"}}
-                    (app (mock/request :get (format "https://andrewslai.com/albums/%s" (:id body))))))))))
+                    (app (mock/request :get (format "https://andrewslai.com/api/v1/albums/%s" (:id body))))))))))
 
 (defn string-uuid?
   [s]
@@ -1147,16 +1156,16 @@
 
         ;; Test logic
         [photo-upload-result] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
-        album-create-result   (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
+        album-create-result   (:body (app (-> (mock/request :post "https://andrewslai.com/api/v1/albums")
                                               (mock/json-body example-album))))
         photo-id              (str (:photo-id photo-upload-result))
         album-id              (:id album-create-result)]
 
     (testing "Album is empty to start"
       (is (match? {:status 200 :body []}
-                  (app (-> (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id)))))))
+                  (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/albums/%s/contents" album-id)))))))
 
-    (let [result           (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-id))
+    (let [result           (app (-> (mock/request :post (format "https://andrewslai.com/api/v1/albums/%s/contents" album-id))
                                     (mock/json-body [{:id photo-id}])))
           album-content-id (get-in result [:body 0 :album-content-id])]
       (testing "Successfully added photo to album"
@@ -1165,20 +1174,20 @@
         (is (match? {:status 200 :body [{:album-id         album-id
                                          :photo-id         photo-id
                                          :album-content-id album-content-id}]}
-                    (app (-> (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id))))))
+                    (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/albums/%s/contents" album-id))))))
         (is (match? {:status 200 :body {:album-id         album-id
                                         :photo-id         photo-id
                                         :album-content-id album-content-id}}
-                    (app (-> (mock/request :get (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id)))))))
+                    (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/albums/%s/contents/%s" album-id album-content-id)))))))
 
-      (let [delete-result (app (mock/request :delete (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id)))]
+      (let [delete-result (app (mock/request :delete (format "https://andrewslai.com/api/v1/albums/%s/contents/%s" album-id album-content-id)))]
         (testing "Successfully removed photo from album"
           (is (match? {:status 204}
                       delete-result))
           (is (match? {:status 200 :body empty?}
-                      (app (mock/request :get (format "https://andrewslai.com/albums/%s/contents" album-id)))))
+                      (app (mock/request :get (format "https://andrewslai.com/api/v1/albums/%s/contents" album-id)))))
           (is (match? {:status 404 :body {:reason string?}}
-                      (app (mock/request :get (format "https://andrewslai.com/albums/%s/contents/%s" album-id album-content-id))))))))))
+                      (app (mock/request :get (format "https://andrewslai.com/api/v1/albums/%s/contents/%s" album-id album-content-id))))))))))
 
 (deftest contents-retrieval-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -1193,20 +1202,20 @@
         ;; Test logic
         [{photo-1-id :photo-id}] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
         [{photo-2-id :photo-id}] (:body (app (make-example-file-upload-request-png "https://andrewslai.com" "example-image.png")))
-        {album-1-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
+        {album-1-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/api/v1/albums")
                                                  (mock/json-body example-album))))
-        {album-2-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/albums")
+        {album-2-id :id}         (:body (app (-> (mock/request :post "https://andrewslai.com/api/v1/albums")
                                                  (mock/json-body example-album-2))))]
 
     ;; Add a photo to two separate albums
     (testing "Contents are empty to start"
       (is (match? {:status 200 :body []}
-                  (app (-> (mock/request :get "https://andrewslai.com/albums/-/contents"))))))
+                  (app (-> (mock/request :get "https://andrewslai.com/api/v1/albums/-/contents"))))))
 
-    (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-1-id))
+    (app (-> (mock/request :post (format "https://andrewslai.com/api/v1/albums/%s/contents" album-1-id))
              (mock/json-body [{:id photo-1-id}
                               {:id photo-2-id}])))
-    (app (-> (mock/request :post (format "https://andrewslai.com/albums/%s/contents" album-2-id))
+    (app (-> (mock/request :post (format "https://andrewslai.com/api/v1/albums/%s/contents" album-2-id))
              (mock/json-body [{:id photo-1-id}])))
 
     (testing "Contents retrieved from multiple albums"
@@ -1216,7 +1225,7 @@
                                        :photo-id   (str photo-2-id)}
                                       {:album-name (:album-name example-album-2)
                                        :photo-id   (str photo-1-id)}]}
-                  (app (-> (mock/request :get "https://andrewslai.com/albums/-/contents"))))))))
+                  (app (-> (mock/request :get "https://andrewslai.com/api/v1/albums/-/contents"))))))))
 
 (deftest albums-auth-test
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
@@ -1228,7 +1237,7 @@
                  kaleidoscope/kaleidoscope-app)]
     (testing "Default access rules restrict access"
       (is (match? {:status 401}
-                  (app (mock/request :get "https://andrewslai.com/albums")))))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/albums")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Test Audiences API
@@ -1243,17 +1252,17 @@
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)
 
-        result   (app (-> (mock/request :post "https://andrewslai.com/groups")
+        result   (app (-> (mock/request :post "https://andrewslai.com/api/v1/groups")
                           (mock/header "Authorization" "Bearer x")
                           (mock/json-body {:display-name "my-display-name"})))
         group-id (get-in result [:body 0 :id])]
 
     (testing "No audience to start"
       (is (match? {:status 404}
-                  (app (-> (mock/request :get "https://andrewslai.com/article-audiences")
+                  (app (-> (mock/request :get "https://andrewslai.com/api/v1/article-audiences")
                            (mock/header "Authorization" "Bearer x"))))))
 
-    (let [add-response (app (-> (mock/request :put "https://andrewslai.com/article-audiences")
+    (let [add-response (app (-> (mock/request :put "https://andrewslai.com/api/v1/article-audiences")
                                 (mock/header "Authorization" "Bearer x")
                                 (mock/json-body {:article-id 1
                                                  :group-id   group-id})))]
@@ -1267,7 +1276,7 @@
                      :body   [{:article-id 1
                                :hostname   "andrewslai.com"
                                :group-id   group-id}]}
-                    (app (-> (mock/request :get "https://andrewslai.com/article-audiences")
+                    (app (-> (mock/request :get "https://andrewslai.com/api/v1/article-audiences")
                              (mock/header "Authorization" "Bearer x"))))))
 
       (testing "Query param search works"
@@ -1275,21 +1284,21 @@
                      :body   [{:article-id 1
                                :hostname   "andrewslai.com"
                                :group-id   group-id}]}
-                    (app (-> (mock/request :get "https://andrewslai.com/article-audiences?article-id=1")
+                    (app (-> (mock/request :get "https://andrewslai.com/api/v1/article-audiences?article-id=1")
                              (mock/header "Authorization" "Bearer x")))))
         (is (match? {:status 404}
-                    (app (-> (mock/request :get "https://andrewslai.com/article-audiences?article-id=1000000")
+                    (app (-> (mock/request :get "https://andrewslai.com/api/v1/article-audiences?article-id=1000000")
                              (mock/header "Authorization" "Bearer x"))))))
 
       (testing "Delete the audience"
         (is (match? {:status 200
                      :body   []}
-                    (app (-> (mock/request :delete (format "https://andrewslai.com/article-audiences/%s"
+                    (app (-> (mock/request :delete (format "https://andrewslai.com/api/v1/article-audiences/%s"
                                                            (get-in add-response [:body 0 :id])))
                              (mock/header "Authorization" "Bearer x")))))
 
         (is (match? {:status 404}
-                    (app (-> (mock/request :get "https://andrewslai.com/article-audiences")
+                    (app (-> (mock/request :get "https://andrewslai.com/api/v1/article-audiences")
                              (mock/header "Authorization" "Bearer x")))))))))
 
 (deftest themes-test
@@ -1304,9 +1313,9 @@
 
     (testing "No themes to start"
       (is (match? {:status 404}
-                  (app (mock/request :get "https://andrewslai.com/themes")))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/themes")))))
 
-    (let [add-response (app (-> (mock/request :post "https://andrewslai.com/themes")
+    (let [add-response (app (-> (mock/request :post "https://andrewslai.com/api/v1/themes")
                                 (mock/header "Authorization" "Bearer x")
                                 (mock/json-body {:config       {:primary {:main "#ABC123"}}
                                                  :display-name "My New Theme"})))
@@ -1323,7 +1332,7 @@
                      :body   [{:config       {:primary {:main "#ABC123"}}
                                :id           string-uuid?
                                :display-name "My New Theme"}]}
-                    (app (-> (mock/request :get "https://andrewslai.com/themes")
+                    (app (-> (mock/request :get "https://andrewslai.com/api/v1/themes")
                              (mock/header "Authorization" "Bearer x"))))))
 
       (testing "theme can be queried"
@@ -1331,10 +1340,10 @@
                      :body   [{:config       {:primary {:main "#ABC123"}}
                                :id           string-uuid?
                                :display-name "My New Theme"}]}
-                    (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" theme-id))
+                    (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/themes?id=%s" theme-id))
                              (mock/header "Authorization" "Bearer x")))))
         (is (match? {:status 404}
-                    (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" (java.util.UUID/randomUUID)))
+                    (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/themes?id=%s" (java.util.UUID/randomUUID)))
                              (mock/header "Authorization" "Bearer x"))))))
 
       ;; This also serves as the admin-override regression test (PLAN.md
@@ -1347,7 +1356,7 @@
       (testing "I cannot update a theme I do not own, even though I hold admin on this site"
         (log/with-min-level :error
           (is (match? {:status 404}
-                      (app (-> (mock/request :put (format "https://andrewslai.com/themes/%s" theme-id))
+                      (app (-> (mock/request :put (format "https://andrewslai.com/api/v1/themes/%s" theme-id))
                                (mock/header "Authorization" "Bearer user someone-else")
                                (mock/json-body {:config       {:primary {:main "#HIJACKED"}}
                                                 :display-name "Hijacked name"})))))
@@ -1355,7 +1364,7 @@
                        :body   [{:config       {:primary {:main "#ABC123"}}
                                  :id           string-uuid?
                                  :display-name "My New Theme"}]}
-                      (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" theme-id))
+                      (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/themes?id=%s" theme-id))
                                (mock/header "Authorization" "Bearer x")))))))
 
       ;; Cross-site theme test (PLAN.md, "Gap: themes need a compound
@@ -1366,7 +1375,7 @@
       (testing "I cannot update my own theme via a different site's Host header"
         (log/with-min-level :error
           (is (match? {:status 404}
-                      (app (-> (mock/request :put (format "https://sahiltalkingcents.com/themes/%s" theme-id))
+                      (app (-> (mock/request :put (format "https://sahiltalkingcents.com/api/v1/themes/%s" theme-id))
                                (mock/header "Authorization" "Bearer x")
                                (mock/json-body {:config       {:primary {:main "#HIJACKED"}}
                                                 :display-name "Hijacked via wrong site"})))))
@@ -1374,11 +1383,11 @@
                        :body   [{:config       {:primary {:main "#ABC123"}}
                                  :id           string-uuid?
                                  :display-name "My New Theme"}]}
-                      (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" theme-id))
+                      (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/themes?id=%s" theme-id))
                                (mock/header "Authorization" "Bearer x")))))))
 
       (testing "Update theme"
-        (app (-> (mock/request :put (format "https://andrewslai.com/themes/%s" theme-id))
+        (app (-> (mock/request :put (format "https://andrewslai.com/api/v1/themes/%s" theme-id))
                  (mock/header "Authorization" "Bearer x")
                  (mock/json-body {:config       {:primary {:main      "#ABC123"
                                                            :new-field "new-test"}}
@@ -1389,17 +1398,17 @@
                                                         :new-field "new-test"}}
                                :id           string-uuid?
                                :display-name "Updated name"}]}
-                    (app (-> (mock/request :get (format "https://andrewslai.com/themes?id=%s" theme-id))
+                    (app (-> (mock/request :get (format "https://andrewslai.com/api/v1/themes?id=%s" theme-id))
                              (mock/header "Authorization" "Bearer x"))))))
 
       (testing "Delete the theme"
         (is (match? {:status 204}
-                    (app (-> (mock/request :delete (format "https://andrewslai.com/themes/%s"
+                    (app (-> (mock/request :delete (format "https://andrewslai.com/api/v1/themes/%s"
                                                            theme-id))
                              (mock/header "Authorization" "Bearer x")))))
 
         (is (match? {:status 404}
-                    (app (mock/request :get "https://andrewslai.com/themes"))))))))
+                    (app (mock/request :get "https://andrewslai.com/api/v1/themes"))))))))
 
 (comment
   (require '[clj-http.client :as http])

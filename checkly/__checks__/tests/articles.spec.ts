@@ -5,7 +5,7 @@ test('Published articles can be listed and opened, and missing articles return 4
   let first: { 'article-url': string }
 
   await test.step('The list of articles loads and is not empty', async () => {
-    const listRes = await request.get('/compositions')
+    const listRes = await request.get('/api/v1/compositions')
     expect(listRes.status()).toBe(200)
     const articles = await listRes.json()
     expect(Array.isArray(articles)).toBe(true)
@@ -18,7 +18,7 @@ test('Published articles can be listed and opened, and missing articles return 4
 
   await test.step('The first article can be opened', async () => {
     const slug = first['article-url']
-    const articleRes = await request.get(`/compositions/${encodeURIComponent(slug)}`)
+    const articleRes = await request.get(`/api/v1/compositions/${encodeURIComponent(slug)}`)
     expect(articleRes.status()).toBe(200)
     const article = await articleRes.json()
     expect(article['article-url']).toBe(slug)
@@ -27,7 +27,7 @@ test('Published articles can be listed and opened, and missing articles return 4
   })
 
   await test.step('Opening an article that does not exist returns a 404', async () => {
-    const missingRes = await request.get('/compositions/checkly-nonexistent-xyz')
+    const missingRes = await request.get('/api/v1/compositions/checkly-nonexistent-xyz')
     expect(missingRes.status()).toBe(404)
   })
 })
