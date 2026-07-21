@@ -10,6 +10,7 @@
             [kaleidoscope.persistence.workflows :as workflows-persistence]
             [kaleidoscope.scoring.agents :as agents]
             [kaleidoscope.utils.core :as utils]
+            [kaleidoscope.workflows.llm-executor :as llm]
             [steffan-westcott.clj-otel.api.trace.span :as span]
             [taoensso.timbre :as log]))
 
@@ -72,11 +73,13 @@
 
 (defn parse-candidates
   "Parse a Discover step's output into candidate maps. The librarian JSON
-  contract uses est_time; normalize to :est-time. Returns [] on any parse
-  failure — a malformed discovery shelves nothing rather than throwing."
+  contract uses est_time; normalize to :est-time. The output is run through
+  extract-json first — the Librarian routinely wraps its object in a ```json
+  markdown fence, exactly like the score/decision paths. Returns [] on any
+  parse failure — a malformed discovery shelves nothing rather than throwing."
   [output]
   (try
-    (let [candidates (->> (:candidates (json/decode output true))
+    (let [candidates (->> (:candidates (json/decode (llm/extract-json (or output "")) true))
                           (mapv #(set/rename-keys % {:est_time :est-time})))]
       (when (empty? candidates)
         (log/warnf "Discover step yielded no candidates (output length %d)"
@@ -174,7 +177,9 @@
 (defn- shelve!
   "The deterministic score→shelve tail of a curation run: parse the Discover
   output, drop below-threshold candidates, tag + split by the novelty dial,
-  archive the old shelf, and persist the new one."
+  then — only when discovery yielded something — archive the old shelf and
+  persist the new one. An empty result (parse failure, everything below
+  threshold) leaves the existing shelf intact rather than blanking the page."
   [db interest run]
   (let [taste      (:taste-profile interest)
         config     (:config run)
@@ -185,13 +190,14 @@
         selected   (-> above
                        (tag-origin (:trusted-sources taste))
                        (split-candidates (novelty-quota shelf-size (:novelty-ratio taste))))
-        _          (recommendations-persistence/archive-shelved! db (:id interest))
-        shelved    (recommendations-persistence/create-recommendations! db (:id interest) selected)]
+        shelved    (when (seq selected)
+                     (recommendations-persistence/archive-shelved! db (:id interest))
+                     (recommendations-persistence/create-recommendations! db (:id interest) selected))]
     (log/infof "Curation run %s shelved %d/%d (%d discovered, %d above threshold %.1f)"
                (:id run) (count shelved) shelf-size (count discovered) (count above) (double threshold))
     {:status  "completed"
      :run-id  (:id run)
-     :shelved shelved
+     :shelved (vec shelved)
      :summary {:total   (count shelved)
                :trusted (count (filter #(= "trusted" (:origin %)) shelved))
                :novel   (count (filter #(= "novel" (:origin %)) shelved))}}))

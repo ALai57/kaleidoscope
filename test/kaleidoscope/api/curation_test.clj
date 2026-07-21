@@ -82,6 +82,18 @@
     (is (match? [{:title "A" :est-time "18 min" :relevance 8.0}]
                 (curation/parse-candidates
                  (json/encode {:candidates [{:title "A" :est_time "18 min" :relevance 8.0}]})))))
+  (testing "strips a ```json markdown fence — the Librarian's actual output shape"
+    (is (match? [{:title "A" :est-time "18 min" :relevance 10.0}]
+                (curation/parse-candidates
+                 (str "```json\n"
+                      (json/encode {:candidates [{:title "A" :est_time "18 min" :relevance 10.0}]})
+                      "\n```")))))
+  (testing "strips a bare ``` fence and a prose preamble before the JSON"
+    (is (match? [{:title "A"}]
+                (curation/parse-candidates
+                 (str "Here are the candidates:\n```\n"
+                      (json/encode {:candidates [{:title "A" :relevance 8.0}]})
+                      "\n```")))))
   (testing "malformed output shelves nothing rather than throwing"
     (is (= [] (curation/parse-candidates "not json at all")))
     (is (= [] (curation/parse-candidates nil)))))
@@ -164,6 +176,31 @@
     (testing "the shelf stays finite: the previous run's items are archived, not accumulated"
       (is (= 6 (count (interests-api/get-shelf db user-id (:id interest) {:status "shelved"}))))
       (is (= 6 (count (interests-api/get-shelf db user-id (:id interest) {:status "archived"})))))))
+
+(defn- barren-executor
+  "An executor that completes every step but yields no discovery candidates —
+  the shape of a parse failure or an all-below-threshold discovery in prod."
+  []
+  (reify workflow-protocol/IWorkflowExecutor
+    (execute-step! [_this db _project step-run _output-stream]
+      (let [output (if (= :clarify (keyword (or (:output-kind step-run) "text")))
+                     (json/encode {})
+                     (json/encode {:candidates []}))]
+        (workflows-persistence/update-step-run!
+         db (:id step-run) {:status "completed" :output output})))
+    (recommend-workflows [_this _project _live] nil)))
+
+(deftest empty-discovery-preserves-existing-shelf-test
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
+        interest (make-interest! db)]
+    (curation/run-curation! db (workflow-mock/make-mock-executor) user-id (:id interest) {})
+    (is (= 6 (count (interests-api/get-shelf db user-id (:id interest) {:status "shelved"}))))
+    (let [result (curation/run-curation! db (barren-executor) user-id (:id interest) {})]
+      (testing "the run completes but shelves nothing new"
+        (is (match? {:status "completed" :summary {:total 0}} result)))
+      (testing "an empty discovery leaves the existing shelf intact rather than blanking it"
+        (is (= 6 (count (interests-api/get-shelf db user-id (:id interest) {:status "shelved"}))))
+        (is (= 0 (count (interests-api/get-shelf db user-id (:id interest) {:status "archived"}))))))))
 
 (deftest run-curation-respects-shelf-size-and-scrutiny-test
   (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
