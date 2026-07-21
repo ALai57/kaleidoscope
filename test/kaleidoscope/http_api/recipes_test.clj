@@ -58,25 +58,25 @@
 (deftest anonymous-reads-allowed-test
   (let [app (make-app "always-unauthenticated")]
     (testing "GET /recipes is public (access-filtered internally)"
-      (is (match? {:status 200} (app (mock/request :get "https://andrewslai.com/recipes")))))
+      (is (match? {:status 200} (app (mock/request :get "https://andrewslai.com/api/v1/recipes")))))
     (testing "GET /recipe-labels is public"
-      (is (match? {:status 200} (app (mock/request :get "https://andrewslai.com/recipe-labels")))))
+      (is (match? {:status 200} (app (mock/request :get "https://andrewslai.com/api/v1/recipe-labels")))))
     (testing "GET /recipe-label-groups is public"
-      (is (match? {:status 200} (app (mock/request :get "https://andrewslai.com/recipe-label-groups")))))))
+      (is (match? {:status 200} (app (mock/request :get "https://andrewslai.com/api/v1/recipe-label-groups")))))))
 
 (deftest anonymous-writes-rejected-test
   (let [app (make-app "always-unauthenticated")]
     (testing "POST /recipes requires a writer"
       (is (match? {:status 401}
-                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                            (mock/json-body example-body))))))
     (testing "POST /recipe-labels requires a writer"
       (is (match? {:status 401}
-                  (app (-> (mock/request :post "https://andrewslai.com/recipe-labels")
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipe-labels")
                            (mock/json-body {:name "baking"}))))))
     (testing "PUT /recipe-audiences requires a writer"
       (is (match? {:status 401}
-                  (app (-> (mock/request :put "https://andrewslai.com/recipe-audiences")
+                  (app (-> (mock/request :put "https://andrewslai.com/api/v1/recipe-audiences")
                            (mock/json-body {:recipe-id (str (java.util.UUID/randomUUID))
                                             :group-id  (str (java.util.UUID/randomUUID))}))))))))
 
@@ -89,44 +89,44 @@
       (is (match? {:status 200
                    :body   {:recipe-url "chana-masala"
                             :content    {:title "Chana Masala"}}}
-                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                            as-writer
                            (mock/json-body example-body))))))
 
     (testing "the created (public) recipe is retrievable anonymously"
       (is (match? {:status 200 :body {:recipe-url "chana-masala"}}
-                  (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala")))))))
 
 (deftest writer-sees-own-private-recipe-http-test
   (let [app (make-app "custom-authenticated-user")]
     (testing "a writer creates a PRIVATE (non-public) recipe"
       (is (match? {:status 200 :body {:recipe-url "chana-masala"}}
-                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                            as-writer
                            (mock/json-body (assoc example-body :public-visibility false)))))))
 
     (testing "the writer can read their own private draft back (writer-sees-all)"
       (is (match? {:status 200 :body {:recipe-url "chana-masala"}}
-                  (app (-> (mock/request :get "https://andrewslai.com/recipes/chana-masala")
+                  (app (-> (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala")
                            as-writer)))))
 
     (testing "the private draft is in the writer's list view"
       (is (match? {:status 200 :body [{:recipe-url "chana-masala"}]}
-                  (app (-> (mock/request :get "https://andrewslai.com/recipes")
+                  (app (-> (mock/request :get "https://andrewslai.com/api/v1/recipes")
                            as-writer)))))
 
     (testing "an anonymous caller cannot see the private draft"
       (is (match? {:status 404}
-                  (app (mock/request :get "https://andrewslai.com/recipes/chana-masala"))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala"))))
       (is (match? {:status 200 :body []}
-                  (app (mock/request :get "https://andrewslai.com/recipes")))))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/recipes")))))))
 
 (deftest scrape-endpoint-test
   (let [app (make-app "custom-authenticated-user")]
     (testing "anonymous scrape is rejected"
       (is (match? {:status 401}
                   ((make-app "always-unauthenticated")
-                   (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                   (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape")
                        (mock/json-body {:url "http://example.com/r"}))))))
 
     (testing "a writer gets a draft back with a run-id (pipeline mocked to avoid network)"
@@ -139,21 +139,21 @@
         (is (match? {:status 200 :body {:recipe {:title "Mocked"}
                                         :techniques {:parse "json-ld"}
                                         :scrape-processing-run-id string?}}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape")
                              as-writer
                              (mock/json-body {:url "http://example.com/r"})))))))
 
     (testing "a scrape failure surfaces as 422 with a reason"
       (with-redefs [scraper/scrape-url (fn [_ _] (throw (ex-info "blocked" {:type :scrape :reason :blocked-url})))]
         (is (match? {:status 422 :body {:reason "blocked-url"}}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape")
                              as-writer
                              (mock/json-body {:url "http://169.254.169.254/"})))))))
 
     (testing "a rendering-fetcher failure is NOT a 422 — it propagates to the exception reporter (500)"
       (with-redefs [scraper/scrape-url (fn [_ _] (throw (ex-info "firecrawl 500" {:type :scrape :reason :render-failed})))]
         (is (match? {:status 500}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape")
                              as-writer
                              (mock/json-body {:url "http://example.com/r"})))))))))
 
@@ -161,14 +161,14 @@
   (let [app (make-app "custom-authenticated-user")
         json-ld "<script type=\"application/ld+json\">{\"@type\":\"Recipe\",\"name\":\"Chana Masala\",\"recipeIngredient\":[\"2 cups chickpeas\"],\"recipeInstructions\":\"Cook\"}</script>"]
     (with-redefs [scraper/fetch-direct (fn [_] {:raw-html json-ld :final-url "http://x/r" :http-status 200})]
-      (let [{scrape-body :body} (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+      (let [{scrape-body :body} (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape")
                                          as-writer
                                          (mock/json-body {:url "http://x/r"})))
             run-id (:scrape-processing-run-id scrape-body)]
         (testing "the scrape response carries a run-id"
           (is (string? run-id)))
         (testing "creating a recipe with the run-id persists the FK; it round-trips via GET"
-          (app (-> (mock/request :post "https://andrewslai.com/recipes")
+          (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                    as-writer
                    (mock/json-body {:content {:title "Chana Masala"
                                               :sections [{:ingredients ["2 cups chickpeas"] :steps ["Cook"]}]}
@@ -176,23 +176,23 @@
                                     :scrape-processing-run-id run-id})))
           (is (match? {:status 200 :body {:recipe-url "chana-masala"
                                           :scrape-processing-run-id run-id}}
-                      (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))))
+                      (app (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala")))))))))
 
 (deftest one-per-group-returns-400-test
   (let [app (make-app "custom-authenticated-user")]
-    (let [{gid :body} (app (-> (mock/request :post "https://andrewslai.com/recipe-label-groups")
+    (let [{gid :body} (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipe-label-groups")
                                as-writer
                                (mock/json-body {:name "ethnicity"})))
           group-id    (:id gid)
-          {l1 :body}  (app (-> (mock/request :post "https://andrewslai.com/recipe-labels")
+          {l1 :body}  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipe-labels")
                                as-writer
                                (mock/json-body {:name "indian" :group-id group-id})))
-          {l2 :body}  (app (-> (mock/request :post "https://andrewslai.com/recipe-labels")
+          {l2 :body}  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipe-labels")
                                as-writer
                                (mock/json-body {:name "mexican" :group-id group-id})))]
       (testing "assigning two labels from the same group is a 400"
         (is (match? {:status 400 :body {:error #"one label per group"}}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                              as-writer
                              (mock/json-body (assoc example-body
                                                     :label-ids [(:id l1) (:id l2)]))))))))))
@@ -201,16 +201,16 @@
   (let [app (make-app "custom-authenticated-user")]
     (testing "create two recipes for the tenant"
       (is (match? {:status 200 :body {:recipe-url "chana-masala"}}
-                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                            as-writer
                            (mock/json-body example-body)))))
       (is (match? {:status 200 :body {:recipe-url "pad-thai"}}
-                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                            as-writer
                            (mock/json-body (assoc example-body :recipe-url "pad-thai")))))))
     (testing "renaming one onto the other's slug is a 409"
       (is (match? {:status 409 :body {:error string?}}
-                  (app (-> (mock/request :put "https://andrewslai.com/recipes/chana-masala")
+                  (app (-> (mock/request :put "https://andrewslai.com/api/v1/recipes/chana-masala")
                            as-writer
                            (mock/json-body {:recipe-url "pad-thai"}))))))))
 
@@ -222,13 +222,13 @@
               :public-visibility true}]
     (testing "named sections survive create → retrieve through the router"
       (is (match? {:status 200 :body {:recipe-url "layer-cake"}}
-                  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                            as-writer
                            (mock/json-body body)))))
       (is (match? {:status 200
                    :body   {:content {:sections [{:name "Cake" :ingredients ["2 cups flour"] :steps ["Mix" "Bake"]}
                                                  {:name "Frosting" :ingredients ["1 cup butter"] :steps ["Whip"]}]}}}
-                  (app (mock/request :get "https://andrewslai.com/recipes/layer-cake")))))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/recipes/layer-cake")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Photo import — multipart validation
@@ -267,7 +267,7 @@
   (testing "anonymous scrape-photo is rejected"
     (is (match? {:status 401}
                 ((make-app "always-unauthenticated")
-                 (mock/request :post "https://andrewslai.com/recipes/scrape-photo")))))
+                 (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape-photo")))))
   (let [app (make-app "custom-authenticated-user")]
     (testing "a writer gets a draft back with a run-id (transcriber+LLM mocked)"
       (with-redefs [recipes-http/multipart-images
@@ -281,17 +281,17 @@
         (is (match? {:status 200 :body {:recipe {:title "Mocked"}
                                         :techniques {:acquire "claude-vision" :parse "llm"}
                                         :scrape-processing-run-id string?}}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))))))
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape-photo") as-writer))))))
     (testing "no-recipe-found surfaces as 422"
       (with-redefs [recipes-http/multipart-images (fn [_] [{:content-type "image/jpeg" :bytes (.getBytes "img")}])
                     scraper/scrape-photo (fn [_ _] (throw (ex-info "no recipe" {:type :scrape :reason :no-recipe-found})))]
         (is (match? {:status 422 :body {:reason "no-recipe-found"}}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))))))
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape-photo") as-writer))))))
     (testing "an invalid upload surfaces as 400"
       (with-redefs [recipes-http/multipart-images
                     (fn [_] (throw (ex-info "no image" {:type :validation :reason :no-image})))]
         (is (match? {:status 400 :body {:reason "no-image"}}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))))))))
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape-photo") as-writer))))))))
 
 (deftest scrape-photo-then-create-links-lineage-http-test
   ;; Boot the llm workflow executor so the pipeline has an api-key (the photo path
@@ -306,21 +306,21 @@
                   ;; interpretation is mocked here to yield structured facts.
                   llm/post-anthropic-sync
                   (fn [_ _] {:content [{:text "{\"title\":\"Chana Masala\",\"sections\":[{\"name\":null,\"ingredients\":[\"2 cups chickpeas\"],\"steps\":[\"Cook\"]}],\"suggested_labels\":[]}"}]})]
-      (let [{scrape-body :body} (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))
+      (let [{scrape-body :body} (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape-photo") as-writer))
             run-id (:scrape-processing-run-id scrape-body)]
         (testing "the scrape-photo response carries a run-id and techniques"
           (is (match? {:recipe {:title "Chana Masala"} :techniques {:acquire "claude-vision" :parse "llm"}}
                       scrape-body))
           (is (string? run-id)))
         (testing "creating a recipe with the run-id persists the FK; round-trips via GET"
-          (app (-> (mock/request :post "https://andrewslai.com/recipes")
+          (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                    as-writer
                    (mock/json-body {:content (:recipe scrape-body)
                                     :public-visibility true
                                     :scrape-processing-run-id run-id})))
           (is (match? {:status 200 :body {:recipe-url "chana-masala"
                                           :scrape-processing-run-id run-id}}
-                      (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))))
+                      (app (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala")))))))))
 
 (deftest lineage-llm-calls-survive-response-coercion-http-test
   ;; Regression: `LlmCall`'s :request/:response must pass through reitit's
@@ -334,9 +334,9 @@
                   (fn [_] [{:content-type "image/jpeg" :bytes (.getBytes "img")}])
                   llm/post-anthropic-sync
                   (fn [_ _] {:content [{:text "{\"title\":\"Chana Masala\",\"sections\":[{\"name\":null,\"ingredients\":[\"2 cups chickpeas\"],\"steps\":[\"Cook\"]}],\"suggested_labels\":[]}"}]})]
-      (let [{scrape-body :body} (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape-photo") as-writer))
+      (let [{scrape-body :body} (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape-photo") as-writer))
             run-id (:scrape-processing-run-id scrape-body)]
-        (app (-> (mock/request :post "https://andrewslai.com/recipes")
+        (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                  as-writer
                  (mock/json-body {:content (:recipe scrape-body)
                                   :public-visibility true
@@ -348,7 +348,7 @@
                                                    :request  {:model    string?
                                                               :messages vector?}
                                                    :response {:content vector?}}]}}}
-                      (app (-> (mock/request :get "https://andrewslai.com/recipes/chana-masala/lineage")
+                      (app (-> (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala/lineage")
                                as-writer)))))))))
 
 (deftest import-lineage-http-test
@@ -357,7 +357,7 @@
                                                 :final-url "http://example.com/r"
                                                 :http-status 200})]
       ;; 1. scrape persists a raw scrape + processing run, returns the run id
-      (let [scrape (app (-> (mock/request :post "https://andrewslai.com/recipes/scrape")
+      (let [scrape (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/scrape")
                             as-writer
                             (mock/json-body {:url "http://example.com/r"})))
             run-id (get-in scrape [:body :scrape-processing-run-id])]
@@ -366,7 +366,7 @@
           (is (string? run-id)))
 
         ;; 2. create the recipe linked to that run
-        (app (-> (mock/request :post "https://andrewslai.com/recipes")
+        (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                  as-writer
                  (mock/json-body (assoc example-body :scrape-processing-run-id run-id))))
 
@@ -378,33 +378,33 @@
                                 :raw  {:http-status   200
                                        :content-bytes pos-int?
                                        :raw-content   nil?}}}
-                      (app (-> (mock/request :get "https://andrewslai.com/recipes/chana-masala/lineage")
+                      (app (-> (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala/lineage")
                                as-writer)))))
 
         (testing "include-raw=true returns the stored raw html"
           (is (match? {:status 200 :body {:raw {:raw-content json-ld-html}}}
-                      (app (-> (mock/request :get "https://andrewslai.com/recipes/chana-masala/lineage?include-raw=true")
+                      (app (-> (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala/lineage?include-raw=true")
                                as-writer)))))
 
         (testing "a recipe with no linked run has no lineage (404)"
-          (app (-> (mock/request :post "https://andrewslai.com/recipes")
+          (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
                    as-writer
                    (mock/json-body {:content {:title "Manual" :sections [{:ingredients ["x"] :steps ["y"]}]}
                                     :recipe-url "manual" :public-visibility true})))
           (is (match? {:status 404}
-                      (app (-> (mock/request :get "https://andrewslai.com/recipes/manual/lineage")
+                      (app (-> (mock/request :get "https://andrewslai.com/api/v1/recipes/manual/lineage")
                                as-writer)))))))
 
     (testing "a non-writer cannot see lineage (404, no existence leak)"
       (is (match? {:status 404}
                   ((make-app "always-unauthenticated")
-                   (mock/request :get "https://andrewslai.com/recipes/chana-masala/lineage")))))))
+                   (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala/lineage")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Cook timeline — generate + override
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn create-recipe! [app]
-  (app (-> (mock/request :post "https://andrewslai.com/recipes")
+  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
            as-writer
            (mock/json-body example-body))))
 
@@ -412,7 +412,7 @@
   (let [app (make-app "custom-authenticated-user")]
     (create-recipe! app)
     (testing "POST generates + persists a packed timeline"
-      (let [resp (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")
+      (let [resp (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/chana-masala/timeline")
                           as-writer))]
         (is (match? {:status 200
                      :body {:timeline {:total-minutes pos? :overrides []
@@ -420,11 +420,11 @@
                     resp))))
     (testing "GET returns the persisted timeline"
       (is (match? {:status 200 :body {:timeline {:total-minutes pos?}}}
-                  (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala")))))
     (testing "PUT overrides re-packs without regenerating"
       (is (match? {:status 200 :body {:timeline {:overrides [{:phase "Section 1/Section 1" :minutes 99}]
                                                  :total-minutes 99}}}
-                  (app (-> (mock/request :put "https://andrewslai.com/recipes/chana-masala/timeline")
+                  (app (-> (mock/request :put "https://andrewslai.com/api/v1/recipes/chana-masala/timeline")
                            as-writer
                            (mock/json-body {:overrides [{:phase "Section 1/Section 1" :minutes 99}]}))))))))
 
@@ -438,7 +438,7 @@
     ;; while that ACL rule is in place.
     (testing "non-writer POST timeline ⇒ 401 (ACL blocks before the handler)"
       (is (match? {:status 401}
-                  (app (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")))))))
+                  (app (mock/request :post "https://andrewslai.com/api/v1/recipes/chana-masala/timeline")))))))
 
 (deftest timeline-generation-failure-leaves-recipe-saved-test
   (let [app (make-app "custom-authenticated-user"
@@ -448,11 +448,11 @@
                   (fn [_] (throw (ex-info "boom" {:type :generation})))]
       (testing "generator failure ⇒ 502, recipe untouched"
         (is (match? {:status 502 :body {:reason "generation-failed"}}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/chana-masala/timeline")
                              as-writer))))))
     (testing "the recipe itself is still retrievable and un-timelined"
       (is (match? {:status 200 :body {:recipe-url "chana-masala" :timeline nil?}}
-                  (app (mock/request :get "https://andrewslai.com/recipes/chana-masala")))))))
+                  (app (mock/request :get "https://andrewslai.com/api/v1/recipes/chana-masala")))))))
 
 (deftest timeline-rate-limit-maps-to-503-test
   (let [app (make-app "custom-authenticated-user")]
@@ -461,16 +461,16 @@
                   (fn [_] (throw (ex-info "429" {:type :generation :status 429})))]
       (testing "an Anthropic rate-limit surfaces as 503, not 502"
         (is (match? {:status 503 :body {:reason "rate-limited"}}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/chana-masala/timeline")
                              as-writer))))))))
 
 (deftest timeline-post-skips-write-when-unchanged-test
   (let [app (make-app "custom-authenticated-user")]
     (create-recipe! app)
-    (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline") as-writer))
+    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/chana-masala/timeline") as-writer))
     (with-redefs [kaleidoscope.api.recipes/save-timeline!
                   (fn [& _] (throw (ex-info "should not persist on short-circuit" {})))]
       (testing "a second POST with unchanged content short-circuits and does NOT persist"
         (is (match? {:status 200 :body {:timeline {:total-minutes pos?}}}
-                    (app (-> (mock/request :post "https://andrewslai.com/recipes/chana-masala/timeline")
+                    (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes/chana-masala/timeline")
                              as-writer))))))))

@@ -114,6 +114,9 @@
     (testing "a bare unknown page path also serves the shell"
       (is (match? {:status 200 :body "<div>Hello</div>"}
                   (app (mock/request :get "https://andrewslai.com/about")))))
+    (testing "a retired API path (/recipes) now serves the SPA shell"
+      (is (match? {:status 200 :body "<div>Hello</div>"}
+                  (app (mock/request :get "https://andrewslai.com/recipes")))))
     (testing "an unmatched /api/v1 path 404s instead of serving the shell"
       (is (match? {:status 404}
                   (app (mock/request :get "https://andrewslai.com/api/v1/does-not-exist")))))
@@ -134,10 +137,10 @@
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)]
-    (testing "JSON API routes (root + /api/v1 twin) are marked no-store"
-      (doseq [uri ["/compositions"        "/api/v1/compositions"
-                   "/recipes"             "/api/v1/recipes"
-                   "/recipe-labels"       "/api/v1/recipe-labels"]]
+    (testing "JSON API routes (/api/v1) are marked no-store"
+      (doseq [uri ["/api/v1/compositions"
+                   "/api/v1/recipes"
+                   "/api/v1/recipe-labels"]]
         (is (match? {:headers {"Cache-Control" cc/no-cache}}
                     (app (mock/request :get (str "https://andrewslai.com" uri))))
             uri)))
@@ -279,17 +282,17 @@
     "GET `/admin` is not publicly accessible"
     {:status 401} (mock/request :get "https://andrewslai.com/admin")
 
-    "GET `/projects-portfolio` is publicly accessible"
-    {:status 200} (mock/request :get "https://andrewslai.com/projects-portfolio")
+    "GET `/api/v1/projects-portfolio` is publicly accessible"
+    {:status 200} (mock/request :get "https://andrewslai.com/api/v1/projects-portfolio")
 
-    "GET `/compositions` is publicly accessible"
-    {:status 200} (mock/request :get "https://andrewslai.com/compositions")
+    "GET `/api/v1/compositions` is publicly accessible"
+    {:status 200} (mock/request :get "https://andrewslai.com/api/v1/compositions")
 
-    "GET `/articles/does-not-exist` is not publicly accessible"
-    {:status 401} (mock/request :get "https://andrewslai.com/articles/does-not-exist")
+    "GET `/api/v1/articles/does-not-exist` is not publicly accessible"
+    {:status 401} (mock/request :get "https://andrewslai.com/api/v1/articles/does-not-exist")
 
-    "POST `/articles/new-article` is not publicly accessible"
-    {:status 401} (mock/request :post "https://andrewslai.com/articles/new-article/branches/new-branch/versions")
+    "POST `/api/v1/articles/new-article` is not publicly accessible"
+    {:status 401} (mock/request :post "https://andrewslai.com/api/v1/articles/new-article/branches/new-branch/versions")
 
     ;; GET /v2/photos/:photo-id is public while GET /v2/photos (the list
     ;; endpoint) requires a writer role. buddy-auth's :pattern matcher uses
@@ -358,21 +361,26 @@
       (is (= 200 (:status (handler (req :get "/recipes")))))
       (is (= 401 (:status (handler (req :post "/recipes"))))))))
 
-(deftest api-v1-dual-mount-test
+(deftest recipes-root-serves-shell-not-api-test
+  ;; After root-mount retirement, /recipes is a FRONTEND page (SPA shell),
+  ;; not the JSON API. The API lives only under /api/v1.
   (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
                   "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
                   "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
-                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
                  (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
                  env/prepare-kaleidoscope
                  kaleidoscope/kaleidoscope-app
                  tu/wrap-clojure-response)]
-    (testing "GET /api/v1/recipes reaches the same public handler as GET /recipes"
-      (is (match? {:status 200 :body sequential?}
-                  (app (mock/request :get "https://andrewslai.com/recipes"))))
+    (testing "GET /recipes serves the SPA shell (HTML), not the recipes API"
+      (is (match? {:status  200
+                   :headers {"Content-Type" #"text/html"}
+                   :body    "<div>Hello</div>"}
+                  (app (mock/request :get "https://andrewslai.com/recipes")))))
+    (testing "GET /api/v1/recipes still reaches the public JSON handler"
       (is (match? {:status 200 :body sequential?}
                   (app (mock/request :get "https://andrewslai.com/api/v1/recipes")))))
-    (testing "GET /api/v1/projects-portfolio is public, like the root path"
+    (testing "GET /api/v1/projects-portfolio is public"
       (is (match? {:status 200}
                   (app (mock/request :get "https://andrewslai.com/api/v1/projects-portfolio")))))
     (testing "POST /api/v1/recipes still requires a writer (401 unauthenticated)"

@@ -273,12 +273,11 @@
               reitit-index-routes
               reitit-admin-routes
               reitit-photos-routes]
-             (concat
-              ;; API resource groups at their legacy root paths …
-              api-route-groups
-              ;; … and the same groups under /api/v1 (:no-doc keeps the
-              ;; transition duplicates out of the OpenAPI spec).
-              [(into ["/api/v1" {:no-doc true}] api-route-groups)]))
+             ;; Resource groups now live ONLY under /api/v1. Their legacy root
+             ;; mounts are retired — an unmatched root GET (e.g. /recipes) falls
+             ;; through to the SPA shell (see the default handler below). Drop
+             ;; :no-doc so the /api/v1 resources appear in the OpenAPI spec.
+             [(into ["/api/v1"] api-route-groups)])
        ;; reitit-stripe-routes and reitit-registration-routes intentionally
        ;; not mounted yet - not ready for production.
        reitit-config)
