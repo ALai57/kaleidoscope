@@ -105,8 +105,7 @@ current tenant work.
 
 ### `persistence/restaurants.clj`
 
-Tables (all with `hostname`, following the TenantConn pattern —
-see the tenant-scoped tables list):
+Tables:
 
 - `plaid_items` — id, hostname, access_token, sync_cursor, institution_name,
   created_at, modified_at
@@ -115,8 +114,41 @@ see the tenant-scoped tables list):
   favorite BOOLEAN, favorite_suggested BOOLEAN, tags JSONB, liked_by JSONB,
   created_at, modified_at
 - `restaurant_transactions` — id, hostname, restaurant_id (nullable — null =
-  needs review), plaid_transaction_id UNIQUE, date, raw_merchant, amount,
-  meal, created_at
+  needs review), plaid_transaction_id, date, raw_merchant, amount, meal,
+  created_at
+
+### Multi-tenancy (consistent with the established pattern)
+
+`hostname` is the tenant axis for every app table; restaurants follow the
+existing mechanism exactly:
+
+- **Schema (recipes gold standard):** `hostname VARCHAR NOT NULL` on all three
+  tables. `restaurants` and `plaid_items` get `UNIQUE (id, hostname)`;
+  `restaurant_transactions.restaurant_id` references restaurants via the
+  **composite FK `(restaurant_id, hostname) → restaurants (id, hostname)`**,
+  so the database itself forbids attaching a transaction to another tenant's
+  restaurant. Plaid transaction de-dup is per-tenant:
+  `UNIQUE (hostname, plaid_transaction_id)`.
+- **TenantConn registration:** add `restaurants`, `plaid_items`, and
+  `restaurant_transactions` to `tenant-scoped-tables` in
+  `persistence/tenant.clj`. The schema tripwire test
+  (`tenant-scoped-tables-match-schema-test`) enforces that this set matches
+  the actual hostname-bearing tables, so the migration and the set land
+  together.
+- **Request path:** handlers never thread hostname manually. Each handler
+  scopes once — `(tenant/scope (:database components) (hu/tenant-hostname
+  request))` — exactly as `http_api/tasks.clj` et al. do, relying on the
+  global `wrap-resolve-tenant` middleware (Host header). The scoped handle
+  flows through `api/` into `persistence/`, where `scope-query`/`inject-row`
+  confine reads and stamp writes automatically.
+- **Sync job path (no request):** the nightly job has no Host header. It
+  iterates `plaid_items` rows grouped by hostname and creates an explicit
+  per-tenant scoped handle (`(tenant/scope ds hostname)`) for each item's
+  sync, so one tenant's Plaid data can never write into another tenant's
+  restaurants. Manual "sync now" runs under the request's scoped handle and
+  only syncs that tenant's items.
+- **External caches are per-tenant:** menu_cache and geocode results live on
+  the tenant's own restaurant row; nothing is shared across tenants.
 
 One Migratus migration pair. **Prod caution:** prod carries dead ghost objects
 from a deleted 2022 restaurants feature (`restaurants`, `eater_groups`,
@@ -154,6 +186,12 @@ the new tables so it runs cleanly on both prod and fresh DBs.
   location, and non-food rows) against embedded H2; migration runs on both H2
   and embedded Postgres (ghost-drop compatibility); menu scrape test with a
   mock Firecrawl response.
+- **Cross-tenant tests** (same style as the existing cross-site tests): two
+  hostnames, restaurants + transactions in each — reads under one Host header
+  never see the other tenant's rows; a sync for tenant A creates rows only
+  under A; attaching a transaction to the other tenant's restaurant is
+  rejected by the composite FK. The `tenant-scoped-tables` tripwire test
+  covers registration of the three new tables automatically.
 - **Frontend:** component tests for filter/toggle/side-panel behavior; a
   Storybook story per new common component (Prism convention).
 - Mock-first local dev: no Plaid/Firecrawl keys needed for `task run` or tests.
