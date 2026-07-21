@@ -94,6 +94,14 @@ returns a real `404`; any other GET/HEAD path returns the SPA shell.
 removed so the root is pages-only and `/recipes` (etc.) deep-link to the app.
 Until then, the Checkly checks below intentionally still target the root paths.
 
+**API responses are `Cache-Control: no-store`.** JSON handlers set no caching
+policy of their own, so `mw/wrap-default-cache-control` stamps every response
+`no-store` unless it already declared a policy. Without it, a CDN or browser may
+heuristically cache a GET 200 (RFC 7234 §4.2.2) and later answer revalidations
+with a `304`, serving stale data. Handlers that opt into caching keep their
+header: static content (per-extension policy in `http-utils/adapter-response` —
+images 30d, `index.html`/JS revalidate) and SSE streams (`no-cache`).
+
 ## Synthetic monitoring (Checkly)
 
 Synthetic checks live in `checkly/` as a standard Playwright project

@@ -121,6 +121,31 @@
       (is (match? {:status 404}
                   (app (mock/request :post "https://andrewslai.com/library/whatever")))))))
 
+(deftest json-api-responses-are-uncacheable-test
+  ;; JSON API responses set no Cache-Control of their own, so a CDN or browser
+  ;; is free to heuristically cache a GET 200 and later answer revalidations
+  ;; with a 304 (serving stale data). Every response that doesn't set its own
+  ;; caching policy must carry `no-store` so nothing downstream can pin it.
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+    (testing "JSON API routes (root + /api/v1 twin) are marked no-store"
+      (doseq [uri ["/compositions"        "/api/v1/compositions"
+                   "/recipes"             "/api/v1/recipes"
+                   "/recipe-labels"       "/api/v1/recipe-labels"]]
+        (is (match? {:headers {"Cache-Control" cc/no-cache}}
+                    (app (mock/request :get (str "https://andrewslai.com" uri))))
+            uri)))
+    (testing "static content keeps its OWN caching policy — the default no-store must not clobber it"
+      (is (match? {:status  200
+                   :headers {"Cache-Control" cc/revalidate-0s}}
+                  (app (mock/request :get "https://andrewslai.com/")))))))
+
 (defn- serialize-body
   "Write a response body through Ring's protocol exactly as the Jetty adapter
   would, returning the bytes as a string. Throws if the body type is not

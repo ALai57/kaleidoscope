@@ -5,6 +5,7 @@
             [clojure.string :as string]
             [kaleidoscope.api.authentication :as oidc]
             [kaleidoscope.clients.session-tracker :as st]
+            [kaleidoscope.http-api.cache-control :as cc]
             [kaleidoscope.http-api.http-utils :as http-utils]
             [muuntaja.core :as m]
             [reitit.coercion.malli :as rcm]
@@ -243,6 +244,21 @@
                   (span/with-span! {:name (format "kaleidoscope.mw.force-uri")}
                     (handler (if uri (assoc request :uri uri) request))))))})
 
+(defn wrap-default-cache-control
+  "Mark every response `no-store` unless it already declared its own caching
+  policy. JSON API handlers set no Cache-Control, which lets a CDN or browser
+  heuristically cache a GET 200 (RFC 7234 §4.2.2) and later answer revalidations
+  with a 304 — serving stale data. Handlers that DO set Cache-Control keep it:
+  static content (`http-utils/adapter-response`, per-extension policy) and SSE
+  streams (`http-utils/sse-response`, `no-cache`)."
+  [handler]
+  (fn [request]
+    (let [response (handler request)]
+      (if (and (map? response)
+               (not (get-in response [:headers "Cache-Control"])))
+        (assoc-in response [:headers "Cache-Control"] cc/no-cache)
+        response))))
+
 (def base-middleware
   "Request setup shared by every route, applied before auth and before
   coercion. Kept separate from `coercion-middleware` so `kaleidoscope-app`
@@ -251,6 +267,7 @@
   gets rejected by Malli (400) before it ever reaches the access-rules check
   that should return 401."
   [wrap-add-http-spans
+   wrap-default-cache-control
    wrap-kebab-case-headers
    wrap-force-uri
    wrap-rate-limit
