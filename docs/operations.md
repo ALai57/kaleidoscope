@@ -70,6 +70,30 @@ Squashing `FROM`..`TO`, in this exact order:
 The squash `NAME` must not be purely numeric (ids are parsed as numbers; kebab-case
 names are left as strings). The underlying runner is `bin/db-squash`.
 
+## URL structure (API vs pages)
+
+The root URL namespace belongs to the **frontend** (`kaleidoscope-ui`). The
+backend owns a fixed set of **reserved prefixes**; every other path is a page
+and is served the SPA shell (`index.html`) for client-side routing:
+
+| Reserved | Purpose |
+|---|---|
+| `/api/v1/*` | JSON API — all resource routes |
+| `/assets/*`, `/static/*`, `/media/*` | SPA assets + tenant static/media |
+| `/v2/photos/*` | Photos (already namespaced; not yet folded under `/api/v1`) |
+| `/favicon.ico`, `/index.html`, `/openapi.json`, `/api-docs/*`, `/ping` | Infra |
+
+**Transition state:** the API is **dual-mounted** — every resource is reachable
+at both its legacy root path (`/recipes`) and under `/api/v1` (`/api/v1/recipes`),
+with identical authorization (the `/api/v1` ACL rules are derived from the root
+rules in `http_api/kaleidoscope.clj`). An unmatched path under a reserved prefix
+returns a real `404`; any other GET/HEAD path returns the SPA shell.
+
+**Retirement (future, gated on the frontend):** once `kaleidoscope-ui` calls
+`/api/v1/*` and the Checkly suites are repointed, the root API mounts are
+removed so the root is pages-only and `/recipes` (etc.) deep-link to the app.
+Until then, the Checkly checks below intentionally still target the root paths.
+
 ## Synthetic monitoring (Checkly)
 
 Synthetic checks live in `checkly/` as a standard Playwright project

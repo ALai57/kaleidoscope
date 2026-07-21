@@ -1,5 +1,6 @@
 (ns kaleidoscope.http-api.kaleidoscope
   (:require
+   [cheshire.core :as json]
    [clojure.stacktrace :as stacktrace]
    [clojure.string :as str]
    [kaleidoscope.api.authorization :as auth]
@@ -28,49 +29,36 @@
    [kaleidoscope.http-api.themes :refer [reitit-themes-routes]]
    [kaleidoscope.trace :as-alias trace]
    [reitit.ring :as ring]
-   [ring.util.http-response :refer [found]]
+   [ring.middleware.content-type :refer [wrap-content-type]]
+   [ring.util.http-response :refer [found not-found]]
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.timbre :as log]))
 
-(def KALEIDOSCOPE-ACCESS-CONTROL-LIST
-  [{:pattern #"^/admin.*"        :handler auth/require-*-admin}
-   {:pattern #"^/articles.*"     :handler auth/require-*-writer}
+(def api-resource-access-rules
+  "Authorization for the JSON API resource routes — the rules that get an
+  /api/v1 twin. The twins are DERIVED from this one list (see
+  KALEIDOSCOPE-ACCESS-CONTROL-LIST), so the two address spaces cannot drift.
+  Order matters where patterns overlap under buddy's whole-string matching:
+  `^/projects-portfolio` (public) must precede `^/projects.*` (writer)."
+  [{:pattern #"^/articles.*"     :handler auth/require-*-writer}
    {:pattern #"^/branches.*"     :handler auth/require-*-writer}
    {:pattern #"^/compositions.*" :handler auth/public-access}
-   {:pattern #"^/$"              :handler auth/public-access}
-   {:pattern #"^/index.html$"    :handler auth/public-access}
-   {:pattern #"^/ping"           :handler auth/public-access}
-
    {:pattern #"^/groups.*"            :handler auth/require-*-writer}
    {:pattern #"^/interests.*"         :handler auth/require-*-writer}
    {:pattern #"^/projects-portfolio"  :handler auth/public-access}
    {:pattern #"^/projects.*"          :handler auth/require-*-writer}
    {:pattern #"^/score-definitions.*" :handler auth/require-*-writer}
-   {:pattern #"^/agents.*"             :handler auth/require-*-writer}
+   {:pattern #"^/agents.*"            :handler auth/require-*-writer}
    {:pattern #"^/workflows.*"         :handler auth/require-*-writer}
    {:pattern #"^/workspace-roots.*"   :handler auth/require-*-writer}
-
-   {:pattern #"^/media.*" :request-method :post :handler auth/require-*-writer}
-   {:pattern #"^/media.*" :request-method :get  :handler auth/public-access}
-
-   {:pattern #"^/v2/photos.*"  :request-method :post :handler auth/require-*-writer}
-   {:pattern #"^/v2/photos.*"  :request-method :put  :handler auth/require-*-admin}
-   {:pattern #"^/v2/photos"    :request-method :get  :handler auth/require-*-writer}
-   {:pattern #"^/v2/photos/.*" :request-method :get  :handler auth/public-access}
-
    {:pattern #"^/themes.*"    :request-method :put    :handler auth/require-*-writer}
    {:pattern #"^/themes.*"    :request-method :post   :handler auth/require-*-writer}
    {:pattern #"^/themes.*"    :request-method :delete :handler auth/require-*-writer}
    {:pattern #"^/themes.*"    :request-method :get    :handler auth/public-access}
-
-
    {:pattern #"^/albums.*"            :handler auth/require-*-admin}
    {:pattern #"^/article-audiences.*" :handler auth/require-*-admin}
-
-   ;; Recipes: GETs are public so shared/public recipes and their label chips
-   ;; render for anonymous readers (the recipe list itself is access-filtered
-   ;; internally by get-visible-recipes); writes require a writer. Sharing uses
-   ;; writer (not admin like article-audiences) to keep it usable — see PLAN.md.
+   ;; Recipes: GETs public so shared/public recipes render for anonymous
+   ;; readers (list is access-filtered internally); writes require a writer.
    {:pattern #"^/recipes.*"             :request-method :get    :handler auth/public-access}
    {:pattern #"^/recipes.*"             :request-method :post   :handler auth/require-*-writer}
    {:pattern #"^/recipes.*"             :request-method :put    :handler auth/require-*-writer}
@@ -79,55 +67,90 @@
    {:pattern #"^/recipe-labels.*"       :handler auth/require-*-writer}
    {:pattern #"^/recipe-label-groups.*" :request-method :get    :handler auth/public-access}
    {:pattern #"^/recipe-label-groups.*" :handler auth/require-*-writer}
-   {:pattern #"^/recipe-audiences.*"    :handler auth/require-*-writer}
+   {:pattern #"^/recipe-audiences.*"    :handler auth/require-*-writer}])
 
-   ;; Everything below is intentionally public — listed explicitly so the
-   ;; catch-all at the bottom can safely reject anything NOT named here.
-   ;;
-   ;; Before 2026-07-03 this list relied on buddy-auth's default :policy
-   ;; :allow for any URI that didn't match a pattern above — meaning a new
-   ;; route mounted in kaleidoscope-app that didn't happen to match one of
-   ;; these regexes was served with *zero* authorization enforcement, not
-   ;; "denied by default." No sensitive route was found relying on that gap
-   ;; at the time (see PLAN.md, "Critical finding #4"), but the failure mode
-   ;; is silent and total — a single missed or mistyped pattern is a full,
-   ;; invisible data exposure with no error and no test failure to catch it.
-   {:pattern #"^/openapi\.json$" :handler auth/public-access}
-   {:pattern #"^/api-docs.*"     :handler auth/public-access}
-   {:pattern #"^/favicon\.ico$"  :handler auth/public-access}
-   {:pattern #"^/assets.*"       :handler auth/public-access}
-   {:pattern #"^/static.*"       :handler auth/public-access}
-   ;; `/` and `/favicon.ico` carry route-level :uri route-data
-   ;; ("index.html", "static/favicon.ico") that wrap-force-uri rewrites
-   ;; :uri to *before* wrap-access-rules runs (wrap-force-uri is earlier —
-   ;; more outer — in the middleware stack). Access rules see the rewritten
-   ;; value, not the original request path, so both forms need a pattern.
-   {:pattern #"^index\.html$"         :handler auth/public-access}
-   {:pattern #"^static/favicon\.ico$" :handler auth/public-access}
-   ;; Pre-auth signup flow — must be reachable before the caller has an
-   ;; identity to check a role against.
-   {:pattern #"^/registration.*" :handler auth/public-access}
-   {:pattern #"^/check-domain.*" :handler auth/public-access}
-   ;; Stripe payment-intent creation — must be reachable before checkout
-   ;; completes (standard Stripe Elements pattern: the client needs a
-   ;; client-secret before the payer is necessarily authenticated). Not
-   ;; itself a data-exposure risk (a PaymentIntent doesn't charge anything
-   ;; until confirmed with a real payment method), but it is an
-   ;; unauthenticated write to a paid third-party API with no rate limiting
-   ;; in front of it — worth revisiting as a cost/abuse question separately
-   ;; from authorization correctness.
-   {:pattern #"^/v1/payments.*"  :handler auth/public-access}
+(defn with-api-v1-prefix
+  "Rewrite a resource rule's :pattern from ^/foo… to ^/api/v1/foo…, preserving
+  :request-method and :handler. Used to derive each root resource rule's
+  /api/v1 twin so authorization can't diverge between the two address spaces."
+  [rule]
+  (update rule :pattern
+          (fn [p] (re-pattern (str/replace-first (str p) #"^\^/" "^/api/v1/")))))
 
-   ;; Fail closed: anything not explicitly named above is rejected, not
-   ;; allowed. This was already written by a previous author and left
-   ;; disabled (commented out) — re-enabled as the load-bearing fix here.
-   {:pattern #"^/.*" :handler (constantly false)}])
+(def KALEIDOSCOPE-ACCESS-CONTROL-LIST
+  (vec
+   (concat
+    ;; Root-only: infra, admin, media, and the already-namespaced photos.
+    ;; None of these get an /api/v1 twin (admin/photos/media are not part of
+    ;; the dual-mounted resource surface; infra is single-address).
+    [{:pattern #"^/admin.*"        :handler auth/require-*-admin}
+     {:pattern #"^/$"              :handler auth/public-access}
+     {:pattern #"^/index.html$"    :handler auth/public-access}
+     {:pattern #"^/ping"           :handler auth/public-access}
+
+     {:pattern #"^/media.*" :request-method :post :handler auth/require-*-writer}
+     {:pattern #"^/media.*" :request-method :get  :handler auth/public-access}
+
+     {:pattern #"^/v2/photos.*"  :request-method :post :handler auth/require-*-writer}
+     {:pattern #"^/v2/photos.*"  :request-method :put  :handler auth/require-*-admin}
+     {:pattern #"^/v2/photos"    :request-method :get  :handler auth/require-*-writer}
+     {:pattern #"^/v2/photos/.*" :request-method :get  :handler auth/public-access}]
+
+    ;; API resource rules at their legacy root paths …
+    api-resource-access-rules
+    ;; … and their derived /api/v1 twins. Kept in the same order so overlapping
+    ;; rules (projects-portfolio before projects.*) retain their precedence.
+    (map with-api-v1-prefix api-resource-access-rules)
+
+    ;; Everything below is intentionally public — listed explicitly so the
+    ;; fail-closed catch-all can safely reject anything NOT named here.
+    ;; A single missed/mistyped pattern is a full, invisible data exposure
+    ;; with no error and no test failure to catch it (see 2026-07-03 PLAN.md,
+    ;; "Critical finding #4").
+    [{:pattern #"^/openapi\.json$" :handler auth/public-access}
+     {:pattern #"^/api-docs.*"     :handler auth/public-access}
+     {:pattern #"^/favicon\.ico$"  :handler auth/public-access}
+     {:pattern #"^/assets.*"       :handler auth/public-access}
+     {:pattern #"^/static.*"       :handler auth/public-access}
+     ;; `/` and `/favicon.ico` carry route-level :uri that wrap-force-uri
+     ;; rewrites before wrap-access-rules runs, so both forms need a pattern.
+     {:pattern #"^index\.html$"         :handler auth/public-access}
+     {:pattern #"^static/favicon\.ico$" :handler auth/public-access}
+     {:pattern #"^/registration.*" :handler auth/public-access}
+     {:pattern #"^/check-domain.*" :handler auth/public-access}
+     {:pattern #"^/v1/payments.*"  :handler auth/public-access}
+
+     ;; Fail closed: anything not explicitly named above is rejected. MUST
+     ;; stay last.
+     {:pattern #"^/.*" :handler (constantly false)}])))
 
 ;; Add a tracing middleware data
 
 (defn get-static-resource
   [{:keys [components] :as request}]
   (http-utils/get-resource (:static-content-adapters components) request))
+
+(def reserved-backend-prefixes
+  "Path prefixes the backend owns. A request whose URI is one of these (or nested
+  under it) is never a frontend page: an *unmatched* path under one must 404, not
+  serve the SPA shell, so a bad asset/API URL fails honestly instead of returning
+  HTML to a fetch caller (a soft 404)."
+  ["/api/v1" "/api-docs" "/assets" "/static" "/media" "/v2/photos"
+   "/openapi.json" "/favicon.ico" "/ping" "/index.html"])
+
+(defn reserved-backend-path?
+  [uri]
+  (boolean (some (fn [p] (or (= uri p) (str/starts-with? uri (str p "/"))))
+                 reserved-backend-prefixes)))
+
+(defn spa-shell-request?
+  "True when an unmatched request should fall through to the SPA shell for
+  client-side routing: a GET/HEAD navigation for a path the backend does not
+  reserve. Anything else — a non-GET, or an unmatched path under a reserved
+  backend prefix — is a genuine miss and must 404."
+  [{:keys [request-method uri]}]
+  (and (contains? #{:get :head} request-method)
+       (not (reserved-backend-path? uri))))
 
 (def reitit-index-routes
   "All served from a common bucket: the Kaleidoscope app bucket."
@@ -203,6 +226,32 @@
     (fn new-handler [request]
       (handler (assoc request :components components)))))
 
+(def api-route-groups
+  "Root-rooted JSON API resource route groups, dual-mounted at their legacy root
+  paths and under /api/v1 during the transition. Excludes reitit-photos-routes
+  (already namespaced at /v2/photos — folding it under /api/v1 is deferred) and
+  the ping/openapi/index/admin infra routes."
+  [reitit-albums-routes
+   reitit-articles-routes
+   reitit-audiences-routes
+   reitit-branches-routes
+   reitit-compositions-routes
+   reitit-groups-routes
+   reitit-interests-routes
+   reitit-projects-routes
+   reitit-score-definition-routes
+   reitit-agent-routes
+   reitit-task-routes
+   reitit-workflow-routes
+   reitit-project-workflow-routes
+   reitit-workspace-roots-routes
+   reitit-portfolio-routes
+   reitit-recipes-routes
+   reitit-recipe-labels-routes
+   reitit-recipe-label-groups-routes
+   reitit-recipe-audiences-routes
+   reitit-themes-routes])
+
 (defn kaleidoscope-app
   ([]
    (kaleidoscope-app {}))
@@ -218,56 +267,48 @@
                                          mw/coercion-middleware))]
      (ring/ring-handler
       (ring/router
-       [
-        ;; Administrative/helpers
-        reitit-ping-routes
-        reitit-openapi-routes
-        reitit-index-routes
-        reitit-admin-routes
-
-        ;; API routes
-        reitit-albums-routes
-        reitit-articles-routes
-        reitit-audiences-routes
-        reitit-branches-routes
-        reitit-compositions-routes
-        reitit-groups-routes
-        reitit-interests-routes
-        reitit-photos-routes
-        reitit-projects-routes
-        reitit-score-definition-routes
-        reitit-agent-routes
-        reitit-task-routes
-        reitit-workflow-routes
-        reitit-project-workflow-routes
-        reitit-workspace-roots-routes
-        reitit-portfolio-routes
-        reitit-recipes-routes
-        reitit-recipe-labels-routes
-        reitit-recipe-label-groups-routes
-        reitit-recipe-audiences-routes
-        reitit-themes-routes
-        ;; reitit-stripe-routes and reitit-registration-routes intentionally
-        ;; not mounted yet - not ready for production.
-        ]
+       (into [;; Administrative/helpers + already-namespaced photos (root only)
+              reitit-ping-routes
+              reitit-openapi-routes
+              reitit-index-routes
+              reitit-admin-routes
+              reitit-photos-routes]
+             (concat
+              ;; API resource groups at their legacy root paths …
+              api-route-groups
+              ;; … and the same groups under /api/v1 (:no-doc keeps the
+              ;; transition duplicates out of the OpenAPI spec).
+              [(into ["/api/v1" {:no-doc true}] api-route-groups)]))
+       ;; reitit-stripe-routes and reitit-registration-routes intentionally
+       ;; not mounted yet - not ready for production.
        reitit-config)
       (ring/create-default-handler
        {:not-found (fn [request]
-                     (tap> {:req        request
-                            :components components})
-                     ;; May not have the middleware components!
-                     ;; Redirect to index.html for client-side routing.
-                     ;; This handler bypasses the reitit middleware stack, so set the
-                     ;; shared-shell store (:asset-store) and :uri manually — the same
-                     ;; values wrap-resolve-tenant/wrap-force-uri would apply.
-                     (span/with-span! {:name (format "kaleidoscope.default.handler.get")}
-                       (get-static-resource (-> request
-                                                (assoc :tenant {:asset-store "kaleidoscope.client"})
-                                                (assoc :uri "index.html")
-                                                ;; Components must be added here because this isn't
-                                                ;; wrapped with middleware the same way other routes are
-                                                (assoc :components components)))))}
-       )))))
+                     (if (spa-shell-request? request)
+                       ;; Client-side routing: serve the SPA shell. This handler
+                       ;; bypasses the reitit middleware stack, so set the
+                       ;; shared-shell store (:asset-store) and :uri manually —
+                       ;; the same values wrap-resolve-tenant/wrap-force-uri
+                       ;; would apply — and inject :components directly. It also
+                       ;; skips base-middleware's wrap-content-type, so apply it
+                       ;; here explicitly (same middleware, same :uri-based
+                       ;; guess matched routes get) or the shell would come back
+                       ;; without a Content-Type header.
+                       (span/with-span! {:name "kaleidoscope.default.handler.get"}
+                         ((wrap-content-type get-static-resource)
+                          (-> request
+                              (assoc :tenant {:asset-store "kaleidoscope.client"})
+                              (assoc :uri "index.html")
+                              (assoc :components components))))
+                       ;; This handler is outside the reitit/muuntaja stack, so
+                       ;; nothing encodes the body — it must already be a
+                       ;; serializable type (String), not a Clojure map, or the
+                       ;; Jetty adapter 500s. JSON for API paths, plain otherwise.
+                       (if (str/starts-with? (:uri request) "/api/v1")
+                         (-> (not-found (json/encode {:reason "Not found"}))
+                             (assoc-in [:headers "Content-Type"] "application/json"))
+                         (-> (not-found "Not found")
+                             (assoc-in [:headers "Content-Type"] "text/plain")))))})))))
 
 (comment
 

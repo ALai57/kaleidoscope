@@ -28,6 +28,7 @@
             [matcher-combinators.result :as result]
             [matcher-combinators.test :refer [match?]]
             [peridot.multipart :as mp]
+            [ring.core.protocols :as ring-protocols]
             [ring.mock.request :as mock]
             [taoensso.timbre :as log]))
 
@@ -94,6 +95,60 @@
                  :headers {"Content-Type" #"text/html"}
                  :body    "<div>Hello</div>"}
                 (handler (mock/request :get "https://andrewslai.com/"))))))
+
+(deftest spa-fallback-serves-shell-for-page-paths-test
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+    (testing "a deep, parameterized page path deep-links to the SPA shell"
+      (is (match? {:status  200
+                   :headers {"Content-Type" #"text/html"}
+                   :body    "<div>Hello</div>"}
+                  (app (mock/request :get (str "https://andrewslai.com/library/"
+                                               (random-uuid) "/acquisitions"))))))
+    (testing "a bare unknown page path also serves the shell"
+      (is (match? {:status 200 :body "<div>Hello</div>"}
+                  (app (mock/request :get "https://andrewslai.com/about")))))
+    (testing "an unmatched /api/v1 path 404s instead of serving the shell"
+      (is (match? {:status 404}
+                  (app (mock/request :get "https://andrewslai.com/api/v1/does-not-exist")))))
+    (testing "a non-GET unmatched path 404s instead of serving HTML"
+      (is (match? {:status 404}
+                  (app (mock/request :post "https://andrewslai.com/library/whatever")))))))
+
+(defn- serialize-body
+  "Write a response body through Ring's protocol exactly as the Jetty adapter
+  would, returning the bytes as a string. Throws if the body type is not
+  serializable (e.g. a Clojure map) — which is the production failure we guard."
+  [response]
+  (let [os (java.io.ByteArrayOutputStream.)]
+    (ring-protocols/write-body-to-stream (:body response) response os)
+    (.toString os "UTF-8")))
+
+(deftest spa-fallback-404-body-is-serializable-test
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "in-memory"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app)]  ;; raw app — no wrap-clojure-response
+    (testing "unknown /api/v1 path: JSON 404 with a body the adapter can serialize"
+      (let [resp (app (mock/request :get "https://andrewslai.com/api/v1/does-not-exist"))]
+        (is (= 404 (:status resp)))
+        (is (string? (:body resp)))
+        (is (re-find #"application/json" (get-in resp [:headers "Content-Type"])))
+        (is (= "{\"reason\":\"Not found\"}" (serialize-body resp)))))
+    (testing "non-GET unmatched page path: text/plain 404, serializable"
+      (let [resp (app (mock/request :post "https://andrewslai.com/library/whatever"))]
+        (is (= 404 (:status resp)))
+        (is (string? (:body resp)))
+        (is (= "Not found" (serialize-body resp)))))))
 
 (deftest static-chrome-serves-from-the-shared-client-store-test
   ;; /static/* and /favicon.ico serve from kaleidoscope.client for every tenant —
@@ -248,6 +303,57 @@
       (is (= 401 (:status (handler {:uri            "/some-brand-new-route-nobody-registered-in-the-acl"
                                     :request-method :get
                                     :headers        {}})))))))
+
+(deftest api-v1-acl-twin-coverage-test
+  ;; Every API resource rule must have an /api/v1 twin present in the real ACL.
+  ;; The twins are derived (not hand-written), so this is a guard against a
+  ;; future edit that adds a root resource rule but forgets its twin — which
+  ;; would 401 that route under /api/v1 (fail-closed, but broken).
+  (let [present (set (map (juxt (comp str :pattern) :request-method :handler)
+                          kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST))]
+    (doseq [rule kaleidoscope/api-resource-access-rules]
+      (let [twin (kaleidoscope/with-api-v1-prefix rule)]
+        (is (contains? present ((juxt (comp str :pattern) :request-method :handler) twin))
+            (str "missing /api/v1 twin for " (:pattern rule)))))))
+
+(deftest api-v1-acl-authorizes-like-root-test
+  ;; Tested at the auth-stack level (below the router, like the fails-closed
+  ;; test) so it doesn't depend on Task 2's route mounting.
+  (let [rules   kaleidoscope/KALEIDOSCOPE-ACCESS-CONTROL-LIST
+        stack   (mw/auth-stack (bb/authenticated-backend {:realm_access {:roles []}}) rules)
+        handler (reduce (fn [h a-mw] (a-mw h))
+                        (fn [_req] {:status 200 :body "reached"})
+                        (reverse stack))
+        req     (fn [method uri] {:uri uri :request-method method :headers {}})]
+    (testing "GET /api/v1/recipes is public, like GET /recipes"
+      (is (= 200 (:status (handler (req :get "/api/v1/recipes"))))))
+    (testing "POST /api/v1/recipes requires a writer, like POST /recipes"
+      (is (= 401 (:status (handler (req :post "/api/v1/recipes"))))))
+    (testing "a root resource path is unchanged"
+      (is (= 200 (:status (handler (req :get "/recipes")))))
+      (is (= 401 (:status (handler (req :post "/recipes"))))))))
+
+(deftest api-v1-dual-mount-test
+  (let [app (->> {"KALEIDOSCOPE_DB_TYPE"             "embedded-h2"
+                  "KALEIDOSCOPE_AUTH_TYPE"           "always-unauthenticated"
+                  "KALEIDOSCOPE_AUTHORIZATION_TYPE"  "use-access-control-list"
+                  "KALEIDOSCOPE_STATIC_CONTENT_TYPE" "none"}
+                 (env/start-system! env/DEFAULT-BOOT-INSTRUCTIONS)
+                 env/prepare-kaleidoscope
+                 kaleidoscope/kaleidoscope-app
+                 tu/wrap-clojure-response)]
+    (testing "GET /api/v1/recipes reaches the same public handler as GET /recipes"
+      (is (match? {:status 200 :body sequential?}
+                  (app (mock/request :get "https://andrewslai.com/recipes"))))
+      (is (match? {:status 200 :body sequential?}
+                  (app (mock/request :get "https://andrewslai.com/api/v1/recipes")))))
+    (testing "GET /api/v1/projects-portfolio is public, like the root path"
+      (is (match? {:status 200}
+                  (app (mock/request :get "https://andrewslai.com/api/v1/projects-portfolio")))))
+    (testing "POST /api/v1/recipes still requires a writer (401 unauthenticated)"
+      (is (match? {:status 401}
+                  (app (-> (mock/request :post "https://andrewslai.com/api/v1/recipes")
+                           (mock/json-body {}))))))))
 
 (deftest auth-runs-before-coercion-test
   ;; 2026-07-04 production incident: POST /workflows requires a :name field
