@@ -70,14 +70,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Allowlist — which directories the server is willing to read from
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Before this existed, local-paths (per-project) and workspace-roots
-;; (per-user) were accepted with no restriction beyond "exists on disk" —
-;; any authenticated writer could point the Engineering Reviewer at
-;; /etc/passwd, a deployed .env file, or an SSH key, and its contents would
-;; be spliced into an LLM prompt and returned to them via the score
-;; rationale (trivially forced verbatim via a prompt-injected project
-;; description). Verified exploitable 2026-07-03 — see PLAN.md.
-;;
 ;; Deny-by-default: an unset/empty allowlist means nothing resolves, not
 ;; "allow everything." This feature requires an operator to opt in.
 

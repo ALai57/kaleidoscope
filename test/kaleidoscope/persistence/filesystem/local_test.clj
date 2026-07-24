@@ -16,12 +16,6 @@
   []
   (str (Files/createTempDirectory "local-fs-test" (make-array FileAttribute 0))))
 
-;; Verified exploitable 2026-07-03 (see PLAN.md): put-file/get-file/ls built
-;; their target path via bare string formatting with no confinement check —
-;; an attacker-influenced path containing `../` segments (reachable via a
-;; malicious upload filename, see the get-file-extension fix in
-;; http_api/photo.clj) could write or read outside the configured storage
-;; root entirely.
 (deftest confined-path-test
   (let [root (temp-dir!)]
     (testing "A path under the root is confined"

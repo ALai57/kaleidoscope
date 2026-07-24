@@ -68,11 +68,6 @@
       (is (= "Renamed" (:name (first (projects-persistence/get-skills database pid))))))))
 
 (deftest project-update-mass-assignment-test
-  ;; Verified exploitable 2026-07-03: update-project! used to pass the raw
-  ;; update body straight into the SQL SET clause, including :user-id. A
-  ;; caller updating their own project could set :user-id to a victim's
-  ;; identity and silently transfer the row — content and all — to that
-  ;; victim's account.
   (let [database  (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id  "owner@example.com"
         victim-id "victim@example.com"
@@ -85,11 +80,6 @@
       (is (nil? (projects-persistence/get-project database pid victim-id))))))
 
 (deftest skill-update-mass-assignment-test
-  ;; Verified exploitable 2026-07-03: update-skill! used to pass the raw
-  ;; update body straight into the SQL SET clause, even after the WHERE
-  ;; clause was fixed to scope by project-id. A caller updating their own
-  ;; skill could include :project-id in the body and re-parent the skill
-  ;; into a project they don't own.
   (let [database          (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id          "owner@example.com"
         victim-id         "victim@example.com"
@@ -108,17 +98,6 @@
       (is (empty? (projects-persistence/get-skills database victim-pid))))))
 
 (deftest scores-and-briefs-read-ownership-test
-  ;; Verified exploitable 2026-07-03: the HTTP handlers for
-  ;; GET /projects/:id/scores and GET /projects/:id/briefs[/latest|/:version]
-  ;; called persistence functions directly, with no ownership check at
-  ;; all — any authenticated writer could read any other user's score runs
-  ;; (LLM-generated rationale text) or project briefs (AI-refined project
-  ;; descriptions) just by knowing/guessing the project-id. Every sibling
-  ;; handler in the same file went through an ownership-checked api/
-  ;; function; these three didn't. Fixed by adding get-latest-scores/
-  ;; get-all-briefs/get-latest-brief/get-brief-by-version here, matching the
-  ;; existing get-score-history pattern, and pointing the HTTP handlers at
-  ;; them instead of calling persistence.* directly.
   (let [database  (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id  "owner@example.com"
         other-id  "other@example.com"

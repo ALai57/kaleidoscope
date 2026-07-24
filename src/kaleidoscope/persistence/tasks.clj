@@ -85,11 +85,7 @@
 
   Only title/description/status/task-type/estimated-minutes are settable —
   the caller's `updates` map is destructured, not passed through, so an
-  HTTP body can't smuggle in :project-id (or :user-id) via the SET clause.
-  Passing :project-id through here (with the WHERE clause unscoped, as it
-  used to be) let an attacker re-parent their own task into a project they
-  don't own, planting attacker-controlled content in a victim's project
-  (verified exploitable 2026-07-03 — see PLAN.md)."
+  HTTP body can't smuggle in :project-id (or :user-id) via the SET clause."
   [db project-id task-id {:keys [title description status task-type estimated-minutes]}]
   (first (rdbms/scoped-update! db :project-tasks
                                {:id task-id :project-id project-id}

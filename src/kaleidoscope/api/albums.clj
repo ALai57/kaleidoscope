@@ -79,16 +79,8 @@
 (defn update-photo!
   "Update a photo's metadata, scoped to hostname. Only photo-title is
   settable — the caller's `updates` map is destructured, not passed
-  through. Verified exploitable 2026-07-03: the previous version took a
-  raw `photo` map (typically `(merge {:id photo-id} body-params)`) and
-  used it wholesale as both the id to update AND the fields to set. Since
-  malli's `[:map ...]` schemas are open by default (extra keys pass
-  through coercion unchanged, not stripped), a request body could include
-  its own :id and redirect the update to a *different* photo than the one
-  whose existence/hostname was just checked — any site's admin could edit
-  any other site's photo metadata this way, bypassing the per-site RBAC
-  boundary entirely. Returns the updated row, or nil if not found under
-  that hostname."
+  through. Returns the updated row, or nil if not found under that
+  hostname."
   [database photo-id hostname {:keys [photo-title]}]
   (first (rdbms/scoped-update! database
                                :photos

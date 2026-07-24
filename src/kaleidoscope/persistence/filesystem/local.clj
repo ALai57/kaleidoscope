@@ -53,18 +53,7 @@
 (defn confined-path?
   "True if path, joined onto root, canonicalizes to somewhere under root's
   canonical path. Prevents traversal via `../` segments or symlinks — same
-  technique as kaleidoscope.utils.local-files/confined-path?.
-
-  Verified exploitable 2026-07-03 (see PLAN.md): put-file/get-file/ls built
-  a path via bare string formatting (`(format \"%s/%s\" root path)`) with no
-  confinement check at all. Combined with a separate bug where an uploaded
-  filename with no `.` in it makes `get-file-extension` return the entire
-  filename (including any `../` segments) as the \"extension\", an upload
-  could write outside `root` entirely — a local file write, not just a
-  read. Not reachable via the current production config (fly.toml uses the
-  S3 backend, where `../` in an object key is just a literal character, not
-  a traversal), but a real gap in this backend regardless of who's
-  configured to use it."
+  technique as kaleidoscope.utils.local-files/confined-path?."
   [root path]
   (let [root-file (io/file root)
         candidate (io/file root path)]

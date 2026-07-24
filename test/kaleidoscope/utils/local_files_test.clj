@@ -15,11 +15,6 @@
   []
   (str (Files/createTempDirectory "local-files-test" (make-array FileAttribute 0))))
 
-;; Verified exploitable 2026-07-03: before this allowlist existed, any
-;; authenticated writer could point local-paths/workspace-roots at any file
-;; the server process could read (e.g. /etc/passwd, a deployed .env), and
-;; the contents would be spliced verbatim into an LLM prompt and returned to
-;; them via the score rationale — see PLAN.md.
 (deftest path-allowed-deny-by-default-test
   (testing "With no allowlist configured, nothing is allowed — not even a real, harmless directory"
     (with-redefs [local-files/configured-roots-string (fn [] nil)]

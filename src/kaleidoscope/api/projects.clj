@@ -118,11 +118,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Briefs
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Verified exploitable 2026-07-03: all three HTTP handlers for
-;; GET /projects/:id/briefs[...] called kaleidoscope.persistence.briefs
-;; directly, with no ownership check — any authenticated writer could read
-;; any other user's project briefs (AI-refined project descriptions) by
-;; project-id alone. See PLAN.md.
 
 (defn get-all-briefs
   [db project-id user-id]

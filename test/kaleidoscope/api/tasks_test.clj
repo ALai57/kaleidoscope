@@ -58,14 +58,6 @@
       (is (nil? (tasks-persistence/get-task database task-id))))))
 
 (deftest task-update-mass-assignment-test
-  ;; Verified exploitable 2026-07-03: update-task! used to pass the raw
-  ;; update body straight into the SQL SET clause. A caller who legitimately
-  ;; owns a task could include :project-id in the body and re-parent their
-  ;; own task into a project they don't own — the preceding ownership check
-  ;; only verifies the task's *current* project-id, not what the update
-  ;; itself is trying to set. This plants attacker-controlled content
-  ;; (title/description) into a victim's project without ever touching it
-  ;; directly.
   (let [database          (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         owner-id          "owner@example.com"
         victim-id         "victim@example.com"

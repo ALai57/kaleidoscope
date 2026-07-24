@@ -491,17 +491,11 @@
     (get-skill-tree tx project-id)))
 
 (defn update-skill!
-  "Update a skill, scoped to project-id. This is the fix for the child-
-  resource gap noted in PLAN.md §4b: project-id used to be accepted here and
-  silently ignored, so ownership was enforced only by the caller's preceding
-  get-project check, not by this statement itself.
+  "Update a skill, scoped to project-id.
 
   Only name/description/status/position are settable — the caller's
   `updates` map is destructured, not passed through, so an HTTP body can't
-  smuggle in :project-id via the SET clause. Passing :project-id through
-  here (even with the WHERE clause scoped correctly) used to let a skill be
-  silently re-parented into a project the caller doesn't own after the
-  ownership check passed (verified exploitable 2026-07-03 — see PLAN.md)."
+  smuggle in :project-id via the SET clause."
   [db project-id skill-id {:keys [name description status position]}]
   (first (rdbms/scoped-update! db
                                :project-skills

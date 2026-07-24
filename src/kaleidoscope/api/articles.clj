@@ -43,12 +43,9 @@
 
 (defn create-branch!
   "Create a branch, optionally attaching it to an existing article by
-  :article-id. Verified exploitable 2026-07-03 (see PLAN.md): the
-  article-id lookup used to be unscoped by hostname — a writer authorized
-  for *any* site could supply any other site's existing article-id and
-  attach a new branch to it, entirely outside the site they're actually
-  authorized for. Returns nil if article-id is given but doesn't resolve
-  to an article under the given hostname."
+  :article-id. The article-id lookup is scoped by hostname. Returns nil if
+  article-id is given but doesn't resolve to an article under the given
+  hostname."
   [db {:keys [article-id author branch-name hostname] :as article-branch}]
   (log/infof "Creating branch: %s" article-branch)
   (next/with-transaction [tx db]
@@ -69,14 +66,8 @@
           result)))))
 
 (defn publish-branch!
-  "Publish a branch, scoped to hostname. Verified exploitable 2026-07-03
-  (see PLAN.md): the branch lookup used to take a bare branch-id with no
-  hostname check anywhere in the call chain, and the HTTP handler resolved
-  branch-id from :article-url + :branch-name alone (also no hostname
-  check) — a writer authorized for *any* site could force-publish another
-  site's private draft article by url + branch name, with no need to be
-  authorized for that site at all. Returns nil if not found under that
-  hostname."
+  "Publish a branch, scoped to hostname. The branch lookup is scoped by
+  hostname. Returns nil if not found under that hostname."
   ([db branch-id hostname]
    (publish-branch! db branch-id hostname (utils/now)))
   ([db branch-id hostname now]

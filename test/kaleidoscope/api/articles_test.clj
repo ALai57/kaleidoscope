@@ -438,15 +438,6 @@
                                          {:article-url "scoped-write"}))))))
 
 (deftest cross-site-branch-manipulation-test
-  ;; Verified exploitable 2026-07-03 (see PLAN.md): a writer authorized for
-  ;; ONE site could manipulate branches belonging to a COMPLETELY DIFFERENT
-  ;; site — neither create-branch!'s article-id lookup nor publish-branch!/
-  ;; unpublish-branch!'s branch lookup checked hostname anywhere in the
-  ;; chain. Two distinct attacks: (1) attaching a new branch to another
-  ;; site's existing article by guessing/knowing its article-id, and (2)
-  ;; force-publishing (or unpublishing) another site's branch by
-  ;; article-url + branch-name alone, with no need to be authorized for
-  ;; that site at all.
   (let [database        (embedded-h2/fresh-db!)
         victim-hostname "sahiltalkingcents.com"
         attacker-host   "andrewslai.com"
