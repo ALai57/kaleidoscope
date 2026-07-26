@@ -44,6 +44,7 @@ from any stage. A user-facing feedback loop lets the reader guide future runs.
 | Relevance | Decided once, in `vet`, from fetched content; the discovery self-report does not survive the stage |
 | Auditability | Every stage persists its **inputs and outputs** as immutable, append-only records — a full, reproducible trace |
 | Restart | **Resume failed + re-run from any stage** — reuse persisted upstream artifacts; each re-run is a new append-only attempt with downstream invalidation |
+| Feedback | Per-item **more / less / reopen** signals, composed with the taste profile at run time (not destructively folded); `reopen` overrides the vet gate for that item immediately |
 
 ## The pipeline
 
@@ -189,10 +190,13 @@ GET  …/curation/runs/:run-id   → status + derived funnel + per-candidate rep
 
 ## Data model
 
-Reuse `workflow_runs` for run state. Two new tables; one additive column. All
-are additive, nullable-where-possible, and drift-tolerant — the prod
-`recommendations` shape has drifted from repo migrations, so the migration must
-not assume an exact match. The two tables mirror the codebase's existing
+Reuse `workflow_runs` for run state. Three new tables — `curation_stage_runs`,
+`curation_run_candidates`, and `curation_feedback` (the last defined under
+**Feedback signals**) — plus additive columns on `recommendations` (`vetting`)
+and `interests.taste_profile` (`:avoid`). All are additive,
+nullable-where-possible, and drift-tolerant — the prod `recommendations` shape
+has drifted from repo migrations, so the migration must not assume an exact
+match. The two tables mirror the codebase's existing
 `workflow_runs → step_runs` shape: `curation_run_candidates` is the per-candidate
 **head** (final outcome), `curation_stage_runs` is the per-stage **trace**
 (inputs + outputs). The head is derived from the terminal stage.
@@ -304,15 +308,125 @@ separate progress stream.
   `…curation.vet` attrs: `relevance`, `matches?`).
 - **Structured logs** — enrich the existing `shelve!` funnel line (Timbre JSON
   in prod).
-- **Counters** — dead-link-rate per fetcher, off-taste-rate per host; the
-  signals for reordering `fetch-policy` or adding a source parser.
+- **Counters** — dead-link-rate per fetcher, off-taste-rate per host, and
+  **reopen-rate per host** (readers overturning the vet gate); the first two
+  signal reordering `fetch-policy` or adding a source parser, the last signals
+  vet miscalibration for that host.
 
-## Feedback loop
+## Feedback signals
 
-The audit rows are the substrate: a reader reacting to a shelved **or dropped**
-item feeds a signal that `interests-api/fold-refinement!` writes into the
-editable taste profile; the next run's report shows whether the guidance changed
-the outcome. Observability and the feedback loop are one dataset viewed two ways.
+The reader guides the Librarian by reacting to individual candidates in a run's
+report — on shelved **and dropped** items alike. This is the correction
+mechanism that makes "trusted to shelve on its own authority" acceptable.
+
+### The affordance (per-candidate, three kinds)
+
+| Kind | Appears on | Means | Effect |
+|---|---|---|---|
+| `more` (👍 *More like this*) | shelved + dropped | "prefer resources like this" | positive directive, next run |
+| `less` (👎 *Less like this* / *Right call, less like this*) | shelved + dropped | "de-prioritize resources like this" | negative directive, next run |
+| `reopen` (↩ *Actually relevant*) | dropped only | "the vet gate was wrong — this **is** relevant" | **immediate** per-item shelf override + a vet-calibration signal |
+
+Each carries a short directive string (the mockup's `data-fold`, e.g.
+`"single-author focus books"`, `"listicles"`). Reactions toggle (the report's
+`aria-pressed` buttons); re-clicking withdraws.
+
+### What clicking does — compose, don't destructively fold
+
+A click writes an **immutable reaction event** to a new append-only
+`curation_feedback` stream, keyed to `(interest, run, candidate, kind,
+directive)`. It does **not** mutate the taste profile in place — the earlier
+`fold-refinement` approach (append every answer into a flat `:refinements` list,
+`interests.clj:74`) grows unbounded, has no negative signal, and can't be
+withdrawn. Instead:
+
+- **The reaction stream is the record + provenance.** The report's "Guidance
+  from this run" footer is a read over `curation_feedback` grouped by kind
+  (*"MORE … from #a1f2c9 · 2 items"*).
+- **The taste profile stays the clean, user-editable instruction.** Manual edits
+  on the Taste Profile screen and reaction events are *separate* channels,
+  **composed at run time** — not merged destructively on click.
+
+So the run-time discovery/vet input is a **pure function** of `(taste-profile,
+active-feedback)`: no lossy mutation, withdraw and "promote to profile" both fall
+out for free, and full provenance is retained. (Same one-source-of-truth /
+pure-input principles the rest of this spec uses.)
+
+### How it reaches future runs
+
+At run start, **both** stages read the composed input:
+
+- **Discovery** — `agents/format-taste-profile-context` (`agents.clj:357`)
+  renders the profile *plus active `more`/`less` directives* into the
+  `<taste_profile>` block the grounded discover prompt reads.
+- **Vet** — the same composed profile is passed to `vet`, so a `less` signal
+  lowers relevance / tightens the match for that shape of resource, not just what
+  gets discovered.
+
+`more`/`less` apply on the **next user-triggered run** (no auto re-run —
+consistent with the trusted-but-user-triggered model). `reopen` acts
+**immediately** (below).
+
+### Taste profile extension
+
+Add a negative field, symmetric to the existing positive one:
+
+```clojure
+(def default-taste-profile
+  {:keywords [] :formats [] :lengths [] :trusted-sources []
+   :novelty-ratio 0.5 :cadence "weekly"
+   :refinements []        ; positive directives (manual + promoted `more`)
+   :avoid       []})      ; NEW — negative directives (manual + promoted `less`)
+```
+
+`format-taste-profile-context` must render `:avoid` too; `vet` receives both.
+Composition at run time = `refinements ∪ active-more` (positive) and
+`avoid ∪ active-less` (negative).
+
+### `reopen` specifics
+
+`reopen` is not just a taste tweak — it corrects a *specific* dropped candidate:
+
+1. **Immediate per-item override.** Shelve that candidate now as a user-pinned
+   recommendation (flagged `reopened`), bypassing the vet gate and the
+   shelf-size/novelty split — the user is explicitly overriding. No re-run: the
+   current shelf reflects the correction at once.
+2. **Vet-calibration signal.** Record "vet too strict" for that candidate's host
+   / kind. This feeds the **reopen-rate-per-host counter** (§ Observability): a
+   rising reopen rate on a host is the signal the vet prompt or threshold is
+   miscalibrated there — the operator's cue to tune, not an automatic prompt
+   rewrite.
+
+(Making reopened items *sticky* across future shelf swaps is a possible later
+choice — flagged, not built.)
+
+### Data model
+
+- **`curation_feedback`** (new, append-only): `id, interest_id, run_id,
+  candidate_id, hostname, kind (more|less|reopen), directive, status
+  (active|withdrawn|promoted), created_at`. Tenant-scoped.
+- **`interests.taste_profile`** gains `:avoid` — additive, defaulted.
+
+### Endpoint
+
+`POST …/curation/runs/:run-id/candidates/:candidate-id/feedback {kind, directive?}`
+— idempotent per `(candidate, user)`; re-POST/DELETE toggles (withdraw). Works
+for shelved and dropped candidates alike (both are `curation_run_candidates`
+rows). A `reopen` additionally triggers the immediate shelf write.
+
+### Testing
+
+- **Compose:** a `more` and a `less` on run N appear in run N+1's discovery
+  `<taste_profile>` block **and** in the `vet` input; assert both, not just
+  discovery.
+- **Withdraw:** re-clicking removes the signal; run N+1's composed input no
+  longer contains it (no residue in the taste profile — it was never folded in).
+- **Reopen:** a `reopen` on a dropped candidate shelves it immediately
+  (user-pinned, `reopened`), with no re-run, and records a calibration signal;
+  the reopen-rate-per-host counter increments.
+- **Provenance:** the guidance footer aggregation counts per kind/run correctly.
+- **Promote:** promoting a reaction moves its directive into the editable
+  `:refinements`/`:avoid` and marks the event `promoted`.
 
 ## Configuration (few knobs, strong defaults)
 
@@ -337,8 +451,8 @@ Selected at boot in `init.env`, same pattern as the other pluggable backends.
 | `curation/http.clj`, `curation/anthropic_web.clj`, `curation/firecrawl.clj` | fetch providers (I/O) |
 | `curation/parse/{youtube,goodreads,readability}.clj` | source parsers (I/O) |
 | `curation/mock.clj` | mock discover/fetch/vet for offline tests + local dev |
-| `persistence/curation.clj` | `curation_run_candidates` + `curation_stage_runs` read/write (append-only attempts, terminal-attempt projection) |
-| `http_api/curation.clj` | `POST …/curate` (enqueue), `GET …/curation/runs/:id` (report + stage trace), `POST …/curation/runs/:id/restart` |
+| `persistence/curation.clj` | `curation_run_candidates` + `curation_stage_runs` + `curation_feedback` read/write (append-only attempts + reaction stream; terminal-attempt projection) |
+| `http_api/curation.clj` | `POST …/curate` (enqueue), `GET …/curation/runs/:id` (report + stage trace), `POST …/curation/runs/:id/restart`, `POST …/runs/:id/candidates/:cid/feedback` |
 
 Pure orchestration in `api/`; external-service I/O in `curation/` and
 `persistence/`. `firecrawl.clj` reuses the existing `api/firecrawl.clj` client.
