@@ -41,7 +41,8 @@ from any stage. A user-facing feedback loop lets the reader guide future runs.
 | Request model | **Async** — kick off, return a run-id, watch it fill; rides the workflow Postgres job queue |
 | Shelf shortfall | **Over-discover once; a thin pool yields a thin shelf.** No top-up/backfill loop (YAGNI) |
 | Source of truth | One audit table records every candidate's fate; the funnel is derived at read time, not stored |
-| Relevance | Decided once, in `vet`, from fetched content; the discovery self-report does not survive the stage |
+| Scoring | **Engineer dimensions and combine.** `vet` scores fetched content against a **data-driven rubric** (named dimensions + weights + pass-line), not a single relevance scalar; the LLM scores each axis + an identity gate, and the *pure* tail combines + thresholds. The discovery self-report does not survive the stage |
+| Rubric ownership | **Persisted, per-interest, tried-then-promoted.** The rubric is JSONB on `interests.taste_profile` (code ships only seed presets); a run-level candidate rubric composes over the default and is snapshotted per run; an explicit **promote** writes it back — never a destructive in-place fold |
 | Auditability | Every stage persists its **inputs and outputs** as immutable, append-only records — a full, reproducible trace |
 | Restart | **Resume failed + re-run from any stage** — reuse persisted upstream artifacts; each re-run is a new append-only attempt with downstream invalidation |
 | Feedback | Per-item **more / less / reopen** signals, composed with the taste profile at run time (not destructively folded); `reopen` overrides the vet gate for that item immediately |
@@ -79,16 +80,30 @@ Two behavioural changes fall out:
 candidate {:title :source :kind :ref {:url} :why}
 fetched   {:status :ok|:dead|:error :final-url :raw :content-type :fetcher}
 content   {:text :title :author :available? :meta}
-verdict   {:matches? :relevance :why :est-time :reason}
+verdict   {:matches? :scores :composite :why :est-time :reason}
+rubric    {:dimensions [{:id :label :weight :description}] :pass-line :aggregate}
 ```
+
+`verdict` carries the **per-dimension scores and the aggregate**, not a single
+relevance scalar — the crux of the design (see **Scoring rubric**):
+
+- `:matches?` — the **identity hard gate** (boolean). A live page that is the
+  wrong resource fails here regardless of its scores; it never passes.
+- `:scores` — an **open map keyed by rubric dimension id**, each `0–10`
+  (`[:map-of :keyword number?]`). New dimensions add keys; the shape never
+  reshapes. The LLM's job is *only* to score each engineered axis + the identity
+  check — it does **not** combine or threshold.
+- `:composite` — `aggregate(scores, rubric)`; a **derived, recomputable**
+  convenience (stored so the head is cheap to read), not an independent input.
 
 ### Stage functions
 
 ```clojure
-(defn discover [taste config]  -> [candidate])
-(defn fetch    [ref  config]   -> fetched)      ; registry + policy (below)
-(defn parse    [fetched]       -> content)      ; host-dispatch multimethod
-(defn vet      [content taste] -> verdict)      ; LLM (+ optional heuristic pre-filter)
+(defn discover [taste config]        -> [candidate])
+(defn fetch    [ref  config]         -> fetched)   ; registry + policy (below)
+(defn parse    [fetched]             -> content)   ; host-dispatch multimethod
+(defn vet      [content taste rubric] -> verdict)  ; LLM scores each rubric dimension
+                                                   ;   + identity; does NOT combine/threshold
 ```
 
 ### Fetch — registry + explicit policy (the earned abstraction: ≥3 crawlers)
@@ -141,18 +156,78 @@ Grounding makes candidates good to begin with; `fetch → parse → vet` remains
 authoritative gate, because a search result can 404 by shelve-time and a live
 page can still be the wrong target.
 
+### Scoring rubric — data-driven, the engineered surface
+
+The crux of vetting is **engineer dimensions and combine them.** A single
+relevance scalar can't express that; `vet` scores the reader's resource against a
+`rubric` — a set of named dimensions plus how they aggregate:
+
+```clojure
+rubric
+{:dimensions [{:id :relevance :label "Relevance" :weight 1.0 :description "<what the LLM scores 0–10>"}
+              {:id :depth     :label "Depth"     :weight 1.0 :description "..."}
+              {:id :taste-fit  :label "Taste fit" :weight 1.0 :description "..."}
+              {:id :novelty    :label "Novelty"   :weight 0.5 :description "..."}]
+ :pass-line 7.0
+ :aggregate :weighted-mean}   ; the only combinator for now; keyword reserved for future ones
+```
+
+**The rubric is persisted data, not code.** Code contributes only two things: the
+**seed presets** (the existing `quick/standard/rigorous` bars, now expressed as
+starter rubrics) handed to a new interest, and the **combinator functions** the
+data selects by keyword (`:weighted-mean`). Everything a user tunes — the
+dimension set, each `:weight`, the `:pass-line` — is data. So:
+
+- **Add / rename / drop a dimension = a data write, no deploy.** Each
+  `:description` is rendered into the vet prompt (generated from `:dimensions`),
+  so a new dimension flows into the next run's scoring automatically.
+- **Adding a *new combinator* is a code change**; choosing among existing ones is
+  data (`:aggregate`). Weighted-mean covers the mockup; others are YAGNI.
+
+**Ownership & the try-out → promote lifecycle.** The reader tunes standards
+before committing them — the same "compose, don't destructively fold" principle
+the feedback loop uses (see **Feedback signals**):
+
+- The interest's **default rubric** lives on `interests.taste_profile` (additive
+  `:rubric` key, same treatment as `:avoid`) — the source of truth.
+- A **candidate rubric** is a run-level override the reader is trying out. It
+  composes over the default and is **snapshotted into the run's provenance**
+  (`curation_stage_runs.provenance.:rubric-snapshot`); it never mutates the
+  default. This keeps every past run's score matrix reproducible.
+- **Promote** is an explicit action (`POST …/interests/:id/rubric/promote`) that
+  copies the tried rubric onto the interest default. Until promoted, the default
+  is untouched.
+
+**Two tiers of "re-judge"** fall out of separating scoring (LLM) from combining
+(pure — see below):
+
+- **Weight / pass-line change → pure recompute, no LLM.** The composite and
+  pass/drop are a pure function of the persisted `:scores` + the edited rubric.
+  This is the mockup's `Proj` column and slider preview — computed client-side
+  (all scores are in the head) or via a stateless preview endpoint.
+- **Dimension description / set change → a real re-vet.** New axes need fresh LLM
+  scores, so this is `restart {from-stage vet}` (reusing persisted `content`, no
+  re-fetch — see **Auditability & restart**).
+
 ### Pure/effectful split
 
 ```clojure
-(defn vet-candidates [candidates config]   ; EFFECTS: bounded-concurrent fetch→parse→vet;
+(defn vet-candidates [candidates rubric config] ; EFFECTS: bounded-concurrent fetch→parse→vet;
   ...)                                       ; persists each stage's input+output as append-only
                                              ; curation_stage_runs; projects the head; returns the vetted pool
 
-(defn select-shelf [pool config]            ; PURE: sort by relevance, drop dead/off-taste/below-threshold,
-  {:shelved ... :dropped ... :disposition}) ; (take shelf-size), decide :swapped | :kept-prior
+(defn select-shelf [pool rubric config]     ; PURE: composite = aggregate(scores, rubric); drop
+  {:shelved ... :dropped ... :disposition}) ;   off-taste (identity fail) + below-threshold
+                                             ;   (composite < pass-line); sort by composite; (take
+                                             ;   shelf-size); decide :swapped | :kept-prior
 ```
 
-`select-shelf` is unit-tested with plain maps — no mocks. `shelve!` becomes
+**Combining lives in `select-shelf`, not in `vet`.** The LLM emits raw
+per-dimension `:scores` + `:matches?`; the deterministic tail applies the
+rubric's weights and pass-line. This is what makes the `Proj` preview a *pure
+recompute* (edit weights, re-run `select-shelf` over the same persisted scores,
+no LLM) and keeps the whole combine step unit-testable with plain maps — no
+mocks. `shelve!` becomes
 thin: `vet-candidates` → `select-shelf` → the one remaining effect (guarded
 archive + create) → mark the run.
 
@@ -193,7 +268,7 @@ GET  …/curation/runs/:run-id   → status + derived funnel + per-candidate rep
 Reuse `workflow_runs` for run state. Three new tables — `curation_stage_runs`,
 `curation_run_candidates`, and `curation_feedback` (the last defined under
 **Feedback signals**) — plus additive columns on `recommendations` (`vetting`)
-and `interests.taste_profile` (`:avoid`). All are additive,
+and `interests.taste_profile` (`:avoid`, `:rubric`). All are additive,
 nullable-where-possible, and drift-tolerant — the prod `recommendations` shape
 has drifted from repo migrations, so the migration must not assume an exact
 match. The two tables mirror the codebase's existing
@@ -213,7 +288,7 @@ the pipeline auditable and restartable:
 | `attempt` | monotonic; a re-run appends a new attempt, never overwrites |
 | `status` | `pending` \| `running` \| `ok` \| `error` |
 | `input`, `output` | **inputs and outputs.** Small structured data (parsed `content`, `verdict`) inline as JSONB; large blobs (raw fetched HTML) go to the pluggable object-storage backend (`plans/2026-07-18-object-storage-model/`), **content-addressed by hash** — the row holds `{storage-ref, sha256, size}`. Content addressing dedupes identical fetches and makes the trace verifiable. |
-| `provenance` (JSONB) | `fetcher`, `model-id`, `prompt-version`, `parser-version`, **taste-profile snapshot**, token usage, `started-at`/`finished-at`, `error` — enough to reproduce the stage |
+| `provenance` (JSONB) | `fetcher`, `model-id`, `prompt-version`, `parser-version`, **taste-profile snapshot**, **rubric snapshot** (the exact dimensions + weights + pass-line the `vet` stage scored against — makes old matrices reproducible and the `Proj` recompute exact), token usage, `started-at`/`finished-at`, `error` — enough to reproduce the stage |
 
 Because the input *and* the config/version are captured, re-running a stage over
 its persisted input is directly comparable to the prior attempt — the payoff of
@@ -223,14 +298,15 @@ latest `ok` attempt.
 ### `curation_run_candidates` (new — the head)
 
 Keyed by run-id, one row per *discovered* candidate (shelved **and** dropped);
-its `outcome`/`relevance`/`final_url` are a projection of the candidate's
-terminal stage:
+its `outcome`/`scores`/`composite`/`final_url` are a projection of the
+candidate's terminal stage:
 
 | Column | Notes |
 |---|---|
 | `id`, `run_id`, `hostname` | tenant-scoped |
 | `ref` (JSONB), `kind`, `source` | the candidate |
-| `fetcher`, `final_url`, `relevance` | vetting provenance |
+| `fetcher`, `final_url` | vetting provenance |
+| `matches?`, `scores` (JSONB), `composite` | the verdict: identity gate, per-dimension scores (keyed by dimension id), and the aggregate. `composite` is the sortable shelf key; `scores` feeds the report matrix and the pure `Proj` recompute |
 | `outcome` | candidate-level: `shelved` \| `dead` \| `off-taste` \| `below-threshold` |
 | `reason` | plain-language ("YouTube video removed", "different book") |
 | `created_at` | written incrementally as each candidate resolves |
@@ -241,9 +317,9 @@ terminal stage:
 ### `recommendations` (additive column)
 
 A minimal denormalization for the shelf card read path — `final_url`,
-`relevance`, `why` (via a nullable JSONB `vetting` column written through the
-`persistence/rdbms.clj` JSON helpers; H2-round-trip compatible). Not the whole
-verdict duplicated — the audit row is the record.
+`composite`, `scores`, `why` (via a nullable JSONB `vetting` column written
+through the `persistence/rdbms.clj` JSON helpers; H2-round-trip compatible). Not
+the whole verdict duplicated — the audit row is the record.
 
 ### Funnel — derived, not stored
 
@@ -303,9 +379,12 @@ separate progress stream.
   same rows the report shows.
 - **Funnel** returned by the report: `{:discovered :fetched :dead :off-taste
   :below-threshold :shelved :shortfall :fetch-mix :latency-ms :disposition}`.
+  `:off-taste` is an identity miss (`matches? false`); `:below-threshold` is
+  `composite < pass-line`.
 - **OTEL spans** per stage nested under `kaleidoscope.curation.run`
   (`…curation.fetch` attrs: `fetcher`, `host`, `status`, `final-url`;
-  `…curation.vet` attrs: `relevance`, `matches?`).
+  `…curation.vet` attrs: `composite`, `matches?`, and one attr per dimension
+  score).
 - **Structured logs** — enrich the existing `shelve!` funnel line (Timbre JSON
   in prod).
 - **Counters** — dead-link-rate per fetcher, off-taste-rate per host, and
@@ -437,7 +516,12 @@ rows). A `reopen` additionally triggers the immediate shelf write.
 | `KALEIDOSCOPE_CURATION_OVER_DISCOVER_FACTOR` | `2.5` |
 | `KALEIDOSCOPE_CURATION_MIN_VIABLE_SHELF` | `3` |
 | `KALEIDOSCOPE_CURATION_RAW_BLOB_RETENTION_DAYS` | `30` (raw-HTML blobs GC'd after; structured trace kept) |
-| relevance thresholds | existing `quick/standard/rigorous` map |
+| `KALEIDOSCOPE_CURATION_DEFAULT_RUBRIC` | a named **seed preset** (`quick` \| `standard` \| `rigorous`) — a full rubric (dimensions + weights + pass-line), handed to an interest that has no `:rubric` of its own |
+
+The old single relevance-threshold knob is subsumed by the seed rubric: the
+`quick/standard/rigorous` bars are now expressed as starter rubrics. Once an
+interest has a persisted `:rubric` (edited and promoted by the reader), that DB
+copy is authoritative and this env var no longer applies to it.
 
 Selected at boot in `init.env`, same pattern as the other pluggable backends.
 
@@ -446,13 +530,13 @@ Selected at boot in `init.env`, same pattern as the other pluggable backends.
 | Namespace | Role |
 |---|---|
 | `api/curation.clj` | orchestration; `shelve!` delegates to vetting |
-| `api/curation/vetting.clj` | `vet-candidates`, `select-shelf`, funnel accounting |
+| `api/curation/vetting.clj` | `vet-candidates`, `select-shelf`, rubric aggregate (`weighted-mean`) + pass-line, funnel accounting |
 | `api/curation/providers.clj` | `fetchers` registry, `fetch` policy, `parse` multimethod |
 | `curation/http.clj`, `curation/anthropic_web.clj`, `curation/firecrawl.clj` | fetch providers (I/O) |
 | `curation/parse/{youtube,goodreads,readability}.clj` | source parsers (I/O) |
 | `curation/mock.clj` | mock discover/fetch/vet for offline tests + local dev |
 | `persistence/curation.clj` | `curation_run_candidates` + `curation_stage_runs` + `curation_feedback` read/write (append-only attempts + reaction stream; terminal-attempt projection) |
-| `http_api/curation.clj` | `POST …/curate` (enqueue), `GET …/curation/runs/:id` (report + stage trace), `POST …/curation/runs/:id/restart`, `POST …/runs/:id/candidates/:cid/feedback` |
+| `http_api/curation.clj` | `POST …/curate` (enqueue), `GET …/curation/runs/:id` (report + stage trace), `POST …/curation/runs/:id/restart`, `POST …/runs/:id/candidates/:cid/feedback`, `POST …/curation/runs/:id/rejudge/preview {rubric}` (stateless pure `Proj` recompute — no LLM, no writes), `POST …/interests/:id/rubric/promote {rubric}` (copy tried rubric onto the interest default) |
 
 Pure orchestration in `api/`; external-service I/O in `curation/` and
 `persistence/`. `firecrawl.clj` reuses the existing `api/firecrawl.clj` client.
@@ -462,8 +546,19 @@ Pure orchestration in `api/`; external-service I/O in `curation/` and
 Every stage has a `:mock` provider, so the whole pipeline runs under
 `embedded-h2/fresh-db!` with no `ANTHROPIC_API_KEY` and no network.
 
-- **`select-shelf` (pure):** hand it candidate maps → assert shelved set,
+- **`select-shelf` (pure):** hand it candidate maps + a rubric → assert
+  `composite = weighted-mean(scores)`, the pass-line drop (`below-threshold`),
+  the identity drop (`off-taste` when `matches? false`), sort-by-composite,
   disposition, and the min-viable guard, with zero mocks.
+- **Rubric is data:** a rubric with an added dimension (e.g. `:authority`) flows
+  its `:description` into the generated vet prompt and its score into `:scores`
+  and the composite — no code change, no reshape.
+- **`Proj` pure recompute:** given a run's persisted `:scores`, re-weighting /
+  moving the pass-line changes the pass/drop set **without** invoking `vet`
+  (assert no new stage-runs); matches what `rejudge/preview` returns.
+- **Promote lifecycle:** a candidate rubric tried on a run leaves the interest
+  default untouched until `promote`, which copies it onto `taste_profile.:rubric`;
+  the run's `provenance.:rubric-snapshot` records the rubric it actually used.
 - **`fetch` policy:** stub the registry → assert fallthrough on `:error`,
   first-`:ok`-wins, all-dead → `:dead`.
 - **`parse` dispatch:** youtube/goodreads/default → correct extraction and
