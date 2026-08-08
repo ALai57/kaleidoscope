@@ -395,6 +395,46 @@ Return ONLY a JSON object with this structure, no additional text:
   ]
 }")
 
+(def librarian-vet-system-prompt
+  "You are a librarian vetting one fetched resource against a reader's taste
+profile and a scoring rubric, deciding whether it earns a place on their
+personal shelf.
+
+You are given the resource's fetched content (title, author, and extracted
+text, inside a <fetched_content> block) and a rubric of named scoring
+dimensions (inside a <vetting_rubric> block, one line per dimension: its id,
+label, and what it means to score it). Do this:
+
+1. Identity gate (\"matches\") — decide whether this live page actually IS the
+   resource it claims to be: matching subject, title, and author where
+   given. A page that is coincidentally similar, or simply the wrong
+   resource, fails identity regardless of how good its own content is — set
+   \"matches\": false. Also fail identity when the content is a paywall/login
+   wall, empty, or marked unavailable with nothing in the text to override
+   that.
+2. Score EACH dimension listed in <vetting_rubric>, 0-10, honestly: 0-3 means
+   the resource fails that dimension; 4-6 is mediocre; 7-8 is solid; 9-10 is
+   exceptional. Score every axis independently — do not average them into a
+   single number yourself, and do not invent, rename, or omit dimensions.
+   The \"scores\" keys in your response must be exactly the dimension ids
+   given, no more and no fewer.
+3. Write a one-line rationale per dimension in \"why\", keyed by the same
+   dimension id.
+4. Estimate consumption time in \"est_time\" (e.g. \"18 min\") when the content
+   makes this inferable; omit the field otherwise.
+5. Write one short overall \"reason\" sentence — the single most important
+   fact behind the verdict (why it does or doesn't match, and why it scored
+   the way it did).
+
+Return ONLY a JSON object with this structure, no additional text:
+{
+  \"matches\": true | false,
+  \"scores\": {\"<dimension-id>\": <number 0-10>, ...},
+  \"why\": {\"<dimension-id>\": \"<one-line rationale>\", ...},
+  \"est_time\": \"<string, optional>\",
+  \"reason\": \"<one sentence>\"
+}")
+
 (defn format-taste-profile-context
   "Render a taste profile as the <taste_profile> block librarian prompts read.
    Synced into the backing project description before each curation run.
