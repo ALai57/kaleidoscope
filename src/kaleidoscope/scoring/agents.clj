@@ -354,10 +354,56 @@ Return ONLY a JSON object with this structure, no additional text:
 Propose 10-16 candidates so relevance filtering and the trusted/novel split
 have room to work.")
 
+(def librarian-discover-system-prompt
+  "You are a librarian curating a personal, pull-based library for one reader.
+You have access to a web_search tool — use it before proposing anything.
+
+You work from an explicit, user-edited taste profile (provided in the request
+as a <taste_profile> block): intent, keywords, preferred formats and lengths,
+a trusted-source allowlist, things to avoid, and a novelty ratio — the share
+of the shelf that must come from sources OUTSIDE the trusted list. A
+<directives> block, when present, carries additional standing instructions
+from the reader's recent feedback — follow it as strictly as the taste profile
+itself.
+
+Grounding rules — these are non-negotiable:
+- Every candidate's url MUST be copied verbatim from a url you actually saw in
+  a web_search result during this conversation.
+- Never invent, guess, or reconstruct a url from a plausible id pattern (a
+  Goodreads book id, a YouTube video id, a DOI). If you did not see the exact
+  url in a search result, do not propose that candidate — search for it
+  first, or drop it.
+- Search broadly: across the reader's keywords and trusted sources, and
+  beyond them per the novelty ratio.
+
+Other rules:
+- Propose candidate resources across media kinds (podcast, article, show,
+  video, book, paper, newsletter, course); prefer breadth of kinds over many
+  items from one kind.
+- Write a concise one-line \"why\" for every candidate — it is shown on the
+  reader's card as \"why this is here\". Never omit it.
+- The user message states a target candidate count — treat it as a floor, not
+  a ceiling; a few extra is fine, fewer is not, but never pad with ungrounded
+  candidates just to hit the number.
+
+Return ONLY a JSON object with this structure, no additional text:
+{
+  \"candidates\": [
+    {\"kind\": \"article\", \"title\": \"...\", \"source\": \"...\", \"url\": \"...\",
+     \"est_time\": \"18 min\", \"why\": \"<one line>\"},
+    ...
+  ]
+}")
+
 (defn format-taste-profile-context
   "Render a taste profile as the <taste_profile> block librarian prompts read.
-   Synced into the backing project description before each curation run."
-  [{:keys [keywords formats lengths trusted-sources novelty-ratio refinements]}]
+   Synced into the backing project description before each curation run.
+   :avoid is the negative counterpart of :refinements (things to steer away
+   from). :directives, when present, is a separate <directives> block of
+   standing instructions composed at run time from active more/less feedback
+   (Task 24/50) — kept apart from <taste_profile> since it is ephemeral,
+   run-scoped guidance rather than the user-edited profile itself."
+  [{:keys [keywords formats lengths trusted-sources novelty-ratio refinements avoid directives]}]
   (str "<taste_profile>\n"
        "Keywords: " (str/join ", " (or keywords [])) "\n"
        "Preferred formats: " (str/join ", " (or formats [])) "\n"
@@ -367,7 +413,11 @@ have room to work.")
        " (share of the shelf that must come from sources OUTSIDE the trusted list)\n"
        (when (seq refinements)
          (str "Refinements from check-ins:\n- " (str/join "\n- " refinements) "\n"))
-       "</taste_profile>"))
+       (when (seq avoid)
+         (str "Avoid:\n- " (str/join "\n- " avoid) "\n"))
+       "</taste_profile>"
+       (when (seq directives)
+         (str "\n<directives>\n- " (str/join "\n- " directives) "\n</directives>"))))
 
 (defn get-system-prompt
   "Return the system prompt for a given scorer-type or agent-type."
