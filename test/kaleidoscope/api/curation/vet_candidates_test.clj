@@ -45,7 +45,7 @@
       (is (= 6 (count candidates)) "3 good + WRONG + NOISE + one /dead/ candidate")
 
       (with-redefs [vet/vet (fn [content _taste rubric _config] (mock/vet content _taste rubric))]
-        (let [pool (vetting/vet-candidates db run-id candidates rubric config)
+        (let [pool (vetting/vet-candidates db run-id candidates {} rubric config)
               {:keys [shelved dropped]} (vetting/select-shelf pool rubric {:shelf-size 6 :min-viable 3})]
 
           (testing "pool has one entry per candidate"
@@ -70,6 +70,16 @@
                 "only the /dead/ candidate's fetch errors")
             (is (= 5 (count (stage-runs db run-id "parse"))) "parse skips the dead candidate")
             (is (= 5 (count (stage-runs db run-id "vet"))) "vet skips the dead candidate"))
+
+          (testing "the persisted fetch stage-run output has its raw blob replaced by a storage stub,
+                    not the full page HTML (unbounded-growth regression)"
+            (let [ok-fetches (filter #(= "ok" (:status %)) (stage-runs db run-id "fetch"))]
+              (is (seq ok-fetches))
+              (doseq [{:keys [output]} ok-fetches]
+                (is (not= "<html>mock</html>" (:raw output))
+                    "the raw HTML blob must not be persisted verbatim")
+                (is (match? {:raw {:sha256 string? :size number?}} output)
+                    "the raw field is replaced with the store-raw! stub descriptor"))))
 
           (testing "each candidate's head row is projected via upsert-candidate!"
             (let [heads (persistence.curation/run-candidates db run-id)]

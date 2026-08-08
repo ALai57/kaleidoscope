@@ -52,14 +52,15 @@
         fetch-started (utils/now)
         fetched       (providers/fetch (:ref candidate) config)
         fetcher       (:fetcher fetched)]
-    (persistence.curation/record-stage!
-     db {:run-id run-id :candidate-id candidate-id :stage "fetch" :attempt 1
-         :status (if (= :ok (:status fetched)) "ok" "error")
-         :input  (:ref candidate)
-         :output fetched
-         :provenance (assoc (stage-provenance {:fetcher fetcher :taste taste :rubric rubric
-                                                :started-at fetch-started})
-                             :raw-blob (store-raw! (:raw fetched)))})
+    (let [raw-blob-stub (store-raw! (:raw fetched))]
+      (persistence.curation/record-stage!
+       db {:run-id run-id :candidate-id candidate-id :stage "fetch" :attempt 1
+           :status (if (= :ok (:status fetched)) "ok" "error")
+           :input  (:ref candidate)
+           :output (assoc fetched :raw raw-blob-stub)
+           :provenance (assoc (stage-provenance {:fetcher fetcher :taste taste :rubric rubric
+                                                  :started-at fetch-started})
+                               :raw-blob raw-blob-stub)}))
     (if (not= :ok (:status fetched))
       (do
         (persistence.curation/upsert-candidate!
@@ -101,12 +102,11 @@
   Persists every stage as an append-only curation_stage_runs row and projects
   the per-candidate head via upsert-candidate! as it advances. Returns the
   pool select-shelf consumes: [{:candidate :fetched :content :verdict}]."
-  [db run-id candidates rubric config]
-  (let [taste (:taste-profile config)]
-    (->> candidates
-         (partition-all (:vet-concurrency config default-vet-concurrency))
-         (mapcat (fn [chunk] (doall (pmap #(process-candidate db run-id taste rubric config %) chunk))))
-         vec)))
+  [db run-id candidates taste rubric config]
+  (->> candidates
+       (partition-all (:vet-concurrency config default-vet-concurrency))
+       (mapcat (fn [chunk] (doall (pmap #(process-candidate db run-id taste rubric config %) chunk))))
+       vec))
 
 (defn aggregate
   "Weighted mean of dimension scores per the rubric. Missing score = 0. Σw = 0 -> 0.0."
