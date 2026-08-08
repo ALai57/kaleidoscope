@@ -72,7 +72,8 @@
   (let [row (->sql-row (dissoc candidate :id))]
     (->clj-row
      (if id
-       (first (rdbms/scoped-update! db :curation-run-candidates {:id id} row
+       (first (rdbms/scoped-update! db :curation-run-candidates {:id id}
+                                    (dissoc row :id :hostname :created-at)
                                     :ex-subtype :UnableToUpdateCurationCandidate))
        (first (rdbms/insert! db :curation-run-candidates
                              (merge {:id (utils/uuid) :created-at (utils/now)} row)
@@ -95,29 +96,30 @@
   `active` row already exists for that pair, toggles it to `withdrawn` and
   returns it (a re-POST withdraws); otherwise inserts a new `active` row."
   [db {:keys [interest-id run-id candidate-id kind directive]}]
-  (let [hostname (tenant/hostname-of db)
-        existing (first (next/execute! (tenant/unwrap db)
-                                       (hsql/format {:select :*
-                                                     :from   :curation-feedback
-                                                     :where  (cond-> [:and
-                                                                      [:= :candidate-id candidate-id]
-                                                                      [:= :kind kind]
-                                                                      [:= :status "active"]]
-                                                               hostname (conj [:= :hostname hostname]))})
-                                       {:builder-fn rs/as-unqualified-kebab-maps}))]
-    (if existing
-      (first (rdbms/scoped-update! db :curation-feedback {:id (:id existing)} {:status "withdrawn"}
-                                   :ex-subtype :UnableToUpdateCurationFeedback))
-      (first (rdbms/insert! db :curation-feedback
-                            {:id           (utils/uuid)
-                             :interest-id  interest-id
-                             :run-id       run-id
-                             :candidate-id candidate-id
-                             :kind         kind
-                             :directive    directive
-                             :status       "active"
-                             :created-at   (utils/now)}
-                            :ex-subtype :UnableToCreateCurationFeedback)))))
+  (next/with-transaction [tx db]
+    (let [hostname (tenant/hostname-of tx)
+          existing (first (next/execute! (tenant/unwrap tx)
+                                         (hsql/format {:select :*
+                                                       :from   :curation-feedback
+                                                       :where  (cond-> [:and
+                                                                        [:= :candidate-id candidate-id]
+                                                                        [:= :kind kind]
+                                                                        [:= :status "active"]]
+                                                                 hostname (conj [:= :hostname hostname]))})
+                                         {:builder-fn rs/as-unqualified-kebab-maps}))]
+      (if existing
+        (first (rdbms/scoped-update! tx :curation-feedback {:id (:id existing)} {:status "withdrawn"}
+                                     :ex-subtype :UnableToUpdateCurationFeedback))
+        (first (rdbms/insert! tx :curation-feedback
+                              {:id           (utils/uuid)
+                               :interest-id  interest-id
+                               :run-id       run-id
+                               :candidate-id candidate-id
+                               :kind         kind
+                               :directive    directive
+                               :status       "active"
+                               :created-at   (utils/now)}
+                              :ex-subtype :UnableToCreateCurationFeedback))))))
 
 (defn active-feedback
   "All `status = 'active'` feedback rows for the interest."

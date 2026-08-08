@@ -59,7 +59,10 @@
           (is (false? (:matches? updated)))
           (is (= 1 (count (curation/run-candidates db run-id))))
           (is (match? [{:outcome "dead" :matches? false}]
-                      (curation/run-candidates db run-id))))))))
+                      (curation/run-candidates db run-id)))
+
+          (testing "re-projecting a head preserves its original :created-at"
+            (is (= (:created-at head) (:created-at updated)))))))))
 
 (deftest record-feedback-idempotent-toggle-test
   (testing "re-posting the same (candidate, kind) toggles active -> withdrawn"
