@@ -12,8 +12,8 @@
 
 (defn fetch
   "Try each fetcher named in :fetch-policy in order; first :ok wins. Failure is data."
-  [ref {:keys [fetch-policy] :as _config}]
+  [ref {:keys [fetch-policy] :as config}]
   (or (->> fetch-policy
-           (map (fn [k] ((get fetchers k) ref)))
+           (map (fn [k] ((get fetchers k) ref config)))
            (some (fn [{:keys [status] :as r}] (when (= :ok status) r))))
       {:status :dead :ref ref}))

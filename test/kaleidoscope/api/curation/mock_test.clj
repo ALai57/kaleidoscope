@@ -6,7 +6,7 @@
 
 (deftest mock-shapes-validate
   (testing "fetch/vet return contract-shaped data"
-    (is (malli/validate m/Fetched (mock/fetch {:url "https://example.com/ok/1"})))
-    (is (= :dead (:status (mock/fetch {:url "https://example.com/dead/1"}))))
+    (is (malli/validate m/Fetched (mock/fetch {:url "https://example.com/ok/1"} {})))
+    (is (= :dead (:status (mock/fetch {:url "https://example.com/dead/1"} {}))))
     (is (malli/validate m/Verdict
           (mock/vet {:title "A" :text "..."} {} (get m/default-rubric "standard"))))))

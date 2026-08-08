@@ -9,7 +9,7 @@
              (.followRedirects HttpClient$Redirect/NORMAL)
              (.build))))
 
-(defn fetch [{:keys [url] :as ref}]
+(defn fetch [{:keys [url] :as ref} _config]
   (try
     (let [req  (-> (HttpRequest/newBuilder (URI/create url))
                    (.timeout (Duration/ofSeconds 20)) (.GET) (.build))

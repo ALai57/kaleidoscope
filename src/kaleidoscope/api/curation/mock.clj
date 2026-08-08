@@ -1,7 +1,7 @@
 (ns kaleidoscope.api.curation.mock
   (:require [clojure.string :as str]))
 
-(defn fetch [{:keys [url] :as ref}]
+(defn fetch [{:keys [url] :as ref} _config]
   (cond
     (str/includes? (or url "") "/dead/")  {:status :dead :ref ref}
     :else {:status :ok :final-url url :raw "<html>mock</html>"
