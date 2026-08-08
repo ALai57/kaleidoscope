@@ -34,15 +34,19 @@
 
 (deftest discover-drops-ungrounded-candidates
   (testing "only candidates whose url appeared in a web_search result survive"
-    (with-redefs [llm/post-anthropic-sync (fn [_k _body] mock-response)]
-      (let [taste  {:keywords ["deep work"] :avoid ["clickbait"]}
-            config {:api-key "k" :shelf-size 3 :over-discover-factor 1.0}
-            result (discover/discover taste config)]
-        (is (= 3 (count result)))
-        (is (= (set real-urls) (set (map #(get-in % [:ref :url]) result))))
-        (is (not (contains? (set (map #(get-in % [:ref :url]) result)) invented-url)))
-        (doseq [c result]
-          (is (malli/validate m/Candidate c)))))))
+    (let [captured-body (atom nil)]
+      (with-redefs [llm/post-anthropic-sync (fn [_k body] (reset! captured-body body) mock-response)]
+        (let [taste  {:keywords ["deep work"] :avoid ["clickbait"]}
+              config {:api-key "k" :shelf-size 3 :over-discover-factor 1.0}
+              result (discover/discover taste config)]
+          (is (= 3 (count result)))
+          (is (= (set real-urls) (set (map #(get-in % [:ref :url]) result))))
+          (is (not (contains? (set (map #(get-in % [:ref :url]) result)) invented-url)))
+          (doseq [c result]
+            (is (malli/validate m/Candidate c)))
+          (testing "request body uses snake_case :max_tokens on the wire"
+            (is (contains? @captured-body :max_tokens))
+            (is (not (contains? @captured-body :max-tokens)))))))))
 
 (deftest discover-returns-empty-on-exception
   (testing "failures are data — an exception yields [] rather than throwing"

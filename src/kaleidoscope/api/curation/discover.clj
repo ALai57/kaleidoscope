@@ -38,7 +38,7 @@
 
 (defn- build-body [taste config]
   {:model      default-model
-   :max-tokens 4096
+   :max_tokens 4096
    :tools      [web-search-tool]
    :system     agents/librarian-discover-system-prompt
    :messages   [{:role "user"

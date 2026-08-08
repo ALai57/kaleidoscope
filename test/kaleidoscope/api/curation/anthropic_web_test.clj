@@ -5,17 +5,22 @@
 
 (deftest anthropic-web-fetch-extracts-document
   (testing "walks the mixed content list for the web_fetch document"
-    (with-redefs [llm/post-anthropic-sync
-                  (fn [_k _body]
-                    {:content [{:type "web_fetch_tool_result"
-                                :content {:type "web_fetch_result"
-                                          :url "https://ex/final"
-                                          :content {:type "document" :source {:data "PAGE TEXT"}}}}
-                               {:type "text" :text "done"}]})]
-      (let [{:keys [status raw final-url]} (aw/fetch {:url "https://ex/x"} {:api-key "k"})]
-        (is (= :ok status))
-        (is (= "https://ex/final" final-url))
-        (is (re-find #"PAGE TEXT" (str raw)))))))
+    (let [captured-body (atom nil)]
+      (with-redefs [llm/post-anthropic-sync
+                    (fn [_k body]
+                      (reset! captured-body body)
+                      {:content [{:type "web_fetch_tool_result"
+                                  :content {:type "web_fetch_result"
+                                            :url "https://ex/final"
+                                            :content {:type "document" :source {:data "PAGE TEXT"}}}}
+                                 {:type "text" :text "done"}]})]
+        (let [{:keys [status raw final-url]} (aw/fetch {:url "https://ex/x"} {:api-key "k"})]
+          (is (= :ok status))
+          (is (= "https://ex/final" final-url))
+          (is (re-find #"PAGE TEXT" (str raw))))
+        (testing "request body uses snake_case :max_tokens on the wire"
+          (is (contains? @captured-body :max_tokens))
+          (is (not (contains? @captured-body :max-tokens))))))))
 
 (deftest anthropic-web-fetch-returns-error-on-missing-document
   (testing "no web_fetch_tool_result block -> :error, never throws"

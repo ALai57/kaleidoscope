@@ -29,7 +29,7 @@
 
 (defn- build-body [ref]
   {:model      default-model
-   :max-tokens 4096
+   :max_tokens 4096
    :tools      [web-fetch-tool]
    :messages   [{:role "user"
                  :content (str "Fetch " (:url ref))}]})
