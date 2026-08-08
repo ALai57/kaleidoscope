@@ -40,7 +40,8 @@
     "project_workflow_step_runs" "project_score_runs" "project_score_dimensions"
     "score_dimension_definitions" "project_notes" "project_conversations"
     "project_skills" "workflow_rounds" "workflow_judge_records" "project_briefs"
-    "project_task_generation_runs" "project_tasks" "task_artifacts" "recommendations"})
+    "project_task_generation_runs" "project_tasks" "task_artifacts" "recommendations"
+    "curation_run_candidates" "curation_stage_runs" "curation_feedback"})
 
 (defn tenant-scoped-table?
   "Does `table` (a keyword, kebab or snake) carry a hostname column?"
