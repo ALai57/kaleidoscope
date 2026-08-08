@@ -54,3 +54,19 @@
       (is (= 1 (count (recommendations-persistence/get-recommendations db interest-id {:status "archived"}))))
       (is (= 1 (count (recommendations-persistence/get-recommendations db interest-id {:status "queued"}))))
       (is (= 0 (count (recommendations-persistence/get-recommendations db interest-id {:status "shelved"})))))))
+
+(deftest create-recommendations-persists-vetting-test
+  (let [db          (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
+        interest    (interests-persistence/create-interest!
+                     db {:user-id "reader@example.com" :intent "Tech journalism" :taste-profile {}})
+        interest-id (:id interest)
+        vetting     {:composite 7.71 :scores {:relevance 8 :depth 8 :taste-fit 8 :novelty 6}
+                     :why "on-taste"}]
+    (testing "a candidate carrying :vetting persists it as JSONB and round-trips as a map"
+      (is (match? [{:vetting vetting}]
+                  (recommendations-persistence/create-recommendations!
+                   db interest-id [(assoc (first candidates) :vetting vetting)]))))
+    (testing "a candidate without :vetting still inserts fine (nullable, additive column)"
+      (is (match? [{:vetting nil}]
+                  (recommendations-persistence/create-recommendations!
+                   db interest-id [(second candidates)]))))))

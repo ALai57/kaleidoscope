@@ -2,8 +2,10 @@
   (:require [cheshire.core :as json]
             [clojure.set :as set]
             [clojure.string :as str]
+            [kaleidoscope.api.curation.vetting :as vetting]
             [kaleidoscope.api.interests :as interests-api]
             [kaleidoscope.api.workflows :as workflows-api]
+            [kaleidoscope.models.curation :as models.curation]
             [kaleidoscope.persistence.interests :as interests-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.recommendations :as recommendations-persistence]
@@ -162,6 +164,15 @@
        first
        :output))
 
+(defn- ->ref-candidate
+  "parse-candidates yields the legacy flat :url shape (the Librarian's JSON
+  contract); the vetting pipeline's Candidate contract (shared with the
+  grounded discover.clj path) nests it under :ref/:url instead. Adapt here so
+  vetting/vet-candidates sees the shape it expects without changing
+  parse-candidates' own output."
+  [{:keys [url] :as candidate}]
+  (-> candidate (assoc :ref {:url url}) (dissoc :url)))
+
 (defn- paused-step
   [run]
   (->> (:steps run)
@@ -175,32 +186,69 @@
     (if reply [reply] [])))
 
 (defn- shelve!
-  "The deterministic score→shelve tail of a curation run: parse the Discover
-  output, drop below-threshold candidates, tag + split by the novelty dial,
-  then — only when discovery yielded something — archive the old shelf and
-  persist the new one. An empty result (parse failure, everything below
-  threshold) leaves the existing shelf intact rather than blanking the page."
+  "The deterministic vet→shelve tail of a curation run: parse the Discover
+  output (unchanged — still the workflow-driven librarian text step, not the
+  grounded discover.clj path), then run every candidate through the
+  fetch→parse→vet gate (vetting/vet-candidates). That gate is what catches
+  hallucinated URLs — a candidate whose url 404s or resolves to the wrong
+  resource never gets a chance to be tagged trusted/novel. Every quality
+  survivor (select-shelf with shelf-size = pool size, so nothing is
+  composite-capped yet) is then run through the existing novelty-dial split
+  to build the final, size-capped shelf. Only when the final shelf clears
+  min-viable is the old shelf archived and the new one persisted — an
+  under-viable result (parse failure, everything dead/off-taste/below the
+  rubric's pass-line) leaves the existing shelf intact rather than blanking
+  the page."
   [db interest run]
-  (let [taste      (:taste-profile interest)
-        config     (:config run)
-        threshold  (or (:relevance-threshold config) 6.0)
-        shelf-size (or (:shelf-size config) default-shelf-size)
-        discovered (parse-candidates (discover-output run))
-        above      (drop-below-threshold discovered threshold)
-        selected   (-> above
+  (let [taste       (:taste-profile interest)
+        run-config  (:config run)
+        shelf-size  (or (:shelf-size run-config) default-shelf-size)
+        min-viable  (or (:min-viable run-config) 3)
+        rubric      (or (get-in interest [:taste-profile :rubric])
+                        (get models.curation/default-rubric (:scrutiny run-config "standard")))
+        ;; :config round-trips through JSONB, so a :fetch-policy vector
+        ;; persisted on the run comes back with string elements ("mock"),
+        ;; not keywords (:mock) — re-keywordize so providers/fetch's
+        ;; fetchers lookup (keyed by keyword) still resolves. `keyword` is
+        ;; idempotent on an already-keyword value.
+        vet-config  (merge {:fetch-policy [:anthropic :http] :vet-concurrency 6}
+                           (cond-> run-config
+                             (seq (:fetch-policy run-config))
+                             (update :fetch-policy #(mapv keyword %))))
+        discovered  (mapv ->ref-candidate (parse-candidates (discover-output run)))
+        pool        (vetting/vet-candidates db (:id run) discovered taste rubric vet-config)
+        {:keys [shelved dropped]} (vetting/select-shelf pool rubric (assoc vet-config :shelf-size (count pool)))
+        final-url-of (into {} (map (fn [{:keys [candidate fetched]}]
+                                     [(get-in candidate [:ref :url]) (:final-url fetched)]))
+                           pool)
+        final-shelf (-> (mapv #(assoc % :relevance (:composite %)) shelved)
                        (tag-origin (:trusted-sources taste))
                        (split-candidates (novelty-quota shelf-size (:novelty-ratio taste))))
-        shelved    (when (seq selected)
-                     (recommendations-persistence/archive-shelved! db (:id interest))
-                     (recommendations-persistence/create-recommendations! db (:id interest) selected))]
-    (log/infof "Curation run %s shelved %d/%d (%d discovered, %d above threshold %.1f)"
-               (:id run) (count shelved) shelf-size (count discovered) (count above) (double threshold))
-    {:status  "completed"
-     :run-id  (:id run)
-     :shelved (vec shelved)
-     :summary {:total   (count shelved)
-               :trusted (count (filter #(= "trusted" (:origin %)) shelved))
-               :novel   (count (filter #(= "novel" (:origin %)) shelved))}}))
+        disposition (if (>= (count final-shelf) min-viable) :swapped :kept-prior)
+        recs        (mapv (fn [{:keys [kind title source est-time why origin] :as c}]
+                            (let [discovered-url (get-in c [:ref :url])]
+                              {:kind     kind
+                               :title    title
+                               :source   source
+                               :url      (or (get final-url-of discovered-url) discovered-url)
+                               :est-time est-time
+                               :why      why
+                               :origin   origin
+                               :vetting  {:composite (:composite c) :scores (:scores c) :why (:why c)}}))
+                          final-shelf)]
+    (when (= :swapped disposition)
+      (recommendations-persistence/archive-shelved! db (:id interest))
+      (recommendations-persistence/create-recommendations! db (:id interest) recs))
+    (log/infof "Curation run %s shelved %d/%d (%d discovered, %d in pool, %d dropped, disposition %s)"
+               (:id run) (count recs) shelf-size (count discovered) (count pool) (count dropped) disposition)
+    (let [shelved (if (= :swapped disposition) recs [])]
+      {:status      "completed"
+       :run-id      (:id run)
+       :disposition disposition
+       :shelved     (vec shelved)
+       :summary     {:total   (count shelved)
+                     :trusted (count (filter #(= "trusted" (:origin %)) shelved))
+                     :novel   (count (filter #(= "novel" (:origin %)) shelved))}})))
 
 (defn- advance-and-shelve!
   "Advance the curation run to completion (or a clarify pause) and shelve the

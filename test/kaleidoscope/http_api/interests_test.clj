@@ -1,5 +1,8 @@
 (ns kaleidoscope.http-api.interests-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
+            [kaleidoscope.api.curation.mock :as curation-mock]
+            [kaleidoscope.api.curation.providers :as curation-providers]
+            [kaleidoscope.api.curation.vet :as vet]
             [kaleidoscope.http-api.interests :refer [reitit-interests-routes]]
             [kaleidoscope.http-api.kaleidoscope :as kal]
             [kaleidoscope.http-api.tenant :as tenant-mw]
@@ -15,6 +18,19 @@
 (use-fixtures :once
   (fn [f]
     (log/with-min-level :error
+      (f))))
+
+;; /curate now drives the real fetch->parse->vet gate
+;; (kaleidoscope.api.curation.vetting/vet-candidates) with no dev/test
+;; override yet — the KALEIDOSCOPE_CURATION_FETCH_POLICY-style config knob is
+;; deferred to a later phase (see plans/2026-07-23-librarian-grounded-vetting).
+;; Route straight through the deterministic curation.mock fetch/vet so this
+;; HTTP-level suite stays offline, mirroring api/curation_test.clj.
+(use-fixtures :each
+  (fn [f]
+    (with-redefs [curation-providers/fetch (fn [ref config] (curation-mock/fetch ref config))
+                  vet/vet (fn [content _taste rubric _config]
+                            (curation-mock/vet content _taste rubric))]
       (f))))
 
 ;; wrap-clojure-response parses JSON bodies back to keywordized maps so the

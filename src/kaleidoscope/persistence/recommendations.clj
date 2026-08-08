@@ -16,7 +16,7 @@
     (let [now (utils/now)]
       (rdbms/insert! db
                      :recommendations
-                     (mapv (fn [{:keys [kind title source url est-time why origin]}]
+                     (mapv (fn [{:keys [kind title source url est-time why origin vetting]}]
                              {:id          (utils/uuid)
                               :interest-id interest-id
                               :kind        kind
@@ -26,6 +26,7 @@
                               :est-time    est-time
                               :why         why
                               :origin      (or origin "novel")
+                              :vetting     vetting
                               :status      "shelved"
                               :added-at    now})
                            candidates)
