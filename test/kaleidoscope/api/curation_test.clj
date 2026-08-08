@@ -6,6 +6,7 @@
             [kaleidoscope.api.curation.mock :as curation-mock]
             [kaleidoscope.api.curation.vet :as vet]
             [kaleidoscope.api.interests :as interests-api]
+            [kaleidoscope.persistence.curation :as persistence.curation]
             [kaleidoscope.persistence.interests :as interests-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.rdbms.embedded-h2-impl :as embedded-h2]
@@ -411,7 +412,16 @@
         (is (every? #(number? (get-in % [:vetting :composite])) shelf))
         (is (every? #(map? (get-in % [:vetting :scores])) shelf))
         (testing "the shelved url is the fetch stage's final-url, not the raw discovered url"
-          (is (every? #(str/ends-with? (:url %) "?resolved") shelf)))))))
+          (is (every? #(str/ends-with? (:url %) "?resolved") shelf)))))
+    (testing "the audit head row for surviving candidates carries the final outcome + composite,
+              not just the dead ones (shelve! projects every classified candidate, not only drops)"
+      (let [heads (persistence.curation/run-candidates db (:run-id result))]
+        (is (seq heads))
+        (is (every? #(some? (:outcome %)) heads)
+            "every classified candidate's head has an outcome, not just the dropped ones")
+        (is (every? #(number? (:composite %)) heads)
+            "every classified candidate's head has a composite score projected")
+        (is (some #(= "shelved" (:outcome %)) heads))))))
 
 (deftest all-dead-discovery-keeps-prior-shelf-intact-test
   (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")

@@ -6,6 +6,7 @@
             [kaleidoscope.api.interests :as interests-api]
             [kaleidoscope.api.workflows :as workflows-api]
             [kaleidoscope.models.curation :as models.curation]
+            [kaleidoscope.persistence.curation :as persistence.curation]
             [kaleidoscope.persistence.interests :as interests-persistence]
             [kaleidoscope.persistence.projects :as projects-persistence]
             [kaleidoscope.persistence.recommendations :as recommendations-persistence]
@@ -199,7 +200,7 @@
   under-viable result (parse failure, everything dead/off-taste/below the
   rubric's pass-line) leaves the existing shelf intact rather than blanking
   the page."
-  [db interest run]
+  [db executor interest run]
   (let [taste       (:taste-profile interest)
         run-config  (:config run)
         shelf-size  (or (:shelf-size run-config) default-shelf-size)
@@ -211,7 +212,8 @@
         ;; not keywords (:mock) — re-keywordize so providers/fetch's
         ;; fetchers lookup (keyed by keyword) still resolves. `keyword` is
         ;; idempotent on an already-keyword value.
-        vet-config  (merge {:fetch-policy [:anthropic :http] :vet-concurrency 6}
+        vet-config  (merge {:fetch-policy [:anthropic :http] :vet-concurrency 6
+                            :api-key (:api-key executor)}
                            (cond-> run-config
                              (seq (:fetch-policy run-config))
                              (update :fetch-policy #(mapv keyword %))))
@@ -221,6 +223,23 @@
         final-url-of (into {} (map (fn [{:keys [candidate fetched]}]
                                      [(get-in candidate [:ref :url]) (:final-url fetched)]))
                            pool)
+        ;; Project the final per-candidate vetting outcome to the audit head
+        ;; row for every classified candidate — survivors included, not just
+        ;; the dead/dropped ones — so curation_run_candidates always reflects
+        ;; the terminal verdict regardless of whether the shelf swap fires.
+        _           (doseq [c (concat shelved dropped)]
+                      (persistence.curation/upsert-candidate!
+                       db {:id        (:candidate-id c)
+                           :run-id    (:id run)
+                           :ref       (:ref c)
+                           :kind      (:kind c)
+                           :source    (:source c)
+                           :final-url (final-url-of (get-in c [:ref :url]))
+                           :matches?  (:matches? c)
+                           :scores    (:scores c)
+                           :composite (:composite c)
+                           :outcome   (:outcome c)
+                           :reason    (:reason c)}))
         final-shelf (-> (mapv #(assoc % :relevance (:composite %)) shelved)
                        (tag-origin (:trusted-sources taste))
                        (split-candidates (novelty-quota shelf-size (:novelty-ratio taste))))
@@ -281,7 +300,7 @@
       :else
       (let [fresh-run (workflows-persistence/get-workflow-run db run-id)]
         (if (= "completed" (:status fresh-run))
-          (shelve! db interest fresh-run)
+          (shelve! db executor interest fresh-run)
           (do (log/warnf "Curation run %s ended in non-completed status %s; shelving nothing"
                          run-id (:status fresh-run))
               {:status "error" :run-id run-id}))))))

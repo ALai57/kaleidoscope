@@ -49,6 +49,7 @@
   (let [{candidate-id :id} (persistence.curation/upsert-candidate!
                              db {:run-id run-id :ref (:ref candidate)
                                  :kind   (:kind candidate) :source (:source candidate)})
+        candidate     (assoc candidate :candidate-id candidate-id)
         fetch-started (utils/now)
         fetched       (providers/fetch (:ref candidate) config)
         fetcher       (:fetcher fetched)]
