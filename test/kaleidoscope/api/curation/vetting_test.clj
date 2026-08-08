@@ -30,7 +30,8 @@
 (deftest select-shelf-swap-sort-and-cap
   (let [mk  (fn [title composite]
               {:candidate {:title title}
-               :verdict {:matches? true :composite composite :scores {}}})
+               :verdict {:matches? true
+                         :scores {:relevance composite :depth composite :taste-fit composite :novelty composite}}})
         a   (mk "A" 9.0)
         b   (mk "B" 8.5)
         c   (mk "C" 8.0)

@@ -14,7 +14,7 @@
 (defn- classify
   "Attach candidate-level :outcome + :composite to a pool entry, given the rubric."
   [{:keys [candidate fetched verdict]} rubric pass-line]
-  (let [composite (when verdict (or (:composite verdict) (aggregate (:scores verdict) rubric)))]
+  (let [composite (when verdict (aggregate (:scores verdict) rubric))]
     (cond
       (or (nil? verdict) (= :dead (:status fetched)) (= :error (:status fetched)))
       (assoc candidate :outcome "dead" :reason (or (:reason verdict) "fetch failed"))
