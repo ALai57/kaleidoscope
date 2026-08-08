@@ -423,6 +423,55 @@
             "every classified candidate's head has a composite score projected")
         (is (some #(= "shelved" (:outcome %)) heads))))))
 
+(defn- mixed-outcomes-executor
+  "An executor whose Discover step reports one on-taste candidate plus the
+  WRONG.../NOISE... titles curation.mock/vet deterministically classifies as
+  identity-fail (off-taste) and below-pass-line (below-threshold), so a run
+  through shelve! exercises all three classify outcomes end to end."
+  []
+  (reify workflow-protocol/IWorkflowExecutor
+    (execute-step! [_this db _project step-run _output-stream]
+      (let [output (if (= :clarify (keyword (or (:output-kind step-run) "text")))
+                     (json/encode {})
+                     (json/encode
+                      {:candidates
+                       [{:kind "article" :title "Good primer" :source "calnewport.com"
+                         :url "https://example.com/ok/1" :est_time "10 min"
+                         :why "on-taste" :relevance 9.0}
+                        {:kind "article" :title "WRONG target" :source "example.com"
+                         :url "https://example.com/ok/2" :est_time "10 min"
+                         :why "looks right" :relevance 8.0}
+                        {:kind "article" :title "NOISE roundup" :source "noise.example"
+                         :url "https://example.com/ok/3" :est_time "10 min"
+                         :why "listicle" :relevance 7.0}]}))]
+        (workflows-persistence/update-step-run!
+         db (:id step-run) {:status "completed" :output output})))
+    (recommend-workflows [_this _project _live] nil)))
+
+(deftest shelve-does-not-null-matches-or-scores-in-final-head-projection-test
+  (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
+        interest (make-interest! db)
+        result   (run-curation-mocked! db (mixed-outcomes-executor) user-id (:id interest) {})
+        heads    (persistence.curation/run-candidates db (:run-id result))
+        by-url   (fn [u] (first (filter #(= u (get-in % [:ref :url])) heads)))]
+    (testing "shelve!'s final per-candidate projection loop (after select-shelf) must write
+              only what select-shelf determines (outcome/composite/reason) — it must NOT
+              re-write :matches?/:scores from the classified candidate, because classify
+              only sets those keys on the shelved branch. Passing the absent keys through
+              to upsert-candidate! would null out the correct verdict-derived values that
+              vet-candidates already projected to the head (original regression)."
+      (testing "the off-taste (wrong-identity) candidate's head keeps its identity-fail verdict"
+        (is (match? {:outcome "off-taste" :matches? false :composite number?}
+                    (by-url "https://example.com/ok/2"))
+            "matches? must stay false, not be nulled to nil by the re-projection"))
+      (testing "the below-threshold candidate's head keeps its verdict scores"
+        (is (match? {:outcome "below-threshold" :matches? true :composite number? :scores map?}
+                    (by-url "https://example.com/ok/3"))
+            "matches?/scores must survive, not be nulled to nil by the re-projection"))
+      (testing "the shelved candidate's head keeps its verdict scores too"
+        (is (match? {:outcome "shelved" :matches? true :composite number? :scores map?}
+                    (by-url "https://example.com/ok/1")))))))
+
 (deftest all-dead-discovery-keeps-prior-shelf-intact-test
   (let [db       (tenant/scope (embedded-h2/fresh-db!) "andrewslai.com")
         interest (make-interest! db)
