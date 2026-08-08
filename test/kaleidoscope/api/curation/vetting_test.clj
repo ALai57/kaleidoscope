@@ -26,3 +26,19 @@
         (is (= "below-threshold" (:outcome (first (filter #(= "C" (:title %)) dropped)))))
         (is (= "dead"            (:outcome (first (filter #(= "D" (:title %)) dropped)))))
         (is (= :kept-prior disposition) "1 survivor < min-viable 3 -> kept-prior")))))
+
+(deftest select-shelf-swap-sort-and-cap
+  (let [mk  (fn [title composite]
+              {:candidate {:title title}
+               :verdict {:matches? true :composite composite :scores {}}})
+        a   (mk "A" 9.0)
+        b   (mk "B" 8.5)
+        c   (mk "C" 8.0)
+        d   (mk "D" 7.5)
+        cfg {:shelf-size 3 :min-viable 3}]
+    (testing "4 distinct-composite shelvable candidates, shelf-size 3 < survivor count -> swapped, capped at shelf-size, sorted by composite desc"
+      (let [{:keys [shelved disposition]} (vet/select-shelf [d c a b] rubric cfg)]
+        (is (= :swapped disposition) "3 survivors after cap >= min-viable 3 -> swapped")
+        (is (= 3 (count shelved)) "take shelf-size caps the shelf at 3")
+        (is (= ["A" "B" "C"] (map :title shelved)) "sorted by composite descending, lowest (D) dropped by the cap")
+        (is (= [9.0 8.5 8.0] (map :composite shelved)))))))
