@@ -16,9 +16,10 @@
     (assoc base :composite (or (:composite base) 0.0) :est-time "15 min")))
 
 (defn discover [taste _config]
-  ;; three good, one wrong-target, one noise
+  ;; three good, one wrong-target, one noise, one dead link
   [{:kind "article" :title "Deep Work primer" :source "calnewport.com" :ref {:url "https://example.com/ok/1"} :why "on-taste"}
    {:kind "book"    :title "Solitude"        :source "standardebooks.org" :ref {:url "https://example.com/ok/2"} :why "on-taste"}
    {:kind "paper"   :title "Attention"       :source "fs.blog" :ref {:url "https://example.com/ok/3"} :why "on-taste"}
    {:kind "article" :title "WRONG target"    :source "example.com" :ref {:url "https://example.com/ok/4"} :why "looks right"}
-   {:kind "article" :title "NOISE roundup"   :source "noise.example" :ref {:url "https://example.com/ok/5"} :why "listicle"}])
+   {:kind "article" :title "NOISE roundup"   :source "noise.example" :ref {:url "https://example.com/ok/5"} :why "listicle"}
+   {:kind "article" :title "Vanished post"   :source "example.com" :ref {:url "https://example.com/dead/1"} :why "looks right"}])
