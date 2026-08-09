@@ -984,16 +984,25 @@ Tests (inject the HTTP poster + the fallback fn so nothing hits the network/JVM-
 - **request shape:** on Fly, POSTs a machine config with `image = (System/getenv "FLY_IMAGE_REF")`, `restart {:policy "no"}`, `auto_destroy true`, and a command/env that makes the machine run `workflow-runner`.
 - **error → fallback:** a non-2xx from the Machines API logs and falls back; never throws.
 
-Implement with JDK `java.net.http` (reuse the pattern in `workflows/llm_executor.clj:55` — no new dep):
+Implement with JDK `java.net.http` (reuse the pattern in `workflows/llm_executor.clj:55` — no new dep). **Verified against the Fly Machines API docs (2026-08):**
 ```clojure
-;; POST https://api.machines.dev/v1/apps/<FLY_APP_NAME>/machines   (or internal http://_api.internal:4280)
+;; POST https://api.machines.dev/v1/apps/<FLY_APP_NAME>/machines
+;;   (internal, no public egress: http://_api.internal:4280/v1/apps/<FLY_APP_NAME>/machines)
 ;; Authorization: Bearer <FLY_MACHINES_TOKEN>
-;; {"config": {"image": <FLY_IMAGE_REF>, "auto_destroy": true, "restart": {"policy": "no"},
+;;   (deploy tokens print with a "FlyV1 " prefix; send the token verbatim if it already
+;;    starts with "FlyV1 ", else prefix "Bearer " — the client handles both)
+;; {"region": <FLY_REGION or "iad">,
+;;  "config": {"image": <FLY_IMAGE_REF>,          ; required — same image as this app
+;;             "auto_destroy": true,               ; destroy the machine when the process exits
+;;             "restart": {"policy": "no"},        ; run-once: don't restart on exit
 ;;             "guest": {"cpu_kind":"shared","cpus":1,"memory_mb":512},
 ;;             "env": {"ROLE":"workflow-runner"},
-;;             "init": {"cmd": ["java","-jar","kaleidoscope.jar","workflow-runner"]}}}
+;;             "init": {"exec": ["java","-jar","kaleidoscope.jar","workflow-runner"]}}}
+;;   ^ init.exec = the full command line to run on boot (overrides the image CMD).
+;;     Match the app's actual java command from the Dockerfile CMD / fly.toml; if the
+;;     image ENTRYPOINT is already `java -jar kaleidoscope.jar`, use init.cmd ["workflow-runner"] instead.
 ```
-> ⚠️ Verify the exact Machines API JSON (field names, `guest`/`init` shape, auto-destroy semantics) against the current Fly Machines API docs at implementation time — treat the block above as the intent, not a frozen contract. Prefer the internal `_api.internal:4280` endpoint to avoid public egress.
+Confirmed field names/enums: `restart.policy ∈ {"no","on-failure","always"}` → use `"no"`; `auto_destroy:true` destroys the machine once the main process exits; `guest.{cpu_kind,cpus,memory_mb}`; endpoint `POST /v1/apps/{app}/machines`. Prefer the internal `_api.internal:4280` endpoint. The response includes the new machine's `id` — return it for logging/traceability.
 
 - [ ] **Step 4: Wire the trigger into the four enqueue sites**
 
