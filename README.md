@@ -1,5 +1,5 @@
 # Kaleidoscope
-![master](https://github.com/ALai57/kaleidoscope/actions/workflows/clojure.yml/badge.svg?branch=master)
+![main](https://github.com/ALai57/kaleidoscope/actions/workflows/clojure.yml/badge.svg?branch=main)
 
 [Kaleidoscope](https://kaleidoscope.pub) is a content management system for blogging.  
 

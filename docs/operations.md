@@ -346,7 +346,7 @@ service. Two paths feed the same store:
 
 The media code (media store, read/write routing, the in-process resizer), the
 retirement of the old notify-the-Lambda path, and the `DROP COLUMN
-storage_root/storage_driver` migration already shipped on `master`. Prod may
+storage_root/storage_driver` migration already shipped on `main`. Prod may
 already be running that build but is **inert** with `KALEIDOSCOPE_MEDIA_BUCKET`
 unset — old per-tenant adapter, resize gate a no-op (no media store to resize
 against), columns harmlessly dropped. This window is **operational only**.
