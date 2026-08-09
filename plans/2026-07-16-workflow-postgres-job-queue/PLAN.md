@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Move background workflow advancement off the HTTP request thread onto a durable Postgres-backed job queue, and replace the single-instance in-process advancement lock with a real cross-process one — **while preserving scale-to-zero.** There is **no always-on worker and no poller**, so the Fly app machine (via auto-stop) and the Neon database (via autosuspend) both suspend when idle and cost nothing. Background work is **request-triggered**: the app instance that enqueues a job also drains the queue, in a background thread that ends when the queue is empty. Crash/retry recovery is **opportunistic** — each trigger reaps stalled jobs before draining — not autonomous.
+**Goal:** Move background workflow advancement off the HTTP request thread onto a durable Postgres-backed job queue, and replace the single-instance in-process advancement lock with a real cross-process one — **while preserving scale-to-zero and giving each run its own observable compute.** There is **no always-on worker and no poller.** Instead, an enqueue triggers an **ephemeral `workflow-runner` machine** (spun up on demand via the Fly Machines API) that reaps-then-drains the queue and **exits**, so the machine stops and stops costing money. The Fly app machine (via auto-stop) and the Neon database (via autosuspend) also suspend when idle. Crash/retry recovery is **opportunistic** — each runner reaps stalled jobs before draining — not autonomous.
 
-**Architecture:** A new `workflow_jobs` table is the durable ledger, and the coordination core is unchanged from a classic PG queue: a nullable `active_run_id` column + a plain UNIQUE index enforces "at most one active job per run" in **both** Postgres and embedded-H2 (H2 has no partial indexes), and claiming uses `FOR UPDATE SKIP LOCKED`. That unique index is the mutex replacing the in-process `advancing-runs` atom, and it still matters because concurrent requests (or >1 Fly app machine under load) can trigger drains simultaneously. **What changes for scale-to-zero:** instead of a dedicated Fly `worker` process running a `poll → sleep` loop, the four background enqueue sites fire an in-instance `(future …)` that reaps-then-drains the durable queue and returns when it's empty. The interactive `POST …/advance` SSE endpoint still streams synchronously on the app process. There is no separate worker process group, no `main "worker"` dispatch, and no periodic reaper timer.
+> **Naming.** The drain process is called **`workflow-runner`** (it runs the `workflow_jobs` queue), not the generic "worker" — the codebase will likely grow other queue runners later, and each should be named for its queue/domain (`<domain>-runner`). The queue's table/persistence/api keep the `workflow_jobs` / `workflow-jobs` names (that's the queue, not the process).
 
-**Accepted tradeoffs (chosen deliberately — failure cost is low right now):** because nothing polls, a job requeued with backoff (`available_at` in the future) or orphaned by a mid-run crash is **not** picked up until the *next* enqueue triggers a drain. In the pathological case — one failing/orphaned job and no further user activity — it never retries on its own. That is acceptable for a low-frequency, user-triggered feature; the durable row + `last_error` mean nothing is lost and a manual/next-trigger retry recovers it. If autonomous recovery is ever needed, the drop-in is a coarse scheduled sweep (a Fly scheduled machine every 5–15 min that reaps+drains+exits, one brief DB wake per interval) — explicitly out of scope here.
+**Architecture:** A new `workflow_jobs` table is the durable ledger, and the coordination core is unchanged from a classic PG queue: a nullable `active_run_id` column + a plain UNIQUE index enforces "at most one active job per run" in **both** Postgres and embedded-H2 (H2 has no partial indexes), and claiming uses `FOR UPDATE SKIP LOCKED`. That unique index is the mutex replacing the in-process `advancing-runs` atom, and it still matters because two triggers (or a trigger + a foreground SSE advance) can race on the same run. **What changes for scale-to-zero + visibility:** instead of a dedicated always-on `worker` process polling, the four background enqueue sites call `fly-machines/start-workflow-runner!`, which asks the Fly Machines API to boot a short-lived `workflow-runner` machine. That machine runs `kaleidoscope.workflow-runner` — a **drain-once-and-exit** entrypoint (reap → drain → `System/exit 0`), NOT a loop — and on exit the machine auto-destroys (or returns to `stopped`). The interactive `POST …/advance` SSE endpoint still streams synchronously on the app process. There is no worker process *group* in `fly.toml`, no `poll → sleep` loop, and no periodic reaper timer. Each run is thus an isolated machine with its own logs (`fly logs -i <machine-id>`) and a visible lifecycle in the dashboard.
+
+**Accepted tradeoffs (chosen deliberately — failure cost is low right now):** because nothing polls, a job requeued with backoff (`available_at` in the future) or orphaned by a mid-run crash is **not** picked up until the *next* enqueue triggers a runner. In the pathological case — one failing/orphaned job and no further user activity — it never retries on its own. That is acceptable for a low-frequency, user-triggered feature; the durable row + `last_error` mean nothing is lost and a manual/next-trigger retry recovers it. Cold-start latency (a few seconds to boot the runner machine, or ~1s from a stopped warm machine) is negligible against minute-long LLM runs. If autonomous recovery is ever needed, the drop-in is a coarse scheduled `workflow-runner` firing (a Fly scheduled machine every 5–15 min that reaps+drains+exits, one brief DB wake per interval) — explicitly out of scope here.
 
 **Tech Stack:** Clojure, next.jdbc + HoneySQL, Migratus, Malli, Kaocha + matcher-combinators, embedded-postgres for tests, Fly.io multi-process deploy.
 
@@ -16,11 +18,14 @@
 - **Runtime queue SQL (`SKIP LOCKED`, `interval` math) is Postgres-only** and is only exercised in tests via `embedded-postgres/fresh-db!`, matching the existing `test/kaleidoscope/api/workflows_test.clj` convention. embedded-H2 tests must never call `claim-next-job!`/`retry-job!`/`reap-stalled-jobs!`.
 - `!` suffix on every side-effecting fn. SQL columns `snake_case`; Clojure `kebab-case` (auto-converted).
 - Every feature needs automated tests (CLAUDE.md sharp edge #4).
-- Keep the 3-layer separation: `persistence/workflow_jobs.clj` does data access only; `api/workflow_jobs.clj` holds the worker orchestration logic; no HTTP concerns in either.
+- Keep the 3-layer separation: `persistence/workflow_jobs.clj` does data access only; `api/workflow_jobs.clj` holds the drain orchestration; `kaleidoscope.workflow-runner` is the process entrypoint; the Fly Machines client is I/O in `infra/`; no HTTP concerns in any of them.
 - Keep `docs/operations.md` current on any deploy/fly.toml/build change (sharp edge #6).
 - Error wrapping: `rdbms/*` throws a slingshot `{:type :PersistenceException ...}` map; catch with `slingshot.slingshot/try+` `(catch [:type :PersistenceException] _ ...)`.
-- **Scale-to-zero is a hard constraint:** no code path may run continuously when there is no work — no poll loop, no timer, no always-on worker process. All background processing is triggered by an enqueue (a request) and stops when the queue drains. This is what lets Fly auto-stop the app machine and Neon autosuspend the database.
-- The feature is functionally complete after Task 6 (wiring the in-instance drain trigger into the enqueue sites); Task 7 is documentation only (no deploy-time worker process). Tasks 4–6 must ship together: after Task 4, background resume produces queued jobs, and Task 5/6 provide the trigger that drains them in the same instance.
+- **Naming:** the drain process is `workflow-runner` (never bare "worker"); future queue runners follow `<domain>-runner`. The `workflow_jobs` queue table/persistence/api names are unchanged.
+- **Scale-to-zero is a hard constraint:** no code path may run continuously when there is no work — no poll loop, no timer, no always-on process. A `workflow-runner` machine exists only while draining and **must exit** when the queue is empty (`System/exit 0`) so the machine stops. This is what lets the runner machine, the Fly app machine (auto-stop), and Neon (autosuspend) all cost nothing when idle.
+- **Fly Machines permission:** the app calls the Fly Machines API to boot `workflow-runner` machines, which requires an **app-scoped** Fly token (`fly tokens create deploy -a kaleidoscope`) stored as the `FLY_MACHINES_TOKEN` secret. It grants machine management **on this app only** — treat it as sensitive (it can spin up billable compute); the code must cap concurrent runner machines. No Neon permission change (the runner reuses `DATABASE_URL`).
+- **Image parity:** a `workflow-runner` machine must run the **same code** as the app that spawned it. Bundling starts as a **single image** (the runner uses the app's own `FLY_IMAGE_REF`, so parity is automatic); a lean separate runner image is a documented follow-up that requires injecting `WORKFLOW_RUNNER_IMAGE_REF` and building both from the same commit. See **Code organization & bundling** below.
+- The feature is functionally complete after Task 6 (the Machines-API trigger + the `workflow-runner` entrypoint); Task 7 is docs. Tasks 4–6 must ship together: after Task 4, background resume produces queued jobs, and Task 5/6 provide the runner that drains them.
 
 ---
 
@@ -29,12 +34,58 @@
 - **Create** `resources/migrations/20260716000001-add-workflow-jobs.up.sql` / `.down.sql` — the `workflow_jobs` table + indexes.
 - **Create** `src/kaleidoscope/persistence/workflow_jobs.clj` — data access: enqueue, lease, claim, complete, retry, fail, reap, get.
 - **Create** `test/kaleidoscope/persistence/workflow_jobs_test.clj`
-- **Create** `src/kaleidoscope/api/workflow_jobs.clj` — drain orchestration (`work-once!`/`drain!`/`reap!`) **plus** `process-run-async!`, the request-triggered, opportunistic-reap entrypoint (a `future` that reaps-then-drains and returns). Calls into `api/workflows`.
+- **Create** `src/kaleidoscope/api/workflow_jobs.clj` — drain orchestration only: `work-once!` / `drain!` / `reap!`. Calls into `api/workflows`. (The *trigger* is the Fly Machines client below; the *entrypoint* is `workflow_runner.clj`.)
 - **Create** `test/kaleidoscope/api/workflow_jobs_test.clj`
-- ~~`src/kaleidoscope/worker.clj` (long-running loop)~~ — **removed by the scale-to-zero revision.** There is no daemon; the in-instance trigger lives in `api/workflow_jobs.clj`.
-- **Modify** `src/kaleidoscope/api/workflows.clj` — replace the `advancing-runs` atom/`claim-run!`/`release-run!` with the DB lease; split `advance-step!` into a lease-acquiring foreground fn + a lease-free `advance-run!*`; route the 4 background `future` sites through `enqueue-job!` **followed by** `process-run-async!`.
-- ~~`src/kaleidoscope/main.clj` "worker" dispatch~~ and ~~`fly.toml` worker process group~~ — **removed by the scale-to-zero revision.** No separate process; the app process does everything.
-- **Modify** `docs/operations.md` — document the request-triggered queue, opportunistic reaping, the scale-to-zero behavior, and the accepted tradeoffs.
+- **Create** `src/kaleidoscope/workflow_runner.clj` — the `workflow-runner` process entrypoint: `drain-once!` (reap → drain → `System/exit 0`). **Drains once and exits — never loops** (so the machine stops). Boots a *subset* system via `env/start-workflow-runner-system!`.
+- **Create** `test/kaleidoscope/workflow_runner_test.clj`
+- **Create** `src/kaleidoscope/infra/fly_machines.clj` — thin Fly Machines API client: `start-workflow-runner!` (POST to boot an ephemeral `workflow-runner` machine using `FLY_IMAGE_REF`, `restart: no` + `auto_destroy`), guarded by a concurrent-runner cap. Reads `FLY_MACHINES_TOKEN`. Pure I/O (uses JDK `java.net.http`, no new dep). In non-Fly/local/test envs it is a no-op that logs (so `task run` + curate still works by falling back to an in-process drain — see Task 6).
+- **Create** `test/kaleidoscope/infra/fly_machines_test.clj`
+- **Modify** `src/kaleidoscope/init/env.clj` — add `start-workflow-runner-system!`, a **boot-instruction subset** (database + workflow-executor + scorer + curation) that reuses the same component builders as the web boot but omits the HTTP adapters / auth stack / static content / ring assembly. This is what lets the runner be narrow (see **Code organization & bundling**).
+- **Modify** `src/kaleidoscope/api/workflows.clj` — replace the `advancing-runs` atom/`claim-run!`/`release-run!` with the DB lease; split `advance-step!` into a lease-acquiring foreground fn + a lease-free `advance-run!*`; route the 4 background `future` sites through `enqueue-job!` **followed by** `fly-machines/start-workflow-runner!`.
+- **Modify** `src/kaleidoscope/main.clj` — dispatch `-main` on a `"workflow-runner"` arg → `workflow-runner/drain-once!` (boots the subset system, drains, exits). *(A `worker` alias for the arg is fine, but the canonical token is `workflow-runner`.)*
+- **Modify** `deps.edn` — partition deps so HTTP libs live on a `:web` alias, not the base; add `:workflow-runner` + two uberjar build targets (`:uberjar/web`, `:uberjar/workflow-runner`). Used only when the lean separate image is built; single-image-first ignores them. (See **Code organization & bundling**.)
+- **`fly.toml` is NOT modified for a process group.** Single-image-first: the runner is booted on demand via the Machines API using the app's own image; there is no always-on `[processes]` worker. (Ensure app-machine `auto_stop` is on.)
+- **Secret:** `FLY_MACHINES_TOKEN` (app-scoped) — set via `fly secrets set`, documented in Task 7.
+- **Modify** `docs/operations.md` — document the ephemeral `workflow-runner` machine, the Machines-API trigger + token, opportunistic reaping, scale-to-zero, visibility (`fly logs -i`), and the accepted tradeoffs.
+
+---
+
+## Code organization & bundling
+
+The `workflow-runner` shares nearly all of its code with the web app — it needs `api/`, `persistence/`, `workflows/`, `scoring/`, `models/`, `api/curation/*`, and the LLM executor. It sheds only the **web edge** (`http_api/*`, ring/reitit, auth-as-middleware, static content). Keep **one codebase**; the goal is a narrower *artifact*, not forked source.
+
+**Three moves make the runner narrow (do these regardless of bundling choice):**
+
+1. **Split the system boot** — the real enabler. `init/env` already assembles components from a boot-instruction vector. Add a shorter one for the runner that reuses the same builders and omits the HTTP layer:
+   ```clojure
+   (def workflow-runner-boot-instructions
+     [database-boot-instructions
+      kaleidoscope-workflow-executor-boot-instructions
+      kaleidoscope-scorer-boot-instructions
+      kaleidoscope-curation-boot-instructions])          ; NO http adapters / auth / static / ring
+   (defn start-workflow-runner-system! [env]
+     (start-system! workflow-runner-boot-instructions env))  ; {:database-connection … :kaleidoscope-workflow-executor … :curator …}
+   ```
+   The runner never calls `prepare-kaleidoscope` (where ring/reitit are wired), so the HTTP layer is simply never constructed.
+
+2. **Enforce the layer boundary** so the runner's require-closure stays HTTP-free. The existing 3-layer rule (`http_api → api → persistence`, never upward) already guarantees this; `kaleidoscope.workflow-runner` requires only `init/env` (runner boot), `api/workflow-jobs`, `api/workflows` (`advance-run!*`), and the curation/execution namespaces. **Add a guard test** asserting the runner namespace's transitive requires contain no `kaleidoscope.http-api.*`, so a stray import can't drag ring back into a lean build.
+
+3. **Partition deps with aliases** so a lean uberjar can physically exclude the web libs:
+   ```clojure
+   {:deps    {…shared: next.jdbc, honeysql, cheshire, malli, timbre…}   ; LLM uses JDK java.net.http — no HTTP-client dep
+    :aliases {:web             {:extra-deps {metosin/reitit … ring/ring … buddy/…}}
+              :workflow-runner {}                                        ; adds ~nothing over base
+              :uberjar/web             {…tools.build, :main kaleidoscope.main…}
+              :uberjar/workflow-runner {…tools.build, :main kaleidoscope.workflow-runner…}}}
+   ```
+   A Clojure uberjar includes only its alias's classpath, so the `:uberjar/workflow-runner` jar omits ring/reitit/jetty/buddy — the shared domain code compiles without them because it never required them.
+
+**Bundling — two moves, in order:**
+
+- **Move 1 (this plan): single image, arg-dispatch.** Ship one uberjar; `main` dispatches `"workflow-runner"` → `drain-once!`. The app spins up runner machines with its **own `FLY_IMAGE_REF`**, so code/DB-version parity is automatic and there's no second build. The runner isn't smaller yet, but the ephemeral-machine visibility and correctness are fully in place.
+- **Move 2 (documented follow-up, NOT in this plan's tasks): lean runner image.** Build the `:uberjar/workflow-runner` jar, `jdeps` → `jlink` a JRE with only its modules → its own distroless image. Faster cold-start pull. Cost: inject `WORKFLOW_RUNNER_IMAGE_REF` at deploy (the runner image ≠ app image, so `FLY_IMAGE_REF` no longer suffices), and build both images from the **same commit/CI run** with the same release tag so the runner never runs stale code against a migrated schema.
+
+Because moves 1–3 get the *organization* right up front, Move 2 is a build-config change (which jar/image the runner machine uses), not a source refactor. **Measure cold-start pull time before doing Move 2** — for a Clojure app the custom JRE, not the HTTP deps, is usually the bulk, so the win may be smaller than expected.
 
 ---
 
@@ -464,9 +515,9 @@ Delete the block at lines 549-577 (the `advancing-runs` `defonce`, `claim-run!`,
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Cross-process advancement lease
 ;;
-;; A run may be advanced by the foreground SSE request thread OR by the
-;; in-instance background drain thread (process-run-async!), possibly on
-;; different app machines, never both at once. The workflow_jobs table's
+;; A run may be advanced by the foreground SSE request thread OR by an ephemeral
+;; workflow-runner machine (or the local in-process fallback drain), possibly on
+;; different machines, never both at once. The workflow_jobs table's
 ;; unique active_run_id slot is the mutex: acquire-run-lease! inserts a
 ;; 'running' job (fails if one already holds the run), complete-job! frees it.
 ;; This replaces the old single-instance in-process `advancing-runs` atom with
@@ -567,7 +618,7 @@ Replace the five fire-and-forget `(future (advance-step! ...))` sites with durab
 
 **Interfaces:**
 - Consumes: `workflow-jobs/enqueue-job!`, `workflow-jobs/active-job`.
-- Produces: no signature changes. Each of these fns now enqueues a durable queued job; Task 6 then wires `process-run-async!` right after the enqueue so the same instance drains it on a background thread (no separate worker).
+- Produces: no signature changes. Each of these fns now enqueues a durable queued job; Task 6 then wires `fly-machines/start-workflow-runner!` right after the enqueue so a runner drains it (an ephemeral Fly machine on Fly, an in-process fallback locally).
 
 - [ ] **Step 1: Write a failing test that background sites enqueue instead of run**
 
@@ -660,14 +711,14 @@ git commit -m "feat(workflows): enqueue background resumption instead of firing 
 
 - force-proceed!, respond-to-step! (x3), start-default-workflow! now
   enqueue a durable workflow_job instead of spawning an unsupervised future
-- Work is drained in-instance by process-run-async! (wired in Task 6)
+- Work is drained by a workflow-runner triggered in Task 6 (ephemeral Fly machine; in-process fallback locally)
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 5: Worker orchestration — `api/workflow_jobs`
+### Task 5: Drain orchestration — `api/workflow_jobs`
 
 **Files:**
 - Create: `src/kaleidoscope/api/workflow_jobs.clj`
@@ -679,7 +730,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
   - `work-once!` `[db executor owner]` → the claimed job map (after processing) or nil if the queue was empty.
   - `drain!` `[db executor owner]` → integer count of jobs processed until the queue drained.
   - `reap!` `[db lease-seconds]` → `{:failed n :requeued n}` (thin passthrough).
-  - `process-run-async!` `[db executor owner]` → returns immediately (fires a `future`); the future opportunistically reaps stalled jobs, then drains the queue, then ends. **This is the request-triggered entrypoint** the enqueue sites call — it replaces the deleted worker daemon. It does not loop; when the queue is empty (only future-dated retry rows remain, or nothing), the future returns and the instance can go idle. Errors inside the future are logged, never thrown to the caller.
+  - `process-run-async!` `[db executor owner]` → returns immediately (fires a `future`); the future opportunistically reaps, then drains the queue, then ends. **This is the OFF-FLY / local fallback** that `fly-machines/start-workflow-runner!` (Task 6) delegates to when there's no Fly Machines token — so `task run` + tests drain in-process without booting a machine. On Fly the drain runs in the ephemeral `workflow-runner` machine instead (via `drain!`). It does not loop; when the queue is empty (only future-dated retry rows remain, or nothing) the future returns. Errors inside the future are logged, never thrown.
   - `default-lease-seconds` = `900`.
 
 - [ ] **Step 1: Write failing tests for success, retry→fail, and drain**
@@ -821,15 +872,14 @@ Create `src/kaleidoscope/api/workflow_jobs.clj`:
   (jobs/reap-stalled-jobs! db lease-seconds))
 
 (defn process-run-async!
-  "Request-triggered, scale-to-zero-friendly entrypoint. Fires a background
-   thread on the CURRENT (already-awake) instance that: (1) opportunistically
-   reaps any stalled jobs from a prior crash, then (2) drains the queue, then
-   ends. No loop, no timer — when the queue is empty the thread returns and the
-   instance is free to auto-stop (and Neon to autosuspend). Callers (the enqueue
-   sites in api/workflows) invoke this right after enqueue-job!; it returns
-   immediately. Note: a job requeued with backoff (available_at in the future)
-   is NOT re-drained here — it waits for the next trigger. That is the accepted
-   scale-to-zero tradeoff."
+  "OFF-FLY / LOCAL FALLBACK drain. Fires a background thread on the CURRENT
+   (already-awake) instance that: (1) opportunistically reaps stalled jobs, then
+   (2) drains the queue, then ends. No loop, no timer. On Fly the drain instead
+   runs in an ephemeral workflow-runner machine; fly-machines/start-workflow-runner!
+   (Task 6) delegates here only when there is no Fly Machines token (local dev,
+   tests). Returns immediately. A job requeued with backoff (available_at in the
+   future) is NOT re-drained here — it waits for the next trigger (accepted
+   scale-to-zero tradeoff)."
   [db executor owner]
   (future
     (try
@@ -863,69 +913,116 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 6: Request-triggered execution — wire `process-run-async!` into the enqueue sites
+### Task 6: Ephemeral `workflow-runner` — entrypoint, boot split, and the Machines-API trigger
 
-There is **no worker daemon, no `run-loop!`, and no `main "worker"` dispatch** (all removed by the scale-to-zero revision). Instead, each background enqueue site fires the in-instance drain trigger from Task 5. This is the task that makes enqueued jobs actually run.
+This is the task that makes enqueued jobs actually run: an enqueue boots an **on-demand `workflow-runner` machine** (on Fly) — or, off-Fly, falls back to an in-process drain — that reaps, drains, and exits. No always-on process, no `run-loop!`, no `main "worker"` dispatch (the old daemon is in the superseded block below; do not implement it).
 
 **Files:**
-- Modify: `src/kaleidoscope/api/workflows.clj` — at the four sites changed in Task 4, call `process-run-async!` right after `enqueue-job!`.
-- Test: `test/kaleidoscope/api/workflows_test.clj` (extend)
+- Modify: `src/kaleidoscope/init/env.clj` — add `start-workflow-runner-system!` (subset boot; see **Code organization & bundling**).
+- Create: `src/kaleidoscope/workflow_runner.clj` — `drain-once!`.
+- Create: `src/kaleidoscope/infra/fly_machines.clj` — `start-workflow-runner!`.
+- Create: `test/kaleidoscope/workflow_runner_test.clj`, `test/kaleidoscope/infra/fly_machines_test.clj`, `test/kaleidoscope/workflow_runner_layering_test.clj`.
+- Modify: `src/kaleidoscope/main.clj` — dispatch `-main` on a `"workflow-runner"` arg.
+- Modify: `src/kaleidoscope/api/workflows.clj` — after each Task-4 `enqueue-job!`, call `fly-machines/start-workflow-runner!`.
 
 **Interfaces:**
-- Consumes: `workflow-jobs-api/process-run-async!` (Task 5), `workflow-jobs-api/drain!` (for the deterministic test).
-- Produces: no signature changes. After this task, enqueuing a job also processes it in the same instance; nothing runs when the queue is idle.
+- Consumes: `env/start-workflow-runner-system!`, `workflow-jobs-api/{reap!,drain!,process-run-async!}`.
+- Produces:
+  - `env/start-workflow-runner-system!` `[env]` → subset system map (`:database-connection`, `:kaleidoscope-workflow-executor`, `:curator`; **no** HTTP adapters / ring app).
+  - `workflow-runner/drain-once!` `[env]` → boots the subset system, `reap!` then `drain!`, then `(System/exit 0)`. **Never loops.**
+  - `fly-machines/start-workflow-runner!` `[db executor env]` → returns immediately. On Fly (`FLY_MACHINES_TOKEN` set) and under the concurrent-runner cap, POSTs the Machines API to boot a `workflow-runner` machine (returns its id). Off-Fly, over the cap, or on any Machines-API error, **falls back** to `(workflow-jobs-api/process-run-async! db executor owner)` — so `task run` + local tests work unchanged. Never throws to the caller.
 
-- [ ] **Step 1: Write a failing test that an enqueue site drains in-instance**
+- [ ] **Step 1: Boot split + layering guard (test-first)**
 
-Because `process-run-async!` fires a `future` (nondeterministic timing), the site wiring is best asserted deterministically by draining synchronously. Add to `test/kaleidoscope/api/workflows_test.clj`:
-
+Test that the runner boot is a real subset and stays HTTP-free:
 ```clojure
-(deftest respond-to-step-enqueues-and-drains-test
-  (let [db       (embedded-postgres/fresh-db!)
-        completing (reify wf-protocol/IWorkflowExecutor
-                     (execute-step! [_ _db _project step-run _os]
-                       (workflows-persistence/update-step-run! _db (:id step-run) {:status "completed"})
-                       "ok"))
-        {:keys [run-id]} (fixture! db)]        ;; a run with a queued job (see Task 5 fixture!)
-    (testing "the enqueued job is drained by the same instance (no separate worker)"
-      (is (= 1 (workflow-jobs-api/drain! db completing "web-1")))     ;; the one queued job runs
-      (is (= 0 (workflow-jobs-api/drain! db completing "web-1"))))))  ;; queue now empty
+(deftest workflow-runner-system-is-a-subset-test
+  (let [sys (env/start-workflow-runner-system! {"KALEIDOSCOPE_DB_TYPE" "embedded-postgres"})]
+    (is (some? (:database-connection sys)))
+    (is (some? (:kaleidoscope-workflow-executor sys)))
+    (is (nil?  (:kaleidoscope-static-content-adapters sys)))))  ;; no web edge booted
+
+(deftest workflow-runner-requires-no-http-api-test
+  ;; the runner's transitive require-closure must not reach the web layer
+  (require 'kaleidoscope.workflow-runner)
+  (let [closure (loaded-namespaces-reachable-from 'kaleidoscope.workflow-runner)]  ;; small helper: walk ns-refers/aliases
+    (is (empty? (filter #(clojure.string/starts-with? (str %) "kaleidoscope.http-api") closure)))))
 ```
-(Assert the *drain* here — the synchronous equivalent of what `process-run-async!` does in a background thread. The wiring itself, that the site calls the trigger, is a one-liner verified by reading the diff + the site-level test in Task 4.)
+Implement `workflow-runner-boot-instructions` + `start-workflow-runner-system!` per **Code organization & bundling** (reuse the same component builders, omit HTTP). The guard's closure walk can be a simple recursive scan of `(ns-aliases)`/`(ns-refers)` from the runner ns, or `tools.namespace` dependency tracking.
 
-- [ ] **Step 2: Run to verify failure**
+- [ ] **Step 2: `workflow-runner/drain-once!` + `main` dispatch (test-first)**
 
-Run: `./bin/test --focus kaleidoscope.api.workflows-test/respond-to-step-enqueues-and-drains-test`
-Expected: FAIL until the drain path is exercised / the helper exists.
-
-- [ ] **Step 3: Wire the trigger into the four enqueue sites**
-
-In `src/kaleidoscope/api/workflows.clj`, at each of the four sites edited in Task 4 (`force-proceed!`, the three `respond-to-step!` branches, `start-default-workflow!`), immediately after the `enqueue-job!` call add:
-
+Because `drain-once!` calls `System/exit`, factor the testable core out:
 ```clojure
-      (workflow-jobs-api/process-run-async! db executor
-                                            (str "web-" (or (System/getenv "FLY_MACHINE_ID") "local")))
+(defn drain-and-report!
+  "Reap then drain with an already-booted system. Returns the OS exit code (0 ok, 1 on error)."
+  [{:keys [database-connection kaleidoscope-workflow-executor]} owner]
+  (try (workflow-jobs-api/reap!  database-connection workflow-jobs-api/default-lease-seconds)
+       (workflow-jobs-api/drain! database-connection kaleidoscope-workflow-executor owner)
+       0
+       (catch Throwable t (log/errorf "workflow-runner failed: %s" (.getMessage t)) 1)))
+
+(defn drain-once!
+  "Process entrypoint: boot the subset system, drain once, exit so the machine stops."
+  [env]
+  (let [owner (str "workflow-runner-" (or (System/getenv "FLY_MACHINE_ID") "local"))]
+    (System/exit (drain-and-report! (env/start-workflow-runner-system! env) owner))))
 ```
-Requires `[kaleidoscope.api.workflow-jobs :as workflow-jobs-api]` in the ns `:require`. Notes:
-- These sites already have `db` and `executor` in scope (they take the executor to advance steps); confirm and thread it — if a site lacks `executor`, pass it through from its caller (a small signature change local to `api/workflows`).
-- `process-run-async!` returns immediately; the enclosing fn still returns its `(persistence/get-workflow-run db run-id)` as before, so no HTTP-visible behavior changes — the run just advances on a background thread of *this* instance instead of a separate worker.
-- Do **not** add any loop, timer, or `Thread/sleep`. The drain ends when the queue is empty; the instance then idles and Fly/Neon suspend.
+Test `drain-and-report!` (0 on success draining a queued job, 1 when the executor throws) with an injected subset system — never call `drain-once!` in tests (it exits the JVM). In `main/-main`, add `[kaleidoscope.workflow-runner :as workflow-runner]` and:
+```clojure
+  (let [env (into {} (System/getenv))]
+    (if (= "workflow-runner" (first args))
+      (workflow-runner/drain-once! env)
+      (start-application! env)))
+```
 
-- [ ] **Step 4: Run the workflows suite + full suite**
+- [ ] **Step 3: `fly-machines/start-workflow-runner!` (test-first)**
 
-Run: `./bin/test --focus kaleidoscope.api.workflows-test`
-Expected: PASS. Then `task test:summary` — no new failures.
+Tests (inject the HTTP poster + the fallback fn so nothing hits the network/JVM-exits):
+- **off-Fly fallback:** no `FLY_MACHINES_TOKEN` → calls the injected `process-run-async!` spy, makes no HTTP call.
+- **cap:** when `active-runner-count` ≥ `max-concurrent-runners`, falls back rather than booting another machine.
+- **request shape:** on Fly, POSTs a machine config with `image = (System/getenv "FLY_IMAGE_REF")`, `restart {:policy "no"}`, `auto_destroy true`, and a command/env that makes the machine run `workflow-runner`.
+- **error → fallback:** a non-2xx from the Machines API logs and falls back; never throws.
 
-- [ ] **Step 5: Commit**
+Implement with JDK `java.net.http` (reuse the pattern in `workflows/llm_executor.clj:55` — no new dep):
+```clojure
+;; POST https://api.machines.dev/v1/apps/<FLY_APP_NAME>/machines   (or internal http://_api.internal:4280)
+;; Authorization: Bearer <FLY_MACHINES_TOKEN>
+;; {"config": {"image": <FLY_IMAGE_REF>, "auto_destroy": true, "restart": {"policy": "no"},
+;;             "guest": {"cpu_kind":"shared","cpus":1,"memory_mb":512},
+;;             "env": {"ROLE":"workflow-runner"},
+;;             "init": {"cmd": ["java","-jar","kaleidoscope.jar","workflow-runner"]}}}
+```
+> ⚠️ Verify the exact Machines API JSON (field names, `guest`/`init` shape, auto-destroy semantics) against the current Fly Machines API docs at implementation time — treat the block above as the intent, not a frozen contract. Prefer the internal `_api.internal:4280` endpoint to avoid public egress.
+
+- [ ] **Step 4: Wire the trigger into the four enqueue sites**
+
+In `src/kaleidoscope/api/workflows.clj`, immediately after each Task-4 `enqueue-job!` (`force-proceed!`, the three `respond-to-step!` branches, `start-default-workflow!`), add:
+```clojure
+      (fly-machines/start-workflow-runner! db executor (into {} (System/getenv)))
+```
+Requires `[kaleidoscope.infra.fly-machines :as fly-machines]`. Returns immediately; the enclosing fn still returns `(persistence/get-workflow-run db run-id)` — no HTTP-visible change. Do **not** add any loop/timer.
+
+Determinism note for existing tests that assert a run *completed* right after one of these fns: those still drain synchronously via `(workflow-jobs-api/drain! db executor "test")` as set up in Task 4/5 — in tests `start-workflow-runner!` falls back to the in-process path anyway (no `FLY_MACHINES_TOKEN`).
+
+- [ ] **Step 5: Run the suites**
+
+Run: `./bin/test --focus kaleidoscope.workflow-runner-test`, `./bin/test --focus kaleidoscope.infra.fly-machines-test`, `./bin/test --focus kaleidoscope.api.workflows-test`. Then `task test:summary` — no new failures.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/kaleidoscope/api/workflows.clj test/kaleidoscope/api/workflows_test.clj
-git commit -m "feat(workflows): drain enqueued jobs in-instance (request-triggered, scale-to-zero)
+git add src/kaleidoscope/init/env.clj src/kaleidoscope/workflow_runner.clj \
+        src/kaleidoscope/infra/fly_machines.clj src/kaleidoscope/main.clj \
+        src/kaleidoscope/api/workflows.clj test/kaleidoscope/
+git commit -m "feat(workflows): ephemeral workflow-runner machine (scale-to-zero, per-run visibility)
 
-- Each background enqueue site fires process-run-async! (reap + drain on a
-  background thread of the same app instance) instead of a separate worker
-- No poller, no daemon: the instance idles when the queue drains, so Fly
-  auto-stop and Neon autosuspend keep idle cost at zero
+- workflow-runner: drain-once-and-exit entrypoint on a subset system boot
+- fly-machines/start-workflow-runner!: boots an on-demand Fly machine per
+  enqueue (FLY_IMAGE_REF, restart:no, auto_destroy); off-Fly falls back to an
+  in-process drain so local dev works unchanged
+- enqueue sites trigger a runner; no always-on process/poller
+- layering guard: runner require-closure has no http-api dependency
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
@@ -1016,70 +1113,85 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 7: Operations docs — request-triggered queue, scale-to-zero *(no fly.toml change)*
+### Task 7: Deploy secret + operations docs — ephemeral `workflow-runner`, scale-to-zero *(no fly.toml process group)*
 
 **Files:**
 - Modify: `docs/operations.md`
-- **`fly.toml` is intentionally NOT modified** — there is no separate worker process. The single `app` process handles HTTP *and* the in-instance drain. Scale-to-zero relies on Fly's existing app-machine auto-stop + Neon autosuspend, both already in place; adding an always-on worker process would defeat both.
+- **No `fly.toml` `[processes]` worker group** — the runner is booted on demand via the Machines API, not declared as an always-on process. (Confirm app-machine `auto_stop` is on so the app suspends when idle.)
 
 **Interfaces:**
-- Consumes: nothing new (the trigger from Task 6 is in the app process).
-- Produces: an operations-doc section describing the request-triggered queue and its accepted tradeoffs.
+- Consumes: the `FLY_MACHINES_TOKEN` secret (used by `infra/fly_machines.clj`).
+- Produces: the token grant + an operations-doc section.
 
-- [ ] **Step 1: Confirm no always-on process was introduced**
+- [ ] **Step 1: Grant + set the app-scoped Fly token (least privilege)**
 
-Run: `grep -rIn "run-loop!\|worker/start!\|processes\]" src/kaleidoscope fly.toml 2>/dev/null`
-Expected: no `run-loop!`/`worker/start!` in `src/`, and no new `[processes]` worker in `fly.toml`. If any appear, the scale-to-zero constraint was violated — remove them. (Verify Fly app-machine auto-stop is enabled — `auto_stop_machines`/`min_machines_running=0` under `[http_service]` — so the app truly suspends when idle; note it if a config change is needed, but don't add a worker process.)
+```bash
+fly tokens create deploy -a kaleidoscope           # app-scoped; can manage THIS app's machines only
+fly secrets set FLY_MACHINES_TOKEN=<that token> -a kaleidoscope
+```
+Document that this token can spin up billable machines for this app; the `infra/fly_machines.clj` cap (`max-concurrent-runners`) bounds the blast radius. Do NOT use an org-wide or personal token.
 
-- [ ] **Step 2: Document the queue in `docs/operations.md`**
+- [ ] **Step 2: Confirm no always-on process crept in**
+
+Run: `grep -rIn "run-loop!\|Thread/sleep.*recur\|\[processes\]" src/kaleidoscope fly.toml 2>/dev/null`
+Expected: no `run-loop!` / poll loop in `src/`, and no `[processes]` worker group in `fly.toml`. The only long-lived thing a `workflow-runner` machine does is one `drain-once!` then `System/exit`. If a loop or a process group appears, the scale-to-zero constraint was violated — remove it.
+
+- [ ] **Step 3: Document the queue + runner in `docs/operations.md`**
 
 Add a section near the production-deployment section:
 
 ```markdown
-## Async workflow queue (request-triggered, scale-to-zero)
+## Async workflow queue — ephemeral `workflow-runner` machines (scale-to-zero)
 
 Background workflow advancement (autonomous runs, force-proceed, clarify
-responses, auto-started default workflows) is enqueued to the durable
-`workflow_jobs` table and drained **by the same `app` instance that received the
-request**, on a background thread (`api/workflow-jobs/process-run-async!`) that
-ends when the queue empties. There is deliberately **no worker process and no
-poller** — that is what lets the Fly app machine auto-stop and the Neon database
-autosuspend when idle. The interactive `POST .../advance` SSE endpoint still
-streams synchronously.
+responses, auto-started default workflows — including interest curation, which
+is itself a workflow) is enqueued to the durable `workflow_jobs` table. On each
+enqueue the app calls the Fly Machines API to boot an **ephemeral
+`workflow-runner` machine** that reaps, drains the queue, and **exits** (the
+machine then auto-destroys). There is deliberately **no always-on worker and no
+poller** — the runner machine, the app machine (auto-stop), and Neon
+(autosuspend) all cost nothing when idle. The interactive `POST .../advance` SSE
+endpoint still streams synchronously on the app. **Locally / off-Fly** (no
+`FLY_MACHINES_TOKEN`) the drain falls back to an in-process thread, so `task run`
++ curate works without Fly.
 
-- **Coordination:** the `workflow_jobs.active_run_id` UNIQUE index guarantees at
-  most one active job (thus one advancing thread/machine) per run — it holds
-  across concurrent requests and across >1 app machine. Claiming uses
-  `FOR UPDATE SKIP LOCKED`.
-- **Opportunistic reaping (not autonomous):** each trigger reaps jobs whose
-  lease (default 900s) expired because an instance died mid-run, *before* it
-  drains. There is no timer — recovery of a crashed run happens on the **next**
-  enqueue, not on a schedule.
-- **Accepted tradeoff:** a job requeued with backoff (`available_at` in the
-  future) or orphaned by a crash is not retried until the next enqueue triggers
-  a drain. With no further activity it will not retry on its own. This is
-  acceptable for a low-frequency, user-triggered feature; the durable row +
-  `last_error` mean nothing is lost. If autonomous recovery is later needed, add
-  a coarse scheduled sweep (a Fly scheduled machine every 5–15 min that
-  reaps+drains+exits — one brief DB wake per interval), NOT an always-on worker.
+- **Naming:** the drain process is `workflow-runner` (runs the `workflow_jobs`
+  queue). Future queues get their own `<domain>-runner`.
+- **Permission:** the app holds an **app-scoped** `FLY_MACHINES_TOKEN` secret to
+  boot machines in this app only. The image is the app's own `FLY_IMAGE_REF`
+  (single-image build), so the runner always runs the deployed code.
+- **Coordination:** `workflow_jobs.active_run_id` UNIQUE index → at most one
+  active job (thus one runner) per run, across concurrent triggers / machines;
+  claiming uses `FOR UPDATE SKIP LOCKED`. Extra runners find nothing and exit.
+- **Visibility:** each run is its own machine — `fly machine list` shows the
+  lifecycle; `fly logs -i <machine-id>` is that run's isolated log.
+- **Opportunistic reaping (not autonomous):** each runner reaps jobs whose lease
+  (default 900s) expired (a runner died mid-run) *before* draining. No timer —
+  recovery happens on the **next** enqueue.
+- **Accepted tradeoff:** a backing-off retry or a crash-orphaned job is not
+  retried until the next enqueue boots a runner; with no further activity it
+  won't retry on its own. Durable row + `last_error` mean nothing is lost. If
+  autonomous recovery is later needed, add a coarse **scheduled** `workflow-runner`
+  (Fly scheduled machine every 5–15 min, reap+drain+exit), NOT an always-on one.
 - **Inspecting the queue:** `task db:connect ENV=.env.aws` then
   `SELECT id, workflow_run_id, status, attempts, last_error FROM workflow_jobs
    ORDER BY created_at DESC LIMIT 20;`
 - **Retrying a failed/stuck job manually:** `UPDATE workflow_jobs SET
   status='queued', active_run_id=workflow_run_id, attempts=0, available_at=now()
-  WHERE id='...';` — then trigger any curation/advance to drain it (or it drains
-  on the next user action).
+  WHERE id='...';` — then trigger any curation/advance (boots a runner), or run
+  `fly machine run <image> ... workflow-runner --rm` manually.
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add docs/operations.md
-git commit -m "docs(ops): document request-triggered workflow queue + scale-to-zero tradeoffs
+git commit -m "docs(ops): document ephemeral workflow-runner queue + scale-to-zero
 
-- No worker process: the app instance drains its own enqueued jobs and idles
-- Opportunistic reaping on each trigger; accepted no-autonomous-retry tradeoff
-- fly.toml unchanged so app auto-stop + Neon autosuspend keep costs at zero idle
+- Enqueue boots an on-demand Fly workflow-runner machine (per-run isolated logs)
+  that drains and exits; off-Fly falls back to an in-process drain
+- App-scoped FLY_MACHINES_TOKEN secret; no [processes] worker group
+- Opportunistic reaping; accepted no-autonomous-retry tradeoff
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
@@ -1093,10 +1205,12 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Claim with SKIP LOCKED, retry/backoff, DLQ-equivalent (`failed` + `last_error`), reaper → Task 2. ✅
 - Replace single-instance `advancing-runs` atom with cross-process lock → Task 3 (DB lease). ✅
 - Enqueue at the four background sites → Task 4. ✅
-- Drain logic (`work-once!`/`drain!`/`reap!`) + the request-triggered `process-run-async!` → Task 5. ✅
-- Wire the trigger into the enqueue sites (no daemon) → Task 6. ✅
-- Ops docs; **no `fly.toml` worker process** (scale-to-zero) → Task 7. ✅
-- **Scale-to-zero:** no poll loop, timer, or always-on process; all work is request-triggered and stops when the queue drains → satisfied by Tasks 5–7 (verified by the Task 7 Step 1 grep guard). ✅
+- Drain logic (`work-once!`/`drain!`/`reap!`) + the off-Fly fallback drain (`process-run-async!`) → Task 5. ✅
+- `workflow-runner` entrypoint (`drain-once!`), subset boot (`start-workflow-runner-system!` + layering guard), and the Machines-API trigger (`start-workflow-runner!`) wired into the enqueue sites → Task 6. ✅
+- Fly token secret + ops docs; **no `fly.toml` process group** (scale-to-zero) → Task 7. ✅
+- **Naming:** the process is `workflow-runner` (never bare "worker"); queue table/persistence keep `workflow_jobs`. ✅
+- **Scale-to-zero:** no poll loop, timer, or always-on process; the runner drains once and exits so its machine stops; work is request-triggered → satisfied by Tasks 5–7 (verified by the Task 7 grep guard). ✅
+- **Generic runner (confirmed with Andrew):** one `workflow_jobs` queue drains all workflow types (team-review, feature-dev, curation); per-domain runners (a `kind` column + filtered claiming) are a future option, not this plan. ✅
 - Idempotency hardening for `advance-step!`: the DB lease + `active_run_id` unique slot ensures only one thread/machine advances a run; opportunistic reaping only requeues after the lease expires. Steps already carry their own `status`, so a requeued run resumes at the next pending step. ✅ (Noted in Task 3 comment + operations doc.)
 
 **Placeholder scan:** No TBD/TODO/"add error handling"; every code step shows complete code; every test step shows real assertions.
@@ -1105,7 +1219,8 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - `advance-run!*` signature `[db executor project-id user-id run-id output-stream]` — defined in Task 3, consumed identically in Task 5's `work-once!`. ✅
 - `enqueue-job!`/`acquire-run-lease!` take `{:workflow-run-id :project-id :user-id}` — same map shape at all call sites (Tasks 3, 4). ✅
 - `active_run_id` maintained on every terminal transition: set in `enqueue-job!`/`acquire-run-lease!`, cleared in `complete-job!`/`fail-job!`/`reap` fail-path; kept on `retry-job!`/reap requeue-path. ✅
-- Owner strings are just `web-<machine>` tags now (no separate worker); concurrent triggers on the same run still contend for the one `active_run_id` slot, so mutual exclusion holds regardless of owner tag. ✅
+- Owner strings are `workflow-runner-<machine>` (runner) or `web-<machine>` (local fallback) tags; concurrent triggers on the same run still contend for the one `active_run_id` slot, so mutual exclusion holds regardless of owner tag. ✅
+- `start-workflow-runner!` `[db executor env]` (Task 6 trigger) and its fallback `process-run-async!` `[db executor owner]` (Task 5) — the trigger derives `owner` internally before delegating; consistent. ✅
 
 **Known follow-ups (out of scope, note for reviewer):**
 - **No autonomous retry/recovery (accepted):** a backing-off retry or a crash-orphaned job is only picked up on the *next* enqueue's opportunistic reap; with no further activity it never retries. Deliberate tradeoff for scale-to-zero + low current failure cost. Drop-in if needed later: a coarse scheduled sweep (Fly scheduled machine every 5–15 min, reap+drain+exit — one brief DB wake per interval), never an always-on worker.
